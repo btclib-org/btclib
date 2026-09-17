@@ -1058,6 +1058,36 @@ file per release is what keeps each of them under it.
   and a closed pull request, reading the event off this caller's
   trigger** (closes btclib-org/.github#1179).
 
+### The rest of `ecc` raises on a structurally invalid argument too
+
+- **`bms.verify`, `borromean.verify`, `pedersen.verify`,
+  `dleq.verify_proof` and `rangeproof.verify` join `ssa` and `dsa`**
+  (closes #2170), and every `ecc` verification draws that line.
+
+### An address is `ecc.bms`'s public key
+
+- **`bms.verify` raises for a string that decodes to no address, and for
+  octets no 65-octet compact signature has** (issue #2170); an address
+  that is simply another key's is `False`.
+
+### A borromean or rangeproof serialization is parsed before the walk
+
+- **Octets that are no signature over those rings, or no proof at all,
+  raise** (issue #2170): the wire form says how many scalars follow in
+  neither case, `pubk_rings` and the header saying it instead.
+
+### `ecc.pedersen.verify` raises for an opening that is no number
+
+- **An `Integer` spelled as text no number reads leaves nothing to
+  recompute the commitment from** (issue #2170); an r of 0 mod n is a
+  number, and is `False`.
+
+### A message of declared size raises where it is not that size
+
+- **`dsa.verify_`'s digest, on both arms, and `dleq.verify_proof`'s
+  32-octet message** (issue #2170); a BIP340 message declares no size, so
+  a short one is a message that was not signed and is `False`.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

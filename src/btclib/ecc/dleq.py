@@ -223,6 +223,47 @@ def assert_proof_as_valid(
         raise BTClibValueError("invalid challenge")
 
 
+def _assert_structurally_valid_(
+    A: PubKey, B: PubKey, C: PubKey, proof: Octets, G: PubKey, msg: Octets | None
+) -> None:
+    """Raise for a point, a proof or a message that cannot possibly be one.
+
+    Ahead of the try that turns everything else -- an s at or above the
+    group order, an R that lands on infinity, a challenge that does not
+    match -- into False (issue 2170).
+
+    BIP374's reference draws the same line and draws it in the same
+    places. `dleq_verify_proof` opens with `assert len(proof) == 64`, and
+    the `dleq_challenge` it reaches at its last step opens with
+    `if m is not None: assert len(m) == 32`; what it answers `False` for
+    is `s >= GE.ORDER`, `R1.infinity`, `R2.infinity` and a challenge
+    mismatch. So a proof of another length and a message of another
+    length are both refusals there, and `bytes_from_octets(proof,
+    _PROOF_SIZE)` and `_msg_bytes` are the two here.
+
+    Its four points arrive as `GE` objects, already parsed, so a spelling
+    that is no point never reaches it at all -- here `point_from_pub_key`
+    is that parse, and it proves each point on the curve as part of
+    reading the encoding, with no unlifted spelling to defer to. The
+    generator is a point like the other three: BIP374 passes it in, so it
+    is an argument a caller can get wrong.
+
+    An absent message is not a wrong one, and `_msg_bytes` is what says
+    so -- `None` decodes nothing, b"" being a different input to the
+    hashes than no message at all.
+
+    `verify_proof` runs this ahead of its own try;
+    `assert_proof_as_valid` reads the same six arguments again right
+    after.
+    """
+    point_from_pub_key(A)
+    point_from_pub_key(B)
+    point_from_pub_key(C)
+    point_from_pub_key(G)
+    bytes_from_octets(proof, _PROOF_SIZE)
+    _msg_bytes(msg)
+
+
 def verify_proof(
     A: PubKey,
     B: PubKey,
@@ -231,9 +272,19 @@ def verify_proof(
     G: PubKey = secp256k1.G,
     msg: Octets | None = None,
 ) -> bool:
-    """Return True if the proof holds for A, B, C under G and msg."""
-    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
-    # and for its reasons, which it states
+    """Return True if the proof holds for A, B, C under G and msg.
+
+    Raises where a point, the proof or the message is structurally
+    invalid -- a spelling that is no point, a proof that is not 64
+    octets, a message that is neither absent nor 32 -- and answers False
+    for material that is well formed and merely does not prove the
+    equality. See `_assert_structurally_valid_`.
+    """
+    _assert_structurally_valid_(A, B, C, proof, G, msg)
+    # ValueError and BTClibRuntimeError: a well-formed proof that does
+    # not hold is False; a caller's own mistake in a point, in the
+    # proof's length or in the message's is refused above rather than
+    # excluded from the except
     try:
         assert_proof_as_valid(A, B, C, proof, G, msg)
     except (ValueError, BTClibRuntimeError):

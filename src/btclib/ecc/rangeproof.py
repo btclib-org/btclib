@@ -1295,6 +1295,39 @@ def assert_as_valid(
     )
 
 
+def _assert_structurally_valid_(proof: RangeProof | Octets) -> None:
+    """Raise for octets that are no rangeproof.
+
+    Ahead of the try that turns everything else -- a ring key at
+    infinity, a signature value of zero, rings that do not close -- into
+    False (issue 2170).
+
+    `RangeProof.parse` is the whole of the parse, its `assert_valid`
+    included, and that is deliberate: every state it refuses is one
+    `serialize` could not have written, which its own docstring says of
+    the object's half and `_assert_valid_header` says of the header's.
+    So the encoding and what it decodes to are one question here, unlike
+    the scalar of an `ecc.ssa` signature, and a defect in either is
+    material the range question was never asked of.
+
+    Nothing is handed back. `assert_as_valid` reads `proof` as it came,
+    because `_proof_from` returns a `RangeProof` argument untouched:
+    given the object parsed here it would skip `assert_valid` rather
+    than repeat it, where `ssa.assert_as_valid_` re-checks the `Sig` it
+    is given. The parse is paid twice on the octets path and the checks
+    stay where they are.
+
+    `commitment`, `gen` and `extra_commit` are asked nothing here. The
+    first two enter as native points that no parse reads --
+    `ecc.pedersen.commit` and `ecc.pedersen.second_generator` are where
+    each is built -- and `extra_commit` is what the proof is written
+    *about*, on issue #814's side of the line with `ecc.dsa`'s and
+    `ecc.ssa`'s messages.
+    """
+    if not isinstance(proof, RangeProof):
+        RangeProof.parse(proof)
+
+
 def verify(
     commitment: Point,
     proof: RangeProof | Octets,
@@ -1306,9 +1339,17 @@ def verify(
 
     `assert_as_valid`'s docstring has what `extra_commit` is, and a
     proof holds for the octets `sign` was given and for no others.
+
+    Raises where `proof` is octets no proof has, and answers False for a
+    proof that is well formed and merely does not hold. See
+    `_assert_structurally_valid_`.
     """
-    # ValueError and BTClibRuntimeError, as `ecc.borromean.verify` catches
-    # them and for the reasons `ecc.dsa.verify_` states
+    _assert_structurally_valid_(proof)
+    # ValueError and BTClibRuntimeError: a well-formed proof that does
+    # not hold for this commitment is False, and so is an `extra_commit`
+    # spelled in a way no octets are; a caller's own mistake in the
+    # proof's own octets is refused above rather than excluded from the
+    # except
     try:
         assert_as_valid(commitment, proof, gen, extra_commit=extra_commit)
     except (ValueError, BTClibRuntimeError):

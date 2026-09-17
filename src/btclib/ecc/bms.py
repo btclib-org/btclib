@@ -441,14 +441,62 @@ def assert_as_valid(msg: Octets, addr: String, sig: Sig | String) -> None:
     _assert_p2wpkh_p2sh(addr, sig.rf, pub_key, h160)
 
 
+def _assert_structurally_valid_(addr: String, sig: Sig | String) -> Sig:
+    """Raise for an address or a signature that cannot possibly be one.
+
+    Ahead of the try that turns everything else -- a recovery flag
+    outside 27..42, a scalar out of range, an address of the wrong type
+    for the flag, an address that is simply another key's -- into False
+    (issue 2170).
+
+    The address is this scheme's public key: nothing else names the
+    signer, the candidate keys being recovered from the signature
+    itself. So a string that decodes to no address at all is the same
+    unanswerable question `dsa.verify` refuses for a key spelling that
+    is no key, and it is refused the same way, by the very parse
+    `assert_as_valid` dispatches on. What *is* an address and simply
+    does not belong to this signature -- another key's, or a type the
+    recovery flag does not name -- stays False: those are answers about
+    the signature.
+
+    The compact serialization is 65 octets and no other length is one,
+    so a base64 spelling that is not canonical, or that decodes to
+    anything else, raises here. `check_validity=False` leaves the value
+    half of the signature where it belongs: a recovery flag outside
+    27..42 and an r or an s out of range are carried by a well-formed
+    65-octet signature, so `assert_as_valid` answers them below, on the
+    `Sig` this returns.
+
+    The message is not asked here, as in `ecc.dsa` and `ecc.ssa`: it is
+    what the signature is verified about, and issue #814 is where that
+    was settled.
+    """
+    parsed_sig = (
+        sig if isinstance(sig, Sig) else Sig.b64decode(sig, check_validity=False)
+    )
+    if is_segwit_prefixed(addr):
+        witness_from_address(addr)
+    else:
+        h160_from_address(addr)
+    return parsed_sig
+
+
 def verify(msg: Octets, addr: String, sig: Sig | String) -> bool:
-    """Verify address-based compact signature for the provided message."""
-    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
-    # and for its reasons, which it states: what is not a valid signature
-    # is False, and a caller's own mistake is refused before this rather
-    # than excluded from the except
+    """Verify address-based compact signature for the provided message.
+
+    Raises where the address or the signature is structurally invalid --
+    no address at all, or octets no compact signature has -- and answers
+    False for a well-formed pair that is merely not authentic. See
+    `_assert_structurally_valid_`.
+    """
+    parsed_sig = _assert_structurally_valid_(addr, sig)
+    # ValueError and BTClibRuntimeError: a well-formed signature that
+    # does not open to the address is False, and so is a recovery flag
+    # or a scalar out of range; a caller's own mistake in the address or
+    # in the signature's encoding is refused above rather than excluded
+    # from the except
     try:
-        assert_as_valid(msg, addr, sig)
+        assert_as_valid(msg, addr, parsed_sig)
     except (ValueError, BTClibRuntimeError):
         return False
 

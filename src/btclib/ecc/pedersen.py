@@ -335,12 +335,46 @@ def assert_as_valid(
         raise BTClibRuntimeError("commitment verification failed")
 
 
+def _assert_structurally_valid_(r: Integer, v: Integer) -> None:
+    """Raise for an opening spelled in a way no integer is.
+
+    Ahead of the try that turns everything else -- an r that is 0 mod n,
+    an (r, v) that does not open the commitment, a generator it was not
+    made under -- into False (issue 2170).
+
+    An `Integer` is an int, or the octets or the hex text of one, and
+    `int_from_integer` is what reads the last two; text that is no
+    number leaves no opening to compare, which is the same unanswerable
+    question `ecc.dsa` refuses for a key spelling that is no key. An
+    r of 0 mod n is not that: it is an integer, and one this scheme
+    refuses for what it is worth rather than for what it is spelled,
+    so it stays False with the rest of `commit`'s refusals.
+
+    The commitment and the generator are asked nothing here. They enter
+    as native points and no parse of them runs at all: `assert_as_valid`
+    checks the commitment's type and deliberately not its value, a pair
+    of ints that is no commitment being exactly what False is for
+    (issue #814), and proving either on the curve here would refuse a
+    wrong value along with a malformed one.
+    """
+    int_from_integer(r)
+    int_from_integer(v)
+
+
 def verify(
     r: Integer, v: Integer, commitment: Point, gen: Point, ec: Curve = secp256k1
 ) -> bool:
-    """Open the commitment and return True if valid."""
-    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
-    # and for its reasons, which it states
+    """Open the commitment and return True if valid.
+
+    Raises where r or v is spelled in a way no integer is, and answers
+    False for an opening that is well formed and merely does not open
+    this commitment. See `_assert_structurally_valid_`.
+    """
+    _assert_structurally_valid_(r, v)
+    # ValueError and BTClibRuntimeError: a well-formed opening that does
+    # not recompute the commitment is False, and so is an r of 0 mod n;
+    # a caller's own mistake in how r or v is spelled is refused above
+    # rather than excluded from the except
     try:
         assert_as_valid(r, v, commitment, gen, ec)
     except (ValueError, BTClibRuntimeError):

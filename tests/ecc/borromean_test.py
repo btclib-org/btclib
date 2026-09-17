@@ -365,9 +365,13 @@ def test_another_curve_signs_and_verifies(name: str) -> None:
     # ec=ec still verifies. The octets it serializes to do not: parsed
     # with ec defaulting to secp256k1, every s is read ec13_11's few
     # bytes short of secp256k1's n_size, so this is where "the ec
-    # argument has to reach the arithmetic" still bites
+    # argument has to reach the arithmetic" still bites. Refused rather
+    # than answered about: those octets are no signature over these
+    # rings at all, which is what issue 2170 tells from a signature that
+    # does not close
     assert borromean.verify(msg, sig, pubk_rings)
-    assert not borromean.verify(msg, sig.serialize(), pubk_rings)
+    with pytest.raises(BTClibValueError):
+        borromean.verify(msg, sig.serialize(), pubk_rings)
 
 
 def test_a_zero_e_is_a_one_in_n_event_on_a_low_cardinality_curve() -> None:
@@ -886,3 +890,43 @@ def test_zkp_verifies_this_signature_under_the_negated_ring() -> None:
     rsizes = [len(ring) for ring in rings]
     assert not zkp_rangeproof.borromean_verify(multi.e0, s_multi, m, plain, rsizes)
     assert zkp_rangeproof.borromean_verify(multi.e0, s_multi, m, negated, rsizes)
+
+
+def test_verify_tells_octets_that_are_no_signature_from_one_that_fails() -> None:
+    """Issue 2170's two sides, over the serialized signature.
+
+    The wire form is `e0` and then one scalar per key, with nothing in
+    it saying how many of either: `pubk_rings` says, so a buffer of
+    another length is no signature over these rings rather than one that
+    fails to close, and `BorromeanSig.parse` is where that is read. What
+    the encoding *can* carry -- an `s` at or above the group order, each
+    scalar occupying its own `ec.n_size` octets -- stays False, as
+    `ecc.ssa`'s own out-of-range scalar does.
+    """
+    ring_sizes = [2, 3]
+    sign_key_idx = [0, 2]
+    key_rings = [[dsa.gen_keys() for _ in range(size)] for size in ring_sizes]
+    sign_keys = [key_rings[i][sign_key_idx[i]][0] for i in range(2)]
+    pubk_rings = [[key_rings[i][j][1] for j in range(ring_sizes[i])] for i in range(2)]
+    msg = b"Borromean ring signature"
+
+    sig = borromean.sign(msg, [1, 2], sign_key_idx, sign_keys, pubk_rings)
+    octets = sig.serialize()
+    assert borromean.verify(msg, octets, pubk_rings)
+
+    # a buffer the rings have no reading for, at either end of the length
+    for damaged in (octets[:-1], octets + b"\x00", b""):
+        for call in (borromean.verify, borromean.assert_as_valid):
+            with pytest.raises(BTClibValueError):
+                call(msg, damaged, pubk_rings)
+
+    # an s at or above the group order, which the octets do carry: a
+    # value the signature states, and False
+    out_of_range = bytearray(octets)
+    out_of_range[32:64] = secp256k1.n.to_bytes(32, "big")
+    assert not borromean.verify(msg, bytes(out_of_range), pubk_rings)
+
+    # a message that is not the one signed, and rings the signature does
+    # not close over: answers about the signature
+    assert not borromean.verify(b"another message", octets, pubk_rings)
+    assert not borromean.verify(msg, sig, [pubk_rings[1], pubk_rings[0]])

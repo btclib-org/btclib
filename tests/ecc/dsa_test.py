@@ -2426,6 +2426,48 @@ def test_verify_raises_on_a_structurally_invalid_public_key() -> None:
             call(m, None, s)  # type: ignore[arg-type]
 
 
+def test_verify_raises_on_a_digest_that_is_not_hf_s_size() -> None:
+    """`verify_` declares a digest, and any other length is not one.
+
+    Both arms decode it against that size and both sat inside the try:
+    `assert_as_valid_` with `bytes_from_octets(msg_hash, 32)` where the
+    bindings answer, and `rfc6979_nonce.challenge_` with
+    `bytes_from_octets(msg_hash, hf_len)` where the Python arithmetic
+    does. Driven here on both, sha256 reaching the first wherever the
+    bindings are built and sha512 forcing the second either way --
+    `_libsecp256k1_serves` compares hf by identity against sha256.
+
+    `verify` is the other half of the rule and is asserted beside it: the
+    message it declares has no size, so a short one is a message that was
+    not signed, and answering False about it is issue #814's rule
+    untouched.
+    """
+    q, Q = dsa.gen_keys(0x1234567890ABCDEF)
+    msg = b"Satoshi Nakamoto"
+    key_hex = bytes_from_point(Q).hex()
+
+    for hf in (sha256, sha512):
+        msg_hash = reduce_to_hlen(msg, hf)
+        sig = dsa.sign_(msg_hash, q, hf=hf)
+        assert dsa.verify_(msg_hash, key_hex, sig, hf=hf)
+
+        for damaged in (msg_hash[:-1], msg_hash + b"\x00", b""):
+            with pytest.raises(BTClibValueError, match="invalid size"):
+                dsa.verify_(damaged, key_hex, sig, hf=hf)
+        # text that is no octets at all is refused there too, the size
+        # being unreadable rather than wrong
+        with pytest.raises(BTClibValueError):
+            dsa.verify_("not hex at all", key_hex, sig, hf=hf)
+
+    # the unprepared spelling reduces the message itself, so no length of
+    # one is wrong: a message that is not the signed one, and a message
+    # that is no octets, are both answers rather than refusals
+    sig = dsa.sign(msg, q)
+    assert dsa.verify(msg, key_hex, sig)
+    assert not dsa.verify(msg[:-1], key_hex, sig)
+    assert not dsa.verify("not hex at all", key_hex, sig)
+
+
 def test_verify_answers_false_for_a_malformed_der_encoding() -> None:
     """A DER encoding that cannot be is still False, not raised.
 
@@ -2442,14 +2484,18 @@ def test_verify_answers_false_for_a_malformed_der_encoding() -> None:
     msg = b"Satoshi Nakamoto"
     key_hex = bytes_from_point(Q).hex()
 
-    for call in (dsa.verify, dsa.verify_):
+    # each spelling with the message argument it declares: `verify` takes
+    # one of any size, `verify_` a digest of hf's, which since issue 2170
+    # it refuses at any other length -- so the raw message cannot stand in
+    # for the digest here without answering a different question
+    for call, m in ((dsa.verify, msg), (dsa.verify_, reduce_to_hlen(msg))):
         # not a DER sequence at all
-        assert not call(msg, key_hex, b"")
+        assert not call(m, key_hex, b"")
         # a header claiming a compound structure with none in it
-        assert not call(msg, key_hex, b"\x30\x00")
+        assert not call(m, key_hex, b"\x30\x00")
         # a scalar written without the padding BIP66 requires, reading as
         # negative
-        assert not call(msg, key_hex, b"\x30\x06\x02\x01\x80\x02\x01\x80")
+        assert not call(m, key_hex, b"\x30\x06\x02\x01\x80\x02\x01\x80")
 
 
 def test_verify_answers_false_for_a_well_formed_signature_that_is_wrong() -> None:

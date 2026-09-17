@@ -30,15 +30,18 @@ valid:
   **structurally invalid** -- one no valid input could ever carry, as
   opposed to one that is merely not authentic -- is a `BTClibValueError`.
   A verification is not the question that value answers, so it is
-  refused rather than read as a forged signature.
+  refused rather than read as a forged signature. What decides is
+  whether the position declares a size: `dsa.verify_`'s digest does and
+  `dsa.verify`'s message does not, so the same wrong octets are a
+  refusal in one case and `False` in the other.
 
 Issue #814 settled the second against issue #745's "total over everything
 it is handed", and this is where the decision is held to. Issue #2170 is
-where the third was carved out of the second for `dsa.verify`,
-`dsa.verify_`, `ssa.verify`, `ssa.verify_` and `ssa.batch_verify` alone --
-every other case in this file still answers a structurally invalid
-argument with `False`, which remains correct for functions BIP340's
-verification model does not govern.
+where the third was carved out of the second, for the `ecc` verifications:
+a signature, a key, an address or an opening whose size or encoding makes
+it impossible is refused there, while `bip322.verify`,
+`merkle_proof.verify` and the two script-engine spellings are outside that
+issue and answer a structurally invalid argument with `False` still.
 
 ## Both rules hold, and they did not when this file was written
 
@@ -107,6 +110,7 @@ _COMMITMENT = pedersen.commit(1, 2, _GEN)
 # `input_validation_test.py` makes, spelled per position because a
 # hand-written call knows which alias each of its arguments is
 _WRONG_OCTETS_VALUE = "not hex at all"
+_WRONG_INTEGER_VALUE = "not a number"
 _WRONG_KEY_VALUE = "not a key"
 _WRONG_STRING_VALUE = "not an address"
 
@@ -142,8 +146,11 @@ _CASES = (
         "dsa.verify_",
         dsa.verify_,
         (_MSG_HASH, _PUB, _DSA_SIG),
-        {0: _WRONG_OCTETS_VALUE, 2: _WRONG_OCTETS_VALUE},
-        {1: _WRONG_KEY_VALUE},
+        # position 0 is a digest here and a message in `dsa.verify`
+        # above, which is why the two cases differ in one position: a
+        # message has no declared size to miss
+        {2: _WRONG_OCTETS_VALUE},
+        {0: _WRONG_OCTETS_VALUE, 1: _WRONG_KEY_VALUE},
     ),
     _Case(
         "ssa.verify",
@@ -172,7 +179,10 @@ _CASES = (
         "bms.verify",
         bms.verify,
         (_MSG, _ADDR, _BMS_SIG),
-        {0: _WRONG_OCTETS_VALUE, 1: _WRONG_STRING_VALUE, 2: _WRONG_STRING_VALUE},
+        {0: _WRONG_OCTETS_VALUE},
+        # the address is this scheme's public key, and the signature is
+        # 65 octets or nothing
+        {1: _WRONG_STRING_VALUE, 2: _WRONG_STRING_VALUE},
     ),
     _Case(
         "bip322.verify",
@@ -195,6 +205,10 @@ _CASES = (
             2: pedersen.commit(9, 9, _GEN),
             3: mult(2, _GEN, secp256k1),
         },
+        # an `Integer` spelled as text that is no number at all: the
+        # points are not here, `assert_as_valid` reading the commitment's
+        # type and deliberately not its value (issue #814)
+        {0: _WRONG_INTEGER_VALUE, 1: _WRONG_INTEGER_VALUE},
     ),
     _Case(
         "merkle_proof.verify",
@@ -210,6 +224,12 @@ _CASES = (
         "dleq.verify_proof",
         dleq.verify_proof,
         (_PUB, _DLEQ_B, _DLEQ_C, _DLEQ_PROOF),
+        # a C that is a point of the curve like any other, and one the
+        # proof does not relate to A and B: the proof simply does not
+        # hold for it
+        {2: _PUB},
+        # BIP374's own line: its `dleq_verify_proof` opens with
+        # `assert len(proof) == 64`, and its points arrive parsed
         {
             0: _WRONG_KEY_VALUE,
             1: _WRONG_KEY_VALUE,
