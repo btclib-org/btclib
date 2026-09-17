@@ -33,10 +33,10 @@ name: deps-latest
 # pinned in .pre-commit-config.yaml and bumped by pre-commit.ci's weekly
 # pull request -- that pull request runs the whole matrix, so ruff and the
 # other pinned hooks already have their sentinel. mypy is the exception
-# and the reason the lint job below is here at all: its hook is local and
-# shells out to uv, so it is the lock that pins it. Not sphinx: docs.yml
-# already builds the docs, with --locked, on every pull request, so a
-# broken build surfaces there, not here. What it builds
+# and the reason the callee's lint-latest job is here at all: its hook is
+# local and shells out to uv, so it is the lock that pins it. Not sphinx:
+# docs.yml already builds the docs, with --locked, on every pull request,
+# so a broken build surfaces there, not here. What it builds
 # against is the same lock this workflow exists to get ahead of, so a
 # sphinx break in the newest releases is the one gap this file leaves
 # open too, same as everywhere else in it.
@@ -48,6 +48,14 @@ name: deps-latest
 # It opens no issue on failure either, which would cost issues: write in a
 # job that needs nothing but read; a failed scheduled run notifies the
 # last person to have touched the cron below, and that is the signal
+#
+# The upgrade, the lint hooks and the suite run over it are
+# btclib-org/.github's reusable-deps-latest.yml, called at @main so a fix
+# there reaches this tree in one landing (issue btclib-org/.github#35).
+# suite-bindings-latest and dist-latest stay here -- the callee holds
+# neither the bindings-only upgrade nor the packaging checks, and says so
+# in its own header -- and so do the trigger, the schedule, the
+# concurrency group and the workflow-level permissions
 
 on:
   schedule:
@@ -77,103 +85,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # narrower than the test matrix, and for a different reason: there,
-  # every (os, arch, interpreter) triple selects a different wheel of the
-  # bindings; here what varies is which release of each dependency the
-  # interpreter resolves to, and the two ends of the supported range are
-  # what a sentinel needs. The low end earns its place: a
-  # dependency dropping 3.10 does not fail to resolve, it resolves to an
-  # older version there and keeps the job green while 3.10 quietly stops
-  # being tested against what everybody else runs. That is not a
-  # hypothetical: 3.9 left the floor resolving 35 of the 132 locked
-  # packages to older versions
-  suite-latest:
-    name: "Run the suite on ${{ matrix.python }}, ${{ matrix.os }}, dependencies at latest"
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.10", "3.14"]
-    # far above what a run of the suite needs, the resolution the upgrade
-    # below performs included: what it bounds is a hung job
-    timeout-minutes: 30
-    steps:
-      # every action is pinned to a commit SHA, the tag in the comment: a
-      # tag, let alone a branch, is a name its owner can move, and these
-      # run in a job that can read the workflow token
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # see the checkout of the coverage job in test.yml
-          persist-credentials: false
-          # tests/changelog_immutability_test.py reads a release's own
-          # tag with `git show <tag>:...`, and the default shallow,
-          # tagless clone resolves no `v*` tag at all. The test tells
-          # that apart from a real mismatch and skips, which is right --
-          # but a skipped test's body is uncovered lines of tests/, and
-          # the 100% floor fails this job on them: 99.93%, one file,
-          # every runner, every week. That shortfall says nothing about
-          # the upgrade this job exists to measure, and it sits where
-          # RELEASING.md asks a release to look hardest (issue #1660).
-          # test.yml's coverage job carries this for the same reason
-          # (issue #1512); the reason is written out rather than pointed
-          # at, a pointer being what this checkout already had.
-          fetch-tags: true
-      - name: Setup uv
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
-        with:
-          # a week where nothing moved is a full hit, and a week where
-          # something did is the week this job has work to do anyway
-          enable-cache: true
-          python-version: ${{ matrix.python }}
-      # --upgrade re-resolves every entry, btclib-secp256k1 included:
-      # this is what carries the bindings to their newest release, which
-      # nothing else off a pull request does.
-      # It prints one "Update <pkg> vA -> vB" line per package it moves,
-      # so the log names the suspects without a diff of uv.lock; a run
-      # that moved nothing says so, and its green means nothing new.
-      # This rewrites uv.lock, harmless on an ephemeral checkout and worth
-      # knowing before running the same command in a working tree
-      - name: Upgrade every dependency to its latest release
-        # this matrix includes windows-latest, whose default shell is
-        # PowerShell rather than bash -- see btclib-org/.github's
-        # reusable-os-suite.yml for the failure mode a POSIX-only step
-        # hits there unnoticed (issue #1148). This step and the pytest
-        # step below happen not to use any POSIX-only syntax today,
-        # which is exactly the hazard: a future edit that does would go
-        # green on this cell having run nothing
-        shell: bash
-        run: uv lock --upgrade
-      # still --locked, which is not a contradiction: the step above just
-      # wrote that lock, so this asserts nothing moved between the two and
-      # keeps the convention that no uv command in these workflows
-      # installs from a lock it has not checked.
-      # No "assert the bindings are serving" in front of it, which
-      # suite-bindings-latest below does have (issue #1136), and the
-      # difference is what these two jobs are for. There the bindings are
-      # the only thing that moved, so they are the answer and stopping on
-      # them costs nothing; here everything moved, so they are one
-      # suspect among the dozen this job exists to net, and an assertion
-      # ahead of pytest would trade the list of failures that names the
-      # others for one line about the one the job below already asks
-      # precisely, on this same matrix, from this same newest release.
-      # The case the two answers differ in is a package moving *under*
-      # the bindings and breaking their import while the bindings
-      # themselves are fine -- and there the upgrade step above has
-      # already printed the "Update <pkg> vA -> vB" line the assertion
-      # would not have named
-      - name: Run pytest
-        shell: bash
-        run: uv run --locked --no-default-groups --group test pytest
+  # the checkout, the uv setup, the hook cache, the upgrade and the lint
+  # and suite runs over it are btclib-org/.github's
+  # reusable-deps-latest.yml, called at @main so a fix there reaches
+  # this tree in one landing (issue btclib-org/.github#35). It runs as
+  # this job's own `lint-latest` and `suite-latest`, both keyed by name
+  # in the run rather than by this file's job id.
+  #
+  # runners and python-versions are this tree's matrix as it ran before
+  # the call: three images, and the two ends of the interpreter range
+  # this tree supports. Why the low end belongs in that range at all,
+  # rather than a ceiling alone, is the callee's own header now and not
+  # this file's to restate.
+  #
+  # fetch-tags: true carries forward what this job's own checkout used to
+  # set, for the reason suite-bindings-latest's checkout below still
+  # gives in full: tests/changelog_immutability_test.py reads a release's
+  # own tag with `git show <tag>:...`, and a tagless clone resolves none.
+  # submodules, fetch-depth and pre-suite-script stay at their defaults:
+  # this tree has no git submodule, no hook resolving a release name in
+  # its own refs, and no script of its own to run between the upgrade and
+  # the suite
+  #
+  # measure-coverage: true is this tree's own case, the callee's header
+  # naming it: pyproject.toml's addopts carries --cov and a fail_under
+  # ratchet, so a bare pytest here is what lets this job's own upgrade
+  # -- coverage.py included -- meet that ratchet, which CONTRIBUTING.md's
+  # "Reproducing what CI runs" section already argued this job was for.
+  # fetch-tags stays true because the two are coupled: a tag-comparing
+  # test skipping is harmless under --no-cov, but under measure-coverage
+  # its skipped body is uncovered lines of tests/ against the 100% floor
+  # -- suite-bindings-latest's own checkout comment below gives the
+  # 99.93%, one file, every runner, every week this produced without it
+  deps-latest:
+    uses: btclib-org/.github/.github/workflows/reusable-deps-latest.yml@main
+    with:
+      runners: '["ubuntu-latest", "macos-latest", "windows-latest"]'
+      python-versions: '["3.10", "3.14"]'
+      fetch-tags: true
+      measure-coverage: true
 
-  # narrower than suite-latest above, and for a different reason: that
-  # job upgrades every dependency, so a red run there buries a release
-  # of btclib-secp256k1 behind a dozen other candidates. This
-  # upgrades only that one, so a red run here names it without a
-  # bisect -- worth a job of its own because it is a sibling project
-  # under the same org, released by the same maintainer, which makes
-  # "did my own other release just break this one" a distinct and
+  # narrower than the callee's suite-latest job above, and for a
+  # different reason: that job upgrades every dependency, so a red run
+  # there buries a release of btclib-secp256k1 behind a dozen other
+  # candidates. This upgrades only that one, so a red run here names it
+  # without a bisect -- worth a job of its own because it is a sibling
+  # project under the same org, released by the same maintainer, which
+  # makes "did my own other release just break this one" a distinct and
   # likely enough question to ask separately from "did some
   # third-party wheel". Moved here from pypi-install.yml (issue #397): it
   # is a question about drift against a tree not yet published, which
@@ -218,8 +176,9 @@ jobs:
       # diff of uv.lock. Harmless on an ephemeral checkout; worth
       # knowing before running the same command in a working tree
       - name: Upgrade the bindings to their latest release
-        # this matrix includes windows-latest; see suite-latest above and
-        # btclib-org/.github's reusable-os-suite.yml (issue #1148)
+        # this matrix includes windows-latest; see btclib-org/.github's
+        # reusable-os-suite.yml and reusable-deps-latest.yml, whose own
+        # suite-latest job runs the same matrix above (issue #1148)
         shell: bash
         run: uv lock --upgrade-package btclib-secp256k1
       # test.yml's no-bindings job, with the sense reversed, and here for
@@ -258,8 +217,9 @@ jobs:
       # reachable and False leaves only the import, which is what the
       # message says rather than the generic sentence those two carry
       - name: Assert the bindings are serving
-        # see suite-latest above; this one folds a python -c onto the uv
-        # invocation, closer to the shape of ISS #1141's original defect
+        # see the callee's suite-latest job above; this one folds a
+        # python -c onto the uv invocation, closer to the shape of ISS
+        # #1141's original defect
         shell: bash
         run: >
           uv run --locked --no-default-groups --group test
@@ -269,73 +229,6 @@ jobs:
       - name: Run pytest
         shell: bash
         run: uv run --locked --no-default-groups --group test pytest
-
-  # mypy is the whole reason this job exists, and it is worth being
-  # explicit about how little else differs from the lint gate: the hooks
-  # pinned by rev in .pre-commit-config.yaml are the same ones a commit
-  # runs, because pre-commit.ci bumps those and this cannot. What the
-  # upgrade reaches is pre-commit itself and, through the local hook that
-  # shells out to uv, mypy -- the tool whose new release adds a check the
-  # existing code base fails, on a schedule of its own
-  lint-latest:
-    name: Lint and type-check, dependencies at latest
-    runs-on: ubuntu-latest
-    # nothing here takes minutes; a job that does is hung
-    timeout-minutes: 20
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Setup uv
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
-        with:
-          enable-cache: true
-      # ImageOS is set by the runner image, not by this workflow, so the
-      # env context holds nothing for it and a shell is where it is read.
-      # btclib-org/.github's reusable-lint.yml carries the rest of that
-      # reasoning for its own copy of this step, ImageVersion included
-      # (issue btclib-org/.github#35)
-      - name: Identify the runner image
-        id: image
-        run: echo "os=${ImageOS:-unknown}" >> "$GITHUB_OUTPUT"
-      # the hook environments are the slow part and the upgrade below does
-      # not touch them, which is why they are cached here at all.
-      # The key carries the runner image and the interpreter as well as the
-      # config hash because what is cached is virtualenvs: on the config
-      # hash alone an ubuntu-latest rotation is not a graceful miss but a
-      # hit, handing the job environments built on the previous image. This
-      # is the job that can least afford one -- it runs to report what a
-      # new release of a dependency breaks, so a failure the cache caused
-      # is read as the thing this workflow was watching for and chased in
-      # the tree instead.
-      # That is the key btclib-org/.github's reusable-lint.yml uses,
-      # deliberately rather than by coincidence -- moved there with
-      # lint.yml's own cache (issue btclib-org/.github#35), so a git grep
-      # confined to this repository's own .github/workflows/ no longer
-      # finds both keys to compare
-      - name: Cache the pre-commit hook environments
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/pre-commit
-          key: >-
-            pre-commit-${{ runner.os }}-${{ steps.image.outputs.os }}-${{
-            hashFiles('.pre-commit-config.yaml', '.python-version') }}
-          # a prefix that still names the image, so a partial restore
-          # cannot cross an image boundary either
-          restore-keys: |
-            pre-commit-${{ runner.os }}-${{ steps.image.outputs.os }}-
-      - name: Upgrade every dependency to its latest release
-        run: uv lock --upgrade
-      # --all-files, so pre-commit does not stash the rewritten uv.lock:
-      # it stashes unstaged changes only when it was given neither
-      # --all-files nor --files, and a stash here would hand the mypy hook
-      # back the committed lock and quietly type check the pinned mypy,
-      # which is the one thing this job is for
-      - name: Run the pre-commit hooks
-        run: >
-          uv run --locked --only-group lint
-          pre-commit run --all-files --show-diff-on-failure
 
   # the check group, for the same reason the packaging checks live in
   # test.yml rather than in the release workflow: a release is the one place
