@@ -551,6 +551,44 @@ def test_sign_key_idx_refuses_a_value_this_proof_has_no_digit_for() -> None:
         scaled.sign_key_idx(100001)
 
 
+@pytest.mark.parametrize("mantissa", [65, 300, -1])
+def test_a_mantissa_the_header_cannot_state_refuses_where_it_is_read(
+    mantissa: int,
+) -> None:
+    """A header's range is read off the mantissa, so it is refused there.
+
+    `check_validity=False` leaves a caller holding a proof whose
+    mantissa `assert_valid` names, and the arithmetic that reads it has
+    nothing to say about one: past 64 the ceiling's shift is negative
+    and a negative mantissa shifts the whole width away for a ceiling
+    of zero; `_rsizes` answers no ring count a header ever wrote, and
+    `_header_octets` would hand back a byte past 64 that
+    `RangeProof.parse` itself then refuses to read, or raise from
+    underneath the library outside that. Every member reaching one of
+    those functions refuses in the words `assert_valid` already uses.
+    """
+    vector = _vector("odd mantissa")
+    proof = replace_unchecked(
+        RangeProof.parse(bytes.fromhex(vector["proof"])), mantissa=mantissa
+    )
+    commitment = commit(vector["blind"], vector["value"], _GEN)
+    err_msg = f"rangeproof mantissa not in 1..64: {mantissa}"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        _ = proof.max_value
+    with pytest.raises(BTClibValueError, match=err_msg):
+        _ = proof.rsizes
+    with pytest.raises(BTClibValueError, match=err_msg):
+        proof.sign_key_idx(vector["value"])
+    with pytest.raises(BTClibValueError, match=err_msg):
+        proof.nonce_chain(
+            commitment, vector["value"], vector["nonce"], _GEN, check_validity=False
+        )
+    with pytest.raises(BTClibValueError, match=err_msg):
+        proof.serialize(check_validity=False)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        proof.pubk_rings(commitment, _GEN, check_validity=False)
+
+
 def test_pubk_rings_refuses_what_names_no_public_key() -> None:
     """A commitment off the curve, an x on no point, and a ring at infinity.
 

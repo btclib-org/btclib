@@ -1172,6 +1172,12 @@ file per release is what keeps each of them under it.
   header's stated count, which PR #2201 already removed** (closes
   #2202): both now match the header instead of a count that is gone.
 
+### `ecc.rangeproof` refuses a mantissa `check_validity=False` lets through
+
+- **`RangeProof.max_value`, `rsizes`, `sign_key_idx`, `nonce_chain`,
+  `serialize` and `pubk_rings` refuse a mantissa outside 1..64**
+  (closes #2190), where each once answered a bare exception or a wrong value.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
