@@ -956,6 +956,12 @@ file per release is what keeps each of them under it.
   carries its own `# zizmor: ignore[self-repository]`** (closes #2156):
   the form goes red when a thirteenth site appears with none.
 
+### `mutation_counts.py`'s aside drops a crash cosmic-ray 8.5.0 already fixed
+
+- **The `cosmic-ray dump` aside drops a crash claim cosmic-ray 8.5.0
+  fixed, stating instead why `sqlite3` reads only the two columns and
+  the count this needs** (issue btclib-org/.github#1152).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

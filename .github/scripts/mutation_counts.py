@@ -28,14 +28,12 @@ line -- publishes a session that measured less than it appears to. This is
 the one thing the mutation workflow may be red about: a survivor is a test
 nobody has written yet, where these are the measurement itself not working.
 
-Read from the session file with `sqlite3`, which is a coupling worth stating.
-`cosmic-ray dump` is the documented interchange and would have been the
-honest input, but it cannot read these sessions at all: `result_to_dict` does
-`d["test_outcome"].value`, a SKIPPED result has no test outcome, and the
-command dies with `AttributeError: 'NoneType' object has no attribute
-'value'` at the first one -- after printing the records before it, so its
-output is both short and truncated mid-line. The three columns read below
-are the whole of what this needs.
+Read from the session file with `sqlite3`, which is a coupling worth stating:
+`cosmic-ray dump` is the documented interchange, but what it emits is each
+work item's whole record, mutations and module paths included, where this
+needs two columns from one table and a row count from another:
+`test_outcome` and `worker_outcome` from `work_results`, and how many rows
+`work_items` holds. The queries read below are the whole of what this needs.
 
     python .github/scripts/mutation_counts.py session.sqlite
 """
