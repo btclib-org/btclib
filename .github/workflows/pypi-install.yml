@@ -10,7 +10,10 @@ name: pypi-install
 # that checks anything out and it installs nothing: its sparse checkout
 # reaches .github/scripts, and the repository root that cone mode always
 # adds with it, so there is no src/btclib on the runner that answers it
-# either.
+# either. That job -- the checkout, the uv setup and the wait script
+# itself -- is btclib-org/.github's reusable-wait-for-index.yml, called
+# at @main so a fix there reaches this tree in one landing (issue
+# btclib-org/.github#35).
 #
 # `import btclib` runs __init__.py alone, and the data files under
 # btclib/ -- `git ls-files | grep '^src/btclib/.*_data/'` is which, the
@@ -107,47 +110,21 @@ jobs:
   # else's upload, so neither a release nor a rehearsal can arrange for
   # it to be late -- so it is a script with a test rather than a loop in
   # a run: block, which is what section 10 of btclib-org/.github's
-  # README.md asks of a wait (btclib-org/.github#509). The budget is the
-  # script's own default deadline; timeout-minutes here is well above it,
-  # and bounds the job rather than the wait.
+  # README.md asks of a wait (btclib-org/.github#509). package is
+  # btclib, the name wait_for_pypi_release.py already took as its own
+  # argument; version forwards this workflow's own workflow_call input.
   #
   # It runs on every trigger and waits on almost none of them: the input
   # is empty wherever no release is calling, and an empty tag is nothing
-  # to wait for. An `if:` here would make a tag the only thing that ever
-  # runs it, and a job a release is the first to run is a job whose
-  # defect ships with that release -- which has already happened to this
-  # wait, in more than one of these repositories
+  # to wait for. No `if:` here, for the reason the callee's own header
+  # gives: a job a release is the first to run is a job whose defect
+  # ships with that release -- which has already happened to this wait,
+  # in more than one of these repositories
   wait-for-index:
-    name: Wait for the index to serve the released version
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      # sparse, and this is the whole reason the checkout is admissible
-      # in a workflow whose point is that nothing of this repository is
-      # on the runner: what lands is .github/scripts plus the repository
-      # root, cone mode being the default and root files always being in
-      # the cone, so there is no src/btclib for an import to resolve to.
-      # The root's pyproject.toml is inert here for a second reason,
-      # --no-project ignoring it. This job imports nothing of the project
-      # in any case, and the jobs that do check out nothing at all
-      - name: Check out the wait script
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout: .github/scripts
-      - name: Setup uv
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
-      # --no-project, so it runs on the interpreter uv fetches and
-      # installs nothing: the script takes the standard library alone,
-      # which is what lets it run before anything of this project exists
-      # on the runner
-      - name: Wait for the index to serve the released version
-        shell: bash
-        env:
-          TAG: ${{ inputs.version }}
-        run: |
-          uv run --no-project --python 3.14 \
-            .github/scripts/wait_for_pypi_release.py btclib "$TAG"
+    uses: btclib-org/.github/.github/workflows/reusable-wait-for-index.yml@main
+    with:
+      package: btclib
+      version: ${{ inputs.version }}
 
   install-published:
     name: >-
