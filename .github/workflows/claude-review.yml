@@ -39,8 +39,13 @@ on:
     # callee's draft condition withheld while it was a draft: the default
     # types do not include it, and without it a readied pull request would
     # wait for its next push to be reviewed at all. The same reasoning
-    # links.yml carries for the same type
-    types: [opened, reopened, synchronize, ready_for_review]
+    # links.yml carries for the same type.
+    # closed too: the group below is at the workflow level, so a closed
+    # run enters it when the run is created, before any job's own if: is
+    # read, and can cancel a review still holding the group -- what
+    # declines the actual review on a closed pull request is the callee's
+    # own job-level if:, not this file's
+    types: [opened, reopened, synchronize, ready_for_review, closed]
   # the on-demand half: somebody writes @claude in a comment on a pull
   # request, or on a line of its diff, and asks for something the automatic
   # pass did not answer

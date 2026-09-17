@@ -1088,6 +1088,12 @@ file per release is what keeps each of them under it.
   32-octet message** (issue #2170); a BIP340 message declares no size, so
   a short one is a message that was not signed and is `False`.
 
+### `claude-review.yml` takes the `closed` pull request type
+
+- **The trigger's `types:` gains `closed`, with the reason at the key**
+  (issue btclib-org/.github#1182): the workflow-level group can now
+  cancel a still-running review, which the callee's own `if:` declines.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
