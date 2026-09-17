@@ -67,6 +67,13 @@ btclib.ecc.ellswift module
    :members:
    :show-inheritance:
 
+btclib.ecc.frost module
+-----------------------
+
+.. automodule:: btclib.ecc.frost
+   :members:
+   :show-inheritance:
+
 btclib.ecc.musig2 module
 ------------------------
 

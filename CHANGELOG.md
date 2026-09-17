@@ -974,6 +974,12 @@ file per release is what keeps each of them under it.
   move to `btclib-org/.github`'s `reusable-scorecard.yml`** (issue
   btclib-org/.github#35): the calling job keeps the elevated permissions.
 
+### `ecc` gains FROST threshold signing
+
+- **`ecc.frost` implements BIP445's threshold Schnorr signing, pinned to
+  v0.10.0 of `bitcoin/bips#2070`** (closes #2158): a *t*-of-*n* signer
+  subset produces one BIP340 signature; key generation stays out of scope.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

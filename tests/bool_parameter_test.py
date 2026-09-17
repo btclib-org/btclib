@@ -128,7 +128,7 @@ from btclib.curves.sec_point import (
     point_from_octets,
 )
 from btclib.descriptors.descriptors import parse as descriptor_from_string
-from btclib.ecc import bms, dsa, musig2, ssa
+from btclib.ecc import bms, dsa, frost, musig2, ssa
 from btclib.exceptions import BTClibTypeError
 from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.bitcoin_core_rest import BitcoinCoreRestClient, BitcoinCoreRestFetcher
@@ -264,6 +264,7 @@ _SIGNED_PSBT = next(
 _STAND_IN = [sys.executable, "-c", "print('[]')"]
 
 _KEY_AGG = musig2.key_agg([_SEC, _SEC_2])
+_FROST_TWEAK_CTX = frost.tweak_ctx_init(_SEC)
 
 
 @dataclass(frozen=True)
@@ -693,6 +694,12 @@ _KINDS = (
         "is_xonly",
         musig2.apply_tweak,
         {"key_agg_ctx": _KEY_AGG, "tweak": b"\x01" * 32},
+    ),
+    _Case(
+        "btclib.ecc.frost.apply_tweak",
+        "is_xonly",
+        frost.apply_tweak,
+        {"tweak_ctx": _FROST_TWEAK_CTX, "tweak": b"\x01" * 32},
     ),
     _Case(
         "btclib.wallet.script_wallet.KeyGroup.__init__",
