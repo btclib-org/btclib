@@ -283,88 +283,51 @@ jobs:
     with:
       version: ${{ github.ref_name }}
 
-  # the same files reach users by two routes and only one of them carries
-  # provenance: the publish action above generates PEP 740 attestations for
-  # the copies on the index, while the copies attached to the GitHub release
-  # below carry nothing. This job signs them, and the digests are the
-  # index's own, the dist artifact being downloaded here rather than
-  # rebuilt. The bill of materials is signed with them, and for the same
-  # reason: it is attached to that release too, so leaving it out would be
-  # the gap this job exists to close, reopened for the one asset that says
-  # what the others contain.
-  # A job of its own rather than two more permissions on github-release:
-  # this workflow elevates one job at a time, and the one that writes
-  # releases has no reason to also hold an OIDC token. It is not in
-  # test.yml's `dist` job for the stronger form of the same reason -- that
-  # job runs the build backend and installs the wheel it just built, and a
-  # token minted there would be minted beside third-party code.
-  # After a publish and not after the build, so that a run reaching here is
-  # a run the environment approval already let through: without that, a
-  # dispatch from any branch would sign whatever that branch built.
-  # Whichever publish ran, though -- the rehearsal signs its own .dev files,
-  # and that is the point of it: everything else in this job is a permission
-  # and an API that would otherwise be exercised for the first time on
-  # release day, where a failure lands after PyPI has the files and the tag
-  # can no longer be moved
+  # the signature this run puts on what it publishes is
+  # btclib-org/.github's, called at @main so a fix there reaches this
+  # tree in one landing (section 10 of its README.md). Its own header
+  # carries the general reason this is a job of its own rather than
+  # two more permissions on github-release; one measured fact about
+  # this tree's own test.yml it cannot carry: this job is not folded
+  # into test.yml's `dist` job for the stronger form of the same
+  # reason -- that job runs the build backend and installs the wheel
+  # it just built, and a token minted there would be minted beside
+  # third-party code. A called workflow's own permissions: block can
+  # only downgrade what this job grants, never restore an omitted
+  # scope -- measured twice in btclib-org/.github#912 -- so every
+  # scope the callee asks for is named here. needs:, if: and
+  # permissions: stay the caller's, as the reusable workflow's own
+  # header says. After a publish and not after the build, so that a
+  # run reaching here is a run the environment approval already let
+  # through: without that, a dispatch from any branch would sign
+  # whatever that branch built. Whichever publish ran, though -- the
+  # rehearsal signs its own .dev files, and that is the point of it:
+  # everything else in this job is a permission and an API that would
+  # otherwise be exercised for the first time on release day, where a
+  # failure lands after PyPI has the files and the tag can no longer
+  # be moved
+  # (btclib-org/.github#35)
   attest:
-    name: Attest the release assets
     needs: [publish-pypi, publish-testpypi]
     # always(), the other publish job being skipped rather than run, and a
     # skipped job is one `needs` treats as failed
     if: >-
       always() && (needs.publish-pypi.result == 'success' ||
       needs.publish-testpypi.result == 'success')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
     permissions:
-      # OIDC for the short-lived Sigstore signing certificate, and the
-      # write that persists the attestation against the repository
+      # contents: read is the callee's workflow-level declaration rather
+      # than its job's, and its own header asks a caller for it in as
+      # many words -- "A caller's calling job therefore carries
+      # permissions: contents: read, id-token: write, attestations:
+      # write" -- because what a run does where a called workflow's
+      # top-level declaration falls outside the caller's list is not
+      # measured. The two writes below are the callee's job block
+      contents: read
       id-token: write
       attestations: write
-    steps:
-      - name: Download the distribution files
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: dist
-          path: dist/
-      # into a directory of its own, as in the job below and for the same
-      # reason: the dist/* glob has to stay the distribution files
-      - name: Download the bill of materials
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: sbom
-          path: sbom/
-      # actions/attest and not the attest-build-provenance wrapper around
-      # it: as of v4 the wrapper is a composite that does nothing but call
-      # this, and its own README sends new callers here. No predicate input
-      # is what selects SLSA build provenance.
-      # One attestation, every file: the statement carries every subject the
-      # globs matched, so verifying the wheel, the sdist or the bill of
-      # materials against the bundle below works
-      - name: Attest the release assets
-        id: attest
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: |
-            dist/*
-            sbom/*
-      # the bundle is the signed statement itself, and the job below
-      # attaches it to the release: that is what lets `gh attestation verify
-      # --bundle` read it from disk instead of from the attestations API,
-      # for whoever mirrors the releases page rather than trusting it live.
-      # Copied into the workspace rather than uploaded where the action left
-      # it, under $RUNNER_TEMP: an upload takes its layout from the paths it
-      # matched, and one outside the workspace is one more thing to be right
-      # about than a fixed name here
-      - name: Collect the attestation bundle
-        env:
-          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
-        run: cp "$BUNDLE_PATH" attestation.jsonl
-      - name: Upload the attestation bundle
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: attestation
-          path: attestation.jsonl
+    uses: btclib-org/.github/.github/workflows/reusable-attest.yml@main
+    with:
+      dist-artifact: dist
 
   # only after PyPI has accepted the files: a GitHub release announces what
   # users can already install. Both jobs in `needs` and not attest alone:
@@ -393,76 +356,24 @@ jobs:
   # is RELEASING.md's other option, the release created by hand from the
   # run's own dist, sbom and attestation artifacts, with the distribution
   # files checked against the digests PyPI publishes before they are
-  # attached
+  # attached.
+  # The release itself is btclib-org/.github's, called at @main so a fix
+  # there reaches this tree in one landing (section 10 of its README.md).
+  # A called workflow's own permissions: block can only downgrade what
+  # this job grants, never restore an omitted scope -- measured twice in
+  # btclib-org/.github#912 -- so the one scope the callee's own job asks
+  # for is named here
+  # (btclib-org/.github#35)
   github-release:
-    name: Attach the files to the GitHub release
     needs: [publish-pypi, attest]
     if: >-
       always() && needs.publish-pypi.result == 'success' &&
       needs.attest.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
     permissions:
-      # the one job that writes to the repository through its token, and
-      # what it writes is a release; the attestation the job above signed
-      # went to the attestations API under a permission of its own
       contents: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Download the distribution files
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: dist
-          path: dist/
-      # each into a directory of its own, so that the dist/* glob below
-      # stays the distribution files and nothing else
-      - name: Download the attestation bundle
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: attestation
-          path: attestation/
-      - name: Download the bill of materials
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: sbom
-          path: sbom/
-      - name: Create the GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        # the release notes are the tag's own section of RELEASE_NOTES.md;
-        # if the section is missing the release still happens, with
-        # notes generated from the merged pull requests instead.
-        # The fallback is the safety net for a tag pushed past a red
-        # version-check, not the check itself: version-check has already
-        # refused a tag whose RELEASE_NOTES.md heading carries anything
-        # after the version -- "(work in progress, not released yet)"
-        # matches the regex below and is not empty, so nothing here would
-        # notice
-        run: |
-          awk -v tag="$GITHUB_REF_NAME" '
-            $0 ~ "^## " tag "( |$)" {found=1; next}
-            /^## / && found {exit}
-            found {print}
-          ' RELEASE_NOTES.md > "$RUNNER_TEMP/notes.md"
-          # named for the tag only here, where the ref is one: nothing
-          # inside the bundle says which release it belongs to, the way the
-          # distribution files' own names do
-          bundle="$GITHUB_REF_NAME.attestation.jsonl"
-          cp attestation/attestation.jsonl "$bundle"
-          # the bill of materials needs no renaming, unlike the bundle: it
-          # carries the version in its own name, the distribution files
-          # being where it took it from
-          if [ -s "$RUNNER_TEMP/notes.md" ]; then
-            gh release create "$GITHUB_REF_NAME" dist/* sbom/* "$bundle" \
-              --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
-          else
-            echo "::warning::RELEASE_NOTES.md has no $GITHUB_REF_NAME section"
-            gh release create "$GITHUB_REF_NAME" dist/* sbom/* "$bundle" \
-              --title "$GITHUB_REF_NAME" --generate-notes
-          fi
+    uses: btclib-org/.github/.github/workflows/reusable-github-release.yml@main
+    with:
+      dist-artifact: dist
 
   # the wait for read the docs to build the tag is btclib-org/.github's,
   # called at @main so a fix there reaches this tree in one landing
