@@ -968,6 +968,12 @@ file per release is what keeps each of them under it.
   above it: what set a budget stays, what the scope's own
   `.github/mutation/*.toml` already counts goes** (issue btclib-org/.github#35).
 
+### `scorecard.yml` calls the organization's reusable workflow
+
+- **The analysis job's checkout, scan, artifact and SARIF upload steps
+  move to `btclib-org/.github`'s `reusable-scorecard.yml`** (issue
+  btclib-org/.github#35): the calling job keeps the elevated permissions.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
