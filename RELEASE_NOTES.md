@@ -77,6 +77,24 @@ full year, short month, short day (YYYY-M-D)
   `point_from_key` for the half the caller holds. The `Key` union has no
   replacement by design: a caller states which half of a key pair it
   has, rather than leaving a size or a format to decide it.
+- **`ecc.ssa.verify`, `verify_`, `batch_verify`, `batch_verify_` and
+  `ecc.dsa.verify`, `verify_` raise on a structurally invalid signature
+  or public key instead of answering `False`** (issue #2170): a
+  wrong-length BIP340 signature or public key, or one spelled in a way
+  no conversion accepts, now raises `BTClibValueError` or
+  `BTClibTypeError`, matching BIP340's own reference and the bindings
+  these modules delegate to. A well-formed signature or key that is
+  merely not authentic -- a scalar out of range, a key that does not
+  lift, a failed equation -- still answers `False`, and so does
+  `dsa.verify`'s own malformed DER encoding, which stays outside this
+  change.
+
+  Act on it wherever a caller treats `False` from one of these functions
+  as proof of nothing but a forged signature: a caller that used to read
+  `False` for a truncated or malformed key or signature now sees an
+  exception. Parse the signature first -- `ssa.Sig.parse`/`dsa.Sig.parse`,
+  which already raise -- to tell a malformed argument from a forged
+  signature ahead of calling `verify`.
 
 ## v2026.9.13
 

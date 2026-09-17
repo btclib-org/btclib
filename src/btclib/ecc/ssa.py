@@ -1096,6 +1096,38 @@ def assert_as_valid(
     )
 
 
+def _assert_structurally_valid_(Q: BIP340PubKey, sig: Sig | Octets, ec: Curve) -> Sig:
+    """Raise for a signature or a public key that cannot possibly be one.
+
+    Ahead of the try that turns everything else -- a scalar out of
+    range, a key that does not lift, a failed equation -- into False
+    (issue 2170, and BIP340's own reference: wrong-length input raises,
+    `lift_x` returning None does not).
+
+    Sixty-three octets cannot be a BIP340 signature and thirty-one
+    cannot be one of its public keys, whatever they decode to, and
+    `verify_`, `verify`, `batch_verify_` and `batch_verify` all run this
+    ahead of their own try so that a caller's malformed material is
+    never read as a forged signature. `assert_as_valid_` checks the
+    same things again right after, on the `Sig` this returns -- teaching
+    that function two callers with two contracts would cost more than a
+    parse with no side effect asked twice.
+
+    A public key spelled as 33 or 65 SEC octets, or as a native
+    `(x, y)` tuple, is proved a point of the curve by this same call --
+    `point_from_octets` and `is_on_curve` do that as part of reading the
+    encoding, with nothing short of the lift standing between them and
+    a usable x. So `verify` raises for such a key that does not lift,
+    where the 32-byte x-only spelling BIP340 itself defines does not:
+    there the lift is unproven here on purpose (see
+    `_x_from_bip340pub_key`) and stays deferred to the equation, so it
+    answers False, matching `lift_x` returning None in the reference.
+    """
+    parsed_sig = sig if isinstance(sig, Sig) else Sig.parse(sig, check_validity=False)
+    _x_from_bip340pub_key(Q, ec)
+    return parsed_sig
+
+
 def verify_(
     msg: Octets,
     Q: BIP340PubKey,
@@ -1113,13 +1145,25 @@ def verify_(
     commit_hash and receipt open the commitment the nonce carries, and a
     signature that does not commit to that value is False as a forged one
     is: the answer is about this signature and this commitment, both.
+
+    Raises where the signature or the public key is structurally
+    invalid -- the wrong length, or spelled in a way BIP340 has no
+    reading for -- and answers False for a well-formed one that is
+    merely not authentic: a scalar at or above the group order, a key
+    that does not lift, an equation that does not hold. See
+    `_assert_structurally_valid_`.
     """
-    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
-    # and for its reasons, which it states: what is not a valid signature
-    # is False, and a caller's own mistake is refused before this rather
-    # than excluded from the except
+    ec = sig.ec if isinstance(sig, Sig) else secp256k1
+    parsed_sig = _assert_structurally_valid_(Q, sig, ec)
+    # ValueError and BTClibRuntimeError: a well-formed signature that is
+    # not authentic is False, and so is a commitment that does not open;
+    # a caller's own mistake -- an hf that is no hash constructor, a
+    # signature or a key that cannot be parsed at all -- is refused
+    # above rather than excluded from the except
     try:
-        assert_as_valid_(msg, Q, sig, hf, commit_hash=commit_hash, receipt=receipt)
+        assert_as_valid_(
+            msg, Q, parsed_sig, hf, commit_hash=commit_hash, receipt=receipt
+        )
     except (ValueError, BTClibRuntimeError):
         return False
 
@@ -1138,15 +1182,18 @@ def verify(
     """Verify the BIP340 signature of hf(msg).
 
     commit is reduced by hf as msg is; `verify_` is the spelling that
-    takes the two hashes.
+    takes the two hashes. Raises and answers False for the same reasons
+    `verify_` does.
     """
-    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
-    # and for its reasons, which it states. `assert_as_valid` and not a
-    # delegation to the prepared spelling: the reduction has to be inside
-    # the try, or a message that is no octets is refused here where the
-    # hash spelling answers False about it (issue #814)
+    ec = sig.ec if isinstance(sig, Sig) else secp256k1
+    parsed_sig = _assert_structurally_valid_(Q, sig, ec)
+    # `assert_as_valid` and not a delegation to the prepared spelling:
+    # the reduction has to be inside the try, or a message that is no
+    # octets is refused here where the hash spelling answers False about
+    # it (issue #814) -- the structural check above is unaffected either
+    # way, since it does not touch msg
     try:
-        assert_as_valid(msg, Q, sig, hf, commit=commit, receipt=receipt)
+        assert_as_valid(msg, Q, parsed_sig, hf, commit=commit, receipt=receipt)
     except (ValueError, BTClibRuntimeError):
         return False
 
@@ -1478,6 +1525,27 @@ def assert_batch_as_valid(
     return assert_batch_as_valid_(msgs, Qs, sigs, hf)
 
 
+def _assert_batch_pub_keys_structurally_valid_(
+    Qs: Sequence[BIP340PubKey], sigs: Sequence[Sig]
+) -> None:
+    """Run the batch's own parse half, ahead of the try.
+
+    Each public key on its own, exactly what
+    `_assert_structurally_valid_` asks of one.
+
+    A batch signature is already a `Sig` object -- the batch API takes
+    no raw octets, `sigs` being `Sequence[Sig]` and not
+    `Sequence[Sig | Octets]` -- so there is no encoding of one left to
+    be wrong. What an empty batch, a mismatched length or a curve the
+    signatures do not share answers is `assert_batch_as_valid_`'s own
+    question and not a shape this duplicates: none of the three is
+    about a signature's or a key's own bytes, which is the line this
+    issue draws.
+    """
+    for Q, sig in zip(Qs, sigs, strict=False):
+        _x_from_bip340pub_key(Q, sig.ec)
+
+
 def batch_verify_(
     msgs: Sequence[Octets],
     Qs: Sequence[BIP340PubKey],
@@ -1486,13 +1554,17 @@ def batch_verify_(
 ) -> bool:
     """Answer whether every signature in the batch verifies.
 
-    Messages enter prepared, as in ``assert_batch_as_valid_``; a failed
-    verification and a malformed input are both False, a caller error
-    still raises.
+    Messages enter prepared, as in ``assert_batch_as_valid_``.
+
+    Raises where a public key is structurally invalid -- spelled in a
+    way BIP340 has no reading for -- and answers False otherwise: a
+    failed verification and a well-formed key or scalar that is merely
+    not authentic are both False, see `_assert_structurally_valid_`.
     """
-    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
-    # and for its reasons, which it states: what is not a valid signature
-    # is False, and a caller's own mistake is refused before this rather
+    _assert_batch_sequences(msgs, Qs, sigs)
+    _assert_batch_pub_keys_structurally_valid_(Qs, sigs)
+    # ValueError and BTClibRuntimeError: a well-formed batch that is not
+    # authentic is False; a caller's own mistake is refused above rather
     # than excluded from the except
     try:
         assert_batch_as_valid_(msgs, Qs, sigs, hf)
@@ -1508,12 +1580,17 @@ def batch_verify(
     sigs: Sequence[Sig],
     hf: HashF = sha256,
 ) -> bool:
-    """Batch verification of BIP340 signatures."""
-    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
-    # and for its reasons, which it states. `assert_batch_as_valid` and not a
-    # delegation to the prepared spelling: the reduction has to be inside
-    # the try, or a message that is no octets is refused here where the
-    # hash spelling answers False about it (issue #814)
+    """Batch verification of BIP340 signatures.
+
+    Raises and answers False for the same reasons `batch_verify_` does.
+    """
+    _assert_batch_sequences(ms, Qs, sigs)
+    _assert_batch_pub_keys_structurally_valid_(Qs, sigs)
+    # `assert_batch_as_valid` and not a delegation to the prepared
+    # spelling: the reduction has to be inside the try, or a message
+    # that is no octets is refused here where the hash spelling answers
+    # False about it (issue #814) -- the structural check above is
+    # unaffected either way, since it does not touch a message
     try:
         assert_batch_as_valid(ms, Qs, sigs, hf)
     except (ValueError, BTClibRuntimeError):

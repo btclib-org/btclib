@@ -1728,6 +1728,45 @@ def assert_as_valid(
     assert_as_valid_(msg_hash, key, sig, hf, commit_hash=commit_hash, receipt=receipt)
 
 
+def _assert_structurally_valid_(key: PubKey, ec: Curve) -> None:
+    """Raise for a public key that cannot possibly be one.
+
+    Ahead of the try that turns everything else -- a scalar out of
+    range, an r no x is congruent to, a malformed DER encoding, a failed
+    equation -- into False (issue 2170).
+
+    The signature is deliberately not asked here, unlike `ssa`'s own
+    version of this check. A DER encoding carries far more structure
+    than BIP340's fixed 64 bytes -- a compound header, a length for the
+    sequence and one for each scalar, the padding rule that keeps a
+    high-bit scalar from reading as negative -- and
+    `wycheproof_test.py::test_ecdsa_der` is measured, not argued, on
+    every rule of it: its own docstring states that a signature whose
+    *encoding* is malformed -- the file's `InvalidEncoding`,
+    `BerEncodedSignature` and `MissingZero` cases -- is invalid, which
+    that test reads as `verify_` answering False, over vectors built for
+    exactly that question. Raising on any of them would fail that suite,
+    so DER's grammar stays where it already was:
+    inside the try, alongside the value question `Sig.assert_valid` asks
+    -- r and s in 1..n-1, and r congruent to a valid x-coordinate. This
+    is the one case this issue found that cannot be mechanically
+    reclassified against BIP340's model, is measured rather than
+    guessed, and is left as it was.
+
+    A public key is never x-only here the way a BIP340 one can be: SEC
+    octets and a native `(x, y)` tuple both carry, or imply, a y, so
+    `point_from_pub_key` proves the point on the curve as part of
+    reading the encoding -- there is no unlifted spelling to defer to.
+    So a key that does not lift raises here, unlike `ssa.verify`'s
+    x-only case; `point_from_pub_key`'s own docstring is where that
+    proof is described.
+
+    `verify_` and `verify` run this ahead of their own try;
+    `assert_as_valid_` checks the same key again right after.
+    """
+    point_from_pub_key(key, ec)
+
+
 def verify_(
     msg_hash: Octets,
     key: PubKey,
@@ -1742,17 +1781,30 @@ def verify_(
     commit_hash and receipt open the commitment the nonce carries, and a
     signature that does not commit to that value is False as a forged one
     is: the answer is about this signature and this commitment, both.
+
+    Raises where the public key is structurally invalid -- spelled in a
+    way no conversion accepts -- and answers False for a well-formed
+    signature and key that are merely not authentic: a scalar out of
+    range, a key that does not lift, a malformed DER encoding, an
+    equation that does not hold. See `_assert_structurally_valid_`, the
+    comment every boolean verification in this library points at.
     """
-    # The comment every boolean verification in this library points at.
-    #
-    # ValueError and BTClibRuntimeError, not Exception: a value that is
-    # not a valid signature is False, and so is a verification that
-    # failed. A value of a type this function does not declare is
-    # neither, and reaches the caller: the classes that say so are
-    # TypeErrors -- `_assert_valid_hf` for an hf passed as sha256()
-    # instead of sha256, `curves.point_from_pub_key` for what is no
-    # spelling of a key -- and no TypeError is in the tuple below, so
-    # none of them has to be refused ahead of the try to get out.
+    ec = sig.ec if isinstance(sig, Sig) else secp256k1
+    _assert_structurally_valid_(key, ec)
+    # ValueError and BTClibRuntimeError, not Exception: a well-formed
+    # signature that is not authentic is False, and so is a verification
+    # that failed -- a malformed DER encoding among them, which
+    # `_assert_structurally_valid_`'s own docstring measures against
+    # `wycheproof_test.py::test_ecdsa_der` rather than reclassifying. A
+    # value of a type this function does not declare is neither, and
+    # reaches the caller: the classes that say so are TypeErrors --
+    # `_assert_valid_hf` for an hf passed as sha256() instead of sha256
+    # -- and no TypeError is in the tuple below, so none of them has to
+    # be refused ahead of the try to get out; what is refused there
+    # instead is the structural half of a caller's own mistake in the
+    # public key, which is a ValueError this module raises and this
+    # function would otherwise report as a signature that does not
+    # verify.
     #
     # The line is the annotation, and not which built-in a helper happens
     # to derive from: those two coincide only by accident, which is what
@@ -1784,13 +1836,16 @@ def verify(
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4).
 
     commit is reduced by hf as msg is; `verify_` is the spelling that
-    takes the two hashes.
+    takes the two hashes. Raises and answers False for the same reasons
+    `verify_` does.
     """
-    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
-    # and for its reasons, which it states. `assert_as_valid` and not a
-    # delegation to the prepared spelling: the reduction has to be inside
-    # the try, or a message that is no octets is refused here where the
-    # hash spelling answers False about it (issue #814)
+    ec = sig.ec if isinstance(sig, Sig) else secp256k1
+    _assert_structurally_valid_(key, ec)
+    # `assert_as_valid` and not a delegation to the prepared spelling:
+    # the reduction has to be inside the try, or a message that is no
+    # octets is refused here where the hash spelling answers False about
+    # it (issue #814) -- the structural check above is unaffected either
+    # way, since it does not touch a message
     try:
         assert_as_valid(msg, key, sig, hf, commit=commit, receipt=receipt)
     except (ValueError, BTClibRuntimeError):

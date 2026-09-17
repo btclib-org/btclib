@@ -4,7 +4,7 @@
 
 """The gate for the bool contract, over what only a fixture can reach.
 
-CONTRIBUTING.md's "Every public function validates its inputs" states two
+CONTRIBUTING.md's "Every public function validates its inputs" states
 rules about a function that answers a `bool`, and
 `input_validation_test.py` drives them automatically -- over the
 functions whose every required parameter is a library input type. That
@@ -16,8 +16,9 @@ build.
 So the calls here are hand-written, which is issue #776's own answer to
 what its walk cannot reach: "a hand-written table of name, and the
 shortest call that reaches the validator". Each case names a function, a
-call of it that answers True, and a wrong value for each position worth
-driving. Two rules, asked one position at a time with the others left
+call of it that answers True, a wrong value for each position worth
+driving, and a structurally invalid one for each position where the two
+diverge. Three rules, asked one position at a time with the others left
 valid:
 
 - a **wrong type** leaves as a `BTClibTypeError`. A bool is an answer
@@ -25,9 +26,19 @@ valid:
   something it answers about.
 - a **wrong value** of a declared type is `False`. That is what the bool
   is for, and what a caller filtering signatures off the wire relies on.
+- a value of a declared type whose size or encoding makes it
+  **structurally invalid** -- one no valid input could ever carry, as
+  opposed to one that is merely not authentic -- is a `BTClibValueError`.
+  A verification is not the question that value answers, so it is
+  refused rather than read as a forged signature.
 
 Issue #814 settled the second against issue #745's "total over everything
-it is handed", and this is where the decision is held to.
+it is handed", and this is where the decision is held to. Issue #2170 is
+where the third was carved out of the second for `dsa.verify`,
+`dsa.verify_`, `ssa.verify`, `ssa.verify_` and `ssa.batch_verify` alone --
+every other case in this file still answers a structurally invalid
+argument with `False`, which remains correct for functions BIP340's
+verification model does not govern.
 
 ## Both rules hold, and they did not when this file was written
 
@@ -56,7 +67,7 @@ the tests of their own modules, against fixtures those modules build.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
@@ -110,8 +121,13 @@ class _Case:
     label: str
     function: Any
     args: tuple[Any, ...]
-    # position -> a wrong value of the type that position declares
+    # position -> a wrong value of the type that position declares, one
+    # a valid input could carry -- False is the answer
     wrong_values: dict[int, Any]
+    # position -> a value of the declared type whose size or encoding
+    # makes the question unanswerable -- a raise is the answer (issue
+    # 2170). Empty for every case this issue leaves alone
+    structurally_invalid_values: dict[int, Any] = field(default_factory=dict)
 
 
 _CASES = (
@@ -119,25 +135,29 @@ _CASES = (
         "dsa.verify",
         dsa.verify,
         (_MSG, _PUB, _DSA_SIG),
-        {0: _WRONG_OCTETS_VALUE, 1: _WRONG_KEY_VALUE, 2: _WRONG_OCTETS_VALUE},
+        {0: _WRONG_OCTETS_VALUE, 2: _WRONG_OCTETS_VALUE},
+        {1: _WRONG_KEY_VALUE},
     ),
     _Case(
         "dsa.verify_",
         dsa.verify_,
         (_MSG_HASH, _PUB, _DSA_SIG),
-        {0: _WRONG_OCTETS_VALUE, 1: _WRONG_KEY_VALUE, 2: _WRONG_OCTETS_VALUE},
+        {0: _WRONG_OCTETS_VALUE, 2: _WRONG_OCTETS_VALUE},
+        {1: _WRONG_KEY_VALUE},
     ),
     _Case(
         "ssa.verify",
         ssa.verify,
         (_MSG, _X_ONLY, _SSA_SIG),
-        {0: _WRONG_OCTETS_VALUE, 1: _WRONG_KEY_VALUE, 2: _WRONG_OCTETS_VALUE},
+        {0: _WRONG_OCTETS_VALUE},
+        {1: _WRONG_KEY_VALUE, 2: _WRONG_OCTETS_VALUE},
     ),
     _Case(
         "ssa.verify_",
         ssa.verify_,
         (_MSG_HASH, _X_ONLY, _SSA_SIG),
-        {0: _WRONG_OCTETS_VALUE, 1: _WRONG_KEY_VALUE, 2: _WRONG_OCTETS_VALUE},
+        {0: _WRONG_OCTETS_VALUE},
+        {1: _WRONG_KEY_VALUE, 2: _WRONG_OCTETS_VALUE},
     ),
     _Case(
         "ssa.batch_verify",
@@ -145,7 +165,8 @@ _CASES = (
         ([_MSG], [_X_ONLY], [_SSA_SIG]),
         # a sequence whose element is the wrong value, the sequence being
         # what the parameter declares
-        {0: [_WRONG_OCTETS_VALUE], 1: [_WRONG_KEY_VALUE]},
+        {0: [_WRONG_OCTETS_VALUE]},
+        {1: [_WRONG_KEY_VALUE]},
     ),
     _Case(
         "bms.verify",
@@ -250,3 +271,17 @@ def test_a_wrong_value_answers_false(case: _Case) -> None:
     """The second rule: a value of a declared type is answered, not refused."""
     for position, wrong in sorted(case.wrong_values.items()):
         assert _outcome(case, position, wrong) == "answers False"
+
+
+@pytest.mark.parametrize("case", _CASES, ids=_IDS)
+def test_a_structurally_invalid_value_raises(case: _Case) -> None:
+    """The third rule, issue 2170's: an unanswerable question is refused.
+
+    A signature or a public key whose size or encoding no valid input
+    could carry is not a value the equation ever reaches, so it is a
+    BTClibValueError rather than a False that would read as a forged
+    signature. `dsa.verify`'s malformed DER stays under the second rule
+    instead, `_assert_structurally_valid_`'s own docstring measuring why.
+    """
+    for position, wrong in sorted(case.structurally_invalid_values.items()):
+        assert _outcome(case, position, wrong) == "BTClibValueError"

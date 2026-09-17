@@ -260,11 +260,14 @@ def test_the_sighash_type_of_a_witness_signature_is_the_callers() -> None:
     msg = b"witness signature"
     sig_bin = ssa.sign(msg, prv_key).serialize()
 
-    # an encoding that is not a signature is False, as any other invalid
-    # one is, and assert_as_valid is where the reason comes out
-    assert not ssa.verify(msg, pub_key, sig_bin + b"\x01")
-    with pytest.raises(BTClibValueError, match="1 bytes after the BIP340 signature"):
-        ssa.assert_as_valid(msg, pub_key, sig_bin + b"\x01")
+    # sixty-five octets cannot be a BIP340 signature, so the question is
+    # unanswerable rather than answered no: verify raises as
+    # assert_as_valid does (issue 2170)
+    for call in (ssa.verify, ssa.assert_as_valid):
+        with pytest.raises(
+            BTClibValueError, match="1 bytes after the BIP340 signature"
+        ):
+            call(msg, pub_key, sig_bin + b"\x01")
 
     assert ssa.verify(msg, pub_key, (sig_bin + b"\x01")[:64])
     assert ssa.verify(msg, pub_key, sig_bin)
@@ -1762,3 +1765,101 @@ def test_a_signer_refuses_under_the_same_sentence(
         pytest.raises(BTClibRuntimeError, match="does not verify"),
     ):
         signer.sign(b"a message whose check is made to fail")
+
+
+def test_verify_raises_on_a_structurally_invalid_signature_or_key() -> None:
+    """A wrong length or spelling is refused, not answered False (issue 2170).
+
+    BIP340's own reference raises on exactly these two: a signature or a
+    public key of the wrong length. `verify` and `verify_` used to wrap
+    the whole of `assert_as_valid`/`assert_as_valid_` in one `try`, which
+    read both as an ordinary failed verification.
+    """
+    q, x_Q = ssa.gen_keys(0x1234567890ABCDEF)
+    msg = b"a message"
+    msg_hash = reduce_to_hlen(msg)
+    sig_bin = ssa.sign(msg, q).serialize()
+    sig_hash_bin = ssa.sign_(msg_hash, q).serialize()
+
+    for call, m, s in (
+        (ssa.verify, msg, sig_bin),
+        (ssa.verify_, msg_hash, sig_hash_bin),
+    ):
+        assert call(m, x_Q, s)
+
+        # sixty-three and sixty-five octets cannot be a BIP340 signature
+        with pytest.raises(BTClibValueError, match="invalid decoded length"):
+            call(m, x_Q, s[:-1])
+        with pytest.raises(BTClibValueError, match="1 bytes after"):
+            call(m, x_Q, s + b"\x00")
+
+        # thirty-one octets cannot be a BIP340 public key, and neither can
+        # text that is not hex at all
+        with pytest.raises(BTClibValueError, match="invalid size"):
+            call(m, "11" * 31, s)
+        with pytest.raises(BTClibValueError, match="invalid hex string"):
+            call(m, "zz", s)
+
+        # None is refused as a type rather than answered about, unaffected
+        # by this issue and true before and after it
+        with pytest.raises(BTClibTypeError):
+            call(m, x_Q, None)  # type: ignore[arg-type]
+
+
+def test_verify_answers_false_for_a_well_formed_signature_that_is_wrong() -> None:
+    """A scalar out of range or a key that does not lift is still False.
+
+    Both are well-formed BIP340 signatures or public keys that simply do
+    not authenticate the message, which BIP340's reference answers with
+    ``P is None or r >= p or s >= n`` -- a boolean, not an exception.
+    """
+    q, x_Q = ssa.gen_keys(0x1234567890ABCDEF)
+    msg = b"a message"
+    sig = ssa.sign(msg, q)
+    assert ssa.verify(msg, x_Q, sig.serialize())
+
+    # a message that is not the one signed: an ordinary failed verification
+    assert not ssa.verify(b"another message", x_Q, sig.serialize())
+
+    # s at the group order: a scalar a 32-byte signature can carry, out
+    # of BIP340's 0..n-1
+    at_order = ssa.Sig(sig.r, secp256k1.n, check_validity=False)
+    assert not ssa.verify(msg, x_Q, at_order.serialize(check_validity=False))
+
+    # r that is no x-coordinate at all: the signature's own lift fails,
+    # not the public key's
+    no_coordinate = ssa.Sig(1, sig.s, check_validity=False)
+    assert not ssa.verify(msg, x_Q, no_coordinate.serialize(check_validity=False))
+
+    # an x-only public key that does not lift: thirty-two octets, the
+    # right length, naming no point of the curve
+    assert not ssa.verify(msg, "11" * 32, sig.serialize())
+
+
+def test_batch_verify_raises_on_a_structurally_invalid_pub_key() -> None:
+    """The batch spelling asks the same question of each key (issue 2170).
+
+    A batch signature is already a `Sig` object -- the batch API takes no
+    raw octets -- so there is no encoding of a signature left to be wrong;
+    what stays checkable per element is the public key.
+    """
+    q, x_Q = ssa.gen_keys(0x1234567890ABCDEF)
+    msg = b"a message"
+    msg_hash = reduce_to_hlen(msg)
+    sig = ssa.sign(msg, q)
+    sig_hash = ssa.sign_(msg_hash, q)
+    assert ssa.batch_verify([msg], [x_Q], [sig])
+    assert ssa.batch_verify_([msg_hash], [x_Q], [sig_hash])
+
+    for call, m, s in (
+        (ssa.batch_verify, [msg], [sig]),
+        (ssa.batch_verify_, [msg_hash], [sig_hash]),
+    ):
+        with pytest.raises(BTClibValueError, match="invalid size"):
+            call(m, ["11" * 31], s)
+        with pytest.raises(BTClibValueError, match="invalid hex string"):
+            call(m, ["zz"], s)
+
+    # still False: a key that does not lift is a well-formed one that is
+    # merely not this signature's
+    assert not ssa.batch_verify([msg], ["11" * 32], [sig])
