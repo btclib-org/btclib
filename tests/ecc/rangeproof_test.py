@@ -1282,6 +1282,48 @@ def test_verify_tells_octets_that_are_no_proof_from_one_that_fails() -> None:
     assert not rangeproof.verify(other, octets, _GEN)
 
 
+def test_a_built_proof_is_asked_what_a_parse_asks_the_octets() -> None:
+    """Issue 2182, over the object `check_validity=False` makes reachable.
+
+    `RangeProof.parse` asks `assert_valid` of octets and `_proof_from`
+    asks it of a `RangeProof` a caller built, which is how
+    `ecc.bms`, `ecc.borromean` and `ecc.ssa` ask their own object
+    argument for it. So `assert_as_valid` and `rewind` refuse with this
+    library's own exception, and `verify` answers False -- where octets
+    that are no proof raise out of `verify` instead (issue 2170), an
+    object having no octets to be wrong.
+
+    These states because of where each field is written: the header
+    octets carry the exponent and the mantissa in one byte each, and
+    `_ring_message` packs `min_value` into the eight octets that field
+    has and every ring commitment into the curve's own width, so a
+    number that does not fit is an `OverflowError` or a `ValueError`
+    from `int.to_bytes` and `bytes()` rather than a refusal of this
+    library's -- and `verify`'s own except names neither
+    `OverflowError` nor the `zip(strict=True)` a body the mantissa does
+    not describe reaches.
+    """
+    vector = _vector("odd mantissa")
+    proof = RangeProof.parse(_octets("odd mantissa"))
+    commitment = commit(vector["blind"], vector["value"], _GEN)
+    assert rangeproof.verify(commitment, proof, _GEN)
+
+    for built in (
+        replace_unchecked(proof, exp=25),
+        replace_unchecked(proof, mantissa=300),
+        replace_unchecked(proof, min_value=2**64),
+        replace_unchecked(proof, signs=proof.signs[:-1]),
+        replace_unchecked(
+            proof, ring_commitments=(256**32, *proof.ring_commitments[1:])
+        ),
+    ):
+        assert not rangeproof.verify(commitment, built, _GEN)
+        with pytest.raises(BTClibValueError):
+            rangeproof.assert_as_valid(commitment, built, _GEN)
+        with pytest.raises(BTClibValueError):
+            rangeproof.rewind(commitment, built, vector["nonce"], _GEN)
+
+
 def test_verify_refuses_a_turned_octet_of_the_signature() -> None:
     """One bit of the last `s`, which is the mutation a proof has to fail on."""
     octets = bytearray(_octets("odd mantissa"))

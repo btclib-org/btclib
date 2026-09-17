@@ -1254,8 +1254,27 @@ def _verify_rings(
 
 
 def _proof_from(proof: RangeProof | Octets) -> RangeProof:
-    """Return the proof, parsing octets as `RangeProof.parse` reads them."""
-    return proof if isinstance(proof, RangeProof) else RangeProof.parse(proof)
+    """Return the proof, asked `assert_valid` in either spelling.
+
+    `RangeProof.parse` asks it of octets. A `RangeProof` argument is
+    asked it here, as `bms`, `borromean` and `ssa` ask their own object
+    argument inside `assert_as_valid`: `check_validity=False` says "do
+    not check now" and not "this object is exempt from here on"
+    (CONTRIBUTING.md), so an object no `serialize` would write the
+    octets of is one a caller can hold and one this has to refuse
+    (issue #2182).
+
+    Here rather than at the `assert_valid` inside `pubk_rings`, which
+    `_verify_rings` reaches second: `_ring_message` runs first and packs
+    `min_value` into the eight octets that field has and every ring
+    commitment into the curve's own width, so a number neither holds
+    leaves an `OverflowError` -- no refusal of this library's, and
+    outside what `verify` catches.
+    """
+    if isinstance(proof, RangeProof):
+        proof.assert_valid()
+        return proof
+    return RangeProof.parse(proof)
 
 
 def assert_as_valid(
@@ -1295,7 +1314,7 @@ def assert_as_valid(
     )
 
 
-def _assert_structurally_valid_(proof: RangeProof | Octets) -> None:
+def _assert_structurally_valid_(proof: RangeProof | Octets) -> RangeProof:
     """Raise for octets that are no rangeproof.
 
     Ahead of the try that turns everything else -- a ring key at
@@ -1310,12 +1329,10 @@ def _assert_structurally_valid_(proof: RangeProof | Octets) -> None:
     the scalar of an `ecc.ssa` signature, and a defect in either is
     material the range question was never asked of.
 
-    Nothing is handed back. `assert_as_valid` reads `proof` as it came,
-    because `_proof_from` returns a `RangeProof` argument untouched:
-    given the object parsed here it would skip `assert_valid` rather
-    than repeat it, where `ssa.assert_as_valid_` re-checks the `Sig` it
-    is given. The parse is paid twice on the octets path and the checks
-    stay where they are.
+    The proof is handed back and `verify` passes it on, the shape
+    `bms`, `borromean` and `ssa` have: `_proof_from` asks a `RangeProof`
+    argument `assert_valid`, so what `assert_as_valid` repeats below is
+    that check and not this parse.
 
     `commitment`, `gen` and `extra_commit` are asked nothing here. The
     first two enter as native points that no parse reads --
@@ -1324,8 +1341,7 @@ def _assert_structurally_valid_(proof: RangeProof | Octets) -> None:
     *about*, on issue #814's side of the line with `ecc.dsa`'s and
     `ecc.ssa`'s messages.
     """
-    if not isinstance(proof, RangeProof):
-        RangeProof.parse(proof)
+    return proof if isinstance(proof, RangeProof) else RangeProof.parse(proof)
 
 
 def verify(
@@ -1343,15 +1359,21 @@ def verify(
     Raises where `proof` is octets no proof has, and answers False for a
     proof that is well formed and merely does not hold. See
     `_assert_structurally_valid_`.
+
+    A `RangeProof` argument has no octets to be wrong, so what it is
+    asked is `assert_valid` and a state that refuses is False here and a
+    `BTClibValueError` from `assert_as_valid` -- a `Sig` a caller built
+    reads the same way in `ecc.bms`. See `_proof_from`.
     """
-    _assert_structurally_valid_(proof)
+    parsed_proof = _assert_structurally_valid_(proof)
     # ValueError and BTClibRuntimeError: a well-formed proof that does
     # not hold for this commitment is False, and so is an `extra_commit`
-    # spelled in a way no octets are; a caller's own mistake in the
+    # spelled in a way no octets are and a state `assert_valid` refuses
+    # in a `RangeProof` a caller built; a caller's own mistake in the
     # proof's own octets is refused above rather than excluded from the
     # except
     try:
-        assert_as_valid(commitment, proof, gen, extra_commit=extra_commit)
+        assert_as_valid(commitment, parsed_proof, gen, extra_commit=extra_commit)
     except (ValueError, BTClibRuntimeError):
         return False
 

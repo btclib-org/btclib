@@ -131,6 +131,20 @@ full year, short month, short day (YYYY-M-D)
   those functions declare; a caller holding one from elsewhere checks
   its length, or calls the unprepared `verify`, which reduces the
   message itself and has no length to miss.
+- **`ecc.rangeproof.assert_as_valid` and `ecc.rangeproof.rewind` raise
+  `BTClibValueError` for a `RangeProof` whose state
+  `RangeProof.assert_valid` refuses, and `ecc.rangeproof.verify` answers
+  `False` for one** (closes #2182), which is what `ecc.bms` answers for a
+  `Sig` a caller built the same way. `check_validity=False` is what makes
+  such a proof reachable: a header this format has no octets for, a body
+  the mantissa does not describe, a `min_value` past the eight octets of
+  that field or a ring commitment wider than the curve's own are each
+  that state, and the last two raised an `OverflowError` from
+  `int.to_bytes` -- which `verify` did not catch either.
+
+  Act on it wherever a caller builds a proof rather than parsing one.
+  `RangeProof.assert_valid` is the same refusal ahead of the call, and
+  the constructor runs it unless `check_validity=False` says not to.
 
 ## v2026.9.13
 
