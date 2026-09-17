@@ -25,6 +25,13 @@ btclib.psbt.musig2 module
    :members:
    :show-inheritance:
 
+btclib.psbt.frost module
+------------------------
+
+.. automodule:: btclib.psbt.frost
+   :members:
+   :show-inheritance:
+
 btclib.psbt.psbt\_in module
 ---------------------------
 
