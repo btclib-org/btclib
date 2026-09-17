@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Tests for the golden-file check and the coverage gate of conftest.
+"""Tests for the golden-file check, the coverage gate and the header hook.
 
 Eleven modules compare a `to_dict()` against a committed json through
 `json_golden`, and the two paths that report a difference are the ones a
@@ -20,6 +20,13 @@ the command line no run of that command line can report on.
 The guard beside it is driven the same way, with one exception: the run
 it refuses cannot be the run reporting on it either, so the case it
 exists for is taken in a subprocess started from `tests/`.
+
+`pytest_report_header` is a third of the same kind, and what settles it
+is the runner rather than a selection: pytest calls the hook where it
+writes a session header, so a run given `-q` writes none, never calls
+it, and the one statement it is reads as unexecuted. Driven here under
+each value of `ZKP_AVAILABLE`, the build being the other thing a run
+cannot report on.
 """
 
 import argparse
@@ -41,6 +48,7 @@ from tests.conftest import (
     coverage_configuration,
     coverage_fail_under,
     pytest_configure,
+    pytest_report_header,
 )
 
 MODULE = "something_test.py"
@@ -827,3 +835,41 @@ def test_a_run_started_from_tests_says_it_is_ungated(tmp_path: Path) -> None:
     # own output is, so the assertion is on the stream that carries it
     assert "coverage read no configuration" in completed.stderr
     assert str(_ROOT) in completed.stderr
+
+
+@pytest.mark.parametrize(
+    "zkp_available, build",
+    [
+        (True, "built with BTCLIB_LIBSECP256K1_ZKP, so the tests marked zkp run"),
+        (False, "no BTCLIB_LIBSECP256K1_ZKP build, so the tests marked zkp skip"),
+    ],
+    ids=["flagged", "unflagged"],
+)
+def test_the_header_names_the_build_that_answered(
+    zkp_available: bool, build: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each arm of the header is held to the build it stands for.
+
+    Calling the hook is what covers it. pytest calls it only where it
+    writes a session header, so its coverage otherwise measures the
+    flags a run was given: `-q` suppresses the header, the hook goes
+    uncalled, and its one statement is missed against a floor of 100.
+
+    Either arm alone covers that statement, the conditional expression
+    keeping the two in one. What the second buys is the sentence, the
+    arm a machine's own build cannot take being the one no run of it
+    reads.
+
+    `tests.conftest` is the binding to patch, `from tests import
+    ZKP_AVAILABLE` having bound the name there; `tests` is where the
+    probe computes it, and patching it there leaves the hook answering
+    for the build the machine has.
+
+    `monkeypatch` and not an assignment: the name is module state that
+    `pytest_collection_modifyitems` reads as well as this, and an
+    assignment would leave the last case's value standing for the rest
+    of the session.
+    """
+    monkeypatch.setattr("tests.conftest.ZKP_AVAILABLE", zkp_available)
+
+    assert pytest_report_header() == f"btclib_secp256k1.zkp: {build}"
