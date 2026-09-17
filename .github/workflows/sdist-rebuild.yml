@@ -1,15 +1,16 @@
 ---
 name: sdist-rebuild
 
-# the sentinel on what the attestation vouches for: the tag of the latest
-# release, rebuilt the way RELEASING.md's *Rebuild a release from its tag*
-# rebuilds it, and `gh attestation verify` over the rebuilt sdist, which
-# passes only where its digest is one release.yml signed.
-#
-# What moves between a release and this run is the runner image, uv, and
-# the build backend within the range the tag's pyproject.toml allows; that
-# interval is what a weekly run covers and a check inside release.yml
-# does not.
+# the sentinel on what the attestation vouches for: the tag of the
+# latest release, rebuilt the way RELEASING.md's *Rebuild a release from
+# its tag* rebuilds it, and `gh attestation verify` over the rebuilt
+# sdist, which passes only where its digest is one release.yml signed.
+# The release lookup, the checkout, the build, the normalizer and the
+# verification are btclib-org/.github's own: reusable-sdist-rebuild.yml,
+# called at @main so a fix there reaches this tree in one landing (issue
+# btclib-org/.github#35). What stays here is the trigger, the cron
+# minute, the workflow-level permissions, the concurrency group and the
+# calling job's own `if:`, none of which the callee carries.
 #
 # The sdist alone: section 10 of btclib-org/.github's README.md makes the
 # row the sdist's. A red run is an issue against this tree. It gates
@@ -45,54 +46,19 @@ concurrency:
 
 jobs:
   rebuild:
-    name: Rebuild the latest release's sdist and verify its attestation
     if: >-
       ${{ !github.event.pull_request.draft
           && github.event.action != 'closed' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
     permissions:
-      # restated, a job's permissions replacing the workflow's
+      # a called workflow's own permissions: block can only downgrade
+      # what this job grants, never restore an omitted scope -- measured
+      # twice in btclib-org/.github#912 -- so both scopes the callee's
+      # own job asks for are named here
       contents: read
       # the attestations API, which gh attestation verify reads
       attestations: read
-    steps:
-      # the release GitHub marks latest, not the newest tag: a tag whose
-      # release never published has no attestation to verify against
-      - name: Find the latest release
-        id: release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          tag=$(gh release view --repo "$GITHUB_REPOSITORY" \
-            --json tagName --jq .tagName)
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-      - name: Checkout the release's tag
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ steps.release.outputs.tag }}
-          persist-credentials: false
-      # no cache, as test.yml's dist job when release.yml calls it: the
-      # backend is fetched afresh, as it was for the release
-      - name: Setup uv
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
-        with:
-          enable-cache: false
-      # test.yml's dist job's steps up to the sdist it uploads, which is
-      # the file release.yml attested. --sdist, the wheel being outside the
-      # row: the sdist it writes is the one a bare `uv build` writes
-      - name: Pin the build timestamp to the commit
-        run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
-      - name: Build the sdist
-        run: uv build --sdist
-      - name: Make the sdist's determinism this tree's own
-        run: |
-          uv run --no-project --python 3.14 \
-            .github/scripts/normalize_sdist.py dist/
-          sha256sum dist/*.tar.gz
-      - name: Verify the rebuilt sdist against the release's attestation
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh attestation verify dist/*.tar.gz --repo "$GITHUB_REPOSITORY" \
-            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml"
+    # sdist-builder, submodules and python-version all take their
+    # defaults -- "uv", "" and "" -- which is exactly what this file
+    # built before this conversion: `uv build --sdist`, no submodules and
+    # no setup-python step. No `with:` block is needed
+    uses: btclib-org/.github/.github/workflows/reusable-sdist-rebuild.yml@main
