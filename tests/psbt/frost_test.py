@@ -285,6 +285,16 @@ def test_a_session_in_a_leaf_script() -> None:
     spent = prevouts(psbt)
     run_rounds(psbt, leaf_hash=LEAF_HASH)
 
+    # the records of a session in a leaf carry the tapleaf hash after the
+    # threshold public key, and are a shape `assert_valid_records` reads
+    unknown = psbt.inputs[0].unknown
+    for my_id in SIGNERS:
+        for subtype in (PUB_NONCE, PARTIAL_SIG):
+            assert proprietary_key(subtype, record_key_data(my_id, LEAF_HASH)) in (
+                unknown
+            )
+    psbt_frost.assert_valid_records(psbt.inputs[0])
+
     for my_id in SIGNERS:
         assert psbt_frost.partial_sig_verify(
             psbt, 0, my_id, THRESH_PK, leaf_hash=LEAF_HASH
@@ -292,6 +302,72 @@ def test_a_session_in_a_leaf_script() -> None:
     psbt_frost.partial_sigs_agg(psbt, 0, THRESH_PK, leaf_hash=LEAF_HASH)
     assert psbt.inputs[0].taproot_script_spend_signatures[X_ONLY + LEAF_HASH]
     assert not psbt.inputs[0].unknown
+
+    verify_transaction(spent, extract_tx(finalize(psbt)))
+
+
+def test_the_tapleaf_hash_is_keyword_only() -> None:
+    """A tapleaf hash is named where it is passed, never taken by position.
+
+    It follows the threshold public key, which is a `bytes` as it is: a
+    caller reading a signature's positional arguments would otherwise
+    hand a leaf to whichever function came next in the call.
+    """
+    psbt = script_path_psbt()
+    calls = {
+        "nonce_gen": (psbt, 0, 0, SEC_SHARES[0], THRESH_PK),
+        "partial_sign": (psbt, 0, bytearray(64), 0, SEC_SHARES[0], THRESH_PK),
+        "partial_sig_verify": (psbt, 0, 0, THRESH_PK),
+        "session_context": (psbt, 0, THRESH_PK),
+        "partial_sigs_agg": (psbt, 0, THRESH_PK),
+    }
+    for name, positional in calls.items():
+        with pytest.raises(TypeError, match="positional argument"):
+            getattr(psbt_frost, name)(*positional, LEAF_HASH)
+
+
+def test_a_threshold_key_of_odd_y_is_tweaked_x_only() -> None:
+    """The internal key is x-only, so the tweak is BIP341's for either parity.
+
+    The group's own key has an even y, where an x-only tweak and a plain
+    one are the same thing. The negated key material -- every secret
+    share negated, hence every public share and the threshold public key
+    with it -- is the same group with the other parity, and the same
+    x-only key: BIP341's output key is one, and a plain tweak of the odd
+    point is another.
+    """
+    odd_sec_shares = tuple(
+        (secp256k1.n - int.from_bytes(share, "big")).to_bytes(32, "big")
+        for share in SEC_SHARES
+    )
+    # a compressed point's prefix is 2 or 3, and the other parity is the other
+    odd_pub_shares = tuple(
+        bytes([5 - share[0]]) + share[1:]
+        for share in map(bytes.fromhex, _GROUP["pubshares"][:N])
+    )
+    odd_thresh_pk = bytes([5 - THRESH_PK[0]]) + X_ONLY
+    assert THRESH_PK[0] == 2
+    assert odd_thresh_pk[0] == 3
+    info = frost.ThresholdInfo(T, odd_thresh_pk, odd_pub_shares)
+    frost.validate_threshold_info(info)
+
+    psbt = spending_psbt(TxOut(100_000, ScriptPubKey.p2tr(PubKeyData(THRESH_PK))))
+    psbt.inputs[0].taproot_internal_key = X_ONLY
+    psbt_frost.add_threshold_info(psbt.inputs[0], WRITER, info)
+    spent = prevouts(psbt)
+
+    sec_nonces = {
+        my_id: psbt_frost.nonce_gen(
+            psbt, 0, my_id, odd_sec_shares[my_id], odd_thresh_pk
+        )
+        for my_id in SIGNERS
+    }
+    for my_id in SIGNERS:
+        psbt_frost.partial_sign(
+            psbt, 0, sec_nonces[my_id], my_id, odd_sec_shares[my_id], odd_thresh_pk
+        )
+        assert psbt_frost.partial_sig_verify(psbt, 0, my_id, odd_thresh_pk)
+    psbt_frost.partial_sigs_agg(psbt, 0, odd_thresh_pk)
 
     verify_transaction(spent, extract_tx(finalize(psbt)))
 
@@ -553,8 +629,13 @@ def test_the_updater_files_key_material_it_has_checked() -> None:
     with pytest.raises(BTClibValueError, match="do not lie on a single polynomial"):
         psbt_frost.add_threshold_info(psbt.inputs[0], WRITER, tampered)
 
-    with pytest.raises(BTClibValueError, match="frost participant 7 is not one of"):
-        psbt_frost.add_threshold_info(psbt.inputs[0], 7, info)
+    # the identifiers of the group are 0 to n-1: one below, one past and
+    # a far one all name nobody
+    for my_id in (-1, N, 7):
+        with pytest.raises(
+            BTClibValueError, match=f"frost participant {my_id} is not one of"
+        ):
+            psbt_frost.add_threshold_info(psbt.inputs[0], my_id, info)
 
     psbt.inputs[0].unknown = {}
     err_msg = "no frost threshold info for threshold public key"
@@ -593,8 +674,11 @@ def test_only_the_public_shares_the_psbt_knows_travel() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt_frost.session_context(psbt, 0, THRESH_PK)
 
-    with pytest.raises(BTClibValueError, match="frost participant 7 is not one of"):
-        psbt_frost.nonce_gen(psbt, 0, 7, SEC_SHARES[0], THRESH_PK)
+    for my_id in (-1, N, 7):
+        with pytest.raises(
+            BTClibValueError, match=f"frost participant {my_id} is not one of"
+        ):
+            psbt_frost.nonce_gen(psbt, 0, my_id, SEC_SHARES[0], THRESH_PK)
 
 
 def test_a_session_the_psbt_does_not_describe() -> None:
@@ -630,6 +714,18 @@ def test_a_session_the_psbt_does_not_describe() -> None:
     psbt.inputs[0].taproot_merkle_root = b"\x01" * 32
     with pytest.raises(BTClibValueError, match="is not the key being spent"):
         psbt_frost.session_context(psbt, 0, THRESH_PK)
+
+    # an output key that is another one, sorting below the tweaked key and
+    # above it: what is refused is a key that differs, not one of the two
+    # orders it can differ in
+    for other_key in (bytes(32), b"\xff" * 32):
+        psbt = spending_psbt(
+            TxOut(100_000, ScriptPubKey(serialize(["OP_1", other_key])))
+        )
+        psbt.inputs[0].taproot_internal_key = X_ONLY
+        psbt_frost.add_threshold_info(psbt.inputs[0], WRITER, group_info())
+        with pytest.raises(BTClibValueError, match="is not the key being spent"):
+            psbt_frost.session_context(psbt, 0, THRESH_PK)
 
 
 def test_a_round_that_the_other_round_has_not_reached() -> None:

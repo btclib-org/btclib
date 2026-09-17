@@ -1,0 +1,164 @@
+# FROST, mutated: BIP445's Lagrange interpolation, nonce generation and
+# partial signatures, and the proprietary psbt fields a signing session
+# is carried in. A threshold signature is made by a subset of the group,
+# so an interpolating value taken over the wrong identifier set, an
+# accumulator that stops tracking parity or a partial signature checked
+# against another participant's public share is a session that answers no
+# signature the threshold key verifies. BIP445 is a draft with no C
+# implementation behind it, so the vendored vector files are the whole of
+# what says otherwise, and `tests/ecc/frost_test.py`'s own header is
+# where that is stated.
+# musig2.toml asks issue #219's question of the n-of-n protocol; this
+# asks it of the t-of-n one beside it.
+
+[cosmic-ray]
+# both halves, judged by the same two test files, for musig2.toml's
+# reason: `ecc/frost.py` is the scheme and `psbt/frost.py` the transport
+# for it, and psbt.toml names its six modules one by one so that neither
+# of these is swept in there
+module-path = [
+    "src/btclib/ecc/frost.py",
+    "src/btclib/psbt/frost.py",
+]
+
+# both modules' own files, complete over the two, lines and branches --
+# measured with `--cov=btclib.ecc.frost --cov=btclib.psbt.frost
+# --cov-branch` over this command
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/ecc/frost_test.py tests/psbt/frost_test.py"""
+
+# seconds of wall clock, wide for the reason sig_hash.toml measures -- a
+# timeout is answered KILLED, so slack is the safe direction. The scheme
+# reduces modulo the group order in many places, and an operator turned
+# `**` over operands of that size is an exponent that never returns, so
+# such a mutant spends the whole of this number and is answered KILLED by
+# it. At the run cited below the ones that ran are most of the session's
+# wall clock, the shape musig2.toml's header describes for its own
+# session
+timeout = 300
+
+excluded-modules = []
+
+# the exclusion wallet.toml explains and parsers.toml argues. Every `|`
+# in the two modules is in an annotation --
+#
+#   grep -n ' | ' src/btclib/ecc/frost.py src/btclib/psbt/frost.py
+#
+# -- and the one other bitwise operator is `^`, which is `_bytes_xor` over
+# the nonce seed and which no filter touches
+[cosmic-ray.filters.operators-filter]
+exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
+
+# A sample, read off the `frost-survivors.txt` in the
+# `mutation-frost-sessions` artifact of run 35443988434, a dispatch of
+# the `frost` profile that spent its whole budget with most of the
+# scope's mutants never run.
+#
+# None of the survivors was a defect in either module. Each was applied
+# to the tree by hand and run against the two test files: alive at that
+# run, and dead under the tests beside this commit, except the ones
+# listed as equivalent, which those tests leave alive.
+#
+# Closed by those tests, in `tests/ecc/frost_test.py`:
+#
+# - `sign`'s zeroing of the secnonce, `sec_nonce[: 2 * _SCALAR_SIZE] =
+#   bytearray(2 * _SCALAR_SIZE)`, with the width turned into another
+#   expression. The buffer was asserted on its first 64 bytes only, and a
+#   slice assignment of another width grows or shrinks it around them.
+#   `test_sec_nonce_signs_once` asserts the whole buffer and
+#   `test_sign_zeroes_the_two_scalars_and_nothing_beyond` a longer one:
+#   over the 64 bytes `nonce_gen` returns, a slice that reaches past the
+#   end writes the same buffer, which is what only the longer one tells
+#   apart.
+# - `sign`'s scalar bounds, each with one side never offered: `k_1_` at
+#   n (`<` weakened to `<=`), `k_2_` at n (`<` weakened to `is not`) and
+#   the secret share at 1 (`0 <` weakened to `1 <`), by
+#   `test_sign_refuses_a_secnonce_scalar_outside_the_group_order` and
+#   `test_sign_accepts_the_secret_share_one`.
+# - `_parse_session_pub_shares`'s `0 <= signer_id` weakened to `-1 <=`:
+#   `test_session_values_refuses_an_id_outside_0_to_n_minus_1`, the
+#   refusal of -1 that no vector places. An id below zero would reach
+#   `_serialize_ids` and fail there in an `OverflowError`, which is not
+#   the exception a caller is told to expect.
+# - `validate_threshold_info`'s `n > _MAX_PARTICIPANTS` weakened to `>=`,
+#   and its copy in `_validate_session_params`: 129 was refused and no
+#   test offered 128, which `test_validate_threshold_info_accepts_128_
+#   participants` and `test_session_values_accepts_128_participants` do.
+# - `apply_tweak`'s `len(tweak) != _SCALAR_SIZE` weakened to `>` and
+#   `t >= n` to `==`: `test_apply_tweak_refuses_a_tweak_of_the_wrong_
+#   size_or_range`, a tweak of 31 bytes and one above the group order.
+# - `apply_tweak`'s three reductions in the `TweakContext` it returns,
+#   `g * gacc` turned `+ n` and `- n` and `t + g * tacc` turned `- n`.
+#   Each is a value the signatures reduce again before they read it, so
+#   no signature saw it; the context is public, and
+#   `test_apply_tweak_accumulates_residues_of_the_group_order` reads it.
+# - `partial_sig_verify`'s `len(pub_nonces) != len(ids)` weakened to
+#   `<`, which let a surplus pubnonce through:
+#   `test_partial_sig_verify_refuses_more_pub_nonces_than_ids`.
+# - `SessionContext._values`'s `init=False` turned `init=True`, which
+#   `dataclasses.replace` reads: it passes every `init` field to the
+#   class's own `__init__`, which has no `_values`, so the mutant raises
+#   a `TypeError` there. `init=False` is also what makes the copy start
+#   without the memo of the context it came from.
+#   `test_a_session_context_is_replaced_and_not_carried_over`.
+#
+# and in `tests/psbt/frost_test.py`:
+#
+# - the second entry of `_SESSION_KEY_SIZES`, the width of a record keyed
+#   with a tapleaf hash, in every arithmetic form it was mutated to: no
+#   test gave `assert_valid_records` a session in a leaf.
+#   `test_a_session_in_a_leaf_script` now does.
+# - `_pub_share`'s `0 <= my_id < len(...)` at `<=` and at `-1 <=`: the
+#   test that named a participant the group does not have named one far
+#   past it, and now names one on each side of the range,
+#   `test_only_the_public_shares_the_psbt_knows_travel`. `add_threshold_
+#   info` checks the same range beside it, extended alike in
+#   `test_the_updater_files_key_material_it_has_checked`.
+# - the `*,` that makes the tapleaf hash keyword-only, turned `/,` in
+#   `partial_sign`: `test_the_tapleaf_hash_is_keyword_only`, which holds
+#   every function that takes one to it.
+# - `_session_parts`'s `tweak_ctx.x_only_pub_key != expected` weakened to
+#   `>`: the merkle-root case in `test_a_session_the_psbt_does_not_
+#   describe` has the tweaked key sorting above the output key, which is
+#   the one order `>` refuses. The output keys added there sort on either
+#   side of it.
+# - `_tweaks`'s `return [taproot_tweak], [True]` turned `[False]`. The
+#   group's own key has an even y, where an x-only tweak and a plain one
+#   apply the same value, so `test_a_threshold_key_of_odd_y_is_tweaked_
+#   x_only` signs over the group with every share negated.
+#
+# The rest are equivalent by construction, bar one input class named
+# where it applies:
+#
+# - `_has_duplicates`'s `!=` as `<`, because a set is never longer than
+#   what it was built from, and as `is not`, because both lengths are
+#   small ints and Python keeps one object per value of those:
+#   `_validate_session_params` calls it after refusing an `n` above
+#   `_MAX_PARTICIPANTS` and more identifiers than `n`. So is
+#   `assert_valid_records`'s `len(key_data) != _INFO_KEY_SIZE` as
+#   `is not`. `_derive_interpolating_value`'s `curr_id == my_id` as `is`
+#   is the same class for an `int` `my_id`, the identifiers having been
+#   range-checked and a `my_id` past the cached ones equalling none of
+#   them. A `bool` `my_id` tells the two apart, `False` equalling the
+#   identifier 0 and not being that object; no test passes one, an
+#   identifier being an int.
+# - `_derive_interpolating_value`'s `deno * (curr_id - my_id) % n` as
+#   `+ n`, `sign`'s `d = g * gacc * d_ % n` and `partial_sig_verify_`'s
+#   `g = g * gacc % n` as `- n`: each value is only read under another
+#   reduction, `pow(deno, -1, n)` included, so it is the same residue.
+# - `_derive_pubshare_at`'s `len(pub_shares) == 1` as `<= 1`, which
+#   differs only for an empty list: each caller holds at least `t`
+#   shares, and `1 <= t` is refused before it. The two `[0]` indices of
+#   its body as `[-1]` name the only element there is.
+# - `apply_tweak`'s `Q[1] == 0` as `<= 0`, a y coordinate being never
+#   negative, and `g = n - 1` as `n ^ 1`, n being odd.
+# - `SessionContext`'s `@dataclass(frozen=True, init=False)` as
+#   `init=True`: a dataclass never replaces an `__init__` the class
+#   defines, and this one does.
+# - `_INFO_KEY_SIZE` and `_PAIR_SIZE`, `_ID_SIZE + _PK_SIZE`, as `|`: the
+#   two widths share no set bit, so `_ID_SIZE & _PK_SIZE` is 0 and `|`
+#   is `+`.
+
+# one mutant at a time, in this working tree: see sig_hash.toml
+[cosmic-ray.distributor]
+name = "local"

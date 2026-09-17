@@ -1196,6 +1196,12 @@ file per release is what keeps each of them under it.
   `template-injection` site is declined or reads its matrix value from
   the environment** (issue btclib-org/.github#1164 and btclib-org/.github#1198).
 
+### FROST is in a mutation scope
+
+- **`.github/mutation/frost.toml` mutates `ecc/frost.py` and
+  `psbt/frost.py` under `mutation.yml`'s own `frost` profile**
+  (closes #2193): its header judges a run's survivors; new tests kill some.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
