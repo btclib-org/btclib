@@ -583,9 +583,10 @@ sits in that block too, granted there rather than taken from the
 workflow's: a job's own `permissions:` replaces the workflow-level one
 rather than adding to it. `read` is all the analysis takes of it,
 pushing nothing back to the tree.
-`claude-review.yml`'s `review` and `mention` hold `pull-requests: write`
-with `id-token: write`, where only the first is a write of theirs: the
-action mints a GitHub OIDC token during its own startup whatever the
+`claude-review.yml`'s one calling job holds `pull-requests: write` with
+`id-token: write` for the callee's steps to spend, not its own: only
+the first of the two is a write, the action the workflow it calls runs
+minting a GitHub OIDC token during its own startup whatever the
 Anthropic credential is, and without it the run dies before reaching
 authentication at all.
 
@@ -989,9 +990,9 @@ zeros absences rather than an endpoint that answers empty for everyone,
 and an empty store here is where the standard's decision shows rather
 than a facility nobody reached for.
 
-**A switch this repository does not set.** `claude-review.yml` guards
-its jobs with `vars.CLAUDE_REVIEW_ENABLED`, and neither variable store
-holds it:
+**A switch this repository does not set.** `claude-review.yml`'s job
+calls a workflow whose own two jobs guard themselves with
+`vars.CLAUDE_REVIEW_ENABLED`, and neither variable store holds it:
 
 ```shell
 gh api repos/btclib-org/btclib/actions/variables --jq '.total_count'

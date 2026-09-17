@@ -1034,6 +1034,12 @@ file per release is what keeps each of them under it.
   `wycheproof_test.py::test_ecdsa_der`, measured against its own vectors**
   (issue #2170): left as it was, unlike BIP340's fixed 64 bytes.
 
+### `claude-review.yml` calls `btclib-org/.github`'s reusable workflow
+
+- **`review` and `mention` become one `reusable-claude-review.yml`
+  call** (issue btclib-org/.github#35): the verdict jq gains
+  btclib-org/btclib-secp256k1#394's fix, and the pin moves to `ef8bb1e4`.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
