@@ -161,14 +161,18 @@ def test_one_line_is_sent_and_one_line_read(tcp: list[Any]) -> None:
     assert sock.closed
 
 
-def test_every_operation_gets_what_is_left_of_one_deadline(tcp: list[Any]) -> None:
-    """No operation is given more than the timeout the call took."""
+def test_every_operation_gets_what_is_left_of_one_deadline(
+    tcp: list[Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No operation is given more than what is left of the one deadline."""
+    clock = iter([100.0, 100.5, 101.0, 101.5, 102.0, 102.5])
+    monkeypatch.setattr(transport_module, "monotonic", lambda: next(clock))
     context = fake_context(b'{"id"', b": 1}", b"\n")
     TlsLineTransport(HOST, PORT, context=context)(REQUEST, 3.0)
     [(_, _, sock)] = tcp
     timeouts = sock.timeouts + context.tls.timeouts
     assert len(timeouts) == 1 + 1 + 3
-    assert all(0 < timeout <= 3.0 for timeout in timeouts)
+    assert timeouts == [2.5, 2.0, 1.5, 1.0, 0.5]
 
 
 def test_a_line_arriving_in_pieces_is_joined(tcp: list[Any]) -> None:

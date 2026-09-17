@@ -992,6 +992,12 @@ file per release is what keeps each of them under it.
   call** (issue btclib-org/.github#35), the other two jobs staying:
   `measure-coverage: true` keeps this tree's 100% ratchet through the upgrade.
 
+### `transport_test.py`'s deadline test drops the real clock
+
+- **`test_every_operation_gets_what_is_left_of_one_deadline` monkeypatches
+  `monotonic`, like its neighbor, and asserts the exact timeout
+  sequence** (closes #2167): a loaded runner could starve the real clock.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
