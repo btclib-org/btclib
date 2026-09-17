@@ -1130,6 +1130,12 @@ file per release is what keeps each of them under it.
   its citation, passes `"$PACKAGE"`, drops `import sys`, and splits the
   `except` into two clauses** (issue btclib-org/.github#1160).
 
+### `release.yml`'s `attest` and `github-release` become calls into `btclib-org/.github`
+
+- **Both jobs now call `btclib-org/.github`'s reusable workflows, pinned
+  at `@main`** (issue btclib-org/.github#35): the signer identity stays
+  `release.yml`'s until this tree's next release.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
