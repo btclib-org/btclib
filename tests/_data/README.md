@@ -151,6 +151,16 @@ Where a file was vendored earlier and later refreshed, both dates appear.
 staleness figure, not a defect: a vector file is a fixed set of cases and
 refreshing it is a decision, not a chore.
 
+`ref` names the branch a pin's path lives on, where that is not the
+repository's own default branch -- a fork's pull-request branch, so
+far the only case. `.github/scripts/check_vendored_vectors.py` reads it
+as the `sha` parameter of GitHub's "commits touching a path" API, which
+otherwise walks the default branch alone and finds no commit touching a
+path that only exists elsewhere, reading as the file having been
+deleted upstream regardless of whether the pin is current (ISS 2160).
+Absent, as on every other entry here, the call is asked exactly as it
+always was.
+
 Every entry was last re-checked against its upstream on 2026-07-30, and
 whatever had drifted was refreshed, so `behind` is 0 wherever a refresh
 was possible at all. The files vendored since are the exception by date
@@ -427,16 +437,17 @@ aggregated. An error case carries what should be raised -- which party
 contributed what, or the text of a plain value error -- and is checked
 against it, the same discipline the BIP327 entry above states.
 
-None of them carries a `behind` a re-check can earn.
-`.github/scripts/check_vendored_vectors.py` asks GitHub's "commits
-touching a path" API with no ref, which answers against a repository's
-*default* branch alone; `bip-0445/` exists on `bip-frost-signing` and
-not on `siv2r/bips`' own default branch, `master`, so the call the
-weekly job makes finds no commit touching any of these paths regardless
-of whether the pin below is current, and would report every one of them
-as upstream having deleted the file. Each entry's `behind` line says so
-instead of the zero the job would read as a license to ask -- ISS 2160
-is the checker's own gap, filed rather than worked around inside it.
+Each entry below carries a `ref` line, `bip-frost-signing`: GitHub's
+"commits touching a path" API answers against a repository's *default*
+branch alone unless told otherwise, and `bip-0445/` exists on that
+branch and not on `siv2r/bips`' own default, `master`. Asked with no
+ref the weekly job's call would find no commit touching any of these
+paths regardless of whether the pin below is current, and would report
+every one of them as upstream having deleted the file -- which is what
+it did before `ref` was a field `check_vendored_vectors.py` knew to
+send (ISS 2160, closed by the same change that added it). With the
+branch named, the pins below are checked exactly as a default-branch
+pin is.
 
 `src/btclib/ecc/frost.py` follows `bip-0445/python/frost_ref/signing.py`
 function for function, checked against it rather than assumed from the
@@ -450,11 +461,11 @@ data, and btclib's is the one under test.
 ```text
 repo    siv2r/bips
 path    bip-0445/python/vectors/nonce_gen_vectors.json
+ref     bip-frost-signing
 commit  f0cc3aec157f9a0a1a290e8b835b242312a9ee53  2026-07-27
 blob    2ba04502ebd28a839d12bb787f5ea093a9125005
 pulled  2026-09-17
-behind  not checked: the path lives on a pull request branch, not on
-        siv2r/bips' own default branch (ISS 2160)
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical but for a trailing newline** -- our 4,613 bytes
@@ -466,11 +477,11 @@ so our blob is `a5ebaa65`.
 ```text
 repo    siv2r/bips
 path    bip-0445/python/vectors/nonce_agg_vectors.json
+ref     bip-frost-signing
 commit  4343f72cbccc3a6b032279c5ac1dc4a46672c87c  2026-06-10
 blob    92a223927318b18681ec269a5735b07692094147
 pulled  2026-09-17
-behind  not checked: the path lives on a pull request branch, not on
-        siv2r/bips' own default branch (ISS 2160)
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical but for a trailing newline** -- our 2,768 bytes
@@ -482,11 +493,11 @@ so our blob is `3b5e5f57`.
 ```text
 repo    siv2r/bips
 path    bip-0445/python/vectors/sign_verify_vectors.json
+ref     bip-frost-signing
 commit  8e25d57911c33f1daadcadb0161a60a56ef7145a  2026-08-26
 blob    622d859bcd742e9caf37e1541bf2409aa7c6c333
 pulled  2026-09-17
-behind  not checked: the path lives on a pull request branch, not on
-        siv2r/bips' own default branch (ISS 2160)
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical but for a trailing newline** -- our 88,802 bytes
@@ -498,11 +509,11 @@ added, so our blob is `ead53ab1`.
 ```text
 repo    siv2r/bips
 path    bip-0445/python/vectors/tweak_vectors.json
+ref     bip-frost-signing
 commit  8e25d57911c33f1daadcadb0161a60a56ef7145a  2026-08-26
 blob    ed876b4eeca7ee18e9918cd18f59141870670f12
 pulled  2026-09-17
-behind  not checked: the path lives on a pull request branch, not on
-        siv2r/bips' own default branch (ISS 2160)
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical but for a trailing newline** -- our 48,941 bytes
@@ -514,11 +525,11 @@ added, so our blob is `6451ef70`.
 ```text
 repo    siv2r/bips
 path    bip-0445/python/vectors/det_sign_vectors.json
+ref     bip-frost-signing
 commit  8e25d57911c33f1daadcadb0161a60a56ef7145a  2026-08-26
 blob    57ce53754a413b4087486bbbe16c641b5edfc245
 pulled  2026-09-17
-behind  not checked: the path lives on a pull request branch, not on
-        siv2r/bips' own default branch (ISS 2160)
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical but for a trailing newline** -- our 88,987 bytes
@@ -530,11 +541,11 @@ added, so our blob is `a6def920`.
 ```text
 repo    siv2r/bips
 path    bip-0445/python/vectors/sig_agg_vectors.json
+ref     bip-frost-signing
 commit  8e25d57911c33f1daadcadb0161a60a56ef7145a  2026-08-26
 blob    4f20b42562a79b4443736269184ebec7870a7e0c
 pulled  2026-09-17
-behind  not checked: the path lives on a pull request branch, not on
-        siv2r/bips' own default branch (ISS 2160)
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical but for a trailing newline** -- our 30,915 bytes

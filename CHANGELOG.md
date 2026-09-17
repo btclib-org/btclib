@@ -1004,6 +1004,12 @@ file per release is what keeps each of them under it.
   `reusable-wait-for-index.yml` call** (issue btclib-org/.github#35),
   the two install matrices staying, `needs: wait-for-index` unchanged.
 
+### `check_vendored_vectors.py` can re-check a pin off the default branch
+
+- **A ledger entry's own `ref` field reaches GitHub's "commits touching a
+  path" API as its `sha` parameter** (closes #2160): a pin standing on a
+  fork's pull-request branch is checked rather than permanently excused.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

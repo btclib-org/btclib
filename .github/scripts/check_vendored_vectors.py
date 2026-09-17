@@ -39,6 +39,18 @@ A path upstream has renamed or deleted is reported rather than raising:
 it has no commit to name as a tip, and a pin standing on a file that is
 not there any more is the one drift nobody would otherwise notice.
 
+An entry pinned to a fork's own pull-request branch rather than to a
+repository's default one names that branch in a `ref` field, which
+`_latest_commit` passes on as the "commits touching a path" call's own
+`sha` parameter -- GitHub's name for it, a branch or a tag as much as a
+commit despite the name. Without it the call resolves against the
+default branch alone and answers an empty list for a path that lives
+only on the named one, which reads as upstream having deleted the file
+regardless of whether the pin is current (ISS 2160): that used to force
+every such pin into a `behind` line this script would never revisit, a
+workaround for entries that were, in fact, at their pin's tip. A `ref`
+line is what lets one be checked instead of merely excused.
+
 Shapes a ledger can carry that this script does not attempt: an entry
 with no `commit` at all (chain data self-identified by hash, files
 this project composed itself), a path carrying a `<name>` placeholder
@@ -98,17 +110,30 @@ _HEADING = re.compile(r"^### (.+)$", re.MULTILINE)
 # field the next line actually names unmatched. Confining the separator to the
 # line answers a bare key with no match at all, which is what the checks below
 # already treat as that field being absent.
-_FIELD = re.compile(r"^(repo|path|commit|blob|pulled|behind)[ \t]+(.*)$", re.MULTILINE)
+_FIELD = re.compile(
+    r"^(repo|path|ref|commit|blob|pulled|behind)[ \t]+(.*)$", re.MULTILINE
+)
 
 
 @dataclass(frozen=True)
 class Entry:
-    """One pin this script can re-check: a single blob, a live commit."""
+    """One pin this script can re-check: a single blob, a live commit.
+
+    `ref` is the branch (or tag, or sha) GitHub's "commits touching a
+    path" API should walk instead of the repository's own default
+    branch -- absent for every pin standing on a default branch, which
+    is most of them, and present for one standing on a fork's own
+    pull-request branch, which the API cannot otherwise find at all
+    (ISS 2160): asking it with no `ref` answers an empty list for that
+    path regardless of whether the pin is current, which reads as the
+    path having been deleted upstream.
+    """
 
     heading: str
     repo: str
     path: str
     commit: str
+    ref: str | None = None
 
 
 @dataclass(frozen=True)
@@ -187,7 +212,16 @@ def _entries_at_tip(ledger: str) -> tuple[list[Entry], list[str]]:
         if not behind.startswith("0"):
             skipped.append(f"{heading} (already documented as behind)")
             continue
-        entries.append(Entry(heading, repo, path.strip(), commit.split()[0]))
+        ref = fields.get("ref")
+        entries.append(
+            Entry(
+                heading,
+                repo,
+                path.strip(),
+                commit.split()[0],
+                ref.strip() if ref else None,
+            )
+        )
     skipped.extend(
         f"{unowned} (no fenced block)"
         for unowned in _HEADING.findall(ledger)
@@ -198,7 +232,9 @@ def _entries_at_tip(ledger: str) -> tuple[list[Entry], list[str]]:
     return entries, list(dict.fromkeys(skipped))
 
 
-def _latest_commit(repo: str, path: str) -> tuple[str, str] | None:
+def _latest_commit(
+    repo: str, path: str, ref: str | None = None
+) -> tuple[str, str] | None:
     """Return the sha and date of the most recent commit touching path.
 
     None where upstream has no commit touching it at all, which means the
@@ -209,19 +245,29 @@ def _latest_commit(repo: str, path: str) -> tuple[str, str] | None:
     bare `ValueError` and no issue ever opening -- the one kind of drift
     nobody would otherwise notice, which is what this workflow exists
     for.
+
+    `ref` is GitHub's own `sha` parameter on this endpoint -- a branch,
+    a tag or a commit to start walking history from, despite the name --
+    left off where an `Entry` carries none, which is every pin standing
+    on its repository's default branch: that is what this call has
+    always asked about, and the parameter's own default matches it
+    without this function naming the branch.
     """
+    args = [
+        _GH,
+        "api",
+        "--method",
+        "GET",
+        f"repos/{repo}/commits",
+        "-f",
+        f"path={path}",
+        "-f",
+        "per_page=1",
+    ]
+    if ref is not None:
+        args.extend(("-f", f"sha={ref}"))
     result = subprocess.run(  # noqa: S603
-        [
-            _GH,
-            "api",
-            "--method",
-            "GET",
-            f"repos/{repo}/commits",
-            "-f",
-            f"path={path}",
-            "-f",
-            "per_page=1",
-        ],
+        args,
         capture_output=True,
         check=True,
         encoding="utf-8",
@@ -240,7 +286,7 @@ def find_drift(ledger_path: Path) -> tuple[list[Drift], list[str]]:
     entries, skipped = _entries_at_tip(ledger_path.read_text(encoding="utf-8"))
     drifted = []
     for entry in entries:
-        latest = _latest_commit(entry.repo, entry.path)
+        latest = _latest_commit(entry.repo, entry.path, entry.ref)
         if latest is None:
             # a path upstream no longer has: drift with no tip to name
             drifted.append(Drift(entry, "", ""))
