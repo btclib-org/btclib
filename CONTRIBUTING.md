@@ -594,12 +594,12 @@ green is that platform; red in both is the upgrade. Every workflow in the
 table also takes `workflow_dispatch`, the gates included: a branch whose
 pull request is not open yet has no other way to ask, and for the three
 platform workflows it is the only way to ask about a branch at all.
-`claude-review` and `scorecard` are the exceptions, and take none: both
-of `claude-review`'s jobs read the pull request or the comment that
-triggered them, so a manual dispatch would start a run with nothing to
-read; `scorecard`'s triggers are `ossf/scorecard-action`'s own, whose
-README names push and schedule as supported and calls `workflow_dispatch`
-experimental.
+`claude-review` and `scorecard` are the exceptions, and take none:
+`claude-review`'s job calls a workflow whose two jobs each read the pull
+request or the comment that triggered them, so a manual dispatch would
+start a run with nothing to read; `scorecard`'s triggers are
+`ossf/scorecard-action`'s own, whose README names push and schedule as
+supported and calls `workflow_dispatch` experimental.
 
 ### Reproducing what CI runs
 
