@@ -328,9 +328,11 @@ def pytest_report_header() -> str:
     `btclib_secp256k1.zkp.lib` resolves, so the second arm covers a
     build made without the flag and an environment without the bindings
     at all alike. A conditional expression rather than an `if`, which
-    keeps this one statement: the guard in `tests/__init__.py` needs a
-    `pragma` in each of its arms because the build decides which one a
-    run takes, and a branch here would need the same twice over.
+    keeps this one statement. `conftest_test.py` calls the hook under
+    each value of that name, so its coverage is a fact about the code
+    and not about how the runner was invoked -- unlike the guard in
+    `tests/__init__.py`, which runs at import and carries a `pragma` in
+    each of its arms (issue #2179).
     """
     return "btclib_secp256k1.zkp: " + (
         "built with BTCLIB_LIBSECP256K1_ZKP, so the tests marked zkp run"

@@ -1046,6 +1046,12 @@ file per release is what keeps each of them under it.
   each of them calls as where the draft condition is** (issue
   btclib-org/.github#1177): the caller's own job carries none.
 
+### `pytest_report_header`'s coverage comes from a test, not the runner
+
+- **`tests/conftest_test.py` asserts the sentence each `ZKP_AVAILABLE`
+  arm yields** (closes #2179): pytest calls the hook only where it
+  writes a session header, so a `-q` run missed the statement.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
