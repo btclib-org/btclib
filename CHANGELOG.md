@@ -998,6 +998,12 @@ file per release is what keeps each of them under it.
   `monotonic`, like its neighbor, and asserts the exact timeout
   sequence** (closes #2167): a loaded runner could starve the real clock.
 
+### `pypi-install.yml` calls `btclib-org/.github`'s reusable workflow
+
+- **`wait-for-index`'s checkout, uv setup and wait script become one
+  `reusable-wait-for-index.yml` call** (issue btclib-org/.github#35),
+  the two install matrices staying, `needs: wait-for-index` unchanged.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
