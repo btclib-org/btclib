@@ -980,6 +980,12 @@ file per release is what keeps each of them under it.
   v0.10.0 of `bitcoin/bips#2070`** (closes #2158): a *t*-of-*n* signer
   subset produces one BIP340 signature; key generation stays out of scope.
 
+### `sdist-rebuild.yml` calls the organization's reusable workflow
+
+- **The release lookup, the checkout, the build, the normalizer and
+  `gh attestation verify` move to `btclib-org/.github`'s own
+  `reusable-sdist-rebuild.yml`** (issue btclib-org/.github#35).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
