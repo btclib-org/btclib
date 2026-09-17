@@ -41,9 +41,9 @@ on:
   # changed no link at all
   pull_request:
     # ready_for_review, so a pull request marked ready gets the run the
-    # draft condition below withheld while it was a draft: the default
-    # types do not include it, and without it a readied pull request
-    # would wait for its next push to be checked at all.
+    # draft condition in reusable-links.yml withheld while it was a draft:
+    # the default types do not include it, and without it a readied pull
+    # request would wait for its next push to be checked at all.
     # closed too, though the job below declines the real work on it: a
     # merge or a close is neither a push nor a synchronize, so a run this
     # PR's own concurrency group is still holding survives either unless

@@ -1040,6 +1040,12 @@ file per release is what keeps each of them under it.
   call** (issue btclib-org/.github#35): the verdict jq gains
   btclib-org/btclib-secp256k1#394's fix, and the pin moves to `ef8bb1e4`.
 
+### A `ready_for_review` comment names the workflow the draft condition is in
+
+- **`docs.yml`, `links.yml` and `lint.yml` name the reusable workflow
+  each of them calls as where the draft condition is** (issue
+  btclib-org/.github#1177): the caller's own job carries none.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
