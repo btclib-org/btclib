@@ -530,19 +530,64 @@ def assert_as_valid(
     _assert_scripts(prevouts, tx)
 
 
+def _assert_structurally_valid_(addr: String, sig: Sig | String) -> None:
+    """Raise for an address or a signature that cannot possibly be one.
+
+    Ahead of the try that turns everything else -- a signature for
+    another message, a script the engine does not satisfy, a legacy
+    signature offered for an address that is not p2pkh -- into False
+    (issue #2181).
+
+    The address is the challenge: it becomes the script_pub_key of
+    `to_spend`, so a string that decodes to no address leaves nothing to
+    build one from, and it is refused by the very parse
+    `assert_as_valid` dispatches on. A real address the signature does
+    not spend stays False, that being an answer about the signature.
+
+    What is readable as a signature here is BIP322's own encodings,
+    which `Sig.b64decode` reads, and the 65-octet compact signature the
+    legacy variant carries, which `_is_bms` recognises by its size; text
+    that is neither is refused. `legacy` does not enter that question:
+    it is a policy over schemes rather than a fact about the octets, so
+    a compact signature offered where `legacy=False` asked for BIP322
+    proper is False, beside the restriction to p2pkh that is the other
+    thing the keyword decides.
+
+    `check_validity=False` leaves the value half of the signature where
+    it belongs, as in `ecc.bms._assert_structurally_valid_`:
+    `assert_as_valid` reads the text again with its checks on, below,
+    inside the try.
+
+    The message is not asked here, as in `ecc.bms`: it is what the
+    signature is verified about, and issue #814 is where that was
+    settled.
+    """
+    ScriptPubKey.from_address(addr)
+    if not isinstance(sig, Sig) and not _is_bms(sig):
+        Sig.b64decode(sig, check_validity=False)
+
+
 def verify(
     msg: Octets, addr: String, sig: Sig | String, *, legacy: bool = True
 ) -> bool:
     """Verify the BIP322 signature of a message for an address.
 
+    Raises where the address or the signature is structurally invalid --
+    no address at all, or text no encoding this module reads is written
+    in -- and answers False for a well-formed pair that is merely not
+    authentic. See `_assert_structurally_valid_`.
+
     False for an inconclusive signature as well as for an invalid one:
     the two states are worth telling apart, and `assert_as_valid` is
     where they are, but neither of them is a signature that verified.
     """
-    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
-    # and for its reasons, which it states: what is not a valid signature
-    # is False, and a caller's own mistake is refused before this rather
-    # than excluded from the except
+    _assert_structurally_valid_(addr, sig)
+    # ValueError and BTClibRuntimeError: a signature that does not
+    # satisfy the script is False, and so are the two refusals `legacy`
+    # decides -- a compact signature where BIP322 proper was asked for,
+    # and one offered for an address that is not p2pkh; a caller's own
+    # mistake in the address or in the signature's encoding is refused
+    # above rather than excluded from the except
     try:
         assert_as_valid(msg, addr, sig, legacy=legacy)
     except (ValueError, BTClibRuntimeError):

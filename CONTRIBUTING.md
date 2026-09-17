@@ -1294,14 +1294,15 @@ own mistake, it is a call mypy already refuses, and it leaves as a
 12 being a private key in this library and never a public one, where a
 well-formed public key that simply did not sign is False.
 
-**`ecc`'s verifications carve one case out of that**, as `ecc.musig2`
-and `ecc.frost` do: a value of a declared type whose size or encoding
-makes it impossible to read as a signature, a key, an address, a digest
-or an opening raises `BTClibValueError` rather than answering False. The
-function is not saying the signature is forged, it is saying it has no
-way to find out (issue #2170). So `dsa.verify(msg, "not a key", sig)`
-raises, and `bms.verify(msg, "not an address", sig)` with it, while a
-signature that is well formed and simply does not verify is False.
+**`ecc`'s verifications and `bip322.verify` carve one case out of
+that**, as `ecc.musig2` and `ecc.frost` do: a value of a declared type
+whose size or encoding makes it impossible to read as a signature, a
+key, an address, a digest or an opening raises `BTClibValueError` rather
+than answering False. The function is not saying the signature is
+forged, it is saying it has no way to find out (issue #2170). So
+`dsa.verify(msg, "not a key", sig)` raises, and
+`bms.verify(msg, "not an address", sig)` with it, while a signature that
+is well formed and simply does not verify is False.
 
 **What decides is whether the parameter declares a size**, which is what
 makes the carve-out one rule rather than a judgement per call site. A
@@ -1315,6 +1316,19 @@ reference reads the same way: `dleq_verify_proof` asserts
 `len(proof) == 64`, and the `dleq_challenge` it reaches at its last step
 asserts `len(m) == 32`, while `s >= GE.ORDER` and a challenge that does
 not match are its False.
+
+**Where a parameter declares an encoding rather than a size, the
+encoding decides**, and `bip322.verify` is where the carve-out reaches
+outside `ecc` (issue #2181). Its signature is base64 of one of BIP322's
+own variants, or the 65-octet compact signature the legacy variant
+carries, so text written in neither is refused; its address becomes the
+script_pub_key of `to_spend`, so a string that decodes to no address is
+refused with it. A real address the signature does not spend, and a
+script the engine does not satisfy, stay False. The `legacy` keyword is
+a policy over schemes and not a fact about the octets, so a compact
+signature offered where `legacy=False` asked for BIP322 proper is False,
+beside the restriction to p2pkh that is the other thing the keyword
+decides.
 
 `ecc.dsa`'s malformed DER encoding is the one thing on the other side of
 the line, and it is there because a measurement put it there rather than

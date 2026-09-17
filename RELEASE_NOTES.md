@@ -145,6 +145,27 @@ full year, short month, short day (YYYY-M-D)
   Act on it wherever a caller builds a proof rather than parsing one.
   `RangeProof.assert_valid` is the same refusal ahead of the call, and
   the constructor runs it unless `check_validity=False` says not to.
+- **`bip322.verify` raises on a structurally invalid address or
+  signature instead of answering `False`** (closes #2181), which carries
+  the same split outside `ecc`. A string that decodes to no address, and
+  text written in neither BIP322's own base64 encodings nor the 65-octet
+  compact one the legacy variant carries, each raise rather than answer.
+  What is raised is a `BTClibValueError` or a `BTClibRuntimeError`, the
+  parse layer answering either for text it cannot read.
+  What stays `False` is everything well formed that is merely not
+  authentic: another key's address, a signature for another message, a
+  script the engine does not satisfy, an inconclusive one, a compact
+  signature offered for an address that is not p2pkh, and one offered
+  where `legacy=False` asked for BIP322 proper.
+
+  Act on it wherever a caller treats `False` from `bip322.verify` as
+  proof of nothing but a bad signature. Ahead of the call,
+  `script.ScriptPubKey.from_address` answers the structural question
+  about the address on its own, and `bip322.Sig.b64decode` -- or
+  `ecc.bms.Sig.b64decode` for the legacy variant -- about the signature,
+  for a caller that wants to keep filtering on a bool: that caller
+  catches both classes, either being what an unreadable signature
+  answers.
 
 ## v2026.9.13
 
