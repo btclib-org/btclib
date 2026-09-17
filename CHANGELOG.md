@@ -1118,6 +1118,12 @@ file per release is what keeps each of them under it.
   for** (closes #2177), in place of a sentence `ecc.dsa.verify_` no
   longer carries.
 
+### `psbt.frost` carries a FROST session through a psbt
+
+- **The BIP445 rounds over BIP174 proprietary records under a `btclib`
+  identifier, which no other wallet reads and which are dropped rather
+  than aliased once a psbt BIP assigns FROST type bytes** (closes #2174).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

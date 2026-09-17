@@ -283,7 +283,7 @@ CHILD_MODULES = {
         ],
     },
     "btclib.psbt": {
-        "groups": ["musig2", "silent_payments"],
+        "groups": ["frost", "musig2", "silent_payments"],
         "unpublished": [
             "psbt",
             "psbt_in",
@@ -633,6 +633,7 @@ def test_psbt_exports_the_format_not_its_plumbing() -> None:
         "estimated_input_sizes",
         "extract_tx",
         "finalize",
+        "frost",
         "join",
         "musig2",
         "new_signers",
@@ -644,6 +645,9 @@ def test_psbt_exports_the_format_not_its_plumbing() -> None:
 
     # BIP373 is a role, so the module is the name, as btclib.ecc.dsa is
     assert btclib.psbt.musig2.__name__ == "btclib.psbt.musig2"
+    # and the same for the roles over a BIP445 session, whose fields are
+    # btclib's own proprietary records rather than assigned type bytes
+    assert btclib.psbt.frost.__name__ == "btclib.psbt.frost"
 
     # the plumbing is still there, in the module that defines it
     for name in (

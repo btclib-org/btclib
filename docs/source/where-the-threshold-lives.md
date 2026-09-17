@@ -139,7 +139,7 @@ a FROST group, and a FROST group key can be one key inside a MuSig2
 aggregation. That is how "either the board's 2-of-3 or the chief
 executive" is expressed with one on-chain key.
 
-## A FROST spend has no psbt transport
+## A FROST spend's psbt transport is btclib's own
 
 BIP373 assigns MuSig2 psbt field types of its own — participant public
 keys, a public nonce and a partial signature on an input, participant
@@ -155,11 +155,14 @@ BIP373 has no counterpart, MuSig2's subset always being everybody. The
 taproot tweaks are the same and carry over.
 
 BIP445 specifies no psbt transport of its own, and no type bytes are
-assigned for FROST: writing one today means choosing bytes nobody has
-assigned, and choosing them in the space BIP174 reserves for future
-assignment is how two implementations collide.
-[ISS 2174](https://github.com/btclib-org/btclib/issues/2174) is where
-that is tracked.
+assigned for FROST: choosing bytes in the space BIP174 reserves for
+future assignment is how two implementations collide. So
+`src/btclib/psbt/frost.py` writes the session into the key space BIP174
+reserves for proprietary use instead, under a btclib identifier. No
+other wallet reads those records, and when a psbt BIP does assign FROST
+type bytes they are dropped rather than aliased -- that module's
+docstring is where both are stated, and it is the whole of what a reader
+of a psbt carrying them is owed.
 
 ## Where each of them lives in btclib
 
@@ -173,10 +176,11 @@ op codes `OP_CHECKMULTISIG` and `OP_CHECKSIGADD` under
 
 The cryptographic threshold is `src/btclib/ecc/musig2.py` (BIP327) and
 `src/btclib/ecc/frost.py` (BIP445), with `src/btclib/psbt/musig2.py`
-(BIP373) carrying a MuSig2 session through a psbt. MuSig2 also has a
-spelling in the descriptor grammar, BIP390's `musig()` key expression,
-inside a `tr()` or a `rawtr()`; FROST reaches no layer above
-`btclib.ecc` at all.
+(BIP373) and `src/btclib/psbt/frost.py` carrying a session of each
+through a psbt -- the first in the fields BIP373 assigns, the second in
+proprietary records of btclib's own. MuSig2 also has a spelling in the
+descriptor grammar, BIP390's `musig()` key expression, inside a `tr()`
+or a `rawtr()`; FROST has none.
 
 What they produce is not one object for all three.
 `musig2.partial_sig_agg` and `frost.partial_sig_agg` each answer an

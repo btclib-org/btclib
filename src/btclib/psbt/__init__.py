@@ -13,6 +13,11 @@ the BIP373 role rather than one function, the way btclib.ecc names dsa; so
 is `silent_payments`, BIP375's two roles over the fields BIP375 adds --
 what a Signer writes into a psbt paying a silent payment address, and what
 a Transaction Extractor has to recompute before it hands the bytes over.
+`frost` is the same roles over a BIP445 threshold session, and the one
+whose fields are btclib's own: no psbt BIP assigns FROST type bytes, so it
+writes proprietary records under a btclib identifier, which no other
+wallet reads. Its module docstring states that and what happens to those
+records when a BIP does assign the bytes.
 
 `PsbtView` is the same psbt read a map at a time out of a stream, for a
 signer with less memory than the psbt takes (issue #647). It is beside
@@ -55,7 +60,7 @@ the module that defines it, which is where the test suite takes the other
 half of that module from already.
 """
 
-from btclib.psbt import musig2, silent_payments
+from btclib.psbt import frost, musig2, silent_payments
 from btclib.psbt.psbt import (
     InputSolver,
     KeyManager,
@@ -92,6 +97,7 @@ __all__ = [
     "estimated_input_sizes",
     "extract_tx",
     "finalize",
+    "frost",
     "join",
     "musig2",
     "new_signers",
