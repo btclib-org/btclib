@@ -8,6 +8,15 @@ name: mutation
 # them in the transaction parsers -- and a surviving mutant names one line
 # of it at a time.
 #
+# The baseline check, the session loop, the restore guard, the counts and
+# the upload are btclib-org/.github's reusable-mutation.yml, called at
+# @main so a fix there reaches this tree in one landing (section 10 of
+# that repository's README.md, btclib-org/.github#35). What stays here is
+# this tree's own subject matter -- the profiles below, their budgets and
+# their ceilings -- and the trigger, the schedule, the dispatch dropdown,
+# the concurrency group and the permissions, none of which a reader of
+# the callee could write for this tree.
+#
 # It gates nothing, and that is the design rather than a caution. A gate
 # needs a number nobody has measured yet, and a survival rate is not a
 # regression: a mutant survives because a test is missing, so a red merge
@@ -27,8 +36,8 @@ on:
   # a trigger on .github/mutation/*.toml would hang an hours-long job off a
   # pull request it is not allowed to gate. What that trigger would have
   # caught is caught cheaply elsewhere -- check-toml parses these files on
-  # every commit, and `cosmic-ray baseline` below fails the run before any
-  # mutant if the test command has gone stale
+  # every commit, and `cosmic-ray baseline`, which the callee runs first,
+  # fails the run before any mutant if a test command has gone stale
   schedule:
     # Test depth, the other of that family being fuzz.yml: a session
     # measured in hours, asking something on a different axis from every
@@ -95,453 +104,154 @@ concurrency:
 
 jobs:
   mutation:
-    name: Mutate ${{ matrix.profile }}
-    runs-on: ubuntu-latest
-    # the profiles run in parallel, each under its own ceiling, which is
-    # what keeps a scope added here from spending the budget of the ones
-    # already measured (issue #327): another session inside the consensus
-    # job would have to come out of its 180 minutes or push it past the
-    # ceiling
-    timeout-minutes: ${{ matrix.ceiling }}
-    # whether this profile is one the run was asked for. It is an `env` and
-    # not the job's `if`, which cannot see `matrix` -- the context is
-    # offered to `timeout-minutes` above and to `env` here, and withheld
-    # from `if`, so a job cannot decline itself on what the matrix gave it.
-    # The steps below decline instead: an unasked-for profile still takes a
-    # runner and gives it back in seconds, which is the price of keeping
-    # the matrix a literal list with its reasoning beside each entry rather
-    # than json a setup job prints.
-    # `!inputs.profile` is the schedule's case, which has no `inputs` at
-    # all: the negation reads that absence as every profile, where a
-    # comparison would be against null
-    env:
-      SELECTED: >-
-        ${{ !inputs.profile || inputs.profile == 'all'
-            || inputs.profile == matrix.slug }}
-    strategy:
-      # one profile's runner dying is not a reason to take the other's
-      # numbers with it
-      fail-fast: false
-      matrix:
-        include:
-          # `sessions` is one `<configuration> <budget>` line per session,
-          # in the order they run; the budget is what `timeout` is given,
-          # and the ceiling is the sum of them plus what it takes to
-          # install the environment, take the baselines and write the
-          # reports. A job that reaches its ceiling has hung somewhere
-          # other than in a session, each of those being cut on its own
-          - profile: the consensus code
-            slug: consensus
-            ceiling: 200
-            # 90 minutes each, and the asymmetry is in what they buy rather
-            # than in the number: the sighash session is half an hour of
-            # cpu -- 727 mutants, each costing between the 1.1 s of one the
-            # sighash vectors kill and the 9.2 s of one that reaches the
-            # end of the command -- and finishes inside the budget with
-            # room for a runner slower than the machine that measured it,
-            # while the engine's five and a half hours (2768 mutants at
-            # 7.2 s) cannot finish in any budget this workflow is worth and
-            # is sampled instead. A sample of the same slice every week is
-            # worth more than it sounds: the verdicts in it are stable, so
-            # one that changes is a test that stopped checking what it used
-            # to
-            sessions: |
-              sig_hash.toml 90m
-              engine.toml 90m
-          # the transaction encodings and the length prefixes under them,
-          # measured before this budget was written: 1034 mutants, 88 of
-          # them skipped by the operator filter that configuration
-          # explains, and the 946 left take five to seven minutes of wall
-          # clock depending on what else the machine is doing -- elapsed and
-          # not cpu, which is what `timeout` below and this ceiling both
-          # count. So unlike the engine this profile finishes, which is what
-          # makes its survival rate comparable with the week before, and the
-          # budget is minutes rather than hours: 30 is several times the
-          # measurement, and a runner is slower than that machine but not by
-          # several
-          - profile: the wire-format parsers
-            slug: parsers
-            ceiling: 45
-            sessions: |
-              parsers.toml 30m
-          # extended keys and the checksummed codecs beneath them: bip32.toml
-          # finishes at 1356 mutants in about twenty minutes, codecs.toml is
-          # sampled at 490 of 1083 in the 30 minutes it is given -- both
-          # measured on a machine already running the rest of this matrix,
-          # so a dedicated runner has room to spare rather than needing it
-          - profile: extended keys and the checksummed codecs
-            slug: keys
-            ceiling: 95
-            sessions: |
-              bip32.toml 45m
-              codecs.toml 30m
-          # the message-signing formats: bms.toml and bip322.toml each
-          # finish their own count -- 496 and 552 mutants -- in about two
-          # minutes, small enough that the budget below is headroom rather
-          # than a measurement. Both were "977 apiece" here until
-          # bms.toml's own comment was checked against `cosmic-ray init`
-          # for issue #987 and found not to hold on either file
-          - profile: message signing and BIP322
-            slug: signing
-            ceiling: 35
-            sessions: |
-              bms.toml 10m
-              bip322.toml 10m
-          # the block header and the proof-of-work arithmetic under it:
-          # 1481 mutants, complete in under an hour on the machine that
-          # measured it
-          - profile: the block chain
-            slug: block
-            ceiling: 95
-            sessions: |
-              block.toml 75m
-          # the shared codec helpers and the numeric/network boundaries
-          # built on them: utils.toml is the slow one here -- a
-          # weakened size bound turns into a near-timeout mutant the way
-          # numeric.toml's own does -- so it carries the largest budget
-          # here for the same reason, sampled rather than expected to
-          # finish.
-          # numeric.toml gets 25 rather than 15 because at the 30 s
-          # per-mutant timeout that configuration argues for, 25 is what a
-          # complete session costs: 602 mutants in 75 minutes of job, and a
-          # profile that finishes states a survival rate where a sampled
-          # one can only be read for the verdicts that move in it.
-          # fetch_decorators.toml sits beside fetch.toml rather than
-          # taking a runner of its own, a session this short buying
-          # nothing from one: 69 mutants, 11 of them skipped by the
-          # operator filter that configuration explains, and complete in
-          # 200 s of wall clock at a load average of 24 on the machine
-          # that timed it. 10 minutes is three times that, and the budgets
-          # sum to 95 against a ceiling raised by those same 10, which
-          # leaves the others the slack they were measured with
-          - profile: shared helpers, numeric bounds and fetch
-            slug: shared
-            ceiling: 105
-            sessions: |
-              utils.toml 30m
-              numeric.toml 25m
-              fetch.toml 15m
-              fetch_decorators.toml 10m
-              mnemonic.toml 15m
-          # Schnorr and ECDSA signing: 2475 mutants between the two
-          # modules, nearly as large as the consensus job's own two
-          # sessions and, like the engine's, sampled rather than expected
-          # to finish -- 812 of them in the 90 minutes measured here
-          - profile: signature signing and verification
-            slug: signatures
-            ceiling: 100
-            sessions: |
-              signatures.toml 90m
-          # the pure-Python point arithmetic under the two signing modules
-          # above: 5529 mutants, nearly double their pair's 2980; why it
-          # is invisible to the signatures profile is curve_group.toml's
-          # own header. 90 minutes, matching signatures.toml's budget for
-          # a scope nearly double the size, samples the scope rather than
-          # finishing it: the weekly job cuts the session there and
-          # reports what it judged, and triaging that session's own
-          # survivors is curve_group.toml's own header too
-          - profile: the pure-Python curve arithmetic
-            slug: curves
-            ceiling: 100
-            sessions: |
-              curve_group.toml 90m
-          # output descriptors and miniscript, and the largest scope in
-          # this matrix by a factor of three: 10831 mutants, of which the
-          # first session judged 383 in 31 minutes -- 4.9 s each with four
-          # other profiles on the same machine. Sampled, then, the way the
-          # engine is, and for the same reason: no budget this workflow is
-          # worth finishes it, and a sample of the same slice each week is
-          # worth having because a verdict that changes in it is a test
-          # that stopped checking what it used to. Its own job because it
-          # would otherwise spend every other scope's budget
-          - profile: output descriptors and miniscript
-            slug: descriptors
-            ceiling: 100
-            sessions: |
-              descriptors.toml 90m
-          # the psbt format: 3524 mutants, 913 of them skipped by the
-          # operator filter that configuration explains, and 887 of the
-          # 2611 left judged in 40 minutes at 2.0 s each -- contended, so a
-          # runner on its own is faster, and 45 minutes there is most of the
-          # scope rather than a third of it
-          - profile: the psbt format
-            slug: psbt
-            ceiling: 60
-            sessions: |
-              psbt.toml 45m
-          # the script encodings the two consensus profiles sit on: 2561
-          # mutants, 187 filtered, and 406 judged in 35 minutes. Not folded
-          # into the consensus job, which spends 180 of its 200 minutes
-          # already, and not into the psbt one, which would then need 90
-          # minutes of its own.
-          # 45 again, the 20 it was cut to having bought its answer: this
-          # profile twice took its host down mid-session (issue #948), and a
-          # session cut ahead of the kill was a floor under the loss while
-          # the mechanism was unknown. It is no longer the only thing
-          # holding the profile up -- the ceiling above refuses a runaway
-          # allocation whatever the budget -- and a cut session cannot be
-          # compared with the week before it, which is what this profile is
-          # for. If it dies here again the budget was the only thing holding
-          # it, and that is a mechanism still to find rather than one this
-          # file should hide
-          - profile: the script encodings
-            slug: script
-            ceiling: 60
-            sessions: |
-              script.toml 45m
-          # the four small scopes, which is what makes them one job: signer
-          # finished its 302 filtered mutants in 9 minutes and wallet its
-          # 293 in 15, musig2 spends most of a session on the two `%`
-          # turned `**` its configuration names, and hwi pays 5 s a mutant
-          # for the subprocess each of its tests starts. Budgets in that
-          # order, and the ceiling is their sum plus the environment
-          - profile: wallets, the signer boundary, musig2 and HWI
-            slug: boundaries
-            ceiling: 90
-            sessions: |
-              signer.toml 10m
-              wallet.toml 20m
-              musig2.toml 20m
-              hwi.toml 30m
-    steps:
-      # every action is pinned to a commit SHA, the tag in the comment: a
-      # tag, let alone a branch, is a name its owner can move
-      - name: Checkout code
-        if: env.SELECTED == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # see the checkout of the coverage job in test.yml
-          persist-credentials: false
-      - name: Setup uv
-        if: env.SELECTED == 'true'
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
-        with:
-          # the wheels uv.lock pins do not change between runs, so the
-          # cache is the difference between a download and a copy
-          enable-cache: true
-      # the test command of each configuration, run once against the
-      # unmutated tree. Without this a stale path or a renamed test file
-      # fails every mutant identically, and the session reports a perfect
-      # kill rate -- the one failure mode of a mutation run that looks like
-      # good news.
+    uses: btclib-org/.github/.github/workflows/reusable-mutation.yml@main
+    with:
+      # One object per profile, and every value in it is this tree's own:
+      # the phrase the job is named for, the slug the dropdown above and
+      # the artifact are keyed on, the ceiling in minutes, and the
+      # sessions in the order they run. The callee's `profiles` input
+      # describes that shape and its `timeout-minutes` says what a
+      # ceiling bounds, so what is left to say here is why each budget is
+      # the number it is.
       #
-      # The matrix value reaches the shell through the environment rather
-      # than through a `${{ }}` inside the script, which would be text
-      # pasted into it: the value is this file's own, and the habit is what
-      # zizmor's template-injection rule is asking for.
+      # A budget's measurement belongs to the scope it pays for, and
+      # `.github/mutation/` is where a scope is measured: each
+      # configuration's header states what its last session enumerated,
+      # judged and left surviving, and CONTRIBUTING.md's commands
+      # re-derive it. So a figure a configuration already carries is read
+      # there and not repeated here. What the second copy costs is on
+      # record: this file once stated "977 apiece" for bms.toml and
+      # bip322.toml, a count neither file's own header could produce, and
+      # bms.toml is where that was caught (issue #987). What stays below
+      # is the reasoning no single configuration can hold -- which scopes
+      # share a runner, how a ceiling is arrived at, and the wall clock a
+      # budget was set from where no configuration records one.
       #
-      # Under the same ceiling as the sessions below, and that is what makes
-      # this step the ceiling's own test: a limit too low for what the test
-      # commands legitimately need fails here, against the unmutated tree,
-      # rather than reporting every mutant killed -- the failure mode the
-      # paragraph above is already about
-      - name: Check the baselines
-        if: env.SELECTED == 'true'
-        env:
-          SESSIONS: ${{ matrix.sessions }}
-        run: |
-          ulimit -v 8388608
-          while read -r config _; do
-            [ -n "$config" ] || continue
-            uv run --locked --no-default-groups --group test --group mutation \
-              cosmic-ray baseline ".github/mutation/$config"
-          done <<< "$SESSIONS"
-      # init enumerates the mutants, the filter marks as skipped whatever
-      # the configuration excludes by operator -- a no-op for one that
-      # excludes none, so the decision stays in the toml -- and exec runs
-      # the rest, one at a time, in this working tree: the local
-      # distributor writes each mutation into the file itself and restores
-      # it afterwards, so the sessions run in sequence and nothing else may
-      # read the source while they do.
+      # `consensus`: two sessions of ninety minutes, and the asymmetry is
+      # in what they buy rather than in the number. sig_hash.toml
+      # finishes inside its budget with room for a runner slower than the
+      # machine that measured it, while engine.toml's own header has the
+      # arithmetic saying no budget this workflow is worth can finish
+      # that one, so it is sampled. A sample of the same slice every week
+      # is worth more than it sounds: the verdicts in it are stable, so
+      # one that changes is a test that stopped checking what it used to.
       #
-      # `timeout` and not the job's timeout-minutes, which would cancel the
-      # job and take the reports and the artifact with it: what is wanted
-      # is the numbers for the mutants that did run. 124 is what timeout
-      # exits with when it cuts a session, and a session is resumable --
-      # `cosmic-ray exec` runs the jobs still pending -- so a partial run
-      # is a partial answer rather than a lost one.
+      # `parsers`: minutes rather than hours, the budget having been
+      # sized against a session of five to seven minutes of wall clock on
+      # the machine that measured it -- elapsed and not cpu, which is
+      # what the callee's `timeout` and this ceiling both count. A runner
+      # is slower than that machine by more than the margin allows for: a
+      # dispatch of this profile alone is cut at its budget with a part
+      # of the scope never run, so what the weekly job reports is a
+      # sample rather than the comparable rate the budget was written
+      # for. Buying the rest of it is a question for the ceiling as much
+      # as for the budget, this one leaving fifteen minutes of slack over
+      # the other.
       #
-      # --signal=INT, not the default SIGTERM (issue #392): the local
-      # distributor applies a mutant and restores it from a `finally`
-      # block that only runs if the process can unwind. SIGTERM kills it
-      # outright, mid-mutant, before that block runs; SIGINT is what
-      # Python turns into a catchable KeyboardInterrupt, letting it
-      # unwind. Measured directly -- a process writing a marker, sleeping,
-      # and restoring the marker in `finally`, killed with each signal in
-      # turn -- SIGTERM leaves the marker at its mutated value, SIGINT at
-      # its restored one, timeout still exiting 124 either way
-      - name: Run the mutation sessions
-        if: env.SELECTED == 'true'
-        env:
-          SESSIONS: ${{ matrix.sessions }}
-        run: |
-          # address space, inherited by `cosmic-ray exec` and by every test
-          # command under it, which is what turns issue #948's dead host
-          # into a recorded verdict. The mutant is already killed by a test
-          # that exists: `dh_test.py` asks for one octet past the bound
-          # expecting a refusal, and `pytest.raises(BTClibValueError)` does
-          # not catch the MemoryError that arrives instead, so the command
-          # exits non-zero and the mutant is KILLED. What was missing is a
-          # process alive to say so.
-          #
-          # The ceiling is not sensitive, which is why it is set high. The
-          # buffer is asked for in one statement, so any limit below the
-          # 137 GB that request is refuses it at the mmap -- instantly, and
-          # without the zero-fill an unbounded host pays at 6.4 GB/s.
-          # Nothing is bought by lowering it, and 2 GiB was low enough to
-          # fail three profiles' baselines: `uv` is a multithreaded Rust
-          # binary whose thread stacks alone reserve tens of MiB apiece, and
-          # `ulimit -v` counts address space rather than the memory a
-          # process touches. What the number has to do is clear that
-          # reservation and stay under the host's own 16 GiB, so that the
-          # process dies before the runner does.
-          #
-          # Whether it clears what pytest needs is not asserted here: the
-          # baseline step above runs under the same limit, against the
-          # unmutated tree, and fails the run rather than reporting every
-          # mutant killed.
-          #
-          # Not the per-mutant `timeout`, which cannot reach either shape of
-          # this: 300 s is a width the slow-but-harmless mutants are
-          # measured against, and a refused allocation raises at once
-          ulimit -v 8388608
-          # what the host's memory is doing while the mutants run, and the
-          # question is issue #948's: two profiles die here with the job's
-          # own remaining steps reported `skipped` rather than failed, which
-          # is a host that went away rather than a command that exited.
-          # A mutant that widens a size bound asks for it --
-          # `ansi_x9_63_kdf` sizes one `bytearray` from the block count and
-          # `numeric.toml` puts the weakened bound at gigabytes of keying
-          # data -- and `bytearray` zero-fills, so an unrefused request is
-          # touched rather than merely reserved. Memory is therefore the
-          # reading that tells an exhausted host from a runner GitHub
-          # happened to reclaim.
-          #
-          # To stdout, and this is the whole point of it rather than a
-          # detail: the reports and the artifact are exactly what a dead
-          # host does not leave behind, and a log line already streamed is
-          # what it cannot take back. Every 15 s, because the allocation
-          # that matters develops over tens of seconds and a minute of
-          # spacing would sample either side of it
-          report_memory() {
-            while true; do
-              free -m | awk '/^Mem:/ {
-                print "memory: " $3 " MiB used, " $7 " MiB available"
-              }'
-              sleep 15
-            done
-          }
-          report_memory &
-          memory_reporter=$!
-          # the sessions are what this step waits for, so the sampler has to
-          # be reaped whichever way they end -- including the `return` below
-          # on an unsound status, which leaves the step without running
-          # anything after the loop
-          trap 'kill "$memory_reporter" 2> /dev/null || true' EXIT
-          run_session() {
-            local config=".github/mutation/$1" session="${1%.toml}.sqlite"
-            local budget="$2" status=0
-            uv run --locked --no-default-groups --group test --group mutation \
-              cosmic-ray init "$config" "$session"
-            uv run --locked --no-default-groups --group test --group mutation \
-              cr-filter-operators "$session" "$config"
-            timeout --signal=INT "$budget" \
-              uv run --locked --no-default-groups --group test --group mutation \
-              cosmic-ray exec "$config" "$session" || status=$?
-            # belt and braces beside the signal above: a session that
-            # restores every mutant it applies leaves the tracked source
-            # identical to HEAD, so anything git still sees changed here
-            # is exactly what issue #392 describes, whatever left it that
-            # way. Caught and restored before the next session in this
-            # loop can inherit it -- untracked files (the .sqlite session,
-            # the reports written below) are untouched, git diff not
-            # seeing them in the first place
-            if ! git diff --quiet; then
-              echo "::warning::$config left the tracked source changed after" \
-                "exec; restoring before the next session"
-              git checkout -- .
-            fi
-            if [ "$status" -ne 0 ] && [ "$status" -ne 124 ]; then
-              return "$status"
-            fi
-            if [ "$status" -eq 124 ]; then
-              echo "::notice::$config: cut at $budget, see the report"
-            fi
-          }
-          while read -r config budget; do
-            [ -n "$config" ] || continue
-            run_session "$config" "$budget"
-          done <<< "$SESSIONS"
-      # always(), because the reports are the whole product: a session cut
-      # short, or one whose exec died, still holds every verdict reached
-      # before that, and those are what somebody reads afterwards
-      - name: Write the reports
-        if: always() && env.SELECTED == 'true'
-        env:
-          SESSIONS: ${{ matrix.sessions }}
-        run: |
-          # what the counter said, kept until every session has been
-          # reported: a step that exited at the first unsound one would take
-          # the reports of the sessions after it with it, and those are the
-          # product
-          counted=0
-          while read -r config _; do
-            [ -n "$config" ] || continue
-            session="${config%.toml}"
-            [ -f "$session.sqlite" ] || continue
-            # --surviving-only with the diff, which is the whole of what
-            # anybody acts on: a killed mutant is the suite working, and
-            # printing all 727 of them would bury the dozen that are not.
-            # Not --show-output, which is the pytest run of every mutant,
-            # megabytes of it; the html below has the full picture
-            uv run --locked --no-default-groups --group test --group mutation \
-              cr-report --surviving-only --show-diff "$session.sqlite" \
-              > "$session-survivors.txt"
-            uv run --locked --no-default-groups --group test --group mutation \
-              cr-html "$session.sqlite" > "$session-report.html"
-            # the one line worth reading in the log rather than in the
-            # artifact, and not `cr-rate`: that tool's `is_killed` is
-            # `test_outcome != SURVIVED`, so a mutant the filter skipped
-            # counts as a kill and the rate divides by every result. On a
-            # filtered profile that reads 0.97% where the executed mutants
-            # are 1.32%, and on a session nothing has run yet it reads a
-            # perfect 0.00% -- the one failure mode of a mutation run that
-            # looks like good news. `cr-report`'s summary line is wrong the
-            # same way. The counter prints the counts as well as the rate,
-            # a rate alone being unable to say whether the session finished,
-            # and .github/scripts/mutation_counts.py says why it reads the
-            # session file rather than `cosmic-ray dump`.
-            #
-            # No threshold on the rate: a survivor is a test nobody has
-            # written yet, and this workflow is not allowed to be red about
-            # one. An outcome that is no verdict -- INCOMPETENT, or a worker
-            # that raised -- is the other thing, and the counter exits
-            # non-zero for it, which is why the session label is an argument
-            # rather than a `sed` after a pipe: a pipeline's status is its
-            # last command's, and this step runs under `bash -e` without
-            # `pipefail`, so piping discarded exactly the status it reports
-            uv run --locked --no-default-groups \
-              python .github/scripts/mutation_counts.py \
-              "$session.sqlite" "$session" || counted=$?
-          done <<< "$SESSIONS"
-          exit "$counted"
-      # the sessions as well as the reports: a .sqlite is what `cr-report`
-      # and `cr-html` are re-run against, and what a later `cosmic-ray
-      # exec` resumes, so downloading one is how the engine's remaining
-      # two thirds get finished on somebody's machine.
-      # One artifact per profile, the profiles being parallel jobs: two
-      # uploads under one name is an error, and the slug is what tells the
-      # consensus sessions from the parser ones in the Actions tab
-      - name: Upload the sessions and the reports
-        if: always() && env.SELECTED == 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: mutation-${{ matrix.slug }}-sessions
-          path: |
-            *.sqlite
-            *-survivors.txt
-            *-report.html
-          if-no-files-found: error
-          # long enough to compare a run with the one before it, short
-          # enough that a weekly job does not accumulate a year of sqlite
-          retention-days: 90
+      # `keys`: bip32.toml finishes in about twenty minutes and
+      # codecs.toml is sampled at the thirty it is given, both measured
+      # on a machine already running the rest of this matrix, so a
+      # dedicated runner has room to spare rather than needing it.
+      #
+      # `signing`: the two message-signing scopes share a runner, a
+      # session each, and ten minutes apiece is headroom rather than a
+      # measurement -- bip322.toml's own header puts its session under
+      # ten minutes, which is the figure to re-measure before this budget
+      # is leaned on.
+      #
+      # `block`: block.toml's session completes in under an hour on the
+      # machine that measured it, and 75 minutes is that with a slower
+      # runner's margin.
+      #
+      # `shared`: five scopes, and the cell where the budgets argue with
+      # each other. utils.toml carries the largest of them and is sampled
+      # rather than expected to finish, a weakened size bound turning
+      # into a near-timeout mutant there the way numeric.toml's own does.
+      # numeric.toml gets 25 rather than 15 because at the 30 s
+      # per-mutant timeout its configuration argues for, 25 is what a
+      # complete session costs, and a profile that finishes states a
+      # survival rate where a sampled one can only be read for the
+      # verdicts that move in it. fetch_decorators.toml sits beside
+      # fetch.toml rather than taking a runner of its own, a session this
+      # short buying nothing from one: it completes in 200 s of wall
+      # clock at a load average of 24 on the machine that timed it, and
+      # 10 minutes is three times that. The budgets sum to 95 against a
+      # ceiling raised by those same 10, which leaves the others the
+      # slack they were measured with.
+      #
+      # `signatures`: sampled rather than expected to finish, and
+      # signatures.toml's header is what the ninety minutes below reached.
+      #
+      # `curves`: ninety minutes, matching signatures.toml's budget for a
+      # scope curve_group.toml's header measures at nearly double the
+      # size, which samples the scope rather than finishing it -- the
+      # weekly job cuts the session there and reports what it judged. Why
+      # this scope is invisible to the signatures profile, and what
+      # triaging its survivors involves, are curve_group.toml's own
+      # header too.
+      #
+      # `descriptors`: the largest scope in this matrix, and its own job
+      # because it would otherwise spend every other scope's budget.
+      # Sampled the way the engine is and for the same reason: no budget
+      # this workflow is worth finishes it, and a sample of the same
+      # slice each week is worth having because a verdict that changes in
+      # it is a test that stopped checking what it used to.
+      #
+      # `psbt`: psbt.toml's own header measures its session with four
+      # other profiles sharing the machine, so a runner of its own is
+      # faster and 45 minutes there is most of the scope rather than the
+      # third that header records.
+      #
+      # `script`: not folded into the consensus job, which spends 180 of
+      # its 200 minutes already, and not into the psbt one, which would
+      # then need 90 minutes of its own. 45 again, the 20 it was cut to
+      # having bought its answer: this profile twice took its host down
+      # mid-session (issue #948), and a session cut ahead of the kill was
+      # a floor under the loss while the mechanism was unknown. It is no
+      # longer the only thing holding the profile up -- the callee runs
+      # every session under an address-space limit, which is what turns
+      # that dead host into a recorded verdict whatever the budget -- and
+      # a cut session cannot be compared with the week before it, which
+      # is what this profile is for. If it dies here again the budget was
+      # the only thing holding it, and that is a mechanism still to find
+      # rather than one this file should hide.
+      #
+      # `boundaries`: the four small scopes, which is what makes them one
+      # job rather than four runners. Budgets in the order their own
+      # headers measure them -- signer.toml the fastest, then
+      # wallet.toml, then musig2.toml, which spends most of a session on
+      # the two `%` turned `**` its configuration names, and hwi.toml,
+      # whose tests start a subprocess apiece -- and the ceiling is their
+      # sum plus the environment.
+      profiles: >-
+        [{"profile": "the consensus code", "slug": "consensus", "ceiling": 200, "sessions":
+        "sig_hash.toml 90m\nengine.toml 90m"},
+        {"profile": "the wire-format parsers", "slug": "parsers", "ceiling": 45, "sessions":
+        "parsers.toml 30m"},
+        {"profile": "extended keys and the checksummed codecs", "slug": "keys", "ceiling": 95,
+        "sessions": "bip32.toml 45m\ncodecs.toml 30m"},
+        {"profile": "message signing and BIP322", "slug": "signing", "ceiling": 35, "sessions":
+        "bms.toml 10m\nbip322.toml 10m"},
+        {"profile": "the block chain", "slug": "block", "ceiling": 95, "sessions":
+        "block.toml 75m"},
+        {"profile": "shared helpers, numeric bounds and fetch", "slug": "shared", "ceiling":
+        105, "sessions":
+        "utils.toml 30m\nnumeric.toml 25m\nfetch.toml 15m\nfetch_decorators.toml
+        10m\nmnemonic.toml 15m"},
+        {"profile": "signature signing and verification", "slug": "signatures", "ceiling": 100,
+        "sessions": "signatures.toml 90m"},
+        {"profile": "the pure-Python curve arithmetic", "slug": "curves", "ceiling": 100,
+        "sessions": "curve_group.toml 90m"},
+        {"profile": "output descriptors and miniscript", "slug": "descriptors", "ceiling": 100,
+        "sessions": "descriptors.toml 90m"},
+        {"profile": "the psbt format", "slug": "psbt", "ceiling": 60, "sessions":
+        "psbt.toml 45m"},
+        {"profile": "the script encodings", "slug": "script", "ceiling": 60, "sessions":
+        "script.toml 45m"},
+        {"profile": "wallets, the signer boundary, musig2 and HWI", "slug": "boundaries",
+        "ceiling": 90, "sessions":
+        "signer.toml 10m\nwallet.toml 20m\nmusig2.toml 20m\nhwi.toml 30m"}]
+      # the dropdown above, forwarded. A schedule has no `inputs` at all,
+      # so this arrives at the callee as an empty string, which its own
+      # `SELECTED` expression reads as every profile rather than as none
+      selected: ${{ inputs.profile }}
