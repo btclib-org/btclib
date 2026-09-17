@@ -4,8 +4,13 @@ name: scorecard
 # OpenSSF Scorecard: a third-party, external audit of this repository's
 # supply-chain posture, run independently rather than by anything this
 # organization asked itself. btclib-org/.github#339 is where this
-# sentinel and its permissions are decided; this file adopts it, and
-# does not restate the reasoning.
+# sentinel and its permissions were decided; the analysis job itself --
+# its checkout, the scan, the artifact and the SARIF upload, permissions
+# included -- is btclib-org/.github's reusable-scorecard.yml, called at
+# @main so a fix there reaches this tree in one landing
+# (btclib-org/.github#35). What stays here is the trigger, the cron
+# minute, the workflow-level permissions and the concurrency group,
+# which the callee does not carry and says so in its own header.
 #
 # This repository is public and is not a fork, which is the property
 # section 10 of the standard keys the sentinel on:
@@ -34,8 +39,8 @@ on:
     - cron: "4 5 * * 0"
 
 # least privilege for the GITHUB_TOKEN at the workflow level, elevated
-# on the job below -- each grant explained at its own line there -- and
-# pushes nothing back to the tree.
+# on the calling job below -- each grant explained at its own line
+# there -- and pushes nothing back to the tree.
 permissions:
   contents: read
 
@@ -51,54 +56,15 @@ concurrency:
 
 jobs:
   analysis:
-    name: Scorecard analysis
-    runs-on: ubuntu-latest
+    uses: btclib-org/.github/.github/workflows/reusable-scorecard.yml@main
+    # a called workflow's own permissions: block can only downgrade, not
+    # restore, what this calling job grants -- GitHub's own docs on
+    # reusing workflow configurations -- so every scope the callee's job
+    # asks for is named here too, or the run fails before any job starts
+    # (a startup_failure, README.md section 11's "the bound refuses
+    # rather than trims", measured in btclib-org/.github#912)
     permissions:
-      # the transparency-log entry publish_results below asks for
-      id-token: write
-      # SARIF results filed as code-scanning alerts
-      security-events: write
-      # this job writes neither a release nor anything else to the
-      # tree, so read is all it takes -- granted here rather than
-      # inherited, a job's own block replacing the workflow-level one
-      # rather than adding to it, so contents omitted from this block
-      # would be none for this job
+      id-token: write # the OpenSSF transparency log publish
+      security-events: write # the SARIF upload
       contents: read
-      # what the Packaging check reads workflow-run history with, to see
-      # whether release.yml has runs that succeeded -- ossf/scorecard's
-      # checks/raw/github/packaging.go calls
-      # Client.Actions.ListWorkflowRunsByFileName for a workflow file its
-      # matcher recognizes as publishing, which release.yml is by its
-      # pypa/gh-action-pypi-publish step
-      actions: read
-    # a run past this is hung rather than analysing
-    timeout-minutes: 15
-    steps:
-      # every action pinned to a commit SHA with the tag in the comment:
-      # a tag, let alone a branch, is a name its owner can move
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # the analysis reads the tree and nothing pushes it back
-          persist-credentials: false
-
-      - name: Run analysis
-        uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
-        with:
-          results_file: results.sarif
-          results_format: sarif
-          # feeds the score api.scorecard.dev/projects/... serves, which
-          # is what README.md's badge and the scorecard.dev viewer read
-          publish_results: true
-
-      - name: Upload the SARIF as a workflow artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: SARIF file
-          path: results.sarif
-          retention-days: 5
-
-      - name: Upload the SARIF to code scanning
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
-        with:
-          sarif_file: results.sarif
+      actions: read # the Packaging check's workflow-run history read
