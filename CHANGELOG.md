@@ -1100,6 +1100,12 @@ file per release is what keeps each of them under it.
   `check_validity=False` in a state `RangeProof.assert_valid` names, and
   `verify` answers `False`** (closes #2182), as `ecc.bms` does a `Sig`.
 
+### The `bindings` and `zkp` skips are covered by tests, not by the build
+
+- **`tests/conftest_test.py` drives both skip helpers and the hook under
+  each value of `INSTALLED` and `ZKP_AVAILABLE`** (closes #2185): no
+  `pragma` stands in for the arm a machine's own build cannot reach.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

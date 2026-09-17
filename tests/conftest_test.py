@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Tests for the golden-file check, the coverage gate and the header hook.
+"""Tests for the golden-file check, the coverage gate and the two hooks.
 
 Eleven modules compare a `to_dict()` against a committed json through
 `json_golden`, and the two paths that report a difference are the ones a
@@ -27,6 +27,13 @@ writes a session header, so a run given `-q` writes none, never calls
 it, and the one statement it is reads as unexecuted. Driven here under
 each value of `ZKP_AVAILABLE`, the build being the other thing a run
 cannot report on.
+
+`pytest_collection_modifyitems` and the two skip helpers it calls are
+the build's own case rather than the runner's: a machine has the
+bindings or has not and is flagged or is not, so its own run reaches one
+way out of each `if` and one helper at most. They are driven here with
+both names patched and an item that carries both markers, which is what
+asks of them what no single build can.
 """
 
 import argparse
@@ -43,15 +50,23 @@ import pytest
 from tests.conftest import (
     REGENERATE,
     CoverageConfiguration,
+    _skip_what_needs_the_bindings,
+    _skip_what_needs_zkp,
     check_golden,
     configuration_went_unread,
     coverage_configuration,
     coverage_fail_under,
+    pytest_collection_modifyitems,
     pytest_configure,
     pytest_report_header,
 )
 
 MODULE = "something_test.py"
+# the two reasons the skip helpers name, quoted here because they are
+# what a contributor without the build reads and so what the assertions
+# are about
+_NO_BINDINGS = "btclib_secp256k1 is not installed"
+_NO_ZKP_BUILD = "btclib_secp256k1.zkp is not built with BTCLIB_LIBSECP256K1_ZKP"
 _ROOT = Path(__file__).parents[1]
 # what pytest reads its own configuration from here, which the guard
 # compares against what coverage read and the message names
@@ -873,3 +888,109 @@ def test_the_header_names_the_build_that_answered(
     monkeypatch.setattr("tests.conftest.ZKP_AVAILABLE", zkp_available)
 
     assert pytest_report_header() == f"btclib_secp256k1.zkp: {build}"
+
+
+def _item(*marker_names: str) -> tuple[pytest.Item, list[pytest.MarkDecorator]]:
+    """Build what either skip helper reads and writes of an item.
+
+    `iter_markers` is the whole of what a helper asks of an item and
+    `add_marker` the whole of what it does to one, where building a real
+    one means a session and a collected module behind it. The list
+    beside it is where the skips land, there being nothing on an item to
+    read them back from once `add_marker` is a stand-in.
+
+    `pytest.mark.<name>.mark` is where each `Mark` comes from:
+    constructing one warns that a private class was used, which
+    `filterwarnings = ["error"]` makes a failure.
+    """
+    marks = [getattr(pytest.mark, name).mark for name in marker_names]
+    applied: list[pytest.MarkDecorator] = []
+    item = cast(
+        "pytest.Item",
+        SimpleNamespace(iter_markers=lambda: iter(marks), add_marker=applied.append),
+    )
+    return item, applied
+
+
+def _reasons(applied: list[pytest.MarkDecorator]) -> list[str]:
+    """Name every skip an item was given, in the order it was given them.
+
+    The reason is what a contributor without the build reads, so it is
+    what the assertions below are written against rather than the mark's
+    own name; `skip` is checked once, where the pair is built.
+    """
+    return [marker.kwargs["reason"] for marker in applied]
+
+
+def test_the_bindings_helper_skips_by_the_mark_and_not_the_other_marker() -> None:
+    """Only what carries `bindings` is skipped, and the reason names it.
+
+    The item the helper is to leave alone carries `zkp`, so a helper
+    skipping whatever it is handed would pass this only by taking the
+    other marker's items too.
+    """
+    marked, marked_skips = _item("bindings")
+    other, other_skips = _item("zkp")
+
+    _skip_what_needs_the_bindings([marked, other])
+
+    assert [marker.name for marker in marked_skips] == ["skip"]
+    assert _reasons(marked_skips) == [_NO_BINDINGS]
+    assert other_skips == []
+
+
+def test_the_zkp_helper_skips_by_the_mark_and_not_the_other_marker() -> None:
+    """Only what carries `zkp` is skipped, and the reason names the flag.
+
+    The flag and not the cffi module, which is what a contributor
+    reading the skip report has to act on.
+    """
+    marked, marked_skips = _item("zkp")
+    other, other_skips = _item("bindings")
+
+    _skip_what_needs_zkp([marked, other])
+
+    assert [marker.name for marker in marked_skips] == ["skip"]
+    assert _reasons(marked_skips) == [_NO_ZKP_BUILD]
+    assert other_skips == []
+
+
+@pytest.mark.parametrize(
+    "installed, zkp_available, expected",
+    [
+        (True, True, []),
+        (True, False, [_NO_ZKP_BUILD]),
+        (False, True, [_NO_BINDINGS]),
+        (False, False, [_NO_BINDINGS, _NO_ZKP_BUILD]),
+    ],
+    ids=["both", "bindings-only", "zkp-only", "neither"],
+)
+def test_the_hook_skips_what_the_build_cannot_run(
+    installed: bool,
+    zkp_available: bool,
+    expected: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Each build gets the skips its own two names call for.
+
+    One item carrying both markers is what separates the two `if`s: the
+    build that has everything skips it not at all, and the build that
+    has neither skips it twice, in the order the hook calls the helpers.
+
+    `tests.conftest` is where both names are patched, `INSTALLED` and
+    `ZKP_AVAILABLE` being bound there by the imports at the top of that
+    module, and `monkeypatch` rather than an assignment because
+    collection reads the same two and a value left standing would decide
+    what the rest of the session skips.
+
+    Driving all four combinations is what covers both ways out of each
+    `if` and the call inside each: a run takes one way out of each at
+    collection and cannot take the other, the build having decided it.
+    """
+    monkeypatch.setattr("tests.conftest.INSTALLED", installed)
+    monkeypatch.setattr("tests.conftest.ZKP_AVAILABLE", zkp_available)
+    item, applied = _item("bindings", "zkp")
+
+    pytest_collection_modifyitems([item])
+
+    assert _reasons(applied) == expected

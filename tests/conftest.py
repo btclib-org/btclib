@@ -443,55 +443,49 @@ def check_golden(path: Path, name: str, value: Any, module: str) -> None:
         )
 
 
-def _skip_what_needs_the_bindings(
-    items: list[pytest.Item],
-) -> None:  # pragma: no cover -- only the no-bindings job reaches this
+def _skip_what_needs_the_bindings(items: list[pytest.Item]) -> None:
     """Skip every test marked `bindings`, naming why once.
 
-    Runs only where `btclib_secp256k1` is absent, `INSTALLED` being set
-    once at import and not something a test can fake in-process. Issue
-    #1002 asked whether that still leaves this unmeasured, given
-    `test.yml`'s `coverage-union` job: it does not go unmeasured -- the
-    no-bindings job's own `--cov` reaches this function and the combined
-    report is 100% with the pragma removed -- but the pragma stays,
-    because `coverage-union` gates beside the `coverage` job's report and
-    not instead of it, and that job's own single run has the bindings
-    installed, so `INSTALLED` is always True there and this function is
-    never called. Removing the pragma would fail that gate, which this
-    issue chose to leave exactly as it was.
+    The hook below calls this only where `btclib_secp256k1` is absent,
+    `INSTALLED` being set once at import and not something a test can
+    fake in-process. What covers it is `conftest_test.py` calling it
+    directly, so the measurement is a fact about the function rather
+    than about which build ran it: `test.yml`'s `coverage` job gates at
+    100% on a single run with the bindings installed, where the hook
+    reaches nothing here. `coverage-union` combines that run with the
+    `no-bindings` job's and gates beside the `coverage` job rather than
+    instead of it, which is what issue #1002 settled.
     """
     skip = pytest.mark.skip(reason="btclib_secp256k1 is not installed")
     for item in items:
         # `iter_markers` and not `item.keywords`: keywords is what `-k`
         # matches, so it holds the module name, the test name and the
-        # parametrize id as well -- and this tree has seventeen
-        # parametrize decorators whose first id is `bindings`, whose
-        # arms would then be skipped by the spelling of an id rather
-        # than by a mark. Those arms do need skipping, so the suite
-        # would stay green and the two names this marker exists to keep
-        # equal would already differ; renaming one id is all it would
-        # take to turn that into fourteen errors saying nothing
+        # parametrize id as well -- and this tree parametrizes on an id
+        # spelled `bindings` in many places, whose arms would then be
+        # skipped by the spelling of an id rather than by a mark. Those
+        # arms do need skipping, so the suite would stay green and the
+        # two names this marker exists to keep equal would already
+        # differ; renaming one id is all it would take to turn that
+        # silent agreement into a run of errors saying nothing
         if any(mark.name == "bindings" for mark in item.iter_markers()):
             item.add_marker(skip)
 
 
-def _skip_what_needs_zkp(
-    items: list[pytest.Item],
-) -> None:  # pragma: no cover -- an unflagged build is what calls this
+def _skip_what_needs_zkp(items: list[pytest.Item]) -> None:
     """Skip every test marked `zkp`, naming why once.
 
-    Runs wherever `btclib_secp256k1.zkp.lib` is not the flagged
-    extension, `ZKP_AVAILABLE` being set once at import from that same
-    attribute access, in `tests/__init__.py`. The reason is worded like
-    `bindings`' own rather than naming the extension by name: a
-    contributor reading a skip report wants to know what to build, not
-    which cffi module answered.
+    The hook below calls this wherever `btclib_secp256k1.zkp.lib` is not
+    the flagged extension, `ZKP_AVAILABLE` being set once at import from
+    that same attribute access, in `tests/__init__.py`. The reason is
+    worded like `bindings`' own rather than naming the extension by
+    name: a contributor reading a skip report wants to know what to
+    build, not which cffi module answered.
 
-    The pragma is the other half of the pair `tests/__init__.py` carries
-    on the guard itself: a build with the extension never calls this,
-    and excluding what a build cannot execute is what leaves the floor a
-    measurement of the suite rather than of the build the machine has
-    (issue #1885).
+    `conftest_test.py` calls this directly too, so a flagged build
+    measures it like any other -- unlike the guard in `tests/__init__.py`
+    that sets the name, whose arms run at import and carry a `pragma`
+    each, a build being what decides which one a run takes (issue
+    #1885).
     """
     skip = pytest.mark.skip(
         reason="btclib_secp256k1.zkp is not built with BTCLIB_LIBSECP256K1_ZKP"
@@ -509,17 +503,15 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     applies and what `pytest -m "not bindings"` or `-m "not zkp"` selects
     on; this is what makes it a skip as well, so that one name does the
     selecting and the skipping and cannot drift into doing only one.
+
+    A build takes one way out of each `if` at collection and cannot take
+    the other, which is what a `pragma` here would otherwise stand for.
+    `conftest_test.py` calls this hook with `INSTALLED` and
+    `ZKP_AVAILABLE` monkeypatched instead, and coverage accumulates arcs
+    over the whole session, so both ways out of both are taken whatever
+    the machine was built with (issue #2185).
     """
     if not INSTALLED:
-        _skip_what_needs_the_bindings(
-            items
-        )  # pragma: no cover -- only the no-bindings job reaches this
-    # `no branch`: the build decides which way this goes, so an
-    # unflagged run never takes the branch around the body and a flagged
-    # one never takes the branch into it. The line itself runs either
-    # way; what a flagged run leaves uncovered is the call, and the
-    # function it calls (issue #1885)
-    if not ZKP_AVAILABLE:  # pragma: no branch -- the build decides which way it goes
-        _skip_what_needs_zkp(
-            items
-        )  # pragma: no cover -- a flagged build has nothing to skip
+        _skip_what_needs_the_bindings(items)
+    if not ZKP_AVAILABLE:
+        _skip_what_needs_zkp(items)
