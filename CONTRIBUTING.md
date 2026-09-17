@@ -1291,8 +1291,19 @@ them wants an answer and not an exception. A value of a type the
 signature does not declare is not such an answer — it is the caller's
 own mistake, it is a call mypy already refuses, and it leaves as a
 `BTClibTypeError` like any other. So `dsa.verify(msg, 12, sig)` raises,
-12 being a private key in this library and never a public one, where
-`dsa.verify(msg, "not a key", sig)` is False.
+12 being a private key in this library and never a public one, where a
+well-formed public key that simply did not sign is False.
+
+**`ecc.ssa` and `ecc.dsa` carve one case out of that**, as `ecc.musig2`
+and `ecc.frost` already did: a value of a declared type whose size or
+encoding makes it impossible to read as a signature or a key raises
+`BTClibValueError` rather than answering False. The function is not
+saying the signature is forged, it is saying it has no way to find out
+(issue #2170). So `dsa.verify(msg, "not a key", sig)` raises, where it
+was False before, while a signature that is well formed and simply does
+not verify is False as it always was. `ecc.dsa`'s malformed DER encoding
+is the one case left on the other side, its own wycheproof vectors
+measuring it as False.
 
 The line is the annotation, and deliberately not which built-in a helper
 happens to derive from: those two coincide only by accident, which is

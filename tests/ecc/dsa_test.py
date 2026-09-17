@@ -526,20 +526,21 @@ def test_prv_key_is_not_a_pub_key() -> None:
 
     # the spellings a PubKey declares -- text, which is `Octets` here --
     # carrying a private key and refused for what they hold. No
-    # `type: ignore` on these: they type check, which is the whole of
-    # what makes False the right answer for them
+    # `type: ignore` on these: they type check, and none of the four is a
+    # spelling `point_from_pub_key` accepts, which is a structurally
+    # invalid key and raises (issue 2170) rather than reading as a
+    # signature that failed to verify
     for prv_key in (
         prv_key_hexstring,
         wif_compressed_string,
         wif_uncompressed_string,
         xprv_string,
     ):
-        assert not dsa.verify(msg, prv_key, sig)
-        assert not dsa.verify(msg, prv_key, sig_sha1, hf=sha1)
-        with pytest.raises(BTClibValueError, match="not a public key"):
-            dsa.assert_as_valid(msg, prv_key, sig)
-        with pytest.raises(BTClibValueError, match="not a public key"):
-            dsa.assert_as_valid(msg, prv_key, sig_sha1, hf=sha1)
+        for call in (dsa.verify, dsa.assert_as_valid):
+            with pytest.raises(BTClibValueError, match="not a public key"):
+                call(msg, prv_key, sig)
+            with pytest.raises(BTClibValueError, match="not a public key"):
+                call(msg, prv_key, sig_sha1, hf=sha1)
         # neither the rejection nor its message may echo the secret
         with pytest.raises(BTClibValueError) as refusal:
             dsa.assert_as_valid(msg, prv_key, sig)
@@ -1597,7 +1598,11 @@ def test_verify_answers_about_signatures_not_about_types() -> None:
     sig = dsa.sign(msg, q)
     assert dsa.verify(msg, Q, sig)
 
-    # still False: these are answers about the signature
+    # still False: these are answers about the signature. A malformed DER
+    # encoding is one of them and stays False rather than raising --
+    # `wycheproof_test.py::test_ecdsa_der` is measured against several
+    # thousand vectors built on exactly that question (issue 2170's
+    # `_assert_structurally_valid_` in dsa.py has the reasoning)
     assert not dsa.verify(b"another message", Q, sig)
     assert not dsa.verify(msg, Q, b"")
     assert not dsa.verify(msg, Q, b"\x30\x06\x02\x01\x80\x02\x01\x80")
@@ -2381,3 +2386,83 @@ def test_a_refusal_that_is_not_about_the_key_still_leaves_as_btclib(
     q, _Q = dsa.gen_keys(0x1234)
     with pytest.raises(BTClibValueError, match="a refusal of some other kind"):
         dsa.sign(b"Satoshi Nakamoto", q, pub_key=None)
+
+
+def test_verify_raises_on_a_structurally_invalid_public_key() -> None:
+    """A public key spelled in a way no conversion accepts raises (issue 2170).
+
+    Unlike a BIP340 x-only key, every spelling this module accepts
+    already proves a point of the curve as part of being parsed -- there
+    is no unlifted form to defer the proof of -- so the public key's own
+    structural question and its cryptographic one collapse into one
+    check, and both raise.
+    """
+    q, Q = dsa.gen_keys(0x1234567890ABCDEF)
+    msg = b"Satoshi Nakamoto"
+    msg_hash = reduce_to_hlen(msg)
+    sig = dsa.sign(msg, q)
+    sig_hash = dsa.sign_(msg_hash, q)
+    key_hex = bytes_from_point(Q).hex()
+
+    for call, m, s in ((dsa.verify, msg, sig), (dsa.verify_, msg_hash, sig_hash)):
+        assert call(m, key_hex, s)
+
+        # thirty-one octets is neither a compressed nor an uncompressed
+        # SEC key, and text that is not hex at all is no key either
+        with pytest.raises(BTClibValueError, match="not a public key"):
+            call(m, "11" * 31, s)
+        with pytest.raises(BTClibValueError, match="not a public key"):
+            call(m, "zz", s)
+
+        # thirty-three well-formed octets naming no point of the curve:
+        # a key that does not lift, which -- unlike ssa's x-only spelling
+        # -- this module cannot leave unproven
+        with pytest.raises(BTClibValueError, match="not a public key"):
+            call(m, "02" + "ff" * 32, s)
+
+        # None is refused as a type rather than answered about, unaffected
+        # by this issue and true before and after it
+        with pytest.raises(BTClibTypeError):
+            call(m, None, s)  # type: ignore[arg-type]
+
+
+def test_verify_answers_false_for_a_malformed_der_encoding() -> None:
+    """A DER encoding that cannot be is still False, not raised.
+
+    Unlike a public key or BIP340's own fixed 64 bytes, a DER signature's
+    own grammar is what `wycheproof_test.py::test_ecdsa_der` measures
+    against vectors built on exactly this question, over
+    the bitcoin, generic ecdsa, sha512, sha3 and shake profiles: a
+    signature whose encoding is malformed answers False. Reclassifying it
+    as structural here would fail that suite, so it stays inside the try,
+    which is the one case issue 2170 found that does not mechanically
+    follow BIP340's model and is left as it was.
+    """
+    _q, Q = dsa.gen_keys(0x1234567890ABCDEF)
+    msg = b"Satoshi Nakamoto"
+    key_hex = bytes_from_point(Q).hex()
+
+    for call in (dsa.verify, dsa.verify_):
+        # not a DER sequence at all
+        assert not call(msg, key_hex, b"")
+        # a header claiming a compound structure with none in it
+        assert not call(msg, key_hex, b"\x30\x00")
+        # a scalar written without the padding BIP66 requires, reading as
+        # negative
+        assert not call(msg, key_hex, b"\x30\x06\x02\x01\x80\x02\x01\x80")
+
+
+def test_verify_answers_false_for_a_well_formed_signature_that_is_wrong() -> None:
+    """A scalar out of range is still False, an ordinary failed check."""
+    q, Q = dsa.gen_keys(0x1234567890ABCDEF)
+    msg = b"Satoshi Nakamoto"
+    sig = dsa.sign(msg, q)
+    key_hex = bytes_from_point(Q).hex()
+    assert dsa.verify(msg, key_hex, sig)
+
+    # a message that is not the one signed: an ordinary failed verification
+    assert not dsa.verify(b"another message", key_hex, sig)
+
+    # r and s well beyond 1..n-1, a DER encoding that parses cleanly
+    out_of_range = dsa.Sig(secp256k1.n, secp256k1.n, check_validity=False)
+    assert not dsa.verify(msg, key_hex, out_of_range.serialize(check_validity=False))

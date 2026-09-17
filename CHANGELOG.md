@@ -1016,6 +1016,24 @@ file per release is what keeps each of them under it.
   threshold, MuSig2 and FROST** (closes #2175): what each costs, where
   each lives in this tree, and why *t* = *n* FROST is not MuSig2.
 
+### `ecc.ssa` and `ecc.dsa` raise on a structurally invalid signature or key
+
+- **`verify`, `verify_`, `batch_verify` and `batch_verify_` raise, instead
+  of answering `False`, for a signature or a key whose size or encoding
+  makes it impossible** (issue #2170), converging on BIP340's reference.
+
+### A BIP340 x-only public key that does not lift still answers `False`
+
+- **A 33/65-byte SEC key or a native point is proved on the curve while
+  parsing in both modules; a bare 32-byte x-only key's lift stays
+  deferred to the equation** (issue #2170), as BIP340's `lift_x` is.
+
+### `ecc.dsa`'s malformed DER encoding still answers `False`
+
+- **Reclassified as structural, it would fail
+  `wycheproof_test.py::test_ecdsa_der`, measured against its own vectors**
+  (issue #2170): left as it was, unlike BIP340's fixed 64 bytes.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
