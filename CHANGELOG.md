@@ -1148,6 +1148,12 @@ file per release is what keeps each of them under it.
   block take a trailing comment, the leading prose kept** (issue
   btclib-org/.github#1164): `codeql-passed` already carried the repeat.
 
+### `wait_for_readthedocs_build.py` carries the body the four trees can share
+
+- **This copy takes the reference's usage example, drops `import sys`,
+  templates `USER_AGENT` on the project `unserved` now takes as a third
+  argument, and qualifies its citation** (issue btclib-org/.github#1186).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
