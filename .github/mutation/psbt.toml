@@ -46,29 +46,29 @@ timeout = 300
 
 excluded-modules = []
 
-# the `BitOr` exclusion parsers.toml argues, and the one scope here where
-# it costs something rather than nothing, which is why the price is stated
-# instead of the rule. 913 of the 3524 mutants are `|`, and all but two
-# lines' worth of them are annotations:
+# the `BitOr` exclusion parsers.toml argues, and the one scope here
+# where it costs something rather than nothing, which is why the
+# price is checked here rather than assumed. Most of the `|` mutants
+# are annotations:
 #
 #   grep -n ' | ' src/btclib/psbt/psbt.py src/btclib/psbt/psbt_in.py \
 #       src/btclib/psbt/psbt_out.py src/btclib/psbt/psbt_utils.py \
 #       src/btclib/psbt/psbt_size.py src/btclib/psbt/__init__.py
 #
-# The two are `_tx_modifiable`'s `INPUTS_MODIFIABLE | OUTPUTS_MODIFIABLE`
-# and the mask that combines two flag bytes below it, and the unfiltered
-# session says what skipping them loses: of the BitOr mutants it ran, the
-# only five it killed are on those two lines, and the sixth mutant there
-# -- `|` for `+` over two disjoint bits -- is equivalent. So the exclusion
-# gives up mutants that a `combine` test already answers, and takes 913
-# unkillable survivors out of a list somebody has to read
+# Two lines are not: `_tx_modifiable`'s `INPUTS_MODIFIABLE |
+# OUTPUTS_MODIFIABLE` and the mask that combines two flag bytes below
+# it. The unfiltered session says what skipping them loses: every
+# BitOr mutant on those two lines it killed, a `combine` test already
+# answers, and the one it did not kill -- `|` for `+` over two
+# disjoint bits -- is equivalent. So the exclusion gives up nothing a
+# test does not already cover, and takes a whole list of unkillable
+# survivors out of one somebody has to read
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 3524 mutants, 913 of them the `|` above, and 887 of the 2611 left ran in
-# the 2400 s of the first session -- 2.0 s a mutant against a 0.9 s test
-# command, four other profiles sharing the machine: 780 killed, 107
-# survived, 12.06%. Sampled, and the sample is a third of the scope.
+# A sample, read off the `psbt-survivors.txt` the workflow uploads,
+# at run 34833390559, the per-mutant cost here multiplied by other
+# profiles sharing the machine.
 #
 # The gaps, and the ones a test now answers -- each measured surviving
 # before its test and dying after, one mutant at a time:
@@ -96,7 +96,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   (#560): the only other source of a script path signature here is a
 #   BIP373 MuSig2 aggregation, and those partial signatures commit to
 #   SIGHASH_DEFAULT. The key path mutant beside it is the same hole, and
-#   is among the two thirds of the scope this session never ran.
+#   is among the part of the scope this session never ran.
 #
 # What is left open has a reason rather than a test owed:
 #

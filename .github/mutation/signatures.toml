@@ -53,24 +53,24 @@ excluded-modules = []
 # all -- the recovery id these two modules actually build reads
 # `2 * (x_K // ec.n) + (K[1] & 1)`, `+` and `&`, and no literal `|`.
 # Confirmed by running the filter itself rather than by the grep alone:
-# `cosmic-ray init` over this file enumerates 2980 mutants today (more
-# than the 2475 the session below sampled from, the two modules having
-# grown since), and `cosmic_ray.tools.filters.operators_filter` marks
-# 880 of them SKIPPED -- more than the 228 the 812-mutant sample below
-# found, the same growth and a wider slice -- leaving 2100, so a future
-# sample does not spend a draw on them (issue #987).
+# `cosmic-ray init` over this file enumerates more mutants today than
+# the session below sampled from, the two modules having grown since,
+# and `cosmic_ray.tools.filters.operators_filter` marks a larger share
+# of them SKIPPED than the sample below found, the same growth and a
+# wider slice -- leaving the rest, so a future sample does not spend a
+# draw on them (issue #987).
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 812 of the 2475 mutants sampled in 5400 s -- the largest scope in this
-# session and the one furthest from finishing, both modules together
-# being nearly as large as sig_hash.py and engine.toml combined. 507
-# killed, 305 survived: 228 the deferred-annotation class fetch.toml
-# documents (both modules carry many typed signatures), 5 the keyword-
-# only marker, 1 an `is` CPython's small-int cache makes indistinguishable
-# from `==`.
+# A sample, read off the `signatures-survivors.txt` the workflow
+# uploads, at run 34833390559 -- the largest scope in this session and
+# the one furthest from finishing, both modules together being nearly
+# as large as sig_hash.py and engine.toml combined. Most survivors are
+# the deferred-annotation class fetch.toml documents (both modules
+# carry many typed signatures), the keyword-only marker, or an `is`
+# CPython's small-int cache makes indistinguishable from `==`.
 #
-# Two real gaps closed, both a scalar's upper bound: `ssa.Sig`'s
+# Real gaps closed, both a scalar's upper bound: `ssa.Sig`'s
 # `0 <= self.s < self.ec.n` and `dsa.Sig`'s two equivalents were tested
 # invalid against `ec.p` -- a different, larger prime -- and never
 # against `ec.n` itself. For `ssa.Sig` that survived: `< n` weakened to
@@ -137,7 +137,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   carries, uncredited for want of being asked. `>= 0x80` weakened to
 #   `== 0x80` was not: every existing vector uses the byte `0x80` itself,
 #   never one above it, so one more vector closes it.
-# - `recover_pub_key_`'s dispatch guard, `0 <= key_id <= 3`: six
+# - `recover_pub_key_`'s dispatch guard, `0 <= key_id <= 3`: several
 #   different mutations on the same guard, and no vector had ever asked
 #   a `key_id` outside it. Both sides of the range answer in the
 #   bindings' own words once out of it -- "the recovery id must be 0,
@@ -215,7 +215,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   above it already restricts `s` to, `n // s` is always 1, so `n % s
 #   == n - s` exactly -- not an approximation, the two expressions
 #   computing the identical integer over the whole reachable domain.
-# - the four `signed=False` reads/writes weakened to `signed=True` this
+# - the `signed=False` reads/writes weakened to `signed=True` this
 #   pass closed none of and checked instead: `_serialize_scalar`'s own
 #   `to_bytes`, whose `scalar_size` already reserves the pad byte a sign
 #   bit would otherwise need, so no value it ever writes has that bit
@@ -228,7 +228,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   reads the decorator, and removing it changes nothing python -m
 #   pytest can see.
 #
-# One survivor is left open, not chased: `Sig.assert_valid`'s congruence
+# A survivor is left open, not chased: `Sig.assert_valid`'s congruence
 # loop, `r < self.ec.p` weakened to `r <= self.ec.p`, moves the boundary
 # by testing one extra candidate the loop's own increment, `r += ec.n`,
 # would need to land on `ec.p` exactly to reach -- `r == ec.p - ec.n`,

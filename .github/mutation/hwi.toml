@@ -12,10 +12,10 @@ module-path = "src/btclib/hwi.py"
 
 # its own file, which covers the module completely, and its own profile
 # because of what that costs: every case starts a fake `hwi` executable,
-# so the command is 4.7 s of wall clock against the fifth of a second
-# signer.toml's three modules take. That is the engine's shape at a
-# smaller scale -- the budget samples this scope rather than finishing it
-# -- and it is why the two are not one command.
+# so the command runs far slower per mutant than signer.toml's three
+# modules do. That is the engine's shape at a smaller scale -- the
+# budget samples this scope rather than finishing it -- and it is why
+# the two are not one command.
 #
 # tests/integration/hwi_device_test.py is not here and cannot be: it wants
 # a device or an emulator (issue #529), and it skips itself everywhere
@@ -35,16 +35,15 @@ excluded-modules = []
 
 # the exclusion wallet.toml explains, measured the same way here: `grep -n
 # ' | ' src/btclib/hwi.py` is annotations only, and the unfiltered session
-# executed 39 BitOr mutants without killing one. Worth the line in a scope
-# this expensive -- at 9 s a mutant on a loaded machine, an unkillable
-# survivor is 9 s spent on a verdict nobody can act on
+# executed every BitOr mutant without killing one. Worth the line in a
+# scope this expensive: an unkillable survivor here is real wall clock
+# spent on a verdict nobody can act on
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 333 mutants, 66 of them the `|` above, and 144 of the 267 left ran in the
-# 1800 s of the first session -- 9.8 s a mutant, which is this scope's
-# subprocess cost doubled by four other profiles sharing the machine: 122
-# killed, 22 survived, 15.28%.
+# A sample and not a sweep, the per-mutant subprocess cost here doubled
+# by other profiles sharing the machine: read the verdicts off the
+# `hwi-survivors.txt` the workflow uploads, at run 34833390559.
 #
 # The gaps, and what closed each -- measured one mutant at a time, alive
 # before its test and dead after:
@@ -64,7 +63,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   unrecognized argument to that subcommand. The flag is now asserted
 #   to sit immediately before `enumerate`.
 #
-# Three survive with a reason rather than a test owed:
+# Survivors with a reason rather than a test owed:
 #
 # - `_read(out, max_output + 1)` mutated to `+ 2`, `| 1` or `<< 1` is
 #   equivalent: the cap only has to exceed the limit for the comparison

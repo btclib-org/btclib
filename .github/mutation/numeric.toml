@@ -27,21 +27,22 @@ test-command = """python -m pytest -x -q -n0 -p no:randomly \
 # meets the `ulimit -v` a session runs under and the MemoryError arrives
 # at the first statement.
 #
-# What the clock still answers is a loop no bound stops, about one mutant
-# in seventy here. Each costs this width once, and the arithmetic is what
-# decides the number: at 300 s three of them spend a fifteen-minute budget
-# between them and the session judges a fifth of its scope. Cut short is
-# not a wrong verdict -- a timeout is reported KILLED at any width -- so
-# what a wide one buys is nothing and what it costs is every mutant the
-# session never reaches.
+# What the clock still answers is a loop no bound stops, rare here.
+# Each costs this width once, and the arithmetic is what decides the
+# outcome: a wide timeout lets the rare loop mutants spend the whole
+# budget between them while the session judges only a fraction of its
+# scope. Cut short is not a wrong verdict -- a timeout is reported
+# KILLED at any width -- so what a wide one buys is nothing and what
+# it costs is every mutant the session never reaches.
 #
-# Two sessions fix it, same runner and same budget: at 300 s, 141 judged;
-# at 20 s, 385, and of the 83 both reached not one verdict differed. 30
-# rather than 20 because the risk is one-sided -- a mutant legitimately
-# slower than this is reported KILLED, a verdict that reads as a test
-# doing work it never did -- and ten seconds more cost a minute on a whole
-# session while buying half again the margin over the 2.08 s a mutant here
-# normally takes
+# Two sessions fixed this width, same runner and same budget: the
+# wider one judged far fewer mutants for the same wall clock, and
+# every mutant both reached agreed on the verdict. This width rather
+# than a narrower one because the risk is one-sided -- a mutant
+# legitimately slower than typical here is reported KILLED, a verdict
+# that reads as a test doing work it never did -- and a few seconds
+# more costs only a little on a whole session while buying real margin
+# over what a mutant here normally takes
 timeout = 30
 
 excluded-modules = []
@@ -55,48 +56,47 @@ excluded-modules = []
 #
 # Every hit is an annotation. Confirmed by running the filter itself
 # rather than by the grep alone: `cosmic-ray init` over this file
-# enumerates 720 mutants and
-# `cosmic_ray.tools.filters.operators_filter` marks 66 of them SKIPPED,
-# which is every `bytes | None` annotation the grep finds at eleven
-# mutants apiece, leaving 654 for a future session to have an opinion
-# about (issue #987).
+# enumerates the mutants below, and
+# `cosmic_ray.tools.filters.operators_filter` marks SKIPPED every
+# `bytes | None` annotation the grep finds, at eleven mutants apiece
+# -- leaving the rest for a future session to have an opinion about
+# (issue #987).
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# The last full session judged 602 mutants: 553 killed, 49 survived,
-# 8.14%. The first session of this profile to finish rather than sample,
-# which is what the budget and the timeout above buy together -- and what
-# lets this state a rate at all, a sample being readable only for the
-# verdicts that move in it. The enumeration above is the larger number
-# because `src/btclib/kdf.py`'s HKDF is outside that session's scope, and no
-# session has had an opinion about those mutants yet.
+# A complete session, read off the `numeric-survivors.txt` the
+# workflow uploads, at run 34833390559 -- the first session of this
+# profile to finish rather than sample, which is what the budget and
+# the timeout above buy together. The enumeration above is larger
+# because `src/btclib/kdf.py`'s HKDF is outside that session's scope,
+# and no session has had an opinion about those mutants yet.
 #
-# Of the 49, thirty-seven fall into four shapes:
+# Most of the survivors fall into a few shapes:
 #
-# - 22 are the two `shared_info: bytes | None` annotations, on
+# - the two `shared_info: bytes | None` annotations, on
 #   `ansi_x9_63_kdf`'s parameter and on `diffie_hellman`'s, eleven mutants
 #   apiece -- equivalent under Python 3.14's deferred annotation
 #   evaluation (PEP 649), the class fetch.toml documents at length.
-# - 10 lower `hf_size * (2**32 - 1)` without reaching the sizes a test
-#   asks for. Killing one needs a `size` between the two bounds, and for
-#   every hash function this ships with that is gigabytes of keying data
-#   -- the ask the session ceiling refuses, so no test can come at it from
-#   that side either.
-# - 3 widen `ceil(size / hf_size)`. The buffer is sized from the count, so
-#   it grows with it and every block still writes into a slot of its own;
-#   `bytes(view[:size])` returns the same octets, the extra blocks being
-#   work and not a wrong answer.
-# - 1 is `size > max_size` as `>=`, which still refuses the oversize call.
+# - some lower `hf_size * (2**32 - 1)` without reaching the sizes a
+#   test asks for. Killing one needs a `size` between the two bounds,
+#   and for every hash function this ships with that is gigabytes of
+#   keying data -- the ask the session ceiling refuses, so no test can
+#   come at it from that side either.
+# - others widen `ceil(size / hf_size)`. The buffer is sized from the
+#   count, so it grows with it and every block still writes into a
+#   slot of its own; `bytes(view[:size])` returns the same octets, the
+#   extra blocks being work and not a wrong answer.
+# - `size > max_size` as `>=`, which still refuses the oversize call.
 #   Nothing asks for exactly `max_size`, and nothing can: it is a hundred
 #   and thirty-seven gigabytes of sha256 output.
-# - 1 is `shared_secret_point[1] == 0` as `<=`, a field element having no
+# - `shared_secret_point[1] == 0` as `<=`, a field element having no
 #   value below zero to tell them apart with.
 #
-# The twelve left are neither equivalent by inspection nor chased: three
-# in `amount.py`, four in `fee.py`, and five in `ansi_x9_63_kdf` and
-# `diffie_hellman`. `numeric-survivors.txt` in the run's artifact names
-# each with its diff, which is where whoever writes the tests should
-# start.
+# The rest are neither equivalent by inspection nor chased, spread
+# across `amount.py`, `fee.py`, `ansi_x9_63_kdf` and `diffie_hellman`.
+# `numeric-survivors.txt` in the run's artifact, at the same run,
+# names each with its diff, which is where whoever writes the tests
+# should start.
 
 [cosmic-ray.distributor]
 name = "local"

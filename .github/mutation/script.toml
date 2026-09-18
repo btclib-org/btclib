@@ -10,10 +10,10 @@
 [cosmic-ray]
 # named one by one rather than as `src/btclib/script` with the other two
 # scopes excluded, which is what sig_hash.toml explains: the test command
-# is per-configuration, and an engine mutant costs 7.2 s where these cost
-# under two. `limits.py` is here for its arithmetic -- the tapscript
-# script-size bound is derived from the stack and element limits rather
-# than copied
+# is per-configuration, and an engine mutant costs far more wall clock
+# than one of these does. `limits.py` is here for its arithmetic --
+# the tapscript script-size bound is derived from the stack and
+# element limits rather than copied
 module-path = [
     "src/btclib/script/script.py",
     "src/btclib/script/script_pub_key.py",
@@ -41,10 +41,11 @@ module-path = [
 # Not tests/script_engine, which sig_hash.toml pairs with tests/script and
 # which is the only thing that reaches `taproot._read_push_data`'s
 # OP_PUSHDATA branch (lines 100-104, 107 and 152 -- an unknown op code
-# past a push in a tapscript). Its vectors cost 7.2 s against this
-# command's 1.7 s, so buying those seven lines would multiply the session
-# by four; the handful of mutants on them are reported as survivors here
-# instead, and engine.toml kills them from its own side.
+# past a push in a tapscript). Its vectors cost far more wall clock
+# than this command, so buying those seven lines would multiply the
+# session many times over; the handful of mutants on them are
+# reported as survivors here instead, and engine.toml kills them from
+# its own side.
 #
 # Also not tests/fuzz_test.py, and for a different reason -- see the
 # comment on the operator filter below
@@ -71,8 +72,8 @@ excluded-modules = []
 #       src/btclib/script/__init__.py
 #
 # Every hit is an annotation, the arithmetic being `&`, `<<` and `+` and
-# untouched by this, and the unfiltered session that settled it executed
-# 37 BitOr mutants without killing one.
+# untouched by this, and the unfiltered session that settled it
+# executed every BitOr mutant without killing one.
 #
 # No hypothesis, either, which is the other exclusion worth stating once:
 # tests/fuzz_test.py reaches parsers in this scope that no vector file
@@ -84,21 +85,22 @@ excluded-modules = []
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 2561 mutants, 187 of them the `|` above, and 406 of the 2374 left ran in
-# the 2100 s of the first session -- 4.7 s a mutant with four other
-# profiles of this directory on the same ten-core machine, against a 1.7 s
-# test command: 309 killed, 97 survived, 23.89%. Sampled, then, and the
-# sample already answers the question the profile was written to ask.
+# A sample, read off the `script-survivors.txt` the workflow
+# uploads, at run 34833390559, the per-mutant cost here shared with
+# other profiles of this directory on the same machine. Sampled,
+# then, and the sample already answers the question the profile was
+# written to ask.
 #
-# `op_codes_tapscript.py` was the finding, and is now the answer: 50 of the
-# 51 mutants of it that ran survived, because nothing asserted either of
-# the two BIP342 tables -- a code number could be changed, duplicated or
-# dropped with every test still passing. Two tests hold the tables to each
-# other instead of to a transcription of the BIP's own numbers, and all 236
-# mutants of that module die now: `OP_CODE_NAMES` is the inverse of
-# `OP_CODES` in both directions, and `OP_SUCCESS` is what the two leave
-# over -- every byte below 0xFF that is neither a push nor a named code,
-# which is what BIP342's list *is*.
+# `op_codes_tapscript.py` was the finding, and is now the answer:
+# nearly every mutant of it that ran survived, because nothing
+# asserted either of the two BIP342 tables -- a code number could be
+# changed, duplicated or dropped with every test still passing. Two
+# tests hold the tables to each other instead of to a transcription
+# of the BIP's own numbers, and every mutant of that module dies now:
+# `OP_CODE_NAMES` is the inverse of `OP_CODES` in both directions, and
+# `OP_SUCCESS` is what the two leave over -- every byte below 0xFF
+# that is neither a push nor a named code, which is what BIP342's
+# list *is*.
 #
 # The bounds beside it, each measured surviving before its test and dying
 # after, one mutant at a time, which is what a claim like this is worth:

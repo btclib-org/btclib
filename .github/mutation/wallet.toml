@@ -39,24 +39,24 @@ excluded-modules = []
 #
 # Every hit is an annotation today, and the first session over this scope
 # -- run before this filter, which is how the decision was made rather
-# than assumed -- executed 131 BitOr mutants and every one of them
-# survived, against a rate of 19.11% over what is left. That is the
-# difference between a survivor list somebody reads and one nobody does,
-# and it is minutes as well: an unkillable mutant is a survivor, and a
-# survivor pays the whole test command where most kills pay a fraction
+# than assumed -- executed every BitOr mutant and every one of them
+# survived. That is the difference between a survivor list somebody
+# reads and one nobody does, and it is minutes as well: an unkillable
+# mutant is a survivor, and a survivor pays the whole test command
+# where most kills pay a fraction
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 595 mutants, 176 of them the `|` above, and 293 of the 419 left ran in
-# the 900 s of the first session: 237 killed, 56 survived, 19.11%. Measured
-# with four other profiles of this directory on the same ten-core machine,
-# so 2.1 s a mutant is the contended figure and a runner on its own is
-# faster; what it says about the budget in mutation.yml is that this scope
-# finishes there with room, which is what makes its rate comparable week to
-# week.
+# Read off the `wallet-survivors.txt` the workflow uploads, at run
+# 34833390559. Measured with other profiles of this directory on the
+# same machine, so the per-mutant cost here is the contended figure
+# and a runner on its own is faster; what it says about the budget in
+# mutation.yml is that this scope finishes there with room, which is
+# what makes its rate comparable week to week.
 #
-# What the 56 were, and what the tests beside this commit closed -- each
-# measured alive before its test and dead after, one mutant at a time:
+# What the survivors were, and what the tests beside this commit
+# closed -- each measured alive before its test and dead after, one
+# mutant at a time:
 #
 # - the branch and index defaults, which is the largest class here.
 #   `address`, `script_pub_key`, `redeem_script`, `witness_script`,
@@ -80,7 +80,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   `% 1` and `& 1` name a different element of the same path: the
 #   refusal is now read for the index it names.
 #
-# Four survive, and each is equivalent rather than a test owed:
+# The rest survive, and each is equivalent rather than a test owed:
 #
 # - `Wallet.redeem_script`'s and `witness_script`'s own defaults, in the
 #   base class: both answer `b""` for every position they accept, so a
@@ -95,7 +95,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   (bms.toml states the class), and `len(indexes) is not
 #   _ACCOUNT_LEVELS`, where CPython interns both small ints.
 #
-# The last one, `_account_sec`'s `pub_keyinfo_from_xkey(xkey)[0]` weakened
+# One more, `_account_sec`'s `pub_keyinfo_from_xkey(xkey)[0]` weakened
 # to `[-1]` -- the network beside the key, which every participant of a
 # wallet shares, so the sort becomes a no-op -- is closed too (#561), and
 # what it took is worth writing down: not a wallet with `order="account"`,

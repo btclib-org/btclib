@@ -6,36 +6,38 @@
 # directory, why two files, why coverage fails no mutant.
 
 [cosmic-ray]
-# 2768 mutants, against sig_hash.py's 727, and this is the run that does
-# not fit a budget: 2768 times the 7.2 s of cpu below is five and a half
-# hours, where the sighash session is half an hour. The first pass
-# therefore ran sig_hash.py and enumerated this one, which is the
+# Far more mutants than sig_hash.py, and this is the run that does not
+# fit a budget: no budget this workflow is worth finishes this scope,
+# where the sighash session completes well inside its own. The first
+# pass therefore ran sig_hash.py and enumerated this one, which is the
 # "one module first" the issue asks for; this file is what a
 # workflow_dispatch, or a night, is aimed at
 module-path = "src/btclib/script/engine"
 
-# tests/script_engine alone, where sig_hash.toml names tests/script first,
-# and not because the engine is out of that directory's reach: three of the
-# sighash modules there sign a transaction and hand it to
-# `verify_transaction`, so they do kill engine mutants. What they do not
-# hold is a vector *set* -- Core's script_tests.json and
-# script_assets_test.json are what judge an interpreter, and both are here.
-# Measured, the trade is 1.1 s added to each of 2768 mutants, 51 minutes,
-# to catch the few that only a round trip would kill; those are reported as
-# survivors instead, and the sighash session kills them from its own side.
-# python_path_test.py is ignored for the reason given in sig_hash.toml --
-# it is a second verdict on btclib.ecc's python path and the same verdict
-# on this directory, for 46 s of the 54 s the whole directory costs
+# tests/script_engine alone, where sig_hash.toml names tests/script
+# first, and not because the engine is out of that directory's reach:
+# some of the sighash modules there sign a transaction and hand it to
+# `verify_transaction`, so they do kill engine mutants. What they do
+# not hold is a vector *set* -- Core's script_tests.json and
+# script_assets_test.json are what judge an interpreter, and both are
+# here. Measured, the round trip through the sighash modules adds real
+# wall clock across the whole scope to catch the few mutants that only
+# a round trip would kill; those are reported as survivors instead,
+# and the sighash session kills them from its own side.
+# python_path_test.py is ignored for the reason given in sig_hash.toml
+# -- it is a second verdict on btclib.ecc's python path and the same
+# verdict on this directory, at a real cost to the session's own
+# budget
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
   tests/script_engine \
   --ignore=tests/script_engine/python_path_test.py"""
 
-# seconds of wall clock, against a 7.2 s cpu baseline, and wide for the
-# reason sig_hash.toml measures: a timeout is answered KILLED, so a tight
-# one turns a loaded machine's slow mutant into a kill nobody earned, while
-# slack costs only the mutants that really do loop for ever -- and this
-# directory is where they live, the engine being a loop over opcodes with
-# a stack and a mutated bound the way to stop it ending
+# seconds of wall clock, wide for the reason sig_hash.toml measures: a
+# timeout is answered KILLED, so a tight one turns a loaded machine's
+# slow mutant into a kill nobody earned, while slack costs only the
+# mutants that really do loop for ever -- and this directory is where
+# they live, the engine being a loop over opcodes with a stack and a
+# mutated bound the way to stop it ending
 timeout = 300
 
 excluded-modules = []

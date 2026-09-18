@@ -1136,6 +1136,12 @@ file per release is what keeps each of them under it.
   at `@main`** (issue btclib-org/.github#35): the signer identity stays
   `release.yml`'s until this tree's next release.
 
+### The twenty-two mutation profiles stop stating totals
+
+- **Every `.github/mutation/*.toml` header drops its mutant, kill,
+  survive and skip counts and rates** (closes #2166, issue
+  btclib-org/.github#1158); the judgement stays, read off the run.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

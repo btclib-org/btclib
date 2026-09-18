@@ -20,9 +20,9 @@ module-path = "src/btclib/fetch/decorators.py"
 #
 #   git grep -l 'CachingFetcher\|FallbackFetcher' -- tests
 #
-# answers `tests/fetch/decorators_test.py` alone. The rest of tests/fetch
-# adds 0.2 s to each mutant against that file's own 3.5 s, measured three
-# times apiece, for tests that reach none of this scope
+# answers `tests/fetch/decorators_test.py` alone. The rest of
+# tests/fetch adds real wall clock to each mutant, measured, for tests
+# that reach none of this scope
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
   tests/fetch/decorators_test.py"""
 
@@ -47,20 +47,21 @@ excluded-modules = []
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 69 mutants, complete: 47 killed, 11 survived, 11 skipped by the filter
-# above. Two classes account for every survivor and nothing is left
+# A complete session, read off the `fetch_decorators-survivors.txt`
+# the workflow uploads, at run 34833390559, its skips being the filter
+# above's. Two classes account for every survivor and nothing is left
 # over:
 #
-# - 8 are `@override` removed, which changes nothing at runtime --
+# - `@override` removed, which changes nothing at runtime --
 #   `typing_extensions.override` sets `__override__` and hands the method
 #   back -- and which `[tool.mypy] enable_error_code`'s
-#   `explicit-override` refuses: removing all eight and running `uv run
-#   --locked mypy src/btclib/fetch/decorators.py` exits 1 naming each of
-#   the eight methods, with the test command above still green.
-# - 3 are equivalent, and not all for the same reason.
+#   `explicit-override` refuses: removing every one and running `uv run
+#   --locked mypy src/btclib/fetch/decorators.py` exits 1 naming each
+#   method, with the test command above still green.
+# - the rest are equivalent, and not all for the same reason.
 #   `len(fetchers) == 0` weakened to `<= 0` is the same test wherever it
 #   stands, a length being non-negative -- no guard is doing that.
-#   The other two are equivalent by a guard standing beside them in
+#   The others are equivalent by a guard standing beside them in
 #   `FallbackFetcher.__init__`: `len(networks) > 1` read as `!= 1` is
 #   the same test on a set the refusal above keeps non-empty, and
 #   `fetchers[0].network` read as `fetchers[-1].network` is the same

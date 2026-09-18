@@ -50,11 +50,11 @@ excluded-modules = []
 # on why `_get_json`'s bound is an `int` where `_get_bin`'s is not, which
 # is text rather than an expression. Confirmed by running the filter
 # itself rather than by the grep alone: `cosmic-ray init` over this file
-# enumerates the 474 mutants the session below did, and
-# `cosmic_ray.tools.filters.operators_filter` marks 110 of them SKIPPED
-# -- the annotation lines the session below records as skipped, and the
-# "class fetch.toml documents" every other profile's own comment points
-# back to -- leaving the 364 that session executes (issue #987).
+# enumerates the same mutants the session below does, and
+# `cosmic_ray.tools.filters.operators_filter` marks SKIPPED exactly the
+# annotation lines the session below records as skipped -- the "class
+# fetch.toml documents" every other profile's own comment points back
+# to -- leaving the rest for that session to execute (issue #987).
 #
 # That class is deferred evaluation, and this is what the other profiles
 # point back here for: an annotation is not evaluated where it is
@@ -67,28 +67,27 @@ excluded-modules = []
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 474 mutants, complete: 332 killed, 32 survived, 110 skipped by the
-# filter above, for a survival rate of 8.79% over the 364 executed.
-# Three classes account for every survivor and nothing is left over:
+# A sample, read off the `fetch-survivors.txt` the workflow uploads,
+# at run 34833390559, its skips being the filter above's. Three
+# classes account for every survivor found and nothing is left over:
 #
-# - 5 in `fetcher.py` are equivalent by inspection: `==` against `is` on
-#   the very object `NETWORKS` holds, and four `check_validity=False`
-#   turned `True`, each on data the line beside it has already
-#   validated.
-# - 23 are killed by a gate this profile's test command does not run.
-#   Twenty are `@override` removed, which changes nothing at runtime --
-#   `typing_extensions.override` sets `__override__` and hands the method
-#   back -- and which `[tool.mypy] enable_error_code`'s
+# - in `fetcher.py`, equivalent by inspection: `==` against `is` on
+#   the very object `NETWORKS` holds, and `check_validity=False`
+#   turned `True` on data the line beside it has already validated.
+# - killed by a gate this profile's test command does not run:
+#   `@override` removed, which changes nothing at runtime --
+#   `typing_extensions.override` sets `__override__` and hands the
+#   method back -- and which `[tool.mypy] enable_error_code`'s
 #   `explicit-override` refuses: deleting the one on
-#   `BitcoinCoreFetcher.get_tx` and running `mypy` on that file exits 1,
-#   naming the method. The other three are the keyword-only `*` marker
+#   `BitcoinCoreFetcher.get_tx` and running `mypy` on that file exits
+#   1, naming the method. The rest are the keyword-only `*` marker
 #   turned `/` on a public signature, which `tests/keyword_only_test.py`
-#   pins: making those three mutations at once leaves `tests/fetch`
-#   passing and fails that file at each of the three sites.
-# - 4 are the same marker on `_call`, `_get_bin`, `_get_json` and
-#   `_request`. That walk stops at a class's public names, its own
-#   docstring saying so, and a private method's calling convention is
-#   nothing this library promises.
+#   pins: making those mutations at once leaves `tests/fetch` passing
+#   and fails that file at each site.
+# - the same marker on `_call`, `_get_bin`, `_get_json` and `_request`.
+#   That walk stops at a class's public names, its own docstring
+#   saying so, and a private method's calling convention is nothing
+#   this library promises.
 #
 # What this boundary is held to on either side of a call -- what a reply
 # is checked against, and what a request carries -- is measured rather

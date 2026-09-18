@@ -11,9 +11,9 @@
 [cosmic-ray]
 # `hwi.py` is an implementation of that contract rather than the contract,
 # and it is in hwi.toml for a measured reason: its tests spawn a
-# subprocess per case, which costs 4.7 s against this command's 0.2 s, so
-# sharing one command would make every mutant here pay for a fake
-# `hwi.py` being started twenty times
+# subprocess per case, far slower than this command, so sharing one
+# command would make every mutant here pay for a fake `hwi.py` being
+# started repeatedly
 module-path = [
     "src/btclib/psbt_signer.py",
     "src/btclib/psbt_signer_contract.py",
@@ -22,8 +22,8 @@ module-path = [
 
 # the three modules' own files plus tests/software_signer_test.py, which
 # is the in-process key manager the contract test drives: measured with
-# `--cov` over the three, this command reports every one complete, in a
-# fifth of a second -- the cheapest command of any profile here
+# `--cov` over the three, this command reports every one complete,
+# well under a second -- the cheapest command of any profile here
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
   tests/psbt_signer_test.py tests/psbt_signer_contract_test.py \
   tests/software_signer_test.py tests/tx_or_psbt_test.py"""
@@ -42,24 +42,24 @@ excluded-modules = []
 #   grep -n ' | ' src/btclib/psbt_signer.py src/btclib/psbt_signer_contract.py \
 #       src/btclib/tx_or_psbt.py
 #
-# -- and the first session here, run unfiltered, executed 110 BitOr
-# mutants of which not one was killed
+# -- and the first session here, run unfiltered, executed every BitOr
+# mutant and killed none of them
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 412 mutants, 110 of them the `|` above, and the 302 left ran to
-# completion in 565 s -- the only profile of this session that finished,
-# and it finished while four others shared the machine: 236 killed, 66
-# survived, 21.85%.
+# A sample, read off the `signer-survivors.txt` the workflow uploads,
+# at run 34833390559, this scope sharing a runner with other profiles
+# of this directory.
 #
-# 46 of the 66 were in `psbt_signer_contract.py`, which is worth stating
-# plainly because it is the file whose whole job is refusing a signer that
-# does not conform. Its checks do fire: tests/psbt_signer_contract_test.py
-# builds a signer to break each one, and that is what killed 121 of its
-# 167 mutants. What survived was the arithmetic inside them, so a check
-# could have been laxer than it reads with every fixture in that file
-# still passing it -- and a signer conforming to a weakened contract is
-# the failure this scope exists to ask about.
+# Most survivors were in `psbt_signer_contract.py`, which is worth
+# stating plainly because it is the file whose whole job is refusing
+# a signer that does not conform. Its checks do fire:
+# tests/psbt_signer_contract_test.py builds a signer to break each
+# one, and most of its mutants die there. What survived was the
+# arithmetic inside them, so a check could have been laxer than it
+# reads with every fixture in that file still passing it -- and a
+# signer conforming to a weakened contract is the failure this scope
+# exists to ask about.
 #
 # What closed it, measured one mutant at a time:
 #
@@ -85,7 +85,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   a path and a fingerprint sorting *above* what the signer holds close
 #   the direction the fixtures were missing.
 #
-# Two classes are left, and both are equivalent by construction:
+# The rest are equivalent by construction:
 #
 # - `unsignable_psbt`'s own numbers -- the 9000-satoshi output, the
 #   version, the outpoint index, the flipped fingerprint byte -- which are
