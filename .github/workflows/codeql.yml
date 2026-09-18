@@ -138,9 +138,9 @@ jobs:
     # so that the file does not quietly stop working the day it stops
     # being one
     permissions:
-      security-events: write
+      security-events: write # the SARIF upload, and nothing else needs it
       contents: read
-      actions: read
+      actions: read # run metadata, which only a private repository gates
 
   # what a branch rule can name, where no cell of the matrix the called
   # workflow runs can be. REPOSITORY.md's "Required checks on main"

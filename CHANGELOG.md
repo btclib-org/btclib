@@ -1142,6 +1142,12 @@ file per release is what keeps each of them under it.
   survive and skip counts and rates** (closes #2166, issue
   btclib-org/.github#1158); the judgement stays, read off the run.
 
+### `codeql.yml`'s `analyze` block documents its grants too
+
+- **The two grants `zizmor --persona=auditor` flags in the `analyze`
+  block take a trailing comment, the leading prose kept** (issue
+  btclib-org/.github#1164): `codeql-passed` already carried the repeat.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
