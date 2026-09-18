@@ -54,7 +54,24 @@ _BOUNDS = re.compile(rf"uv_build>={_RELEASE},<{_RELEASE}")
 _TABLE = re.compile(r"^\[build-system\]$(.*?)(?=^\[)", re.MULTILINE | re.DOTALL)
 _REQUIRES = re.compile(r"^requires\s*=\s*\[(.*?)\]", re.MULTILINE | re.DOTALL)
 _BACKEND = re.compile(r'^build-backend\s*=\s*"(.*?)"', re.MULTILINE)
+# any quoted string in a region -- an entry's own or a comment's mention
+# of one, the region not distinguishing the two. Safe only where the
+# region cannot hold a comment at all: a `key = [...]` array closed on
+# the one physical line it opens on, TOML allowing a comment inside a
+# flow array only where it spans more than one line (a `#` before the
+# closing bracket on the same line would swallow that bracket into the
+# comment instead). `requires` and `bindings` below are both written
+# that way today, and each has its own second guard -- an arity that
+# raises rather than a membership that passes -- named beside its call
 _QUOTED = re.compile(r'"(.*?)"')
+# an entry and not a comment: same reasoning and same pattern as
+# tests/sdist_dotted_names_test.py's `_ENTRY`, for a region that *can*
+# span several lines with its own `#` comments -- `source-exclude` and
+# the `secp256k1` extra below, both. A comment line opens with `#`, not
+# a quote, so `^\s*"` alone excludes it; a trailing comment on an
+# entry's own line is excluded the same way, `^` anchoring the entry at
+# the start of the line rather than after `#...`
+_ENTRY = re.compile(r'^\s*"([^"]*)",', re.MULTILINE)
 
 
 def _build_system() -> str:
@@ -76,6 +93,10 @@ def test_the_build_requires_the_uv_backend_and_nothing_else() -> None:
     """One requirement, and a pair of bounds is the whole of what it says."""
     match = _REQUIRES.search(_BUILD_SYSTEM)
     assert match, "[build-system] declares no requires"
+    # `_QUOTED`, not `_ENTRY`: the array is one physical line, so no
+    # comment can sit inside it (see `_QUOTED`'s own comment above), and
+    # the one-element unpack turns a second, unexpected match into a
+    # raise rather than a silent pass -- the second risk this reader has
     (requirement,) = _QUOTED.findall(match.group(1))
 
     assert _BOUNDS.fullmatch(requirement)
@@ -112,7 +133,13 @@ def _bindings_requirements() -> tuple[list[str], list[str]]:
     group = _GROUP.search(text)
     assert extra is not None, "no secp256k1 extra in pyproject.toml"
     assert group is not None, "no bindings dependency group in pyproject.toml"
-    return _QUOTED.findall(extra.group(1)), _QUOTED.findall(group.group(1))
+    # `_ENTRY` for the extra, which spans several lines of its own `#`
+    # reasoning about the floor and would count a quoted mention there
+    # as a second requirement; `_QUOTED` for the group, which -- like
+    # `requires` above -- is one physical line with no room for a
+    # comment, and where a stray match would fail the equality below by
+    # its length rather than pass unnoticed
+    return _ENTRY.findall(extra.group(1)), _QUOTED.findall(group.group(1))
 
 
 def test_the_bindings_extra_and_group_ask_for_the_same_thing() -> None:
@@ -149,11 +176,19 @@ _TESTS = Path(__file__).parent
 
 
 def _source_exclude() -> list[str]:
-    """Return `[tool.uv.build-backend] source-exclude`'s own entries."""
+    """Return `[tool.uv.build-backend] source-exclude`'s own entries.
+
+    `_ENTRY`, not `_QUOTED`: the array spans many lines of `#` comments
+    that themselves quote a path or a shape -- `.github`, `fuzz`, `.*`
+    among them -- and `_QUOTED` cannot tell one of those from an entry
+    (ISS 2152). Reading only what sits at the start of a line and closes
+    with the entry's own comma is what `tests/sdist_dotted_names_test.py`'s
+    `_ENTRY` already does for the same array, with the same reason.
+    """
     text = _PYPROJECT.read_text(encoding="utf-8")
     match = _SOURCE_EXCLUDE.search(text)
     assert match, "no source-exclude array in pyproject.toml"
-    return _QUOTED.findall(match.group(1))
+    return _ENTRY.findall(match.group(1))
 
 
 def _reaches_outside_the_sdist(tree: ast.Module) -> bool:
@@ -257,6 +292,34 @@ def test_every_test_reaching_outside_the_sdist_is_source_excluded() -> None:
     """
     missing = _missing_source_excludes(_TESTS, _source_exclude())
     assert not missing, f"reaches outside the sdist, not in source-exclude: {missing}"
+
+
+def test_a_comment_mentioning_a_path_does_not_excuse_it(tmp_path: Path) -> None:
+    """A comment's own quoted mention is not what excludes a path (ISS 2152).
+
+    Under `_QUOTED`, a `source-exclude` region carrying a comment that
+    merely quotes `/tests/sub/mentioned_only_test.py` satisfied the
+    assertion above for a module of that name reaching outside the
+    sdist, with nothing in the array actually excluding it -- `_QUOTED`
+    cannot tell the comment's mention from an entry. `_ENTRY`, what
+    `_source_exclude` calls now, reads only the array's own entries, so
+    the same module is reported missing rather than excused.
+    """
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "mentioned_only_test.py").write_text(
+        'URL = ".github/x.yml"\n', encoding="utf-8"
+    )
+    region = (
+        "\n    # named here for the shape only:"
+        ' "/tests/sub/mentioned_only_test.py"\n'
+        '    "/tests/real_test.py",\n'
+    )
+
+    assert _missing_source_excludes(tmp_path, _QUOTED.findall(region)) == []
+    assert _missing_source_excludes(tmp_path, _ENTRY.findall(region)) == [
+        "/tests/sub/mentioned_only_test.py"
+    ]
 
 
 def test_a_subdirectory_module_is_reached_and_named_by_its_relative_path(

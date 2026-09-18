@@ -1178,6 +1178,12 @@ file per release is what keeps each of them under it.
   `serialize` and `pubk_rings` refuse a mantissa outside 1..64**
   (closes #2190), where each once answered a bare exception or a wrong value.
 
+### `tests/build_system_test.py`'s reader takes an entry from its own line
+
+- **`_source_exclude` and the `secp256k1` extra reader use `_ENTRY`,
+  an entry's own line, not `_QUOTED`'s any quoted string** (closes
+  #2152): a comment's mention of a path no longer counts as one.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
