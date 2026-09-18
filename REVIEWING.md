@@ -483,12 +483,9 @@ because that document, and not this one, is where the rule lives.
   this tree's is the exception under it. A count of what **upstream**
   published pins a vendored file rather than measuring this tree, and
   `tests/vendored_data_test.py` says which shapes it spares for that
-  reason. A count under `.github/mutation/` is what a mutation session
-  measured over one profile's own scope at its own sha, which
-  `CONTRIBUTING.md`'s mutation section licenses — no test spares it the
-  way the first exception is spared, so a stale one there is caught by
-  hand, not by a gate. A count outside those is a finding whether or not
-  a test caught it.
+  reason. A count outside that is a finding whether or not a test caught
+  it — `.github/mutation/` included: no profile's header restates a
+  count, so nothing there is exempt.
 - A new file in the repository root: `[tool.check-sdist]`'s `git-only`
   is what says it is deliberately not in the distribution, and its
   default is that a matching `source-include` pattern puts it there.
