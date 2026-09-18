@@ -27,21 +27,22 @@ excluded-modules = []
 #
 # Every hit is an annotation. Confirmed by running the filter itself
 # rather than by the grep alone: `cosmic-ray init` over this file
-# enumerates 1387 mutants today (more than the 1356 the session below
-# ran against, the file having grown since), and
-# `cosmic_ray.tools.filters.operators_filter` marks 132 of them SKIPPED
-# -- more than the 66 the session below found equivalent by inspection,
-# the same growth -- leaving 1255 for a future session to have an
+# enumerates more mutants today than the session below ran against, the
+# file having grown since, and
+# `cosmic_ray.tools.filters.operators_filter` marks a larger share of
+# them SKIPPED than the session below found equivalent by inspection --
+# the same growth -- leaving the rest for a future session to have an
 # opinion about (issue #987).
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 1356 mutants, complete: 1123 killed, 233 survived. 66 are the deferred-
-# annotation class fetch.toml documents, 19 the keyword-only `*` to `/`
-# marker sig_hash.toml's docstring already names, 6 an `is` CPython's
+# A sample, read off the `bip32-survivors.txt` the workflow uploads,
+# at run 34833390559. Most survivors are the deferred-annotation
+# class fetch.toml documents, the keyword-only `*` to `/` marker
+# sig_hash.toml's docstring already names, or an `is` CPython's
 # small-int cache makes indistinguishable from `==`.
 #
-# Of the 142 real ones, three were genuine gaps, closed:
+# The rest are genuine gaps, closed:
 #
 # - `is_root` was not exercised by any caller, so every operator on its
 #   three-way `and` survived together -- depth, index and parent
@@ -52,15 +53,15 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # - `str_from_der_path`'s fingerprint length check was tested short
 #   (`!= 8` weakened to `< 8` still refuses six octets) and never long.
 #
-# The rest are the same shape scattered one or two at a time across forty
-# other methods -- a boundary compared or an argument's default never
-# exercised at the value that would tell one operator from another --
-# each needing its own look the way `is_root` did. Sampled as data here
-# rather than chased method by method.
+# The rest are the same shape scattered across other methods -- a
+# boundary compared or an argument's default never exercised at the
+# value that would tell one operator from another -- each needing its
+# own look the way `is_root` did. Sampled as data here rather than
+# chased method by method.
 #
 # A second pass worked through that data, file by file.
 #
-# `der_path.py`: three more real gaps. `steps[0].lower() == "m"` weakened
+# `der_path.py`: more real gaps. `steps[0].lower() == "m"` weakened
 # to `>=` would strip any step sorting at or after "m" instead of "m"
 # alone; the depth-255 boundary a der_path string can carry (`> 255`
 # weakened to `> 256`); and the per-element type check inside
@@ -86,8 +87,8 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # because every existing map has one entry or is invalid in that one.
 # `BIP32KeyOrigin`'s `@dataclass(frozen=True)` was untested directly.
 #
-# `bip32.py`, real gaps beyond `is_root`'s three field-comparison
-# survivors closed in the first pass, `is_root` also needing its two
+# `bip32.py`, real gaps beyond `is_root`'s own field-comparison
+# survivors closed in the first pass, `is_root` also needing its
 # `Eq_LtE` mutations (`self.depth == 0`/`self.index == 0` weakened to
 # `<= 0`) closed with a negative case, no existing vector using a
 # negative depth or index:

@@ -115,17 +115,18 @@ jobs:
       # the number it is.
       #
       # A budget's measurement belongs to the scope it pays for, and
-      # `.github/mutation/` is where a scope is measured: each
-      # configuration's header states what its last session enumerated,
-      # judged and left surviving, and CONTRIBUTING.md's commands
-      # re-derive it. So a figure a configuration already carries is read
-      # there and not repeated here. What the second copy costs is on
-      # record: this file once stated "977 apiece" for bms.toml and
-      # bip322.toml, a count neither file's own header could produce, and
-      # bms.toml is where that was caught (issue #987). What stays below
-      # is the reasoning no single configuration can hold -- which scopes
-      # share a runner, how a ceiling is arrived at, and the wall clock a
-      # budget was set from where no configuration records one.
+      # `.github/mutation/` is where a scope is judged: each
+      # configuration's header states which survivors were weighed and
+      # why. None of them states a total any more -- section 9 refuses
+      # one, and every scheduled run prints what it enumerated, killed
+      # and skipped (btclib-org/.github#1158) -- so there is no figure
+      # here that would be a second copy. What that copy cost is still
+      # on record: this file once stated "977 apiece" for bms.toml and
+      # bip322.toml, a count neither file's own header could produce,
+      # and bms.toml is where that was caught (issue #987). What stays
+      # below is the reasoning no single configuration can hold: which
+      # scopes share a runner, how a ceiling is arrived at, and the wall
+      # clock a budget was set from where no configuration records one.
       #
       # `consensus`: two sessions of ninety minutes, and the asymmetry is
       # in what they buy rather than in the number. sig_hash.toml

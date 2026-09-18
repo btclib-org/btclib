@@ -25,28 +25,20 @@ excluded-modules = []
 # annotation -- none of the arithmetic the session below found
 # equivalent for `+`/`|`/`^` is a literal `|` in the source, that being
 # a mutation of `+` and not of this operator. Confirmed by running the
-# filter itself: `cosmic-ray init` over this file enumerates 494
-# mutants today, close to the 496 the session below completed, and
-# `cosmic_ray.tools.filters.operators_filter` marks 66 of them SKIPPED
-# -- the same 66 that session already found equivalent by inspection --
-# leaving 428, so a future session does not spend a run on them (issue
-# #987).
+# filter itself: `cosmic-ray init` over this file enumerates about as
+# many mutants today as the session below completed, and
+# `cosmic_ray.tools.filters.operators_filter` marks the same
+# equivalence class SKIPPED that session already found by inspection --
+# so a future session does not spend a run on them (issue #987).
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 496 mutants, complete: 360 killed, 136 survived. Its own comment once
-# read "496 of the 977 sampled in 1200 s" -- 977 was never what
-# `cosmic-ray init` enumerates for this file, on any commit or cosmic-ray
-# version checked, and 360 + 136 already equals the 496 above it, which
-# is what a complete session looks like rather than a partial one.
-# `mutation.yml`'s own comment on the job this profile runs in carried
-# the same 977, for bip322.toml too, and is corrected there as well
-# (issue #987, caught incidentally while adding the exclusion above). 66
-# are the deferred-annotation class fetch.toml documents, 5 the keyword-
-# only marker, 2 an `is` CPython's small-int cache makes indistinguishable
-# from `==`.
+# A sample, read off the `bms-survivors.txt` the workflow uploads, at
+# run 34833390559. Most survivors are the deferred-annotation class
+# fetch.toml documents, the keyword-only marker, or an `is` CPython's
+# small-int cache makes indistinguishable from `==`.
 #
-# One real gap closed: `Sig` is `@dataclass(frozen=True, init=False)`, and
+# A real gap closed: `Sig` is `@dataclass(frozen=True, init=False)`, and
 # nothing after construction ever assigned to a field to find out whether
 # the frozen half of that still held -- `frozen=False` survived next to
 # it. `__init__` itself goes through `object.__setattr__` on purpose (the
@@ -54,7 +46,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # pinned is what every other assignment is refused, not what the
 # constructor does.
 #
-# Two shapes account for most of the rest, checked rather than assumed:
+# Shapes account for most of the rest, checked rather than assumed:
 #
 # - `r = int.from_bytes(sig_bin[1 : 1 + n_size], ...)`: `n_size` is
 #   secp256k1's 32, whose bit 0 is unset, so `+`, `|` and `^` against the
@@ -106,7 +98,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # `_libsecp256k1_serves`'s branch negated, both paths already held
 # to the same answer by `test_the_python_path_answers_the_same`.
 #
-# One survivor left open: `compressed = sig.rf > 30` needs `rf == 30`
+# A survivor left open: `compressed = sig.rf > 30` needs `rf == 30`
 # exactly to move, which needs key_id 3 -- the recovery id secp256k1
 # assigns when a nonce's x-coordinate lands past the group order,
 # probability on the order of (p-n)/p, roughly 2^-128. Not constructible

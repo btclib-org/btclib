@@ -29,20 +29,21 @@ excluded-modules = []
 # annotation -- the `|`/`^` the sample below found equivalent to `+` is
 # a mutation of that operator and not a literal `|` in the source.
 # Confirmed by running the filter itself rather than by the grep alone:
-# `cosmic-ray init` over this file enumerates 772 mutants today (more
-# than the 739 the session below sampled from, the file having grown
-# since), and `cosmic_ray.tools.filters.operators_filter` marks 88 of
-# them SKIPPED -- more than the 11 the 150-mutant sample below found,
-# the same growth and a wider slice -- leaving 684, so a future sample
-# does not spend a draw on them (issue #987).
+# `cosmic-ray init` over this file enumerates more mutants today than
+# the session below sampled from, the file having grown since, and
+# `cosmic_ray.tools.filters.operators_filter` marks a larger share of
+# them SKIPPED than the sample below found, the same growth and a
+# wider slice -- leaving the rest, so a future sample does not spend a
+# draw on them (issue #987).
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 150 of the 739 mutants sampled in 600 s: 111 killed, 39 survived. 11 of
-# the 39 are the deferred-annotation class fetch.toml documents, and one
-# is `is` for `==` on two small ints CPython interns.
+# A sample, read off the `mnemonic-survivors.txt` the workflow
+# uploads, at run 34833390559. Some survivors are the deferred-
+# annotation class fetch.toml documents, or an `is` for `==` on two
+# small ints CPython interns.
 #
-# Of the 27 real ones, two were genuine gaps in
+# Genuine gaps among the real ones, in
 # `bin_str_entropy_from_wordlist_indexes`, now closed:
 # `entropy * base + index` weakened to `|` or `^`, and its `bit_length()`
 # padding weakened by a bitshift -- both equivalent for a power-of-two
@@ -54,10 +55,10 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # len(indexes)` essentially never lands on, so it is equivalent for
 # every base this ships rather than for the one test vector above.
 #
-# The other 24 were `collect_rolls`' manual dice-entry path and
-# `bin_str_entropy_from_int`'s prefix detection, both worked through in a
-# second pass on this same 150-mutant sample (the session itself is still
-# only 150 of 739, not re-run):
+# The rest were `collect_rolls`' manual dice-entry path and
+# `bin_str_entropy_from_int`'s prefix detection, both worked through in
+# a second pass on this same sample (the session itself is still a
+# sample, not re-run):
 #
 # - `bin_str_entropy_from_int`'s `== "0b"` weakened to `<=` reads a plain
 #   decimal starting with "0" and a digit below "b" as binary instead
@@ -65,8 +66,8 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   `>=` needed a string that is neither prefixed nor a valid plain
 #   decimal to distinguish -- "ab" sorts above "0x" and parses as hex
 #   where `int("ab")` raises.
-# - `collect_rolls`' roll-prompt text (`roll #{i + 1}`, arithmetic-
-#   mutated eight ways, and the dice-sides list truncated by `[:-1]`
+# - `collect_rolls`' roll-prompt text (`roll #{i + 1}`, mutated several
+#   ways arithmetically, and the dice-sides list truncated by `[:-1]`
 #   mutated to `[:-0]`) is printed and discarded by `input()`, so nothing
 #   read it until `capsys` did.
 # - the roll bounds `0 < roll <= base`: `!= 0` still refuses a negative
@@ -77,7 +78,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # - `valid_dice_sides` entries 8, 30 and 48 were never offered to the
 #   `while dice_sides not in valid_dice_sides` loop by any existing vector.
 #
-# Two are left open, checked rather than assumed. `automate`'s
+# Survivors left open, checked rather than assumed. `automate`'s
 # `1 + secrets.randbelow(dice_sides)` shifted to `2 + ...` still produces
 # a diverse roll sequence -- the reroll loop discards whatever lands
 # outside `[1, base]` regardless of the offset -- so a "not all equal"

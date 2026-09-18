@@ -37,29 +37,30 @@ excluded-modules = []
 #
 #   grep -n ' | ' src/btclib/ecc/musig2.py src/btclib/psbt/musig2.py
 #
-# -- and the unfiltered session that decided it executed 10 BitOr mutants
-# and killed none of them. The arithmetic this scope does have is `^`,
-# which is `_xor_bytes` over the nonce seed, and no filter touches it
+# -- and the unfiltered session that decided it executed every BitOr
+# mutant and killed none of them. The arithmetic this scope does have
+# is `^`, which is `_xor_bytes` over the nonce seed, and no filter
+# touches it
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 1409 mutants, 132 of them the `|` above, and 159 of the 1277 left ran in
-# the 900 s of the first session: 149 killed, 10 survived, 6.29% -- the
-# lowest rate of any profile measured here, which is what a reference
-# implementation's own vector file buys.
+# A sample, read off the `musig2-survivors.txt` the workflow uploads,
+# at run 34833390559 -- among the lowest survival of any profile
+# measured here, which is what a reference implementation's own
+# vector file buys.
 #
-# 5.3 s a mutant against a test command of a seventh of a second, and two
-# mutants are where two thirds of that session went: `sign`'s two `%
-# secp256k1.n` reductions turned into `** secp256k1.n`, which is a 256-bit
-# exponent and never returns. Both spent the whole 300 s timeout and both
-# were answered KILLED, which sig_hash.toml explains and numeric.toml met
-# first in its KDF -- so the cost is real, the verdict is sound, and the
-# arithmetic is the reason this profile is sampled rather than finished
-# despite a test command nothing else here beats.
+# A pair of mutants account for most of that session's own wall
+# clock: `sign`'s two `% secp256k1.n` reductions turned into `**
+# secp256k1.n`, which is a 256-bit exponent and never returns. Both
+# spent the whole per-mutant timeout and both were answered KILLED,
+# which sig_hash.toml explains and numeric.toml met first in its KDF
+# -- so the cost is real, the verdict is sound, and the arithmetic is
+# the reason this profile is sampled rather than finished despite a
+# test command nothing else here beats.
 #
-# The 10, and none of them was a hole in the protocol -- five were a test
-# owed and are closed by the tests beside this commit, each measured alive
-# before its test and dead after:
+# None of the survivors was a hole in the protocol -- some were a
+# test owed and are closed by the tests beside this commit, each
+# measured alive before its test and dead after:
 #
 # - the two length checks, `_require_same_length`'s and
 #   `partial_sig_verify`'s, weakened from `!=` to `>`: each was exercised
@@ -78,7 +79,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # - `sign`'s `0 < k_2_ < secp256k1.n`, weakened to `1 <`: zero was
 #   refused and one was never offered.
 #
-# The five left are equivalent by construction:
+# The rest are equivalent by construction:
 #
 # - `partial_sig_verify`'s `len(...) != len(...)` as `is not` and `sign`'s
 #   `Q[1] % 2 == 0` as `<= 0` -- the interned-int and the `% 2` classes.

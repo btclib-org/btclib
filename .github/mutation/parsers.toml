@@ -17,7 +17,8 @@
 # four modules of one package and two files beside it, and one test
 # command judges all six. src/btclib/tx alone would leave var_int and
 # var_bytes -- the length prefix of every list and every script in a
-# transaction -- to a profile of their own, for 195 mutants
+# transaction -- to a profile of their own, too small to be worth a
+# session and a budget of its own
 module-path = [
     "src/btclib/tx",
     "src/btclib/var_int.py",
@@ -39,8 +40,8 @@ module-path = [
 #   here for a mutant nothing else sees: cosmic-ray turns the `*` of a
 #   keyword-only marker into `/`, which moves `check_validity` into a
 #   positional slot, and the ast walk in that file is what fails on it.
-#   Fourteen mutants of this scope, killed by a file costing a tenth of a
-#   second
+#   A handful of mutants of this scope, killed by a file costing a
+#   tenth of a second
 #
 # -n0 overrides the `-n auto` of tool.pytest.ini_options, xdist's worker
 # per core being startup paid once per mutant; -p no:randomly makes the
@@ -64,9 +65,9 @@ test-command = """python -m pytest -x -q -n0 -p no:randomly \
 # read from a stream that ends, so `Tx.parse`'s `range(n)` stops at the
 # first `read_exactly`, and `var_bytes.parse` asks `stream.read(i)` for
 # whatever is left and then refuses the short answer. Against a test
-# command of about a second, every session measured here has finished with
-# zero timeouts, so the number is slack for a loaded runner and nothing
-# else
+# command of about a second, every session measured here has finished
+# without a timeout, so the number is slack for a loaded runner and
+# nothing else
 timeout = 300
 
 excluded-modules = []
@@ -75,30 +76,31 @@ excluded-modules = []
 # open with `from __future__ import annotations`, so every annotation is
 # an unevaluated string, and cosmic-ray mutates the `|` in it eleven ways
 # -- `Sequence[TxIn] >> None` and ten more -- none of which any test can
-# reach. Measured rather than argued: eight such `|` on seven lines, 88
-# mutants of the 1034, and an unfiltered session over the same scope
-# reports 110 survivors, every one of those 88 among them. Filtered it
-# reports the other 22, which is the difference between a list somebody
-# reads and one nobody does -- 88 against 22 -- and it spends minutes less
-# doing it, a survivor costing the whole test command where most kills cost
-# a fraction of one.
+# reach. Measured rather than argued: an unfiltered session over the
+# same scope reports far more survivors than a filtered one, every
+# annotation mutant among them; filtering drops exactly that noise,
+# which is the difference between a list somebody reads and one
+# nobody does, and it spends real wall clock less doing it, a survivor
+# costing the whole test command where most kills cost a fraction of
+# one.
 #
 # Excluded by operator here rather than with `# pragma: no mutate`, and
 # the collateral of a pragma is not the argument: grouped by the line
-# `cr-filter-pragma` reads -- the one a mutation *ends* on -- six of the
-# seven hold nothing but that annotation's eleven mutants, the multiline
-# signatures putting the `*` and the `check_validity` default on lines of
-# their own. `OutPoint.to_dict` is the exception, being the only one of the
-# seven written on a single line: 23 mutations end there, and a pragma would
-# skip 12 the filter does not -- eleven replacements of its keyword-only `*`,
-# `Mul_BitOr` among them and so past this exclusion's anchored pattern, and
-# the one of its `check_validity` default. tests/check_validity_test.py
-# answers both. Named rather than numbered, a line number here rotting on
-# the next insertion above it.
+# `cr-filter-pragma` reads -- the one a mutation *ends* on -- most of
+# the lines the grep below finds hold nothing but that annotation's
+# eleven mutants, the multiline signatures putting the `*` and the
+# `check_validity` default on lines of their own. `OutPoint.to_dict`
+# is the exception, being the only one written on a single line: a
+# pragma there would also skip the keyword-only `*` replacement --
+# `Mul_BitOr` among its own operators, and so past this exclusion's
+# anchored pattern -- and the `check_validity` default's own mutant,
+# neither of which is BitOr noise, and both of which
+# `tests/check_validity_test.py` answers. Named rather than numbered,
+# a line number here rotting on the next insertion above it.
 #
 # What settles it is where the decision lives. One line here, in the file
 # that already says what is mutated and what judges it, against a marker in
-# each of seven library lines and again in every module a later
+# each of several library lines and again in every module a later
 # `module-path` adds. The price is the same either way and is paid here
 # instead of there: a real `a | b` added to one of these modules would be
 # skipped in silence, so the claim behind it is a grep:
@@ -106,11 +108,11 @@ excluded-modules = []
 #   grep -n ' | ' src/btclib/tx/*.py src/btclib/var_int.py \
 #       src/btclib/var_bytes.py
 #
-# Seven hits today, every one an annotation. Note also what a skipped
-# mutant does to the one number the workflow prints: `cr-rate` counts a
-# result that is not SURVIVED as a kill, and a skip is one, so the rate it
-# reports is over the whole session and the honest denominator is what
-# `cosmic-ray exec` actually ran.
+# Every hit today is an annotation. Note also what a skipped mutant
+# does to the one number the workflow prints: `cr-rate` counts a
+# result that is not SURVIVED as a kill, and a skip is one, so the
+# rate it reports is over the whole session and the honest denominator
+# is what `cosmic-ray exec` actually ran.
 #
 # BitOr and not the other operators of that family: `^` is what
 # OutPoint.assert_valid uses to catch a half-coinbase outpoint, and a

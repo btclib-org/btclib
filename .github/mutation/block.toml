@@ -29,20 +29,21 @@ excluded-modules = []
 #
 # Every hit is an annotation. Confirmed by running the filter itself
 # rather than by the grep alone: `cosmic-ray init` over this file
-# enumerates 1587 mutants today (more than the 1481 the session below
-# ran against, the file having grown since), and
-# `cosmic_ray.tools.filters.operators_filter` marks 55 of them SKIPPED
-# -- the same 55 the session below already found equivalent by
-# inspection -- leaving 1532 for a future session to have an opinion
-# about (issue #987).
+# enumerates more mutants today than the session below ran against,
+# the file having grown since, and
+# `cosmic_ray.tools.filters.operators_filter` marks the same
+# equivalence class SKIPPED that the session below already found by
+# inspection -- leaving the rest for a future session to have an
+# opinion about (issue #987).
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 1481 mutants, complete: 1314 killed, 167 survived. 55 are the deferred-
-# annotation class fetch.toml documents, 9 the keyword-only marker, 4 an
-# `is` CPython's small-int cache makes indistinguishable from `==`.
+# A sample, read off the `block-survivors.txt` the workflow uploads,
+# at run 34833390559. Most survivors are the deferred-annotation
+# class fetch.toml documents, the keyword-only marker, or an `is`
+# CPython's small-int cache makes indistinguishable from `==`.
 #
-# Two real gaps closed:
+# Real gaps closed:
 #
 # - `block_work`'s `2**256 // (target + 1)` against `target - 1`: every
 #   existing vector's target sits within a whisker of 2^224, where the
@@ -54,7 +55,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   timespan 1 told `<= 0` from the `<= 1` that would have refused the
 #   smallest positive one.
 #
-# One survivor is already the file's own answer, not this session's:
+# A survivor is already the file's own answer, not this session's:
 # `BlockHeader.assert_valid`'s `self.hash > target` weakened to `>=` is
 # the proof-of-work check reading Core's own comparison, and the comment
 # beside it says why no vector can move it -- a hash equal to the target
@@ -196,7 +197,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   -- so the branch taken is not observable. The same identity, `3 - e
 #   == 3 ^ e` for e in 0..3, is what makes `ReplaceBinaryOperator_Sub_BitXor`
 #   equivalent at both of the two lines it appears on.
-# - masking cancels an extra byte or a sign, three ways: `_value_from_bits`'s
+# - masking cancels an extra byte or a sign: `_value_from_bits`'s
 #   and `is_negative_bits`'s `bits[1:]` weakened to `bits[0:]` is undone
 #   by `_SIGNIFICAND_MASK`/`_SIGNIFICAND_SIGN_BIT` immediately after,
 #   both masks landing below the extra byte's own bit positions;

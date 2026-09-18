@@ -52,29 +52,31 @@ excluded-modules = []
 #
 # The annotation half survives instead, and is the class fetch.toml
 # documents at length: unevaluated, unkillable, and not a hole. What the
-# first session says about the trade is that a third of the `|` mutants it
+# first session says about the trade is that some of the `|` mutants it
 # ran were *killed*, which no annotation's ever is.
 #
-# 10831 mutants, and the first session judged 383 of them: 291 killed, 92
-# survived. Sampled at a thirtieth, then, and the reason to keep sampling
-# rather than to shrink the scope is the engine's: the verdicts in a slice
-# are stable, so one that changes is a test that stopped checking what it
-# used to.
+# The session is a sample and not a sweep, and the reason to keep
+# sampling rather than to shrink the scope is the engine's: the
+# verdicts in a slice are stable, so one that changes is a test that
+# stopped checking what it used to. What it judged is read off the
+# `descriptors-survivors.txt` the workflow uploads, at run
+# 34833390559.
 #
-# Every non-annotation survivor is in `miniscript.py` -- `descriptors.py`
-# and `key_expression.py` gave none in the 101 of theirs that ran -- and
-# they group into four:
+# Every non-annotation survivor is in `miniscript.py` -- descriptors.py
+# and key_expression.py gave none of what ran in them -- and they
+# split into these kinds:
 #
 # - the type-property algebra, which is what this scope was written to
 #   ask about -- and the class is smaller than the survivor list makes it
 #   look. BIP379's composition rules are a chain of terms, and almost
 #   every term selects letters no other term contributes: measured over
-#   the 97 expressions of miniscript_fixed_tests.json and one composite
-#   of each family, 50 of the 54 single-term `|` in those rules change no
-#   fragment's properties when they become a symmetric difference. They
-#   are equivalent by disjointness rather than untested.
+#   the fixed expressions in miniscript_fixed_tests.json and one
+#   composite of each family, most single-term `|` in those rules
+#   change no fragment's properties when they become a symmetric
+#   difference. They are equivalent by disjointness rather than
+#   untested.
 #
-#   The four that are not combine the *operands*: the timelocks of a
+#   The rest combine the *operands*: the timelocks of a
 #   conjunction and of a disjunction, `(x | y) & _t("ghij")`, and `or_b`'s
 #   and `or_i`'s non-malleability, `_has(x | y, "s")`. A letter both
 #   branches carry is a letter the composite keeps only if the rule is a
@@ -85,15 +87,17 @@ excluded-modules = []
 #   rather than on something downstream of them.
 # - the sizes: `_TX_BODY_LEEWAY_WEIGHT`'s summands rearrange freely, the
 #   stack-limit term beside it takes `^` for `+`, and `_decomposed`'s
-#   `1 + 2 ** (op_code - 76)` -- the push-prefix width -- survives three
-#   ways. A wrong size here is a wrong fee estimate rather than an
-#   invalid spend, which is why nothing louder catches it. The prefix
-#   width wants a script whose push needs OP_PUSHDATA, which no standard
-#   fragment writes: every key is 33 bytes and every hash 20 or 32.
-# - the fragment dispatch, weakened from `==` to `>=` in seven places:
-#   equivalent wherever the fragment compared is the alphabetical
-#   extreme of the closed set it comes from, which is the class bms.toml
-#   states, and worth a look one by one rather than in bulk.
+#   `1 + 2 ** (op_code - 76)` -- the push-prefix width -- survives
+#   regardless of the operator. A wrong size here is a wrong fee
+#   estimate rather than an invalid spend, which is why nothing louder
+#   catches it. The prefix width wants a script whose push needs
+#   OP_PUSHDATA, which no standard fragment writes: every key is 33
+#   bytes and every hash 20 or 32.
+# - the fragment dispatch, weakened from `==` to `>=` at several
+#   dispatch points: equivalent wherever the fragment compared is the
+#   alphabetical extreme of the closed set it comes from, which is the
+#   class bms.toml states, and worth a look one by one rather than in
+#   bulk.
 # - `satisfy`'s `index: int = 0` default, `_thresh_input`'s `count ==
 #   node.threshold` and `_thresh_ops`' and `_thresh_witness`'
 #   `reached[1]`/`reached[-1]`: an undefended default and three indexes

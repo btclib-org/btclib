@@ -23,8 +23,8 @@ module-path = "src/btclib/utils.py"
 # every real caller hashes into exactly `ec.nlen` bits, so this file's
 # `blen < nlen` case is the only one that exercises the other direction.
 # Not tests/script_engine: encode_num/decode_num's boundaries are already
-# the round trip above, and the engine's mutants cost 7.2 s each for
-# coverage this file's own suite already gives for a tenth of a second.
+# the round trip above, and the engine's mutants cost far more wall
+# clock each for coverage this file's own suite already gives cheaply.
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
   tests/utils_test.py tests/integer_policy_test.py tests/ecc/ssa_test.py \
   tests/bip32 tests/block"""
@@ -36,14 +36,13 @@ timeout = 300
 
 excluded-modules = []
 
-# all 388 mutants, complete in 1200 s: 377 killed, 11 survived, 2.84% --
-# the lowest rate of any profile here, which is what a file of its own
-# round-trip tests earns. The shape numeric.toml met is here too and is
+# A sample, read off the `utils-survivors.txt` the workflow uploads,
+# at run 34833390559. The shape numeric.toml met is here too and is
 # what makes the wall clock what it is: `int_from_bits`' bound widened
 # into a negative shift raises rather than loops, so the cost is a
 # traceback's, paid once per such mutant rather than accumulating.
 #
-# Three real gaps, closed:
+# Real gaps, closed:
 #
 # - `hex_string`'s `int_ < 0` was tested negative and positive, never at
 #   zero, so `<= 0` survived.
@@ -56,8 +55,8 @@ excluded-modules = []
 #   curve's `nlen` bits) and never at `blen < nlen`, where `!=` computes
 #   a negative shift instead of returning the input unchanged.
 #
-# Of the 11 left, ten are equivalent and the arithmetic says why rather
-# than a test being owed one: `encode_num`'s `abs(i) | ((i < 0) << ...)`
+# Of what is left, most are equivalent and the arithmetic says why
+# rather than a test being owed one: `encode_num`'s `abs(i) | ((i < 0) << ...)`
 # against `+` and `^` never overlaps a bit, `n_bytes` being sized to hold
 # the sign bit above `abs(i)`'s own; `decode_num`'s `signed=False` against
 # True is undone by the mask correction three lines below, and that mask's
@@ -66,7 +65,7 @@ excluded-modules = []
 # returns no more than it was asked for; `hex_string`'s `% 2 != 0` against
 # `> 0` and `int_from_bits`' `>=` against `>` compare values that have two
 # and one reachable answers; and the two `is` mutants are CPython's
-# small-int cache. The eleventh is `encode_num`'s `i.bit_length() + 1`
+# small-int cache. The last is `encode_num`'s `i.bit_length() + 1`
 # against `| 1`, which differ for an odd bit length and reach the same
 # `n_bytes` for every value the suite carries -- open, and not chased,
 # `n_bytes` being what the round trip already pins from both ends.
