@@ -13,12 +13,13 @@ attempts times an interval is a product to be multiplied out before it
 can be compared with the job's own `timeout-minutes`, and a wait that
 outlasts that is killed inside itself: the run then carries the runner's
 message about a cancelled job where this was written to name the page to
-go and read (issue #1165). Every request is bounded by what is left of
-the deadline as well as by its own timeout, so the whole wait ends within
-`--timeout` of its first request for anything read the docs does between
-answers. What is not bounded here is a single answer arriving a byte at a
-time: `urlopen`'s timeout is a socket timeout and applies per blocking
-read, so that case is the job's `timeout-minutes` to end.
+go and read (btclib-org/btclib#1165). Every request is bounded by what is
+left of the deadline as well as by its own timeout, so the whole wait
+ends within `--timeout` of its first request for anything read the docs
+does between answers. What is not bounded here is a single answer
+arriving a byte at a time: `urlopen`'s timeout is a socket timeout and
+applies per blocking read, so that case is the job's `timeout-minutes` to
+end.
 
 The last answer is carried to the end rather than discarded, so the
 annotation names the HTTP status or the transport failure it saw and not
@@ -37,13 +38,12 @@ the transport and the clock, and advances the clock past the deadline
 itself.
 
     uv run --no-project --python 3.14 \
-        .github/scripts/wait_for_readthedocs_build.py btclib "$TAG"
+        .github/scripts/wait_for_readthedocs_build.py "$SLUG" "$TAG"
 """
 
 from __future__ import annotations
 
 import argparse
-import sys
 import time
 from http import HTTPStatus
 from http.client import HTTPException
@@ -56,12 +56,12 @@ SITE = "https://{project}.readthedocs.io/en/{tag}/"
 BUILDS = "https://app.readthedocs.org/projects/{project}/builds/"
 
 # the Cloudflare zone in front of read the docs bans the interpreter's own
-# default (`Python-urllib/3.14`) outright -- a 403 on every request,
-# measured against a tag that is in fact served -- so a request sent
-# without one never reaches the "build not finished yet" question this
-# exists to ask; `curl`'s default is not banned, which is why the loop
-# this replaces never needed one
-USER_AGENT = "btclib-readthedocs-wait/1.0"
+# default (`Python-urllib/3.14`) outright -- a 403 on a tag this project
+# does serve, which the same request carrying the agent below is served
+# 200 for -- so a request sent without one never reaches the "build not
+# finished yet" question this exists to ask; `curl`'s default is not
+# banned, which is why the loop this replaces never needed one
+USER_AGENT = "{project}-readthedocs-wait/1.0"
 
 # what a build has to arrive within, in seconds, and the one number the
 # job's `timeout-minutes` is compared against
@@ -74,9 +74,9 @@ DEFAULT_INTERVAL = 30.0
 DEFAULT_REQUEST_TIMEOUT = 10.0
 
 
-def unserved(url: str, timeout: float) -> str | None:
+def unserved(url: str, timeout: float, user_agent: str) -> str | None:
     """Return what stood in the way, or `None` where the page is served."""
-    headers = {"User-Agent": USER_AGENT}
+    headers = {"User-Agent": user_agent}
     request = Request(url, method="GET", headers=headers)  # noqa: S310
     try:
         with urlopen(request, timeout=timeout) as answer:  # noqa: S310
@@ -103,11 +103,12 @@ def wait(
 ) -> int:
     """Poll the site for one tag, and say what the deadline decided."""
     url = SITE.format(project=project, tag=tag)
+    user_agent = USER_AGENT.format(project=project)
     started = time.monotonic()
     deadline = started + timeout
     last_seen = "no request has been made yet"
     while (left := deadline - time.monotonic()) > 0:
-        seen = unserved(url, min(request_timeout, left))
+        seen = unserved(url, min(request_timeout, left), user_agent)
         if seen is None:
             waited = time.monotonic() - started
             print(f"{url} is served after {waited:.0f} s")
@@ -142,4 +143,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

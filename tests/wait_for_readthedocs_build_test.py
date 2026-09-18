@@ -45,6 +45,7 @@ _SCRIPT = (
 )
 _URL = "https://btclib.readthedocs.io/en/v2026.9.1/"
 _BUILDS = "https://app.readthedocs.org/projects/btclib/builds/"
+_AGENT = "btclib-readthedocs-wait/1.0"
 
 
 class _Clock:
@@ -71,8 +72,15 @@ class _Transport:
         self.answers = answers
         self.asked: list[tuple[str, float]] = []
 
-    def __call__(self, url: str, timeout: float) -> str | None:
-        """Answer the next verdict in the script, and record the question."""
+    def __call__(self, url: str, timeout: float, _user_agent: str) -> str | None:
+        """Answer the next verdict in the script, and record the question.
+
+        `_user_agent` is the value `wait` derives from `USER_AGENT`; it is
+        not part of what a test here asks about, and
+        `test_the_site_answering_the_page_is_it_serving_the_tag` is where
+        it is checked, against `unserved` itself rather than through this
+        stand-in.
+        """
         self.asked.append((url, timeout))
         return self.answers.pop(0) if self.answers else "HTTP 404"
 
@@ -238,7 +246,7 @@ def test_a_request_outlasting_the_deadline_leaves_no_negative_sleep(
     """
     asked: list[tuple[str, float]] = []
 
-    def slow(url: str, timeout: float) -> str | None:
+    def slow(url: str, timeout: float, _user_agent: str) -> str | None:
         """Answer nothing served, having spent longer than the budget."""
         asked.append((url, timeout))
         clock.now += 40.0
@@ -309,9 +317,12 @@ def test_the_site_answering_the_page_is_it_serving_the_tag(
 
     monkeypatch.setattr(script, "urlopen", urlopen)
 
-    assert script.unserved(_URL, 10.0) is None
+    agent = script.USER_AGENT.format(project="btclib")
+    assert agent == _AGENT
+
+    assert script.unserved(_URL, 10.0, agent) is None
     assert asked == [(_URL, 10.0)]
-    assert agents == [script.USER_AGENT]
+    assert agents == [agent]
 
 
 def test_a_2xx_that_is_not_ok_is_not_the_site_serving_it(
@@ -330,7 +341,7 @@ def test_a_2xx_that_is_not_ok_is_not_the_site_serving_it(
         lambda request, *, timeout: _answering(HTTPStatus.NO_CONTENT),
     )
 
-    assert script.unserved(_URL, 10.0) == "HTTP 204"
+    assert script.unserved(_URL, 10.0, _AGENT) == "HTTP 204"
 
 
 def test_a_status_the_site_refuses_with_is_named_by_its_number(
@@ -357,7 +368,7 @@ def test_a_status_the_site_refuses_with_is_named_by_its_number(
     monkeypatch.setattr(script, "urlopen", urlopen)
 
     with closing(refusal):
-        assert script.unserved(_URL, 10.0) == "HTTP 404"
+        assert script.unserved(_URL, 10.0, _AGENT) == "HTTP 404"
 
 
 @pytest.mark.parametrize(
@@ -382,4 +393,4 @@ def test_a_site_that_does_not_answer_is_named_by_the_failure(
 
     monkeypatch.setattr(script, "urlopen", urlopen)
 
-    assert script.unserved(_URL, 10.0) == named
+    assert script.unserved(_URL, 10.0, _AGENT) == named
