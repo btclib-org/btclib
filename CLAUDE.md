@@ -315,6 +315,28 @@ Do not use Fable unless explicitly instructed.
   into the new base's blob, verify the result byte for byte against
   what actually landed on `main`, then run `markdownlint-cli2` on the
   reconstructed file to restore the blank line before pushing the fix.
+- **A local rebase of a `CHANGELOG.md` entry exits 0 and can leave the
+  seam eaten, and the first gate run that repairs it exits 1 by
+  design.** When the new base gained an entry at the anchor the branch
+  appended at, `merge=union` can join the two with no conflict and drop
+  the blank line above the branch's `###` heading. The script that
+  names it is cheap and reads the file as it stands:
+
+  ```shell
+  env -C <worktree> python3 .github/scripts/check_changelog.py
+  ```
+
+  It prints `has no blank line above it -- the seam a merge=union rebase
+  eats` and exits 1. `pre-commit run --all-files` fails `check-changelog`
+  on it first, and `markdownlint-cli2`, later in the hook order,
+  restores the line and fails in its turn for having modified the file,
+  so that run exits 1 and the next exits 0; `git diff -- CHANGELOG.md`
+  showing one added blank line and nothing else is the confirmation.
+  A rebase stages nothing, so a bare `pre-commit run` reads an empty
+  index: `check-changelog` is `always_run` and still fails on the seam,
+  but `markdownlint-cli2` skips for want of files and repairs nothing;
+  a run that names the file, `--all-files` or `--files CHANGELOG.md`,
+  repairs it.
 - **`pre-commit run markdownlint-cli2` can report `Passed` on
   `CHANGELOG.md` without applying a fix its own `--fix` is configured
   to make.** Measured under concurrent load from several sessions'
