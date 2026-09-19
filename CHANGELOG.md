@@ -1202,6 +1202,12 @@ file per release is what keeps each of them under it.
   `psbt/frost.py` under `mutation.yml`'s own `frost` profile**
   (closes #2193): its header judges a run's survivors; new tests kill some.
 
+### `CLAUDE.md` says how the seam a rebase eats is named and repaired
+
+- **A rebase can eat the blank line above the entry, and the first run
+  that repairs it exits 1**: both are measured on a rebased tree and
+  stated in *Non-obvious facts*.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
