@@ -196,6 +196,20 @@ _NONCE_SIZE = 32
 _RING_STRIDE = 4
 
 
+def _assert_valid_mantissa(mantissa: int) -> None:
+    """Refuse a mantissa no header of this format states.
+
+    One octet carries it, written at one less than its value, so
+    `secp256k1_rangeproof_getheader_impl` reads back 1..64 and nothing
+    else. `_rsizes`, `_max_value` and `_header_octets` each call this
+    before computing with the mantissa, and `_assert_valid_header` and
+    `RangeProof.parse` call it directly -- together every place in this
+    module that reads a mantissa for its own arithmetic.
+    """
+    if not 1 <= mantissa <= _MAX_MANTISSA:
+        raise BTClibValueError(f"rangeproof mantissa not in 1..64: {mantissa}")
+
+
 def _rsizes(mantissa: int) -> tuple[int, ...]:
     """Return how many public keys each ring holds, from the mantissa alone.
 
@@ -205,11 +219,18 @@ def _rsizes(mantissa: int) -> tuple[int, ...]:
     has the single key the commitment itself gives -- `exp` is then -1
     and there is nothing blinded to choose between.
 
+    A mantissa outside 1..64 is refused here rather than shifted into a
+    ring structure: negative, it multiplies a tuple by a negative count
+    for an empty result the odd-bit ring then pads to one wrong ring;
+    past 64, it answers rings a header this format never wrote.
+
     `secp256k1_rangeproof_verify_impl` computes this and passes it to
     `secp256k1_borromean_verify_impl`, so a `BorromeanSig` inside a proof is
     read against the mantissa where a free-standing one is read against
     a caller's `rsizes`.
     """
+    if mantissa:
+        _assert_valid_mantissa(mantissa)
     if mantissa == 0:
         return (1,)
     return (4,) * (mantissa >> 1) + ((2,) if mantissa & 1 else ())
@@ -234,7 +255,15 @@ def _max_value(exp: int, mantissa: int, min_value: int) -> int:
     compares against `UINT64_MAX` before each multiplication and before
     the sum, so a header naming a range this format cannot express is
     not a proof of anything.
+
+    A mantissa outside 1..64 has no ceiling to read, so it is refused
+    here and not computed with: the shift below is negative past 64,
+    and a negative mantissa shifts the whole width away for a ceiling
+    of zero that is no header's. Zero is the public-value header, whose
+    range is `min_value` alone.
     """
+    if mantissa:
+        _assert_valid_mantissa(mantissa)
     value = _UINT64_MAX >> (64 - mantissa) if mantissa else 0
     for _ in range(max(exp, 0)):
         if value > _UINT64_MAX // 10:
@@ -257,13 +286,12 @@ def _assert_valid_header(exp: int, mantissa: int, min_value: int | None) -> None
     carries both: bit 6 of the first octet says the range is blinded,
     and a public value has neither a mantissa nor an exponent of its
     own. `_max_value` runs here for its raising alone, the value it
-    answers being the caller's to ask for.
+    answers being the caller's to ask for; its own mantissa check is
+    why this function does not run one a second time.
     """
     if mantissa:
         if not 0 <= exp <= _MAX_EXP:
             raise BTClibValueError(f"rangeproof exponent not in 0..18: {exp}")
-        if not 1 <= mantissa <= _MAX_MANTISSA:
-            raise BTClibValueError(f"rangeproof mantissa not in 1..64: {mantissa}")
     elif exp != -1:
         err_msg = f"rangeproof exponent of a public value is not -1: {exp}"
         raise BTClibValueError(err_msg)
@@ -283,7 +311,15 @@ def _header_octets(exp: int, mantissa: int, min_value: int | None) -> bytes:
     `secp256k1_rangeproof_sign_impl` writes the header first and then
     hashes it, into the nonce chain's seed and into the message the
     rings are signed over.
+
+    A mantissa outside 1..64 is refused here rather than written: at
+    65, less one still fits the octet, so this would hand back a
+    header `RangeProof.parse` itself then refuses to read; further out
+    still, `bytes([mantissa - 1])` raises from underneath the library
+    instead of this module's own refusal.
     """
+    if mantissa:
+        _assert_valid_mantissa(mantissa)
     flags = _HAS_NZ_RANGE | exp if mantissa else 0
     if min_value is not None:
         flags |= _HAS_MIN
@@ -643,12 +679,23 @@ class RangeProof:
 
     @property
     def rsizes(self) -> tuple[int, ...]:
-        """Return how many public keys each of this proof's rings holds."""
+        """Return how many public keys each of this proof's rings holds.
+
+        A header this format has no ring structure for is refused here
+        too: `check_validity=False` leaves a caller holding such a
+        proof, and there is no ring count to answer for one.
+        """
         return _rsizes(self.mantissa)
 
     @property
     def max_value(self) -> int:
-        """Return the largest value this proof's header proves for."""
+        """Return the largest value this proof's header proves for.
+
+        A header this format has no octets for is refused here, in the
+        spelling `assert_valid` refuses it in: `check_validity=False`
+        leaves a caller holding such a proof, and there is no largest
+        value to answer for one.
+        """
         return _max_value(self.exp, self.mantissa, self.min_value or 0)
 
     def assert_valid(self) -> None:
@@ -715,6 +762,10 @@ class RangeProof:
         `pubs[npub]` lands there: infinity is no public key. So is an x
         at or past the field prime, which is
         `secp256k1_fe_set_b32_limit`'s refusal and `Curve.y_var`'s own.
+
+        A header this format has no ring structure for is refused too,
+        `self.rsizes` below carrying that refusal for `check_validity=False`
+        as much as for `True`.
         """
         if check_validity:
             self.assert_valid()
@@ -833,6 +884,10 @@ class RangeProof:
         `secp256k1_rangeproof_sign_impl`'s own order, and its own two
         conditions: the mantissa octet where the range is blinded, the
         `min_value` octets where the header carries one.
+
+        A header this format has no octets for is refused too, by
+        `_header_octets` below rather than by `check_validity`: at
+        `False` there is still no octet to hand back for it.
         """
         if check_validity:
             self.assert_valid()
@@ -884,9 +939,7 @@ class RangeProof:
         if flags & _HAS_NZ_RANGE:
             exp = flags & _EXP_MASK
             mantissa = read_exactly(stream, 1, "rangeproof mantissa")[0] + 1
-            if mantissa > _MAX_MANTISSA:
-                err_msg = f"rangeproof mantissa not in 1..64: {mantissa}"
-                raise BTClibValueError(err_msg)
+            _assert_valid_mantissa(mantissa)
         min_value = None
         if flags & _HAS_MIN:
             octets = read_exactly(stream, _MIN_VALUE_SIZE, "rangeproof min value")
