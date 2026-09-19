@@ -1297,10 +1297,10 @@ well-formed public key that simply did not sign is False.
 **`ecc`'s verifications and `bip322.verify` carve one case out of
 that**, as `ecc.musig2` and `ecc.frost` do: a value of a declared type
 whose size or encoding makes it impossible to read as a signature, a
-key, an address, a digest or an opening raises `BTClibValueError` rather
-than answering False. The function is not saying the signature is
-forged, it is saying it has no way to find out (issue #2170). So
-`dsa.verify(msg, "not a key", sig)` raises, and
+key, an address, a digest or an opening raises rather than answering
+False. The function is not saying the signature is forged, it is saying
+it has no way to find out (issue #2170). So
+`dsa.verify(msg, "not a key", sig)` raises `BTClibValueError`, and
 `bms.verify(msg, "not an address", sig)` with it, while a signature that
 is well formed and simply does not verify is False.
 
@@ -1319,9 +1319,12 @@ not match are its False.
 
 **Where a parameter declares an encoding rather than a size, the
 encoding decides**, and `bip322.verify` is where the carve-out reaches
-outside `ecc` (issue #2181). Its signature is base64 of one of BIP322's
-own variants, or the 65-octet compact signature the legacy variant
-carries, so text written in neither is refused; its address becomes the
+outside `ecc` (issue #2181). What it raises there is a `BTClibValueError`
+or a `BTClibRuntimeError` -- a `ful` payload over too few octets draws
+the second -- and no rule says which class a given unreadable input
+draws (issue #2197). Its signature is base64 of one of BIP322's own
+variants, or the 65-octet compact signature the legacy variant carries,
+so text written in neither is refused; its address becomes the
 script_pub_key of `to_spend`, so a string that decodes to no address is
 refused with it. A real address the signature does not spend, and a
 script the engine does not satisfy, stay False. The `legacy` keyword is

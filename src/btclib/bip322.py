@@ -53,12 +53,14 @@ signature to `ecc.bms`, and only for a p2pkh address, the BIP restricting
 it to that one.
 
 Verification answers three states, as the BIP does. Valid is a return;
-invalid is a `BTClibValueError`, whatever failed being what it says; and
-*inconclusive* is `InconclusiveError`, which is the state for a signature
-that today's rules cannot judge -- a `to_sign` whose version is neither 0
-nor 2, an upgradeable NOP, a witness program of a version this library
-does not know. `verify` collapses all three to a boolean, and an
-inconclusive signature is not a valid one.
+invalid is a `BTClibValueError` or a `BTClibRuntimeError`, whatever
+failed being what it says; and *inconclusive* is `InconclusiveError`,
+which is the state for a signature that today's rules cannot judge -- a
+`to_sign` whose version is neither 0 nor 2, an upgradeable NOP, a witness
+program of a version this library does not know. Each of those classes
+is a `BTClibException`, so a single `except` catches whichever comes.
+`verify` collapses all three to a boolean, and an inconclusive signature
+is not a valid one.
 
 What is enforced is BIP322's list, through the engine's own flags: the
 consensus rules, then LOW_S, STRICTENC, NULLFAIL, MINIMALDATA,
