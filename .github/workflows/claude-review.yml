@@ -95,8 +95,8 @@ jobs:
     # own startup
     permissions:
       contents: read
-      pull-requests: write
-      id-token: write
+      pull-requests: write # posting the review, and the reply to a mention
+      id-token: write # the OIDC token the action mints at its own startup
     uses: btclib-org/.github/.github/workflows/reusable-claude-review.yml@main
     # this tree's prompt carries no paragraph of its own between the
     # verdict paragraph and the callee's "Do not run the gates", and its
