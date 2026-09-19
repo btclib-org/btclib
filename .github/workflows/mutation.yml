@@ -84,6 +84,7 @@ on:
           - psbt
           - script
           - boundaries
+          - frost
 
 # least privilege for the GITHUB_TOKEN: everything running in a job can
 # read it, and nothing here writes. In particular no issues: write --
@@ -224,6 +225,17 @@ jobs:
       # the two `%` turned `**` its configuration names, and hwi.toml,
       # whose tests start a subprocess apiece -- and the ceiling is their
       # sum plus the environment.
+      #
+      # `frost`: a runner of its own rather than a fifth session in
+      # `boundaries`, where musig2.toml sits. The two are the same
+      # protocol question one BIP apart, which is the argument for
+      # putting them together; the arithmetic is the argument against.
+      # The dispatch frost.toml's header cites, run 35443988434, spent the
+      # whole budget below -- more than any session in `boundaries` is
+      # given -- and left most of the scope's mutants unrun. It is a
+      # sample, for the reason descriptors.toml's cell gives, and the
+      # ceiling leaves the slack over the budget that the `psbt` cell's
+      # does.
       profiles: >-
         [{"profile": "the consensus code", "slug": "consensus", "ceiling": 200, "sessions":
         "sig_hash.toml 90m\nengine.toml 90m"},
@@ -251,7 +263,9 @@ jobs:
         "script.toml 45m"},
         {"profile": "wallets, the signer boundary, musig2 and HWI", "slug": "boundaries",
         "ceiling": 90, "sessions":
-        "signer.toml 10m\nwallet.toml 20m\nmusig2.toml 20m\nhwi.toml 30m"}]
+        "signer.toml 10m\nwallet.toml 20m\nmusig2.toml 20m\nhwi.toml 30m"},
+        {"profile": "FROST threshold signing", "slug": "frost", "ceiling": 75, "sessions":
+        "frost.toml 60m"}]
       # the dropdown above, forwarded. A schedule has no `inputs` at all,
       # so this arrives at the callee as an empty string, which its own
       # `SELECTED` expression reads as every profile rather than as none

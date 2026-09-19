@@ -23,11 +23,12 @@ already-consistent key material instead, tampering with one share at a
 time to reach each refusal.
 """
 
+from dataclasses import replace
 from typing import Any
 
 import pytest
 
-from btclib.curves import bytes_from_point, mult
+from btclib.curves import bytes_from_point, mult, secp256k1
 from btclib.ecc import frost, ssa
 from btclib.exceptions import (
     BTClibTypeError,
@@ -829,8 +830,9 @@ def test_sec_nonce_signs_once() -> None:
         n, t, [0], pub_shares[:1], thresh_pk, frost.nonce_agg([pub_nonce]), [], [], b"m"
     )
     frost.sign(sec_nonce, sec_share, 0, session_ctx)
-    # the bytearray has been zeroed, which is the whole defence
-    assert bytes(sec_nonce[:64]) == bytes(64)
+    # the bytearray has been zeroed in place, which is the whole defence:
+    # every byte, and no byte added or taken out of it
+    assert sec_nonce == bytearray(64)
     with pytest.raises(BTClibValueError, match="first secnonce value is out of range"):
         frost.sign(sec_nonce, sec_share, 0, session_ctx)
 
@@ -893,3 +895,197 @@ def test_partial_sig_verify_internal_refuses_a_malformed_pub_share() -> None:
     assert not frost.partial_sig_verify_(
         bytes(32), 0, pub_nonces[0], not_a_point, session_ctx
     )
+
+
+# --------------------------------------------------------------------
+# Boundaries the vectors leave unpinned. Each of these is a comparison
+# whose two neighbours the six files never place a case on, so a check
+# weakened by one step, or loosened to one side only, passes every vector.
+# --------------------------------------------------------------------
+
+_G = bytes_from_point(mult(1))
+
+
+def _one_signer_session(
+    sec_share: bytes, msg: bytes = b"m"
+) -> tuple[frost.SessionContext, bytearray, bytes]:
+    """Return a 1-of-1 session over the key `sec_share` is the secret of.
+
+    The threshold public key is the signer's own public share, which is
+    what a threshold of one is: the polynomial is a constant.
+    """
+    pub_share = bytes_from_point(mult(int.from_bytes(sec_share, "big")))
+    sec_nonce, pub_nonce = frost.nonce_gen(sec_share, pub_share)
+    session_ctx = frost.SessionContext(
+        1, 1, [0], [pub_share], pub_share, frost.nonce_agg([pub_nonce]), [], [], msg
+    )
+    return session_ctx, sec_nonce, pub_nonce
+
+
+def test_sign_zeroes_the_two_scalars_and_nothing_beyond() -> None:
+    """The secnonce is 64 bytes, and a longer buffer keeps what follows.
+
+    The scalars are overwritten in place: a slice assignment of another
+    width would grow or shrink the buffer the caller holds, and one
+    reaching past the scalars would zero what is not `sign`'s.
+    """
+    session_ctx, sec_nonce, _ = _one_signer_session((5).to_bytes(32, "big"))
+    buffer = sec_nonce + b"\xab"
+    frost.sign(buffer, (5).to_bytes(32, "big"), 0, session_ctx)
+    assert buffer == bytearray(64) + b"\xab"
+
+
+@pytest.mark.parametrize(
+    "k_1, k_2, err_msg",
+    [
+        (0, 1, "first secnonce value is out of range"),
+        (secp256k1.n, 1, "first secnonce value is out of range"),
+        (secp256k1.n + 1, 1, "first secnonce value is out of range"),
+        (1, 0, "second secnonce value is out of range"),
+        (1, secp256k1.n, "second secnonce value is out of range"),
+        (1, secp256k1.n + 1, "second secnonce value is out of range"),
+    ],
+)
+def test_sign_refuses_a_secnonce_scalar_outside_the_group_order(
+    k_1: int, k_2: int, err_msg: str
+) -> None:
+    """A secnonce scalar is in 1..n-1, so n is refused and n-1 is not."""
+    sec_share = (5).to_bytes(32, "big")
+    session_ctx, _, _ = _one_signer_session(sec_share)
+    sec_nonce = bytearray(k_1.to_bytes(32, "big") + k_2.to_bytes(32, "big"))
+    with pytest.raises(BTClibValueError, match=err_msg):
+        frost.sign(sec_nonce, sec_share, 0, session_ctx)
+
+    largest = bytearray(
+        (secp256k1.n - 1).to_bytes(32, "big") + (secp256k1.n - 1).to_bytes(32, "big")
+    )
+    assert len(frost.sign(largest, sec_share, 0, session_ctx)) == 32
+
+
+def test_sign_accepts_the_secret_share_one() -> None:
+    """1 is the smallest secret share there is, and the key is then G.
+
+    A whole 1-of-1 session over it, through to a BIP340 signature: the
+    range of a secret share is 1..n-1 and its lower bound is a share.
+    """
+    sec_share = (1).to_bytes(32, "big")
+    session_ctx, sec_nonce, pub_nonce = _one_signer_session(sec_share)
+    assert session_ctx.thresh_pk == _G
+    psig = frost.sign(sec_nonce, sec_share, 0, session_ctx)
+    assert frost.partial_sig_verify(
+        psig, [pub_nonce], 1, 1, [0], [_G], _G, [], [], b"m", 0
+    )
+    sig = frost.partial_sig_agg([psig], session_ctx)
+    assert ssa.verify_(b"m", _G[1:], sig)
+
+    for refused in (bytes(32), secp256k1.n.to_bytes(32, "big")):
+        session_ctx, sec_nonce, _ = _one_signer_session(sec_share)
+        with pytest.raises(
+            BTClibValueError, match="secret share value is out of range"
+        ):
+            frost.sign(sec_nonce, refused, 0, session_ctx)
+
+
+@pytest.mark.parametrize("signer_id", [-1, 1])
+def test_session_values_refuses_an_id_outside_0_to_n_minus_1(signer_id: int) -> None:
+    """With `n` of 1 the only identifier is 0: one below and one above go."""
+    thresh_pk = bytes.fromhex(_SIGN_VERIFY["test_groups"][0]["thresh_pk"])
+    session_ctx = frost.SessionContext(
+        1, 1, [signer_id], None, thresh_pk, bytes(66), [], [], b"msg"
+    )
+    with pytest.raises(BTClibValueError, match=r"Invalid id at index 0"):
+        frost.session_values(session_ctx)
+
+
+def test_validate_threshold_info_accepts_128_participants() -> None:
+    """The bound is `n <= 128`, so 128 is a group and only 129 is not."""
+    pub_share = bytes.fromhex(_SIGN_VERIFY["test_groups"][0]["pubshares"][0])
+    pub_shares: list[bytes | None] = [pub_share] + [None] * 127
+    frost.validate_threshold_info(frost.ThresholdInfo(1, pub_share, pub_shares))
+
+
+def test_session_values_accepts_128_participants() -> None:
+    """The same bound, through the session's own check of `n`."""
+    thresh_pk = bytes.fromhex(_SIGN_VERIFY["test_groups"][0]["thresh_pk"])
+    session_ctx = frost.SessionContext(
+        128, 1, [0], None, thresh_pk, bytes(66), [], [], b"msg"
+    )
+    assert frost.session_values(session_ctx).Q == frost.tweak_ctx_init(thresh_pk).Q
+
+
+def test_partial_sig_verify_refuses_more_pub_nonces_than_ids() -> None:
+    """A surplus pubnonce is a list that disagrees, not one that is enough."""
+    group = _SIGN_VERIFY["test_groups"][0]
+    n, t = group["n"], group["t"]
+    thresh_pk = bytes.fromhex(group["thresh_pk"])
+    pub_nonces = _hex_all(group["pubnonces"])[:3]
+    pub_shares = _hex_all(group["pubshares"])[:2]
+    with pytest.raises(BTClibValueError, match="same length"):
+        frost.partial_sig_verify(
+            bytes(32), pub_nonces, n, t, [0, 1], pub_shares, thresh_pk, [], [], b"m", 0
+        )
+
+
+@pytest.mark.parametrize(
+    "tweak, err_msg",
+    [
+        (bytes(31), "The tweak must be a 32-byte array."),
+        (bytes(33), "The tweak must be a 32-byte array."),
+        (secp256k1.n.to_bytes(32, "big"), "The tweak value is out of range."),
+        ((secp256k1.n + 1).to_bytes(32, "big"), "The tweak value is out of range."),
+        (b"\xff" * 32, "The tweak value is out of range."),
+    ],
+)
+def test_apply_tweak_refuses_a_tweak_of_the_wrong_size_or_range(
+    tweak: bytes, err_msg: str
+) -> None:
+    """A tweak is 32 bytes and below the group order: n itself is out."""
+    thresh_pk = bytes.fromhex(_SIGN_VERIFY["test_groups"][0]["thresh_pk"])
+    with pytest.raises(BTClibValueError, match=err_msg):
+        frost.apply_tweak(frost.tweak_ctx_init(thresh_pk), tweak, False)
+
+
+def test_apply_tweak_accumulates_residues_of_the_group_order() -> None:
+    """`gacc` and `tacc` are what BIP445 says they are: values mod n.
+
+    The signatures only ever read them reduced again, so an accumulator
+    left as a multiple of n off, or negative, signs identically; it is
+    the context a caller reads back that would say otherwise. An x-only
+    tweak of an odd-y key negates it, which is `gacc` of n-1, and the
+    second tweak wraps `tacc` past n.
+    """
+    n = secp256k1.n
+    group = next(g for g in _SIGN_VERIFY["test_groups"] if g["thresh_pk"][:2] == "03")
+    tweak_ctx = frost.tweak_ctx_init(bytes.fromhex(group["thresh_pk"]))
+    assert (tweak_ctx.gacc, tweak_ctx.tacc) == (1, 0)
+
+    tweak_ctx = frost.apply_tweak(tweak_ctx, (7).to_bytes(32, "big"), True)
+    assert (tweak_ctx.gacc, tweak_ctx.tacc) == (n - 1, 7)
+
+    tweak_ctx = frost.apply_tweak(tweak_ctx, (n - 1).to_bytes(32, "big"), False)
+    assert (tweak_ctx.gacc, tweak_ctx.tacc) == (n - 1, 6)
+
+
+def test_a_session_context_is_replaced_and_not_carried_over() -> None:
+    """`replace` builds another session, whose values are its own.
+
+    The derived values are memoized on the context and are no field of
+    it, so what `replace` returns starts without them: a message that
+    changed is a challenge that changed, and reading the memo of the
+    context it was made from would answer for the wrong session.
+    """
+    group = _SIGN_VERIFY["test_groups"][0]
+    n, t = group["n"], group["t"]
+    thresh_pk = bytes.fromhex(group["thresh_pk"])
+    pub_shares = _hex_all(group["pubshares"])[:2]
+    agg_nonce = frost.nonce_agg(_hex_all(group["pubnonces"])[:2])
+    session_ctx = frost.SessionContext(
+        n, t, [0, 1], pub_shares, thresh_pk, agg_nonce, [], [], b"m"
+    )
+    values = frost.session_values(session_ctx)
+
+    assert replace(session_ctx, msg=b"m") == session_ctx
+    other = replace(session_ctx, msg=b"another message")
+    assert other != session_ctx
+    assert frost.session_values(other).e != values.e
+    assert frost.session_values(session_ctx) is values
