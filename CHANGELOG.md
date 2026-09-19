@@ -1190,6 +1190,12 @@ file per release is what keeps each of them under it.
   #2202's scope** (closes #2204): it now matches `REVIEWING.md`'s and
   `CONTRIBUTING.md`'s current wording too.
 
+### The zizmor hook takes `--persona=auditor`, and the tree measures zero
+
+- **Every flagged grant carries a comment, and every
+  `template-injection` site is declined or reads its matrix value from
+  the environment** (issue btclib-org/.github#1164 and btclib-org/.github#1198).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

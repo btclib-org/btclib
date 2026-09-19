@@ -186,7 +186,7 @@ jobs:
     # `contents: read` would be refused before any job in it starts
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: read # so the callee's own job can list a pull request's files
     with:
       # the allowlist is what nothing built or tested reads: the prose
       # files of the root and of .github, none of README.md among them --
@@ -906,8 +906,12 @@ jobs:
       # where that listing is the caller's run and holds the publishing
       # jobs waiting on this very job, so that shape does not fit here
       # until btclib-org/.github#474 answers a reused gate
+      # `join(needs.*.result, ',')` interpolates a closed set: each
+      # element is one of `success`, `failure`, `cancelled`, `skipped`
+      # or absent, all written by GitHub, so no fork-controlled string
+      # -- a branch name, a title, a body -- reaches this shell
       - name: Fail unless every job above succeeded or was legitimately skipped
-        run: |
+        run: | # zizmor: ignore[template-injection]
           results='${{ join(needs.*.result, ',') }}'
           echo "results: $results"
           case ",$results," in

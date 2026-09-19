@@ -751,11 +751,14 @@ repos:
   # safe: a token persisted where a later step can read it, a cache
   # restored into the job that builds what gets published, an expression
   # interpolated into a shell script, a trigger that runs a fork's code
-  # with write access. The default persona is the gate; --persona=auditor
-  # adds advisory notes beyond what the gate flags, worth running by hand
-  # rather than on every commit:
-  #
-  #   uvx zizmor@1.30.1 --persona=auditor --no-progress .github/workflows/
+  # with write access. --persona=auditor runs on every commit rather than
+  # by hand, because this tree measures zero under it: every permission
+  # grant carries its own reason on the grant's line, the one `${{ }}`
+  # expression that interpolates a closed set of GitHub-written values is
+  # declined inline, and the two that took a matrix value now read it
+  # through an environment variable instead. A finding it raises from
+  # here on is this tree's own regression, not advice to weigh
+  # (btclib-org/.github#1164)
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
     # self-repository flags every reusable-workflow and composite-action
     # reference under .github/workflows/ that reads `uses: ./...`, and
@@ -785,7 +788,7 @@ repos:
         # detection fails and the progress bar lands in the log, which is
         # pre-commit.ci (zizmor issue 582) -- not reproducible from here,
         # and not a reason to drop a flag its author put there
-        args: [--offline, --no-progress]
+        args: [--offline, --no-progress, --persona=auditor]
   # ruff replaces autoflake, bandit, black, copyright_notice_precommit,
   # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
   # pyupgrade, and yesqa

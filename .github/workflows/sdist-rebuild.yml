@@ -55,8 +55,7 @@ jobs:
       # twice in btclib-org/.github#912 -- so both scopes the callee's
       # own job asks for are named here
       contents: read
-      # the attestations API, which gh attestation verify reads
-      attestations: read
+      attestations: read # the attestations API, which gh attestation verify reads
     # sdist-builder, submodules and python-version all take their
     # defaults -- "uv", "" and "" -- which is exactly what this file
     # built before this conversion: `uv build --sdist`, no submodules and

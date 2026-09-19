@@ -240,9 +240,10 @@ jobs:
       - name: Install btclib from PyPI
         shell: bash
         env:
+          PYTHON_VERSION: ${{ matrix.python }}
           NO_BINARY: ${{ matrix.no-binary || false }}
         run: |
-          uv venv --python ${{ matrix.python }}
+          uv venv --python "$PYTHON_VERSION"
           if [ "$NO_BINARY" = "true" ]; then
             uv pip install --verbose --no-binary btclib btclib
           else
@@ -347,8 +348,10 @@ jobs:
       # while never having asked whether a published wheel imports
       - name: Install btclib[secp256k1] from PyPI
         shell: bash
+        env:
+          PYTHON_VERSION: ${{ matrix.python }}
         run: |
-          uv venv --python ${{ matrix.python }}
+          uv venv --python "$PYTHON_VERSION"
           uv pip install --verbose \
             --only-binary btclib --only-binary btclib-secp256k1 \
             "btclib[secp256k1]"
