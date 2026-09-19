@@ -15,13 +15,16 @@ name: vendored vectors
 # means this tree holds a stale copy, where a TF2.md pin behind upstream
 # means a verdict is now a claim about a file that has moved.
 #
-# issues: write is what the job below takes; links.yml's own comment is
-# where the opposite choice is argued, an automatic issue being the usual
-# next step a scheduled workflow here does not take. This one does take
-# it, on purpose: a link is noticed the next time somebody follows it,
-# where a vendored vector is trusted without anybody looking at it again,
-# and an issue is what carries that past the one email a failed run
-# sends. py-arm-authority.yml takes it by this same test
+# The checkout, the optional interpreter setup and the re-check itself
+# are btclib-org/.github's: reusable-vendored-vectors.yml, called at
+# @main so a fix there reaches this tree in one landing (section 10 of
+# its README.md). What stays here is the trigger, the cron minute, the
+# concurrency group and the two ledgers this tree checks.
+#
+# issues: write here is granted by no other workflow in this tree, and
+# three decline it in as many words, each for its own reason: links.yml,
+# deps-latest.yml and mutation.yml. The reason this one takes it is the
+# called workflow's own header, not this file's to restate.
 
 on:
   schedule:
@@ -75,79 +78,25 @@ concurrency:
 
 jobs:
   vectors:
-    name: Check ${{ matrix.ledger }} against upstream
-    # a draft pull request is work in progress and spends no runner
-    # here either: a draft is work its author is not asking anyone to
-    # read yet. The same condition test.yml carries, and
-    # ready_for_review is a trigger type above for the same reason.
-    # A closed pull request spends none either -- the trigger above takes
-    # the closed event only to supersede a run this ref's group is still
-    # holding
-    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    # the ledger and the title of its issue travel together, which is
-    # what a matrix is for: two run: blocks would repeat the dry-run
-    # preamble below and let the pair drift apart. fail-fast is off
-    # because the two checks answer different questions -- one gh error
-    # against upstream is no reason to leave the other ledger unchecked
-    # for the week, and a matrix's default would cancel it.
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - ledger: tests/_data/README.md
-            title: Vendored vectors behind upstream
-          - ledger: TF2.md
-            title: tf2 ledger verdicts pinned to superseded revisions
-    # the elevation, on the job that needs it and nowhere else: no other
-    # job in this workflow declares permissions, so no other job elevates.
-    # issues: write is what the script's gh issue create/edit/close calls
-    # below take, on the tracking issue this run opens or updates
+    uses: btclib-org/.github/.github/workflows/reusable-vendored-vectors.yml@main
+    # permissions do not inherit through a call: the check job the
+    # reusable workflow runs wants issues: write for its gh issue
+    # create/edit/close calls, so the calling job declares it here,
+    # which is what caps what the called workflow may be granted
     permissions:
       contents: read
-      issues: write # gh issue create/edit/close, in the step below
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.14"
-
-      # no project dependency: the script imports only the standard
-      # library and shells out to gh, which every GitHub-hosted runner
-      # already has.
-      # --dry-run on the pull_request trigger only: a fork's read-only
-      # token could not write the issue anyway, and a same-repository
-      # pull request testing a change to this script or to a ledger
-      # should not close or edit whatever tracking issue is open at the
-      # time as a side effect of that test.
-      # The flag reaches the shell through the environment rather than
-      # through a `${{ }}` inside the script, which would be text pasted
-      # into it: the value is this file's own, and the habit is what
-      # zizmor's template-injection rule is asking for (mutation.yml's
-      # own comment, around its "Check the baselines" step, is the same
-      # pattern). The array built from it, rather than an unquoted
-      # expansion, is the shape btclib-org/.github's reusable-public-api.yml
-      # uses for an optional flag (its "Check the public API against the
-      # previous release" step).
-      # The ledger and the title take that same route for that same
-      # reason, a matrix value being this file's own as much as the flag
-      # is.
-      - name: Re-check every pin already at upstream's tip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DRY_RUN: ${{ github.event_name == 'pull_request' && '--dry-run' || '' }}
-          LEDGER: ${{ matrix.ledger }}
-          ISSUE_TITLE: ${{ matrix.title }}
-        run: |
-          args=()
-          if [ -n "$DRY_RUN" ]; then
-            args=(--dry-run)
-          fi
-          python .github/scripts/check_vendored_vectors.py \
-            "$LEDGER" "$ISSUE_TITLE" "${args[@]}"
+      issues: write # gh issue create/edit/close, in the called workflow
+    with:
+      # cardinality 2: this tree pins two ledgers, its vendored test
+      # vectors and its tf2 verdicts, one issue per ledger for the
+      # reason above
+      ledgers: >-
+        [{"ledger": "tests/_data/README.md",
+        "title": "Vendored vectors behind upstream"},
+        {"ledger": "TF2.md",
+        "title": "tf2 ledger verdicts pinned to superseded revisions"}]
+      # the interpreter .python-version pins: the script imports only
+      # the standard library, so this is not a claim about what btclib
+      # itself requires, only this tree's own choice to pin one rather
+      # than run against the runner's own python3
+      python-version: "3.14"
