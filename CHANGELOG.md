@@ -1184,6 +1184,12 @@ file per release is what keeps each of them under it.
   an entry's own line, not `_QUOTED`'s any quoted string** (closes
   #2152): a comment's mention of a path no longer counts as one.
 
+### `CLAUDE.md` stops describing a mutation profile's stated count too
+
+- **The same stale claim survived in `CLAUDE.md`'s own copy, missed by
+  #2202's scope** (closes #2204): it now matches `REVIEWING.md`'s and
+  `CONTRIBUTING.md`'s current wording too.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

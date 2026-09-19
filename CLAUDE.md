@@ -499,15 +499,14 @@ Do not use Fable unless explicitly instructed.
   published — `tests/_data/README.md`'s "121 vectors, Core's entire
   file" — which pins a vendored file rather than measuring this tree,
   and which `tests/vendored_data_test.py` spares on purpose.
-  `REVIEWING.md`'s *This repository in particular* names the other:
-  `.github/mutation/`, where a profile's stated mutant count,
-  kill/survive/skip breakdown or wall clock is what a session measured
-  over its own scope at its own sha, re-derived by the commands
-  `CONTRIBUTING.md`'s mutation section already gives.
-  `tests/mutation_counts_test.py` is not what spares it: that script
-  tests the counting script's own arithmetic against a synthetic
-  session, never whether a profile's prose states a figure, so a stale
-  count there fails nothing.
+  `REVIEWING.md`'s *This repository in particular* holds
+  `.github/mutation/` to the same rule with no exception: a header
+  states what it mutates and what judges it, and, where a session has
+  already weighed survivors, the scheduled run and its
+  `*-survivors.txt` artifact — never a restated count.
+  `tests/mutation_counts_test.py` is not what enforces this: it tests
+  the counting script's own arithmetic against a synthetic session,
+  never a profile's own prose.
 
 ## Verifying
 
