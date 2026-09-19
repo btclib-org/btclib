@@ -1166,6 +1166,12 @@ file per release is what keeps each of them under it.
   same `ful` payload over too few octets draws `BTClibRuntimeError`
   too, and no rule is stated about which.
 
+### `CONTRIBUTING.md` and `REVIEWING.md` stop describing a stated count
+
+- **`CONTRIBUTING.md` and `REVIEWING.md` described a mutation-profile
+  header's stated count, which PR #2201 already removed** (closes
+  #2202): both now match the header instead of a count that is gone.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

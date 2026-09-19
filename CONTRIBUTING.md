@@ -969,10 +969,12 @@ wrong line, where coverage only says the line ran, and a surviving mutant
 is a test nobody has written rather than a regression somebody just
 caused. One parallel job per profile, each under its own budget, and no
 list of them here: `.github/mutation/` is the list, and every file in it
-states what it mutates, what judges it, and what the last session over it
-measured — the consensus code and the wire format it reads, the key,
-codec, descriptor, wallet, psbt and script layers, the signature schemes,
-and the boundaries where somebody else's bytes arrive. Those
+states what it mutates and what judges it — the consensus code and the
+wire format it reads, the key, codec, descriptor, wallet, psbt and script
+layers, the signature schemes, and the boundaries where somebody else's
+bytes arrive. Where a session has already weighed survivors, the same
+header names the scheduled run and the `*-survivors.txt` artifact it
+uploaded, never a restated count. Those
 configurations are also what a local run reads, so there is one statement
 of what is mutated and what judges it:
 
