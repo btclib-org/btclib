@@ -1220,6 +1220,12 @@ file per release is what keeps each of them under it.
   `reusable-vendored-vectors.yml` passes now, not one trigger**
   (issue btclib-org/btclib-benchmarks#362).
 
+### `integration-bitcoind.yml` calls `btclib-org/.github`'s reusable workflow
+
+- **The regtest job becomes a call to `btclib-org/.github`'s
+  `reusable-integration-bitcoind.yml`** (issue
+  btclib-org/.github#1196): the calling job grants `contents: read`.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
