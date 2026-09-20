@@ -1214,6 +1214,12 @@ file per release is what keeps each of them under it.
   `btclib-org/.github`'s `reusable-vendored-vectors.yml`** (issue
   btclib-org/.github#1196): the calling job now grants `issues: write`.
 
+### `check_vendored_vectors.py`'s docstring names every guarded trigger
+
+- **`--dry-run`'s docstring names what
+  `reusable-vendored-vectors.yml` passes now, not one trigger**
+  (issue btclib-org/btclib-benchmarks#362).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

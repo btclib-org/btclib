@@ -389,10 +389,11 @@ def main() -> int:
     default happened to name. The one option here is a boolean, so what
     reads it is the filter below rather than a parser.
 
-    --dry-run skips opening, updating or closing the issue: what the
-    pull_request trigger of vendored-vectors.yml passes, so a change to
-    this script or to a ledger is exercised without the run editing
-    whatever tracking issue happens to be open at the time.
+    --dry-run skips opening, updating or closing the issue: what
+    reusable-vendored-vectors.yml passes for every trigger but the
+    weekly schedule, so a change to this script or to a ledger is
+    exercised without the run editing whatever tracking issue happens
+    to be open at the time.
     """
     args = [a for a in sys.argv[1:] if a != "--dry-run"]
     dry_run = len(args) != len(sys.argv) - 1
