@@ -14,8 +14,9 @@ of the file where there is no second, section 9 of README.md giving the
 boundary the same way.
 
 Three checks, all of them shapes a `merge=union` rebase produces and a
-`git rebase` exit code does not report -- and a fourth, below them, that
-is section 9's own bound on an entry:
+`git rebase` exit code does not report -- a fourth, below them, that is
+section 9's own bound on an entry -- and a fifth that backs the fourth's
+own exemption, which trusts a placement rule nothing else here checks:
 
 - a `### ` heading repeated within the section -- measured against real
   rebases under `merge=union`, not assumed from the driver's name. Two
@@ -111,6 +112,44 @@ predate the rule and stay as written; where the open section no longer
 holds that heading -- a release closed over it -- every entry is
 measured. A heading-less entry is outside it, as it is outside the
 three above.
+
+That exemption is a trust, not a check: an entry above `RULE_HEADING`
+is read as older than the rule because section 9 puts a new entry at
+the end of the open section, and nothing before this fifth check
+verified that placement was honoured. btclib-org/.github#1204 measured
+what that costs -- a branch that landed an eighteen-line entry above
+`RULE_HEADING`, in a file whose whole history sits above that heading,
+passed `pre-commit run --all-files` clean, the fourth check never
+reading an entry it believed predated the rule it postdated. The fifth
+check is a count -- how many entries the open section held above
+`RULE_HEADING` the day this check was added -- and a branch that only
+ever appends below `RULE_HEADING`, per section 9, never grows that
+count on its own; where the open section holds more, one has landed
+above it instead, and this is refused for the placement rather than
+measured for the length. The count is not an identity: it does not
+name which entry above the line is the new one, and it does not see a
+grandfathered entry rewritten in place without the count changing --
+neither is the shape #1204 measured.
+
+**The count is a fact about a repository's history, not about this
+script, and this script is verbatim.** `.github`'s own open section
+held 350 entries above `RULE_HEADING` the day this check was added;
+btclib's held 23 (btclib-org/.github#1215). A constant defined up here,
+where every check above it lives, would have to be both at once for the
+file every repository carries byte for byte to stay byte for byte,
+which it cannot. Two things this file is not free to do about that:
+`CHANGELOG.md` cannot hold it either -- `tests/changelog_test.py`
+refuses this file a stated count of its own entries for the same
+`merge=union` reason section 14 gives this script's own `.gitattributes`
+line, and a frozen count is exactly that shape -- and asking a `git`
+history for it is the gap this file's own module docstring already
+names as out of reach of a `pre-commit` hook with one file at one
+revision. So the count lives in this file after all, below a
+`## This repository in particular` heading at the very end -- the
+marker `tests/verbatim_test.py`'s `shared()` already cuts `CONTRIBUTING.md`
+and `REVIEWING.md` at, nothing in it being markdown-specific. Everything
+above that heading is what section 14 compares; `_GRANDFATHERED_ENTRIES`
+below it is this repository's own.
 
 A tree with no release carries one open section for the whole file, this
 repository's own `CHANGELOG.md` among them; a tree that releases keeps
@@ -331,6 +370,55 @@ def unblanked_headings(text: str, section: str, base: int) -> list[str]:
     return problems
 
 
+def misplaced_entries(
+    text: str,
+    section: str,
+    base: int,
+    grandfathered: int | None = None,
+) -> list[str]:
+    """Report more entries above `RULE_HEADING` than were grandfathered.
+
+    `long_bodies()` below reads an entry above `RULE_HEADING` as older
+    than the rule, on the strength of section 9's own placement rule --
+    a new entry goes at the end of the open section -- which nothing
+    else here checks. A branch that only ever appends below
+    `RULE_HEADING` never grows the count of entries above it; where the
+    open section holds more than `_GRANDFATHERED_ENTRIES` names, one has
+    landed above it instead, out of section 9's order, and is refused
+    here rather than silently read as predating a rule it postdates.
+
+    :param text: the whole file, for the line number reported.
+    :param section: the open section's own text.
+    :param base: the offset `section` starts at within `text`.
+    :param grandfathered: overrides `_GRANDFATHERED_ENTRIES`, the
+        constant this repository's own trailing section below sets; a
+        test's shortcut, never `problems()`'s own call, which always
+        takes that constant as it stands.
+    :returns: one message, naming `RULE_HEADING`'s own line, where the
+        section holds more entries above it than were grandfathered.
+    """
+    if grandfathered is None:
+        grandfathered = _GRANDFATHERED_ENTRIES
+    before = 0
+    rule_offset = None
+    for title, _, offset in entries(section):
+        if title == RULE_HEADING:
+            rule_offset = offset
+            break
+        if title is not None:
+            before += 1
+    if rule_offset is None or before <= grandfathered:
+        return []
+    line = line_at(text, base + rule_offset)
+    message = (
+        f"line {line}: {before} entries land above the rule heading, more"
+        f" than the {grandfathered} this repository grandfathers --"
+        " an entry has landed above it instead of at the end of the open"
+        " section (section 9)"
+    )
+    return [message]
+
+
 def long_bodies(text: str, section: str, base: int) -> list[str]:
     """Report an entry whose body runs past `_MAX_BODY_LINES` non-blank lines.
 
@@ -365,7 +453,7 @@ def long_bodies(text: str, section: str, base: int) -> list[str]:
 
 
 def problems(text: str) -> list[str]:
-    """Return every way the open section fails the four checks.
+    """Return every way the open section fails the five checks.
 
     :param text: the whole file.
     :returns: one message per finding, in the order the checks run.
@@ -375,6 +463,7 @@ def problems(text: str) -> list[str]:
         *repeated_headings(text, section, base),
         *duplicate_closes(text, section, base),
         *unblanked_headings(text, section, base),
+        *misplaced_entries(text, section, base),
         *long_bodies(text, section, base),
     ]
 
@@ -391,10 +480,34 @@ def main() -> int:
         print(
             f"{_CHANGELOG}: the open section repeats no heading, no two"
             " entries close the same issue, no heading has lost its blank"
-            " line, and no entry runs past three lines.",
+            " line, no entry lands above the rule out of place, and no"
+            " entry runs past three lines.",
         )
     return 1 if found else 0
 
+
+## This repository in particular
+
+# Section 14 of README.md makes this file verbatim, but how many entries
+# the open section held above `RULE_HEADING` the day the fifth check was
+# added is a fact about this repository's own history rather than about
+# the script every repository carries -- `.github`'s own count and
+# btclib's are not the same number (btclib-org/.github#1215). `shared()`
+# in tests/verbatim_test.py cuts at the marker heading just above and
+# compares only what comes before it, the way it already does for
+# CONTRIBUTING.md and REVIEWING.md; nothing there is markdown-specific,
+# and this is the first `.py` file in the organization to use it.
+#
+# It sits ahead of the trailer below rather than at the file's true end
+# the way the markdown copies keep their own section: a function's
+# default parameter value is bound once, when the `def` runs, so
+# `misplaced_entries()` above reads this name from inside its own body
+# instead, at call time -- and that read needs the name already bound,
+# which the trailer's `sys.exit(main())` forces immediately. The two
+# lines below the marker are the one part of this file the comparison
+# above does not reach; a script has a boilerplate the markdown copies
+# do not.
+_GRANDFATHERED_ENTRIES = 23
 
 if __name__ == "__main__":
     sys.exit(main())

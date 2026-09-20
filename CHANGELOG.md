@@ -1232,6 +1232,12 @@ file per release is what keeps each of them under it.
   from `btclib-node`'s `fuzz.yml`** (issue btclib-org/.github#1196):
   ClusterFuzzLite's builder image pins 3.11.13 against that tree's `>=3.14`.
 
+### `check_changelog.py` gains the fifth check, and its own grandfathered count
+
+- **The hook now refuses an entry landed above `RULE_HEADING`** (issue
+  btclib-org/.github#1215): `_GRANDFATHERED_ENTRIES` is 23, the count
+  the open section held above that heading the day the check was ported.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
