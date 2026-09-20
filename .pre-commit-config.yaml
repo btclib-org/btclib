@@ -420,8 +420,8 @@ repos:
         stages: [pre-commit, pre-merge-commit, pre-push, manual]
   # `merge=union` stays on `CHANGELOG.md` (btclib-org/.github#21), and
   # this is the gate its price bought back -- `.github/scripts/
-  # check_changelog.py`'s own docstring carries what the three checks
-  # catch, what they still cannot, and the alternatives declined
+  # check_changelog.py`'s own docstring carries what its checks catch,
+  # what they still cannot, and the alternatives declined
   # (btclib-org/.github#305, btclib-org/.github#516). It runs ahead of
   # markdownlint-cli2 below on purpose: that hook's `--fix` repairs the
   # very seam the third check exists to name, so a hook reading the
