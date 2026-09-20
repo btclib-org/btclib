@@ -1226,6 +1226,12 @@ file per release is what keeps each of them under it.
   `reusable-integration-bitcoind.yml`** (issue
   btclib-org/.github#1196): the calling job grants `contents: read`.
 
+### `fuzz.yml`'s header says why it does not call `btclib-node`'s
+
+- **The header states the Python-version constraint that keeps it apart
+  from `btclib-node`'s `fuzz.yml`** (issue btclib-org/.github#1196):
+  ClusterFuzzLite's builder image pins 3.11.13 against that tree's `>=3.14`.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
