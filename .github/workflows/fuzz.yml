@@ -60,6 +60,23 @@ name: fuzz
 # the above, and is what runs the batch by hand -- before a release
 # rather than waiting for the scheduled run, which is what section 10
 # names it for.
+#
+# `btclib-node` carries an identically named `fuzz.yml`, close enough in
+# length to read as this file ported, and it is not: two fuzzing engines
+# end to end, ClusterFuzzLite's container build against atheris invoked
+# directly. ClusterFuzzLite's builder image pins its own interpreter --
+# `ENV PYTHON_VERSION 3.11.13` in google/oss-fuzz's own
+# infra/base-images/base-builder/Dockerfile -- where that tree's
+# `pyproject.toml` requires `>=3.14`, so the `pip3 install .` a
+# ClusterFuzzLite build begins with is refused there before a target
+# compiles. No workflow input converts one engine into the other. What
+# the two files share is not a job: the trigger policy argued above --
+# no `pull_request`, `schedule` and `workflow_dispatch` alone -- the
+# `contents: read` and the concurrency group written below, and the
+# downstream contract already stated above, a crash becoming a test in
+# the ordinary suite rather than a corpus or suppression entry.
+# btclib-org/.github#1196 is where the two were measured against each
+# other and kept apart.
 on:
   schedule:
     # Day and hour are section 10's own workflow table; minute is this
