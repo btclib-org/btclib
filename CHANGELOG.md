@@ -1238,6 +1238,12 @@ file per release is what keeps each of them under it.
   btclib-org/.github#1215): `_GRANDFATHERED_ENTRIES` is 23, the count
   the open section held above that heading the day the check was ported.
 
+### The `check-changelog` hook's comment names no count
+
+- **`.pre-commit-config.yaml`'s `check-changelog` comment stops naming
+  how many checks its docstring lists** (issue btclib-org/.github#1225):
+  the docstring already enumerates them.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
