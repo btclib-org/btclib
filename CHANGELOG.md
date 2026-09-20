@@ -1208,6 +1208,12 @@ file per release is what keeps each of them under it.
   that repairs it exits 1**: both are measured on a rebased tree and
   stated in *Non-obvious facts*.
 
+### `vendored-vectors.yml` calls `btclib-org/.github`'s reusable workflow
+
+- **The vector sentinel's own job becomes a call to
+  `btclib-org/.github`'s `reusable-vendored-vectors.yml`** (issue
+  btclib-org/.github#1196): the calling job now grants `issues: write`.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
