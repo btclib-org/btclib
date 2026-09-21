@@ -81,8 +81,8 @@ octets hold, which is the field boundary rather than a judgement.
 **`sendtxrcncl` is BIP330's Erlay negotiation and none of Erlay's
 reconciliation.** The message itself is two unsigned fields, a `uint32`
 protocol version and a `uint64` salt; BIP330's own table and Core's
-`test/functional/test_framework/messages.py` `msg_sendtxrcncl`, at the
-revision `TF2.md` pins, agree on that layout field for field.
+`test/functional/test_framework/messages.py` `msg_sendtxrcncl` agree on
+that layout field for field.
 `node/txreconciliation.h` declares `TXRECONCILIATION_VERSION` 1,
 matching BIP330's "Sender must set this to 1 currently" -- so both
 sources name the same one value a peer sends today, and this codec

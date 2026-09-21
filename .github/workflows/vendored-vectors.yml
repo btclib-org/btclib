@@ -2,24 +2,17 @@
 name: vendored vectors
 
 # tests/_data/README.md pins every vendored test vector to a commit and
-# a git blob SHA-1, and TF2.md pins every Python file of Core's test
-# framework to the commit its verdict was read at. Both carry a
-# documented manual procedure to re-check one pin. This runs that
-# procedure once a week instead, over every pin the script can check,
-# and opens or updates an issue on drift rather than fixing anything:
-# what to do about a pin that has moved is a decision the script does
-# not get to make.
-#
-# One issue per ledger, under a title of its own, because the two kinds
-# of staleness are acted on differently: a vendored file behind upstream
-# means this tree holds a stale copy, where a TF2.md pin behind upstream
-# means a verdict is now a claim about a file that has moved.
+# a git blob SHA-1, and carries a documented manual procedure to
+# re-check one pin. This runs that procedure once a week instead, over
+# every pin the script can check, and opens or updates an issue on
+# drift rather than fixing anything: what to do about a pin that has
+# moved is a decision the script does not get to make.
 #
 # The checkout, the optional interpreter setup and the re-check itself
 # are btclib-org/.github's: reusable-vendored-vectors.yml, called at
 # @main so a fix there reaches this tree in one landing (section 10 of
 # its README.md). What stays here is the trigger, the cron minute, the
-# concurrency group and the two ledgers this tree checks.
+# concurrency group and the ledger this tree checks.
 #
 # issues: write here is granted by no other workflow in this tree, and
 # three decline it in as many words, each for its own reason: links.yml,
@@ -60,7 +53,6 @@ on:
       - .github/workflows/vendored-vectors.yml
       - .github/scripts/check_vendored_vectors.py
       - tests/_data/README.md
-      - TF2.md
 
 permissions:
   contents: read
@@ -87,14 +79,12 @@ jobs:
       contents: read
       issues: write # gh issue create/edit/close, in the called workflow
     with:
-      # cardinality 2: this tree pins two ledgers, its vendored test
-      # vectors and its tf2 verdicts, one issue per ledger for the
-      # reason above
+      # cardinality 1: this tree pins one ledger, tests/_data/README.md.
+      # The tf2 verdict ledger belongs to tf2, not to this tree
+      # (issue #2220).
       ledgers: >-
         [{"ledger": "tests/_data/README.md",
-        "title": "Vendored vectors behind upstream"},
-        {"ledger": "TF2.md",
-        "title": "tf2 ledger verdicts pinned to superseded revisions"}]
+        "title": "Vendored vectors behind upstream"}]
       # the interpreter .python-version pins: the script imports only
       # the standard library, so this is not a claim about what btclib
       # itself requires, only this tree's own choice to pin one rather

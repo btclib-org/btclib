@@ -21,8 +21,8 @@ writes `nTime` whichever `SerParams` it is given, and a `version`
 message's address is a `CService`, written and read through `CNetAddr::V1`
 with the service flags beside it in src/net_processing.cpp. Core's test
 framework takes the other route, one class with a `with_time` parameter,
-in test/functional/test_framework/messages.py, whose revision `TF2.md`
-pins. A parameter is where one class loses a round trip: the class has the
+in test/functional/test_framework/messages.py. A parameter is where one
+class loses a round trip: the class has the
 timestamp field whichever way the octets were read, so an address parsed
 out of a `version` message is *forced* to a timestamp of zero rather than
 left without one -- the field then says zero where it means absent, and an

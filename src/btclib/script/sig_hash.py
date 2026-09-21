@@ -558,7 +558,7 @@ class PrecomputedTxData:
 
 
 # Core's `SegwitV0SignatureHash`, of
-# test/functional/test_framework/script.py; `TF2.md` pins the revision
+# test/functional/test_framework/script.py
 def segwit_v0(
     script_code: Octets,
     tx: Tx,

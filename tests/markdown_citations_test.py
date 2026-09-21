@@ -74,9 +74,10 @@ the only place that decision can be written down.
 
 A file stating the convention its own citations are written to can be
 held to more than this, and this rule does not stand in for that:
-`tf2_ledger_test.py` resolves `TF2.md`'s paths against `src/btclib/` as
-well as against the root, which is available to it because that ledger
-says which of the two each path is written from.
+`security_citations_test.py` reads each of `SECURITY.md`'s `path:line`
+citations against the dotted name or the quotation written in front of
+it, which is available to it because that file says which of the two a
+citation carries and what each claims.
 
 A link's own target is the other spelling, and its path is resolved against
 `git ls-files` itself rather than through the file name and the directory a

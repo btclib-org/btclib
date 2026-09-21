@@ -42,8 +42,7 @@ records the height and hash of every block file this reads.
 
 Everything else is a round trip, a refusal, or a reading of Core's
 src/protocol.h, src/net_processing.h and
-test/functional/test_framework/messages.py, whose revision `TF2.md`
-pins.
+test/functional/test_framework/messages.py.
 """
 
 from __future__ import annotations

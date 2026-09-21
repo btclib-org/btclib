@@ -10,13 +10,12 @@ automates that procedure and reports drift, rather than fixing it: what
 to do about a pin that has moved is a decision this script does not get
 to make, so what it opens is an issue, never a commit.
 
-The ledger and the issue title are both the caller's, because the
-ledgers this repository passes go stale in different ways and are acted
-on differently: tests/_data/README.md pins the revision a file here was
-copied from, so a moved commit says the copy is behind, and TF2.md pins
-the revision a verdict was read at, so a moved commit says the verdict
-is a claim about a file that has moved. One title over both would name
-one issue for the pair, each run rewriting what the other wrote.
+The ledger and the issue title are both the caller's, because a ledger
+goes stale in its own way and is acted on in its own way:
+tests/_data/README.md pins the revision a file here was copied from, so
+a moved commit says the copy is behind. A caller passing two ledgers
+under one title would open one issue for the pair, each run rewriting
+what the other wrote.
 
 btclib-secp256k1 carries a copy under this same name, over its own
 tests/README.md, whose entries are each pinned to a commit under a
