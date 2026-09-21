@@ -215,6 +215,8 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.ecc.ssa:verify": ["commit", "receipt"],
     "btclib.ecc.ssa:verify_": ["commit_hash", "receipt"],
     "btclib.fee:FeeRate.__init__": ["sats_per_kvbyte"],
+    "btclib.fee:FeeRate.from_btc_per_kvbyte": ["round_up"],
+    "btclib.fee:FeeRate.from_sats_per_vbyte": ["round_up"],
     "btclib.fee:package_fee": ["ancestor_vsize", "ancestor_fee"],
     "btclib.fetch.fetcher:NetworkVerifyingFetcher.__init__": ["verify_network"],
     "btclib.fetch.transport:http_request": [
@@ -227,6 +229,7 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.fetch:BitcoinCoreFetcher.__init__": [
         "verify_network",
         "signet_challenge",
+        "estimate_mode",
     ],
     "btclib.fetch:BitcoinCoreFetcher.broadcast": ["maxfeerate"],
     "btclib.fetch:BitcoinCoreRpcClient.__init__": [

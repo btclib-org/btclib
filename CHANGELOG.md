@@ -1286,6 +1286,12 @@ file per release is what keeps each of them under it.
   refuses; the rest of this README's pins advance with nothing new**
   (closes #2228).
 
+### `fetch/` gains a `FeeEstimator` protocol; `fee.py` narrows its refusal
+
+- **`FeeEstimator`, beside `Broadcaster`, quotes a `FeeQuote` -- a rate and
+  the target it is valid for -- on `BitcoinCoreFetcher`, `ElectrumFetcher`
+  and `EsploraFetcher`** (closes #2223): `fee.py` no longer declines it.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

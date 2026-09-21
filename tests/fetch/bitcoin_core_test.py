@@ -45,6 +45,7 @@ from btclib.exceptions import (
     HttpError,
     RpcError,
 )
+from btclib.fee import FeeRate
 from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.transport import DEFAULT_MAX_BODY_SIZE
 from btclib.network import NETWORKS
@@ -791,3 +792,103 @@ def test_broadcast_verifies_the_network_once_like_the_other_methods() -> None:
     core = BitcoinCoreFetcher(endpoint)
     assert core.broadcast(tx) == tx.id
     assert asked(endpoint) == ["getblockchaininfo", "sendrawtransaction"]
+
+
+def test_estimate_fee_reads_feerate_and_the_target_the_node_answered() -> None:
+    """The feerate is BTC/kvB; `blocks` is what `FeeQuote.target` reports."""
+    body = json.dumps(
+        {"jsonrpc": "2.0", "result": {"feerate": 0.00001, "blocks": 3}, "id": "x"}
+    ).encode()
+    endpoint = client((200, body))
+    quote = BitcoinCoreFetcher(endpoint, verify_network=False).estimate_fee(1)
+    assert quote.rate == FeeRate.from_btc_per_kvbyte(0.00001)
+    assert quote.target == 3
+    body_sent = sent(endpoint)
+    assert body_sent["method"] == "estimatesmartfee"
+    assert body_sent["params"] == [1, "economical"]
+
+
+def test_estimate_fee_rounds_a_feerate_finer_than_a_satoshi_up() -> None:
+    """A quote finer than a satoshi/kvB is rounded up, never refused.
+
+    0.000000015 BTC/kvB is 1.5 satoshi/kvB -- not a whole satoshi -- and
+    the quote this returns is 2, not 1: rounded up, not truncated.
+    """
+    body = json.dumps(
+        {"jsonrpc": "2.0", "result": {"feerate": 0.000000015, "blocks": 1}, "id": "x"}
+    ).encode()
+    quote = BitcoinCoreFetcher(client((200, body)), verify_network=False).estimate_fee(
+        1
+    )
+    assert quote.rate == FeeRate(sats_per_kvbyte=2)
+
+
+def test_estimate_fee_forwards_the_constructors_estimate_mode() -> None:
+    """`estimate_mode` is fixed at construction, not a per-call argument."""
+    body = json.dumps(
+        {"jsonrpc": "2.0", "result": {"feerate": 0.00002, "blocks": 6}, "id": "x"}
+    ).encode()
+    endpoint = client((200, body))
+    quote = BitcoinCoreFetcher(
+        endpoint, verify_network=False, estimate_mode="conservative"
+    ).estimate_fee(6)
+    assert quote.target == 6
+    assert sent(endpoint)["params"] == [6, "conservative"]
+
+
+def test_estimate_fee_refuses_a_reply_with_no_feerate() -> None:
+    """No `feerate` is a decline, not a rate -- the node's own errors kept."""
+    body = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "result": {
+                "errors": ["Insufficient data or no feerate found"],
+                "blocks": 0,
+            },
+            "id": "x",
+        }
+    ).encode()
+    with pytest.raises(FetchError, match="Insufficient data or no feerate found"):
+        BitcoinCoreFetcher(client((200, body)), verify_network=False).estimate_fee(1)
+
+
+def test_estimate_fee_refuses_a_reply_with_no_feerate_and_no_errors() -> None:
+    """No `feerate` and no `errors` either: still a decline, with a fallback."""
+    body = json.dumps({"jsonrpc": "2.0", "result": {"blocks": 0}, "id": "x"}).encode()
+    with pytest.raises(FetchError, match="no estimate for this target"):
+        BitcoinCoreFetcher(client((200, body)), verify_network=False).estimate_fee(1)
+
+
+@pytest.mark.parametrize("result", ["not an object", ["feerate", 0.0001], None])
+def test_estimate_fee_refuses_a_reply_that_is_not_an_object(result: object) -> None:
+    """A malformed reply is a FetchError, not an AttributeError on `.get`."""
+    body = json.dumps({"jsonrpc": "2.0", "result": result, "id": "x"}).encode()
+    with pytest.raises(FetchError, match="estimatesmartfee:"):
+        BitcoinCoreFetcher(client((200, body)), verify_network=False).estimate_fee(1)
+
+
+@pytest.mark.parametrize("blocks", ["not an int", None, 1.5])
+def test_estimate_fee_refuses_a_blocks_field_that_is_not_an_int(
+    blocks: object,
+) -> None:
+    """`blocks` is what `FeeQuote.target` reports, so it has to be an int."""
+    body = json.dumps(
+        {"jsonrpc": "2.0", "result": {"feerate": 0.00001, "blocks": blocks}, "id": "x"}
+    ).encode()
+    with pytest.raises(FetchError, match="invalid blocks"):
+        BitcoinCoreFetcher(client((200, body)), verify_network=False).estimate_fee(1)
+
+
+@pytest.mark.parametrize("target", [0, -1])
+def test_estimate_fee_refuses_a_non_positive_target(target: int) -> None:
+    """The target is checked before any request is made."""
+    with pytest.raises(BTClibValueError, match="invalid confirmation target"):
+        BitcoinCoreFetcher(client(), verify_network=False).estimate_fee(target)
+
+
+def test_estimate_fee_verifies_the_network_before_asking_anything() -> None:
+    """The same guard every other question goes through first."""
+    endpoint = client(blockchaininfo(chain="test"))
+    with pytest.raises(BTClibValueError, match="reports chain 'test', not the 'main'"):
+        BitcoinCoreFetcher(endpoint, network="mainnet").estimate_fee(6)
+    assert asked(endpoint) == ["getblockchaininfo"]

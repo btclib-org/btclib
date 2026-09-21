@@ -11,9 +11,12 @@ constant is what it says, and nothing resolves it.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError, FetchError, HttpError
+from btclib.fee import FeeRate
 from btclib.fetch.esplora import BLOCKSTREAM_INFO, EsploraFetcher
 from btclib.fetch.transport import SessionTransport
 from btclib.network import NETWORKS
@@ -518,3 +521,74 @@ def test_broadcast_reports_a_400_with_the_explorers_own_body() -> None:
     tx = broadcast_tx()
     with pytest.raises(FetchError, match="HTTP 400 .*: min relay fee not met"):
         fetcher((400, b"min relay fee not met")).broadcast(tx)
+
+
+def fee_estimates(**targets: float) -> bytes:
+    """Return a `/fee-estimates` body mapping target to sat/vB, as text keys."""
+    return json.dumps({str(k): v for k, v in targets.items()}).encode()
+
+
+def test_estimate_fee_answers_the_exact_target_when_it_is_quoted() -> None:
+    """A target the deployment quotes directly needs no resolution."""
+    quote = fetcher((200, fee_estimates(**{"1": 87.882, "2": 45.2}))).estimate_fee(1)
+    assert quote.target == 1
+    assert quote.rate == FeeRate.from_sats_per_vbyte(87.882)
+
+
+def test_estimate_fee_rounds_a_quote_finer_than_a_millisatoshi_up() -> None:
+    """A deployment quoting more than three decimals is rounded up.
+
+    87.8825 sat/vB is 87882.5 milli-sat/vB -- not a whole one -- and the
+    quote this returns is 87883, not 87882: rounded up, not truncated.
+    """
+    quote = fetcher((200, fee_estimates(**{"1": 87.8825}))).estimate_fee(1)
+    assert quote.rate == FeeRate(sats_per_kvbyte=87883)
+
+
+def test_estimate_fee_resolves_upward_to_the_next_quoted_target() -> None:
+    """A target the deployment does not quote rounds up to the next one it does.
+
+    3 is not among Esplora's documented targets; the smallest quoted
+    target at or above it is 4, and its price -- never below what 3 would
+    have cost -- is what this test checks was chosen and not 2's.
+    """
+    body = fee_estimates(**{"1": 100, "2": 50, "4": 20, "144": 5})
+    quote = fetcher((200, body)).estimate_fee(3)
+    assert quote.target == 4
+    assert quote.rate == FeeRate.from_sats_per_vbyte(20)
+
+
+def test_estimate_fee_refuses_a_target_above_the_highest_quoted() -> None:
+    """A target past 1008 is refused before any request is made."""
+    with pytest.raises(BTClibValueError, match="above the highest quoted"):
+        fetcher().estimate_fee(1009)
+
+
+def test_estimate_fee_refuses_a_target_the_deployment_has_no_quote_for() -> None:
+    """A deployment answering only low targets has nothing at or above 1008."""
+    with pytest.raises(FetchError, match="no target quoted at or above 1008"):
+        fetcher((200, fee_estimates(**{"1": 10, "2": 5}))).estimate_fee(1008)
+
+
+@pytest.mark.parametrize("body", [b"[1, 2]", b"{}", b"not json", b"null"])
+def test_estimate_fee_refuses_a_malformed_payload(body: bytes) -> None:
+    """A payload that is not a non-empty object is refused, not misread."""
+    with pytest.raises(FetchError, match="fee-estimates:"):
+        fetcher((200, body)).estimate_fee(1)
+
+
+def test_estimate_fee_requests_the_endpoint_and_nothing_else() -> None:
+    """`GET /fee-estimates`, the one endpoint here answering json."""
+    transport = Recorded((200, fee_estimates(**{"1": 10})))
+    EsploraFetcher(BASE, transport=transport, verify_network=False).estimate_fee(1)
+    assert transport.requests[0].full_url == f"{BASE}/fee-estimates"
+    assert transport.requests[0].get_method() == "GET"
+
+
+def test_estimate_fee_verifies_the_network_before_asking_anything() -> None:
+    """The same guard every other question goes through first."""
+    transport = Recorded((200, TESTNET_GENESIS.encode()))
+    esplora = EsploraFetcher(BASE, transport=transport, verify_network=True)
+    with pytest.raises(BTClibValueError, match=f"{TESTNET_GENESIS}.*{MAINNET_GENESIS}"):
+        esplora.estimate_fee(1)
+    assert len(transport.requests) == 1

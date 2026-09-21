@@ -57,7 +57,9 @@ from typing_extensions import override
 from btclib import electrum
 from btclib.alias import Octets
 from btclib.block.block_header import BlockHeader
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibValueError, FetchError
+from btclib.fee import FeeRate
+from btclib.fetch.fee_estimator import FeeQuote, valid_confirmation_target
 from btclib.fetch.fetcher import (
     NetworkVerifyingFetcher,
     block_header_from_raw,
@@ -100,6 +102,11 @@ class ElectrumFetcher(NetworkVerifyingFetcher):
     malformed branch or a wrong position the way
     `btclib.block.merkle_proof.verify` does, and still raising for
     anything `get_block_header` itself refuses.
+
+    Also a `FeeEstimator`: `estimate_fee` is `blockchain.estimatefee`,
+    answered for the target asked -- the protocol carries no field
+    equivalent to Core's `blocks`, so unlike the other two backends this
+    one cannot report a clamp the server may have applied underneath it.
 
     `get_tx_out` is not overridden, and stays the `Fetcher` base's
     derivation from `get_tx`. The protocol answers a script hash's
@@ -274,3 +281,26 @@ class ElectrumFetcher(NetworkVerifyingFetcher):
         header = self.get_block_header(height)
         proof = self.get_tx_merkle(tx_id, height)
         return electrum.verify_merkle_proof(tx_id, proof, header)
+
+    def estimate_fee(self, target: int) -> FeeQuote:
+        """Return a fee rate expected to confirm within `target` blocks.
+
+        `blockchain.estimatefee`. `-1`, the protocol's own way of saying
+        no estimate is available, is a decline and raised as a
+        `FetchError` rather than reaching `FeeRate` -- no sentinel
+        reaches the return type, the way `Broadcaster`'s third contract
+        bullet already requires of a refusal. Servers commonly proxy this
+        answer from a node's own `estimatesmartfee`, so it is read in the
+        same BTC/kvB unit `FeeRate.from_btc_per_kvbyte` already converts.
+        """
+        self._verify_once()
+        target = valid_confirmation_target(target)
+        request_id = self._next_request_id()
+        line = self._round_trip(electrum.estimate_fee_request(request_id, target))
+        with fetch_errors("blockchain.estimatefee"):
+            result = electrum.estimate_fee_response(line, request_id)
+            if result == -1:
+                err_msg = f"blockchain.estimatefee: no estimate for target {target}"
+                raise FetchError(err_msg)
+            rate = FeeRate.from_btc_per_kvbyte(result, round_up=True)
+            return FeeQuote(rate=rate, target=target)

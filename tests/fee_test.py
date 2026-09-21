@@ -87,6 +87,43 @@ def test_sats_per_vbyte_is_exact_or_it_is_an_error() -> None:
         FeeRate.from_sats_per_vbyte("0.0001")
 
 
+def test_round_up_rounds_a_sats_per_vbyte_quote_up_and_never_down() -> None:
+    """A quote finer than a millisatoshi/vB rounds up instead of raising.
+
+    0.0001 sat/vB is 0.1 milli-sat/vB, so the exact answer is not an
+    integer number of milli-sat/vB; rounding up lands on 1, not 0 --
+    which is what tells "rounds up" from "truncates".
+    """
+    assert FeeRate.from_sats_per_vbyte("0.0001", round_up=True) == FeeRate(
+        sats_per_kvbyte=1
+    )
+    # exact already: round_up changes nothing
+    assert FeeRate.from_sats_per_vbyte(
+        "0.001", round_up=True
+    ) == FeeRate.from_sats_per_vbyte("0.001")
+
+
+@pytest.mark.parametrize(
+    "sats_per_vbyte",
+    [
+        # inexact and negative: without the sign check, rounding up
+        # would land this on FeeRate(sats_per_kvbyte=0) instead of
+        # refusing it
+        "-0.0005",
+        # exact and negative: no remainder, so round_up never reaches
+        # the crossing-zero guard at all -- __post_init__ refuses it the
+        # same way it refuses any other negative sats_per_kvbyte
+        "-0.001",
+    ],
+)
+def test_round_up_still_refuses_a_negative_sats_per_vbyte_quote(
+    sats_per_vbyte: str,
+) -> None:
+    """`round_up` rounds a quote too fine to hold; it never crosses zero."""
+    with pytest.raises(BTClibValueError, match="negative"):
+        FeeRate.from_sats_per_vbyte(sats_per_vbyte, round_up=True)
+
+
 @pytest.mark.parametrize(
     "rate",
     [
@@ -157,6 +194,49 @@ def test_a_btc_quote_is_exact_or_it_is_an_error() -> None:
     """A fraction of a satoshi per kvB is refused, not truncated."""
     with pytest.raises(BTClibValueError, match="too many decimals"):
         FeeRate.from_btc_per_kvbyte("0.000000001")
+
+
+def test_round_up_rounds_a_btc_per_kvbyte_quote_up_and_never_down() -> None:
+    """A quote finer than a satoshi/kvB rounds up instead of raising.
+
+    0.000000001 BTC/kvB is 0.1 satoshi/kvB: the exact answer is not a
+    whole satoshi, and rounding up lands on 1, not 0.
+    """
+    assert FeeRate.from_btc_per_kvbyte("0.000000001", round_up=True) == FeeRate(
+        sats_per_kvbyte=1
+    )
+    # exact already: round_up changes nothing
+    assert FeeRate.from_btc_per_kvbyte(
+        "0.00000001", round_up=True
+    ) == FeeRate.from_btc_per_kvbyte("0.00000001")
+
+
+@pytest.mark.parametrize(
+    "rate, match",
+    [
+        # what Decimal parses and is not finite, refused ahead of quantize
+        ("NaN", "invalid BTC/kvB fee rate"),
+        ("Infinity", "invalid BTC/kvB fee rate"),
+        # what Decimal does not parse at all
+        ("abc", "invalid BTC/kvB fee rate"),
+        # finite, and still refused: quantizing it to a satoshi overflows
+        # this context's precision, which is not the same failure as a
+        # fraction of a satoshi and is refused rather than left to escape
+        # as decimal.InvalidOperation
+        ("1E30", "invalid BTC/kvB fee rate"),
+        # negative and inexact: without the sign check, ROUND_CEILING
+        # would quantize this to -0.00000000, sats_from_btc's own check
+        # having nothing left to refuse once the sign is already gone
+        ("-0.000000005", "invalid BTC/kvB fee rate"),
+        # negative and exact -- one satoshi under zero -- refused by the
+        # same guard rather than left to reach quantize or sats_from_btc
+        ("-0.00000001", "invalid BTC/kvB fee rate"),
+    ],
+)
+def test_round_up_still_refuses_what_is_not_a_rate(rate: str, match: str) -> None:
+    """`round_up` widens what is accepted; it narrows no existing refusal."""
+    with pytest.raises(BTClibValueError, match=match):
+        FeeRate.from_btc_per_kvbyte(rate, round_up=True)
 
 
 @pytest.mark.parametrize(
