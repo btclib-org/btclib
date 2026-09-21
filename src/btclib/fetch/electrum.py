@@ -102,10 +102,12 @@ class ElectrumFetcher(NetworkVerifyingFetcher):
     anything `get_block_header` itself refuses.
 
     `get_tx_out` is not overridden, and stays the `Fetcher` base's
-    derivation from `get_tx`: the protocol answers a script hash's
+    derivation from `get_tx`. The protocol answers a script hash's
     history and its unspent outputs, `blockchain.scripthash.get_history`
-    and `.listunspent`, but the interface does not ask those questions
-    and this issue does not add them.
+    and `.listunspent`, but `ElectrumFetcher` does not ask either
+    question: every `Fetcher` question is keyed on an identifier the
+    caller already holds -- a txid, a height, nothing -- and a script is
+    not one.
     """
 
     def __init__(

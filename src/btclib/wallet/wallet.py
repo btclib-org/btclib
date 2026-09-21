@@ -42,15 +42,20 @@ one. The chains are the same two chains either way, named rather than
 derived.
 
 **What no wallet here does.** No utxos, no balances, no transaction
-building, no persistence to disk, no encryption at rest. Each of those is
-a decision this package cannot take on its own: the first three need a
-view of the chain, which btclib does not have and does not fetch, and the
-last two need a file format and a key-derivation function that would
-outlive any release choosing them. Without them a wallet is a pure
-function of its source -- the same source gives the same addresses in the
-same order, every time -- which is what makes it testable and what keeps
-its whole state in memory, where the caller can see it. A spender is the
-larger reading of "wallet" and belongs above this, not inside it.
+building, no persistence to disk, no encryption at rest. Utxos and
+balances need a view of the chain that btclib does not have: no
+`Fetcher` question is keyed on a script, and `get_tx_out` reads the
+named output's parent transaction rather than a utxo set -- it answers
+what the output is, spent or not, never whether it is spent, so there
+is no utxo set here to read a balance from. Transaction building needs
+no view of any chain; it is `tx_builder.py`'s, built from candidates a
+caller already selected. Persistence and encryption at rest need a file
+format and a key-derivation function that would outlive any release
+choosing them. Without any of them a wallet is a pure function of its
+source -- the same source gives the same addresses in the same order,
+every time -- which is what makes it testable and what keeps its whole
+state in memory, where the caller can see it. A spender is the larger
+reading of "wallet" and belongs above this, not inside it.
 
 https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
 """
