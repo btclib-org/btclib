@@ -53,11 +53,15 @@ this expects text is not compatible in the way that matters.
 
 from __future__ import annotations
 
+import json
+
 from typing_extensions import override
 
 from btclib.alias import Octets
 from btclib.block.block_header import BlockHeader
-from btclib.exceptions import BTClibValueError, FetchError, HttpError
+from btclib.exceptions import BTClibTypeError, BTClibValueError, FetchError, HttpError
+from btclib.fee import FeeRate
+from btclib.fetch.fee_estimator import FeeQuote, valid_confirmation_target
 from btclib.fetch.fetcher import (
     NetworkVerifyingFetcher,
     block_header_from_raw,
@@ -110,6 +114,18 @@ _MAX_HEIGHT_BODY = 64
 _MAX_HASH_BODY = 128
 _MAX_HEADER_BODY = 256
 _MAX_TX_BODY = DEFAULT_MAX_BODY_SIZE
+# `/fee-estimates` is the one endpoint here answering json rather than
+# plain text, and the one whose body is more than a single small value:
+# an object of up to the documented set of confirmation targets below,
+# each a small decimal, formatted with the json punctuation around them.
+# Generous over that and still nowhere near DEFAULT_MAX_BODY_SIZE
+_MAX_FEE_ESTIMATES_BODY = 4096
+
+# API.md's own set of confirmation targets: 1-25, 144, 504 and 1008. The
+# highest of them is the target above which no deployment answers, and
+# `estimate_fee` refuses before a request is made rather than reporting
+# an empty answer back as "no target quoted"
+_MAX_FEE_TARGET = 1008
 
 
 class EsploraFetcher(NetworkVerifyingFetcher):
@@ -122,6 +138,12 @@ class EsploraFetcher(NetworkVerifyingFetcher):
     this class that writes. Holding a fetcher is not broadcasting; a
     caller has to call the method, and `broadcast`'s own docstring is
     where its non-idempotence is stated, at the point a caller meets it.
+
+    Also a `FeeEstimator`: `estimate_fee` is `GET /fee-estimates`, the
+    one endpoint here answering json rather than plain text and the one
+    answering a fixed set of confirmation targets rather than the one
+    asked for -- `estimate_fee`'s own docstring is where the resolution
+    between the two is stated.
     """
 
     def __init__(
@@ -315,3 +337,31 @@ class EsploraFetcher(NetworkVerifyingFetcher):
             err_msg = f"broadcast {txid.hex()}: the server confirmed {answered.hex()}"
             raise FetchError(err_msg)
         return answered
+
+    def estimate_fee(self, target: int) -> FeeQuote:
+        """Return a fee rate expected to confirm within `target` blocks.
+
+        `GET /fee-estimates`, an object from confirmation target to
+        sat/vB -- unlike every other endpoint here, in json. `target` is
+        resolved to the smallest key the deployment actually quotes at or
+        above it: the smaller target's price is never below the larger's,
+        so rounding this way over-pays and never under-pays. A target
+        above `_MAX_FEE_TARGET` is refused before any request is made.
+        """
+        self._verify_once()
+        target = valid_confirmation_target(target)
+        if target > _MAX_FEE_TARGET:
+            err_msg = f"confirmation target {target} above the highest quoted,"
+            err_msg += f" {_MAX_FEE_TARGET}"
+            raise BTClibValueError(err_msg)
+        with fetch_errors("fee-estimates"):
+            payload = json.loads(self.text("/fee-estimates", _MAX_FEE_ESTIMATES_BODY))
+            if not isinstance(payload, dict) or not payload:
+                raise BTClibTypeError(f"fee-estimates: not an object: {payload!r}")
+            available = {int(key): value for key, value in payload.items()}
+            quoted_target = min((t for t in available if t >= target), default=None)
+            if quoted_target is None:
+                err_msg = f"fee-estimates: no target quoted at or above {target}"
+                raise FetchError(err_msg)
+            rate = FeeRate.from_sats_per_vbyte(available[quoted_target], round_up=True)
+            return FeeQuote(rate=rate, target=quoted_target)

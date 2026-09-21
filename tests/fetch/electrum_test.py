@@ -22,6 +22,7 @@ from bitcoin_core_rpc import FetchError as RpcFetchError
 
 from btclib.block.block_header import BlockHeader
 from btclib.exceptions import BTClibValueError, FetchError, RpcError
+from btclib.fee import FeeRate
 from btclib.fetch.electrum import ElectrumFetcher
 from btclib.network import NETWORKS
 from btclib.tx import OutPoint
@@ -489,3 +490,49 @@ def test_verify_network_false_asks_the_server_nothing() -> None:
     endpoint = ElectrumFetcher("mainnet", transport=transport, verify_network=False)
     assert endpoint.get_block_count() == TIP_HEIGHT
     assert transport.methods == ["blockchain.headers.subscribe"]
+
+
+def test_estimate_fee_reads_the_btc_per_kb_rate_for_the_target_asked() -> None:
+    """The protocol answers the target asked -- no clamp field to report."""
+    endpoint = fetcher(0.00001)
+    quote = endpoint.estimate_fee(6)
+    assert quote.rate == FeeRate.from_btc_per_kvbyte(0.00001)
+    assert quote.target == 6
+    assert transport_of(endpoint).methods == ["blockchain.estimatefee"]
+    request = json.loads(transport_of(endpoint).requests[0])
+    assert request["params"] == [6]
+
+
+def test_estimate_fee_rounds_a_rate_finer_than_a_satoshi_up() -> None:
+    """A quote finer than a satoshi/kvB is rounded up, never refused.
+
+    0.000000015 BTC/kvB is 1.5 satoshi/kvB -- not a whole satoshi -- and
+    the quote this returns is 2, not 1: rounded up, not truncated.
+    """
+    quote = fetcher(0.000000015).estimate_fee(6)
+    assert quote.rate == FeeRate(sats_per_kvbyte=2)
+
+
+def test_estimate_fee_refuses_the_decline_sentinel() -> None:
+    """-1 is a decline, not a rate: it is a FetchError, not a FeeRate of -1."""
+    with pytest.raises(FetchError, match="no estimate for target 6"):
+        fetcher(-1).estimate_fee(6)
+
+
+@pytest.mark.parametrize("target", [0, -1])
+def test_estimate_fee_refuses_a_non_positive_target(target: int) -> None:
+    """Checked before any request: no server is asked for an invalid target."""
+    endpoint = fetcher()
+    with pytest.raises(BTClibValueError, match="invalid confirmation target"):
+        endpoint.estimate_fee(target)
+    assert transport_of(endpoint).requests == []
+
+
+def test_estimate_fee_verifies_the_network_before_asking_anything() -> None:
+    """The same guard every other question goes through first."""
+    endpoint = ElectrumFetcher(
+        "mainnet", transport=LineRecorded(TESTNET_GENESIS_HEADER), verify_network=True
+    )
+    with pytest.raises(BTClibValueError, match=TESTNET_GENESIS):
+        endpoint.estimate_fee(6)
+    assert transport_of(endpoint).methods == ["blockchain.block.header"]

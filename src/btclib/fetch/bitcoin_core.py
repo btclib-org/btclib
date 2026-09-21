@@ -20,7 +20,7 @@ true.
 """
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, cast
 
 from bitcoin_core_rpc import (
     COOKIE_USER,
@@ -34,7 +34,9 @@ from typing_extensions import override
 
 from btclib.alias import Octets
 from btclib.block.block_header import BlockHeader
-from btclib.exceptions import BTClibValueError, FetchError
+from btclib.exceptions import BTClibTypeError, BTClibValueError, FetchError
+from btclib.fee import FeeRate
+from btclib.fetch.fee_estimator import FeeQuote, valid_confirmation_target
 from btclib.fetch.fetcher import (
     NetworkVerifyingFetcher,
     block_header_from_raw,
@@ -45,7 +47,7 @@ from btclib.fetch.fetcher import (
     tx_id_hex,
 )
 from btclib.tx import Tx
-from btclib.utils import bytes_from_octets
+from btclib.utils import bytes_from_octets, is_integer
 
 __all__ = [
     "COOKIE_USER",
@@ -71,6 +73,9 @@ class BitcoinCoreFetcher(NetworkVerifyingFetcher):
     method, and `broadcast`'s own docstring is where its non-idempotence
     is stated, at the point a caller meets it.
 
+    Also a `FeeEstimator`: `estimate_fee` sends `estimatesmartfee`, which
+    `-rest` has no equivalent of either -- fee estimation is RPC only.
+
     The client is a constructor argument rather than a set of connection
     arguments repeated here: one class owns the endpoint and credentials,
     this one owns the mapping onto btclib types, and a caller who already has
@@ -90,6 +95,14 @@ class BitcoinCoreFetcher(NetworkVerifyingFetcher):
     signet's, `NETWORKS` describing the encoding and not the chain -- so it
     is refused with a network that is no signet, and refused with
     `verify_network` off, either being a check that would not be made.
+
+    `estimate_mode` is `estimatesmartfee`'s own parameter, fixed at
+    construction rather than taken per call: it is not part of
+    `FeeEstimator`'s contract -- Core's alone among the three backends --
+    so a caller who cares chooses it once, the way `signet_challenge` is
+    chosen once, rather than a signature every `estimate_fee` call would
+    otherwise have to widen for one backend's option. Defaults to Core's
+    own default, `economical`.
     """
 
     def __init__(
@@ -99,6 +112,7 @@ class BitcoinCoreFetcher(NetworkVerifyingFetcher):
         *,
         verify_network: bool = True,
         signet_challenge: str | bytes | None = None,
+        estimate_mode: str = "economical",
     ) -> None:
         super().__init__(network, verify_network=verify_network)
         if signet_challenge is not None:
@@ -118,6 +132,7 @@ class BitcoinCoreFetcher(NetworkVerifyingFetcher):
                 magic_from_signet_challenge(signet_challenge)
         self.client = client
         self.signet_challenge = signet_challenge
+        self.estimate_mode = estimate_mode
 
     def _call(
         self,
@@ -270,3 +285,36 @@ class BitcoinCoreFetcher(NetworkVerifyingFetcher):
             err_msg = f"broadcast {txid.hex()}: the node confirmed {answered.hex()}"
             raise FetchError(err_msg)
         return answered
+
+    def estimate_fee(self, target: int) -> FeeQuote:
+        """Return a fee rate expected to confirm within `target` blocks.
+
+        `estimatesmartfee`, with `self.estimate_mode` as its second
+        parameter. A reply naming no `feerate` -- "only present if no
+        errors were encountered" -- is a decline and not a rate, raised
+        as a `FetchError` carrying the node's own `errors`, unreshaped.
+        `blocks` is the target the node actually estimated for, clamped
+        to at least 2 and at most its own maximum usable target, and is
+        what the returned `FeeQuote.target` reports -- not necessarily
+        `target` itself.
+        """
+        self._verify_once()
+        target = valid_confirmation_target(target)
+        with fetch_errors("estimatesmartfee"):
+            reply = self._call(
+                "estimatesmartfee",
+                [target, self.estimate_mode],
+                max_body_size=_MAX_SMALL_REPLY,
+            )
+            if not isinstance(reply, dict):
+                raise BTClibTypeError(f"estimatesmartfee: not an object: {reply!r}")
+            feerate = reply.get("feerate")
+            if feerate is None:
+                errors = reply.get("errors") or ["no estimate for this target"]
+                err_msg = f"estimatesmartfee: {'; '.join(str(e) for e in errors)}"
+                raise FetchError(err_msg)
+            blocks = reply.get("blocks")
+            if not is_integer(blocks):
+                raise BTClibTypeError(f"estimatesmartfee: invalid blocks: {blocks!r}")
+            rate = FeeRate.from_btc_per_kvbyte(feerate, round_up=True)
+            return FeeQuote(rate=rate, target=cast(int, blocks))

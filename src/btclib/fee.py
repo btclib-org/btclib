@@ -15,25 +15,36 @@ kilo-virtual-byte wherever its RPC replies mention one, and wallets and
 their users state it in satoshi per virtual byte: three units and two
 factors that a bare int does not record. `FeeRate` names the unit in
 every constructor and accessor, so no factor is the caller's to
-remember, and it refuses a rate it could not hold exactly rather than
-truncating one.
+remember, and by default it refuses a rate it could not hold exactly
+rather than truncating one. `from_sats_per_vbyte` and
+`from_btc_per_kvbyte` take a `round_up` a caller passes to trade that
+refusal for rounding up instead -- never down, and never across zero,
+so a quote too fine to hold is rounded but one on the wrong side of
+zero is still refused. The rounding sits on these classmethods rather
+than in `fetch/`, since converting a backend's number into a `FeeRate`
+at all is already where the unit and the precision are read;
+`btclib.fetch.fee_estimator.FeeEstimator` asks one of them for a
+`FeeRate`, it does not repeat the arithmetic beside them.
 
-Explicitly not here, and the boundary is the point: everything downstream
-of a network. Mempool histograms, a fee estimate for a confirmation
-target, an ETA, a "how many blocks" slider -- those are policy fed by
-live data. They need a node, they answer differently every minute, and
-they belong to an application rather than to a library. `package_fee` is
-on this side of that line and its inputs are on the other: which
-ancestors are unconfirmed and what each of them paid is what a node
-answers, the arithmetic over those totals is not. What this module
-computes it computes from its arguments and from Bitcoin Core's
-constants, and the same arguments give the same answer forever.
+Explicitly not here, and the boundary is the point: forming an opinion
+about what a transaction should pay. A mempool histogram, an ETA, a "how
+many blocks" slider are policy computed from live data, and belong to an
+application rather than to a library. A fee estimate for a confirmation
+target is a node's own opinion too, but carrying that opinion back typed
+is a different act from forming one -- `btclib.fetch.fee_estimator`'s
+`FeeEstimator` is where a caller asks a backend for one, and this module
+does not duplicate it. `package_fee` is on this side of the line and its
+inputs are on the other: which ancestors are unconfirmed and what each
+of them paid is what a node answers, the arithmetic over those totals is
+not. What this module computes it computes from its arguments and from
+Bitcoin Core's constants, and the same arguments give the same answer
+forever.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_CEILING, Decimal, InvalidOperation
 from typing import Any
 
 from btclib import var_int
@@ -42,7 +53,7 @@ from btclib.amount import sats_from_btc, valid_sats_amount
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script.script_pub_key import is_segwit
 from btclib.script.spendability import is_unspendable
-from btclib.utils import bytes_from_octets, is_integer
+from btclib.utils import assert_type, bytes_from_octets, is_integer
 
 __all__ = [
     "DUST_RELAY_FEE_RATE",
@@ -101,7 +112,9 @@ class FeeRate:
             raise BTClibValueError(f"negative fee rate: {self.sats_per_kvbyte} sat/kvB")
 
     @classmethod
-    def from_sats_per_vbyte(cls, sats_per_vbyte: Any) -> FeeRate:
+    def from_sats_per_vbyte(
+        cls, sats_per_vbyte: Any, *, round_up: bool = False
+    ) -> FeeRate:
         """Return the same rate in sat/kvB from a sat/vB quote.
 
         The quote is a Decimal, an int, a string, or anything else
@@ -110,8 +123,22 @@ class FeeRate:
         binary fraction nearest to it. Refused: what does not read as
         a decimal number, is not finite, or is not a whole number of
         millisatoshi per virtual byte -- what sat/kvB cannot hold
-        exactly.
+        exactly -- unless `round_up`.
+
+        `round_up`, off by default, is for a quote a caller did not
+        state but a backend answered: refusing an ordinary explorer
+        reply would make the backend unusable, and truncating would
+        under-pay, so with it set a rate finer than sat/kvB can hold
+        exactly rounds up to the next millisatoshi per virtual byte
+        instead of raising. A caller *stating* a price keeps the
+        default, and pays exactly what it said.
+
+        A kind and not a truth: its `True` waives the refusal above
+        rather than only skipping a check, so a non-bool is refused
+        rather than read for its truth (CONTRIBUTING.md, "A `bool`
+        parameter is a kind or a truth").
         """
+        assert_type(round_up, bool, "round_up")
         err_msg = f"invalid sat/vB fee rate: {sats_per_vbyte}"
         # str() renders every object there is, and Decimal refuses most
         # of what it renders with an InvalidOperation -- an
@@ -140,14 +167,26 @@ class FeeRate:
         numerator, denominator = rate.as_integer_ratio()
         sats_per_kvbyte, remainder = divmod(numerator * _VBYTES_PER_KVBYTE, denominator)
         if remainder:
-            raise BTClibValueError(
-                "sat/vB fee rate finer than a millisatoshi per virtual byte: "
-                f"{sats_per_vbyte}"
-            )
+            if not round_up:
+                raise BTClibValueError(
+                    "sat/vB fee rate finer than a millisatoshi per virtual byte: "
+                    f"{sats_per_vbyte}"
+                )
+            # rounding a negative rate up is not "never under-pay", it is
+            # crossing zero: floor division already made sats_per_kvbyte
+            # negative here, and a plain +1 can land it on exactly 0 for a
+            # magnitude under one milli-sat/vB -- FeeRate.__post_init__'s
+            # own refusal has nothing left to catch once that happens, so
+            # the sign is checked here rather than trusted to it
+            if rate < 0:
+                raise BTClibValueError(f"negative sat/vB fee rate: {sats_per_vbyte}")
+            sats_per_kvbyte += 1
         return cls(sats_per_kvbyte=sats_per_kvbyte)
 
     @classmethod
-    def from_btc_per_kvbyte(cls, btc_per_kvbyte: Any) -> FeeRate:
+    def from_btc_per_kvbyte(
+        cls, btc_per_kvbyte: Any, *, round_up: bool = False
+    ) -> FeeRate:
         """Return the same rate in sat/kvB from a BTC/kvB quote.
 
         BTC/kvB is the unit Bitcoin Core quotes a rate in wherever an
@@ -158,16 +197,32 @@ class FeeRate:
         compared against internally is the sat/kvB this class holds.
         `getblockstats` is the exception worth knowing, quoting its
         `minfeerate` and `avgfeerate` in sat/vB, which is the
-        constructor above.
+        constructor above. The Electrum protocol's `blockchain.estimatefee`
+        is read the same way, in `btclib.fetch.electrum.ElectrumFetcher`.
 
         A rate per kvB scales from BTC to satoshi by the factor an
         amount does, so `sats_from_btc` is the conversion and its
         refusals are the ones that apply: what does not read as a
         decimal number, what is not finite, a negative quote, and one
         naming a fraction of a satoshi -- what sat/kvB cannot hold
-        exactly. Its complaints name a BTC amount, which is what is
-        being converted.
+        exactly, unless `round_up`. Its complaints name a BTC amount,
+        which is what is being converted.
+
+        `round_up`, off by default and for the reason
+        `from_sats_per_vbyte`'s carries one: a quote finer than a
+        satoshi per kvB rounds up to the next satoshi instead of
+        `sats_from_btc`'s refusal. Quantized here, ahead of
+        `sats_from_btc`, rather than inside it: that function is also
+        what an amount converts through, where rounding up would create
+        money, so the rounding belongs at this boundary and not in
+        `btclib.amount`.
+
+        A kind and not a truth, for the same reason
+        `from_sats_per_vbyte`'s is: its `True` waives a refusal rather
+        than only skipping a check, so a non-bool is refused rather than
+        read for its truth.
         """
+        assert_type(round_up, bool, "round_up")
         # `valid_btc_amount` reads None as zero, which is right for an
         # amount -- no amount is no money -- and wrong for a price:
         # `estimatesmartfee` answers an `errors` array and no `feerate`
@@ -178,6 +233,40 @@ class FeeRate:
         # is a zero rate through this constructor like any other
         if btc_per_kvbyte is None:
             raise BTClibValueError(f"invalid BTC/kvB fee rate: {btc_per_kvbyte}")
+        if round_up:
+            err_msg = f"invalid BTC/kvB fee rate: {btc_per_kvbyte}"
+            try:
+                rate = Decimal(str(btc_per_kvbyte))
+            except InvalidOperation as e:
+                raise BTClibValueError(err_msg) from e
+            # is_finite ahead of quantize rather than leaving quantize's
+            # own InvalidOperation to report it: quantize raises that for
+            # an infinity and quietly returns a NaN for one, neither
+            # being the exception this function promises
+            if not rate.is_finite():
+                raise BTClibValueError(err_msg)
+            # ROUND_CEILING rounds toward positive infinity, so a negative
+            # quote finer than a satoshi rounds *up to* zero rather than
+            # away from it -- accepted as a free-transaction FeeQuote
+            # where sats_from_btc's own range check, dust=0, has nothing
+            # left to refuse once the sign is already gone. Checked here,
+            # ahead of the quantize that would erase it, rather than left
+            # to that check: rounding is for a quote too fine to hold,
+            # never for one on the wrong side of zero
+            if rate < 0:
+                raise BTClibValueError(err_msg)
+            try:
+                # one satoshi in BTC: quantizing to it with ROUND_CEILING
+                # is the whole of "round up" -- sats_from_btc still runs
+                # the canonical range check on what this produces. The
+                # remaining InvalidOperation is a magnitude past this
+                # context's precision, refused rather than left to escape
+                # as a bare ArithmeticError
+                btc_per_kvbyte = rate.quantize(
+                    Decimal("0.00000001"), rounding=ROUND_CEILING
+                )
+            except InvalidOperation as e:
+                raise BTClibValueError(err_msg) from e
         return cls(sats_per_kvbyte=sats_from_btc(btc_per_kvbyte))
 
     @property

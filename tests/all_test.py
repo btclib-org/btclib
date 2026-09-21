@@ -247,6 +247,7 @@ CHILD_MODULES = {
             "decorators",
             "electrum",
             "esplora",
+            "fee_estimator",
             "fetcher",
             "transport",
         ],

@@ -22,6 +22,15 @@ read-only, and a protocol lets that asymmetry be a fact of the type
 rather than a `NotImplementedError` written into a class that never
 promised the capability.
 
+**`FeeEstimator` is a second `Protocol` beside `Broadcaster`, for a
+backend that quotes a price rather than answers a question about the
+chain.** `BitcoinCoreFetcher`, `ElectrumFetcher` and `EsploraFetcher`
+satisfy it; `BitcoinCoreRestFetcher` does not, Core's `-rest` interface
+carrying no fee estimation at all, the capability being RPC-only
+(`estimatesmartfee`). `FeeQuote` is what a call returns: a `FeeRate`
+together with the confirmation target it is actually valid for, which
+need not be the target asked for.
+
 **It adds no dependency.** The standard library is the whole of every
 client: `urllib.request`, `json` and `base64` over HTTP, `socket` and `ssl`
 for the Electrum protocol's line. The HTTP client's canonical
@@ -64,10 +73,11 @@ Importing the package does not connect to anything, and constructing a
 fetcher does not either: the first call is what opens a connection, and
 what raises if there is nothing to connect to.
 
-**What is exported, and what is not.** The fetchers, the interface
-they implement, `Broadcaster` beside it, the clients a Bitcoin Core
-node is reached through -- `BitcoinCoreRpcClient` for the JSON-RPC
-server, `BitcoinCoreRestClient` for `-rest` -- and the transport seam:
+**What is exported, and what is not.** The fetchers, the interface they
+implement, `Broadcaster` and `FeeEstimator` beside it with `FeeQuote`,
+the clients a Bitcoin Core node is reached through --
+`BitcoinCoreRpcClient` for the JSON-RPC server, `BitcoinCoreRestClient`
+for `-rest` -- and the transport seam:
 the timeout, the protocols a substitute has to satisfy and the
 implementations that open a socket -- over HTTP one connection per call
 and one kept open across calls, and `TlsLineTransport` for
@@ -110,6 +120,7 @@ from btclib.fetch.broadcaster import Broadcaster
 from btclib.fetch.decorators import CachingFetcher, FallbackFetcher
 from btclib.fetch.electrum import ElectrumFetcher
 from btclib.fetch.esplora import BLOCKSTREAM_INFO, EsploraFetcher
+from btclib.fetch.fee_estimator import FeeEstimator, FeeQuote
 from btclib.fetch.fetcher import Fetcher
 from btclib.fetch.transport import (
     DEFAULT_TIMEOUT,
@@ -132,6 +143,8 @@ __all__ = [
     "ElectrumFetcher",
     "EsploraFetcher",
     "FallbackFetcher",
+    "FeeEstimator",
+    "FeeQuote",
     "Fetcher",
     "HttpTransport",
     "LineTransport",

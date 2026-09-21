@@ -130,6 +130,7 @@ from btclib.curves.sec_point import (
 from btclib.descriptors.descriptors import parse as descriptor_from_string
 from btclib.ecc import bms, dsa, frost, musig2, ssa
 from btclib.exceptions import BTClibTypeError
+from btclib.fee import FeeRate
 from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.bitcoin_core_rest import BitcoinCoreRestClient, BitcoinCoreRestFetcher
 from btclib.fetch.electrum import ElectrumFetcher
@@ -758,6 +759,23 @@ _KINDS = (
         {"pub_key": _SEC},
         reason="`True` accepts the 0x06 and 0x07 prefixes, so a non-bool"
         " parses the very forms it was written down to keep out",
+    ),
+    _Case(
+        "btclib.fee.FeeRate.from_sats_per_vbyte",
+        "round_up",
+        FeeRate.from_sats_per_vbyte,
+        {"sats_per_vbyte": "0.0001"},
+        reason="`True` waives the refusal of a quote finer than a"
+        " millisatoshi per virtual byte, so a non-bool rounds one up"
+        " silently where a caller stating an exact price meant it refused",
+    ),
+    _Case(
+        "btclib.fee.FeeRate.from_btc_per_kvbyte",
+        "round_up",
+        FeeRate.from_btc_per_kvbyte,
+        {"btc_per_kvbyte": "0.000000001"},
+        reason="`True` waives the refusal of a quote finer than a"
+        " satoshi per kvB, the same way `from_sats_per_vbyte`'s does",
     ),
     _Case(
         "btclib.p2p.compact_blocks.SendCmpct.__init__",

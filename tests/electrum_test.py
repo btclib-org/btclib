@@ -32,6 +32,8 @@ from btclib.electrum import (
     block_header_response,
     decode_response,
     encode_request,
+    estimate_fee_request,
+    estimate_fee_response,
     headers_subscribe_request,
     headers_subscribe_response,
     transaction_get_merkle_request,
@@ -292,3 +294,25 @@ def test_a_truncated_transaction_decodes_to_short_octets() -> None:
     """
     raw = transaction_get_response(reply(id=1, result=MERKLE_TX_RAW.hex()[:20]), 1)
     assert raw == MERKLE_TX_RAW[:10]
+
+
+def test_estimate_fee_round_trips_the_btc_per_kb_rate() -> None:
+    """The request names the target; the response is the BTC/kB number."""
+    request = estimate_fee_request(5, 6)
+    assert json.loads(request)["method"] == "blockchain.estimatefee"
+    assert json.loads(request)["params"] == [6]
+
+    rate = estimate_fee_response(reply(id=5, result=0.00001), 5)
+    assert rate == 0.00001
+
+
+def test_estimate_fee_response_returns_the_decline_sentinel_unmodified() -> None:
+    """-1 is the protocol's own way of saying no estimate is available."""
+    assert estimate_fee_response(reply(id=1, result=-1), 1) == -1
+
+
+@pytest.mark.parametrize("result", ["not a number", None, [1], True, False])
+def test_estimate_fee_response_refuses_a_non_number_result(result: object) -> None:
+    """A bool is not another spelling of a rate, any more than elsewhere."""
+    with pytest.raises(BTClibTypeError, match="not a number"):
+        estimate_fee_response(reply(id=1, result=result), 1)

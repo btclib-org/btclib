@@ -62,6 +62,13 @@ btclib.fetch.esplora module
    :members:
    :show-inheritance:
 
+btclib.fetch.fee_estimator module
+---------------------------------
+
+.. automodule:: btclib.fetch.fee_estimator
+   :members:
+   :show-inheritance:
+
 btclib.fetch.fetcher module
 ---------------------------
 

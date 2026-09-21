@@ -33,14 +33,15 @@ Protocol-basics.rst encourages JSON-RPC 2.0 without requiring it, so no
 read back, which is the one place this module still meets the elder
 convention.
 
-**Four methods, the ones a fetcher over this protocol needs.**
+**Five methods, the ones a fetcher over this protocol needs.**
 `blockchain.transaction.get` for a raw transaction,
 `blockchain.headers.subscribe` for the chain tip's height and header,
-`blockchain.block.header` for the header at a height, and
+`blockchain.block.header` for the header at a height,
 `blockchain.transaction.get_merkle` for the branch and position that
-proves a transaction confirmed. Each is a pair of functions, one to
-build the request and one to read the matching response -- shapes, not
-a client: nothing here keeps a connection, retries, or knows which
+proves a transaction confirmed, and `blockchain.estimatefee` for a fee
+rate quoted for a confirmation target. Each is a pair of functions, one
+to build the request and one to read the matching response -- shapes,
+not a client: nothing here keeps a connection, retries, or knows which
 request line answers which of several outstanding ones, since a codec
 with no socket cannot have more than one line outstanding.
 
@@ -75,6 +76,8 @@ __all__ = [
     "block_header_response",
     "decode_response",
     "encode_request",
+    "estimate_fee_request",
+    "estimate_fee_response",
     "headers_subscribe_request",
     "headers_subscribe_response",
     "transaction_get_merkle_request",
@@ -276,3 +279,24 @@ def verify_merkle_proof(tx_id: Octets, proof: MerkleProof, header: BlockHeader) 
     `btclib.block.merkle_proof.verify` wraps `assert_as_valid`.
     """
     return verify_merkle_branch(tx_id, proof.branch, proof.pos, header.merkle_root)
+
+
+def estimate_fee_request(request_id: int, target: int) -> bytes:
+    """Return the `blockchain.estimatefee` request for `target` blocks."""
+    return encode_request(request_id, "blockchain.estimatefee", [target])
+
+
+def estimate_fee_response(line: bytes, request_id: int) -> float:
+    """Return the BTC/kB rate `blockchain.estimatefee` answered, or -1.
+
+    `-1` is the protocol's own way of saying no estimate is available,
+    and is returned rather than raised here: this module reads what the
+    wire carries, and deciding that "no answer" is a refusal is
+    `btclib.fetch.electrum.ElectrumFetcher.estimate_fee`'s to make, the
+    same split `decode_response` already draws for a JSON-RPC `error`
+    member.
+    """
+    result = decode_response(line, request_id)
+    if isinstance(result, bool) or not isinstance(result, (int, float)):
+        raise BTClibTypeError(f"estimatefee: not a number: {result!r}")
+    return result
