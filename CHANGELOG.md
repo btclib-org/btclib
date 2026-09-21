@@ -1250,6 +1250,12 @@ file per release is what keeps each of them under it.
   `rev:` moves with it** (issue btclib-org/.github#1229): below the pin,
   the floor admitted a `uv` older than the one Dependabot locks with.
 
+### The command line's design leaves the tree for the organization tracker
+
+- **`docs/proposals/cli.md` goes to btclib-org/.github#1235, and the four
+  files that cited it cite the issue** (issue #357): the tree the command
+  line mirrors is four distributions' once #2129 lands.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

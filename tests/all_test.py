@@ -17,12 +17,12 @@ what keeps it, rather than a reviewer noticing.
 
 `btclib.__all__` is the root of that tree, and one of those tests walks it
 from the root, into every module-valued export, down to a node that has
-none. The command line of `docs/proposals/cli.md` walks the same edges and
-stops at a shorter list: what it publishes as a command group is this tree
-minus the exclusions that proposal records. So this test descends
+none. The command line of btclib-org/.github#1235 walks the same edges
+and stops at a shorter list: what it publishes as a command group is this
+tree minus the exclusions that issue records. So this test descends
 everywhere the export tree goes -- that tree is what it is about -- and
 the assertion that the command tree does not belongs to the walker, where
-the proposal asks for it.
+the issue asks for it.
 
 These tests are written against the names rather than the counts, so that a
 deliberate addition is one line here and an accidental one is a failure.
@@ -171,7 +171,7 @@ REEXPORTED = {
 
 # every direct child module of every package, on the side of the decision
 # its parent made about it: `groups` is what the parent publishes, which is
-# what docs/proposals/cli.md's command tree descends into, and `unpublished`
+# what btclib-org/.github#1235's command tree descends into, and `unpublished`
 # is what it deliberately does not -- a module holding names the parent
 # re-exports flat, or an implementation nothing outside the package calls.
 #
@@ -558,11 +558,11 @@ def test_script_publishes_the_three_subgroups_the_cli_promises() -> None:
     """`sig_hash`, `taproot` and `engine` are groups, so they are named.
 
     The transitive walk cannot ask this: it follows the edges that are
-    there, so a group `docs/proposals/cli.md` promises and no list
-    publishes is a walk that stops early and a test that passes. That file
-    spells `script sig-hash`, `script taproot` and `script engine`, and
-    these are the three edges `btclib.script` carries for them -- listed
-    here rather than derived from the proposal, prose being no place to
+    there, so a group btclib-org/.github#1235 promises and no list
+    publishes is a walk that stops early and a test that passes. That
+    issue spells `script sig-hash`, `script taproot` and `script engine`,
+    and these are the three edges `btclib.script` carries for them --
+    listed here rather than derived from the issue, prose being no place to
     read a contract from, and pinned because the two that are imported on
     demand are the two a refactor can drop without anything else noticing.
     """
@@ -763,7 +763,7 @@ def test_reexports_refuses_a_name_recorded_against_two_canonicals() -> None:
 def test_the_export_tree_is_walkable_to_its_leaves() -> None:
     """Every module reachable through `__all__` declares one of its own.
 
-    `docs/proposals/cli.md` reads its command tree off these same edges: a
+    btclib-org/.github#1235 reads its command tree off these same edges: a
     group is a module-valued export, its commands are that module's own list,
     and an out-of-repo walker sees nothing this library does not publish. So a
     module named in a parent's list and declaring nothing is a node the
@@ -771,7 +771,7 @@ def test_the_export_tree_is_walkable_to_its_leaves() -> None:
     about, transitively from `btclib` down, following exports rather than
     the file tree.
 
-    Every published module is walked here, including the ones that proposal
+    Every published module is walked here, including the ones that issue
     excludes from the *command* tree: what is asserted is that the export
     tree has a declared surface everywhere, which is true of a module whose
     exports no command line should offer as well as of every other.
