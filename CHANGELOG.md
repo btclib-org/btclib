@@ -1267,6 +1267,11 @@ file per release is what keeps each of them under it.
 - **`links.yml`, `sdist-rebuild.yml`, `vendored-vectors.yml` and
   `zkp-oracle.yml` gain it** (issue btclib-org/.github#1226): a merged
   close queues behind the run in flight, and a bare close still cancels.
+### `ElectrumFetcher`'s docstring states the script-keyed boundary as a reason
+
+- **Its final paragraph no longer narrates an issue** (closes #2222): it
+  says every `Fetcher` question is keyed on an identifier the caller
+  already holds, and a script is not one.
 
 ## v2026.9.13
 
