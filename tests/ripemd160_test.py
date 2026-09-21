@@ -7,8 +7,7 @@
 The vectors are the ones the authors of RIPEMD-160 publish at
 https://homes.esat.kuleuven.be/~bosselae/ripemd160.html, as the vendored
 upstream carries them in its own unittest -- Bitcoin Core's
-test/functional/test_framework/crypto/ripemd160.py, whose revision
-`TF2.md` pins.
+test/functional/test_framework/crypto/ripemd160.py.
 
 Eight of that upstream's nine. The ninth is 10^6 times "a"; in pure
 Python, excluding it saves meaningfully on this suite's running time,

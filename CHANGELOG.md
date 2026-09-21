@@ -1256,6 +1256,12 @@ file per release is what keeps each of them under it.
   files that cited it cite the issue** (issue #357): the tree the command
   line mirrors is four distributions' once #2129 lands.
 
+### `TF2.md` leaves btclib, and a `test_framework` citation names no revision
+
+- **`TF2.md` and `tests/tf2_ledger_test.py` are gone** (issue #2220): a
+  citation of Core's `test/functional/test_framework/` now names the
+  file and the function alone.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

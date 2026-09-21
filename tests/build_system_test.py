@@ -213,10 +213,7 @@ def _reaches_outside_the_sdist(tree: ast.Module) -> bool:
     nothing off the tree; joining a path or keying a dict on the name
     does, whichever of the two shapes above carries it there. The
     exemption is why this module reports nothing about its own two
-    literals, and why `tests/tf2_ledger_test.py`'s `{"tests", "src",
-    ".github"}` -- the same kind of comparison, holding the same word --
-    is silent too; that module is excluded for a read its own `/` join
-    makes elsewhere, not for this one.
+    literals.
 
     The second shape is `tests/changelog_immutability_test.py`'s own: it
     reads a release's own tag with `subprocess.run([_GIT, ...])` rather

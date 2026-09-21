@@ -215,9 +215,9 @@ def test_input_weight() -> None:
     """Match Core's TestFrameworkWalletUtil.test_calculate_input_weight.
 
     Its cases transcribed from Core's
-    test/functional/test_framework/wallet_util.py, whose revision
-    `TF2.md` pins, with Core's `witness_stack_hex=None` spelled `None`
-    and its `[]` spelled `Witness()`. They are chosen for the two
+    test/functional/test_framework/wallet_util.py, with Core's
+    `witness_stack_hex=None` spelled `None` and its `[]` spelled
+    `Witness()`. They are chosen for the two
     boundaries the arithmetic can be wrong at: a length of 252 against
     one of 253, where a var_int grows from one byte to three, on the
     script_sig and on the witness item count alike; and no witness

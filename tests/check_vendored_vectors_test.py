@@ -410,13 +410,11 @@ def test_every_heading_of_the_pin_file_is_checked_or_named_once(
 
     A fixture answers for the shapes it was written to carry, and this
     parser's failure mode is a shape nobody thought to write down: what
-    it does not match, it drops. `tests/_data/README.md` is one of the
-    ledgers the workflow passes, so it is what settles whether a heading
-    of it can go missing from the report -- and the first assertion is
-    what says the parse still sees the file at all, a parser that
-    matched nothing passing every other line here. The other ledger,
-    `TF2.md`, is asked the same question by
-    `tests/tf2_ledger_test.py`, beside what else that file owes.
+    it does not match, it drops. `tests/_data/README.md` is the ledger
+    the workflow passes, so it is what settles whether a heading of it
+    can go missing from the report -- and the first assertion is what
+    says the parse still sees the file at all, a parser that matched
+    nothing passing every other line here.
     """
     readme = _PIN_README.read_text(encoding="utf-8")
 
