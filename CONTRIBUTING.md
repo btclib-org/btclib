@@ -1248,7 +1248,7 @@ nothing is not.
 
 For a package the list is what the `__init__` re-exports, submodules
 included: a module named there is a module a caller — and the command line
-of `docs/proposals/cli.md`, which reads the command tree off `__all__` —
+of btclib-org/.github#1235, which reads the command tree off `__all__` —
 can descend into. For a module it is what the module itself defines: a
 name it imported belongs to the module that defines it, and
 `btclib.alias.Octets` is the spelling of `Octets`.
