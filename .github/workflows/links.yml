@@ -48,8 +48,10 @@ on:
     # merge or a close is neither a push nor a synchronize, so a run this
     # PR's own concurrency group is still holding survives either unless
     # the closed event lands in that same group -- which this type is
-    # what makes it do, cancel-in-progress above turning the landing
-    # into the cancellation. The group below keys on
+    # what makes it do, cancel-in-progress above now false for a landing,
+    # so the arriving run queues behind the one already in flight instead
+    # of cancelling it; a bare close still cancels, unchanged. The group
+    # below keys on
     # github.event.pull_request.number rather than plain github.ref for
     # exactly this event: a merged pull request's closed event sets
     # github.ref to the base branch, not the merge ref, which used to
@@ -85,7 +87,7 @@ permissions:
 # head branches share a name, which head_ref does not (issue #2101)
 concurrency:
   group: links-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ !(github.event.action == 'closed' && github.event.pull_request.merged) }}
 
 jobs:
   # the job itself is btclib-org/.github's, called at @main so a fix there

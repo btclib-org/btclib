@@ -183,7 +183,7 @@ permissions:
 # (issue #2101)
 concurrency:
   group: zkp-oracle-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ !(github.event.action == 'closed' && github.event.pull_request.merged) }}
 
 jobs:
   zkp:
