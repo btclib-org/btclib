@@ -1280,6 +1280,12 @@ file per release is what keeps each of them under it.
   (closes #2225): transaction building reads no chain, and no
   `Fetcher` question is keyed on a script, `get_tx_out` included.
 
+### `tests/_data/README.md`'s stale pins move to upstream's tip
+
+- **BIP374's verify-proof vectors gain failure cases btclib already
+  refuses; the rest of this README's pins advance with nothing new**
+  (closes #2228).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
