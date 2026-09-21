@@ -1244,6 +1244,12 @@ file per release is what keeps each of them under it.
   how many checks its docstring lists** (issue btclib-org/.github#1225):
   the docstring already enumerates them.
 
+### `[tool.uv] required-version`'s floor matches the pin Dependabot bundles
+
+- **The floor moves to `>=0.12.17`, and `astral-sh/uv-pre-commit`'s own
+  `rev:` moves with it** (issue btclib-org/.github#1229): below the pin,
+  the floor admitted a `uv` older than the one Dependabot locks with.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
