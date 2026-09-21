@@ -1262,6 +1262,12 @@ file per release is what keeps each of them under it.
   citation of Core's `test/functional/test_framework/` now names the
   file and the function alone.
 
+### The workflows with `closed` and no `push` gain the merge-aware conditional
+
+- **`links.yml`, `sdist-rebuild.yml`, `vendored-vectors.yml` and
+  `zkp-oracle.yml` gain it** (issue btclib-org/.github#1226): a merged
+  close queues behind the run in flight, and a bare close still cancels.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
