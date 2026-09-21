@@ -650,19 +650,20 @@ scalar, a scalar equal to n, and a B at infinity, which the file spells
 ```text
 repo    bitcoin/bips
 path    bip-0374/test_vectors_verify_proof.csv
-commit  6ceafc51b17665f7cb13c8e2b9ee6354b9d374bd  2025-04-16
-blob    8076e8136ff1b5e03601ba7a339bb161029026ad
-pulled  2026-08-13
+commit  fc874dd5d34239e070c0fdb8c4ed6a1dd2a94147  2026-08-19
+blob    1368013b03521c97984b65ba0586b99dd8818564
+pulled  2026-09-21
 behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical but for line endings**, the same exception, our blob
-`4ffe455a` rather than the one above.
+`2d4acdf1` rather than the one above.
 
-All 15 vectors: the eight successes are the eight proofs of the file
-above, read back, and the seven failures are five permutations of A, B and
-C, a bit flipped in the proof, and a bit flipped in the message -- so the
-pair covers both directions over one set of keys, and a permutation the
+All 17 vectors: the eight successes are the eight proofs of the file
+above, read back, and the nine failures are five permutations of A, B and
+C, a bit flipped in the proof, a bit flipped in the message, an `e` equal
+to the curve order and an `s` equal to the curve order -- so the pair
+covers both directions over one set of keys, and a permutation the
 challenge would have accepted is a defect the generation file alone could
 not show.
 
@@ -1324,9 +1325,9 @@ implements no jumbo-block hasher.
 ```text
 repo    bitcoin/bitcoin
 path    src/test/crypto_tests.cpp
-commit  dbbb780af02d850a1f9257f18610cfb9de9cb828  2026-02-26
-blob    b348793bfb6397ebde806961b6783b1540a33804
-pulled  2026-09-03
+commit  b388f9bd0d2bcc259d488638d479ba09a30ba040  2026-09-17
+blob    2fdb83576e984dfaa19c17629f70bc425dc6d796
+pulled  2026-09-21
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1344,15 +1345,19 @@ re-derives the file is reading those calls again.
 Not vendored as the file itself because there is no data file upstream:
 the vectors are arguments to a C++ function call, so the blob above is
 that source file, and the weekly re-check reports a case added to it.
+The move from `dbbb780af02d` to `b388f9bd0d2b` adds lines to
+`crypto_tests.cpp` inside `BOOST_AUTO_TEST_CASE(muhash_tests)` alone;
+none of them touches `TestChaCha20`, so the ChaCha20 vectors above are
+unchanged.
 
 ### `tests/_data/muhash_vectors.json`
 
 ```text
 repo    bitcoin/bitcoin
 path    src/test/crypto_tests.cpp
-commit  dbbb780af02d850a1f9257f18610cfb9de9cb828  2026-02-26
-blob    b348793bfb6397ebde806961b6783b1540a33804
-pulled  2026-09-03
+commit  b388f9bd0d2bcc259d488638d479ba09a30ba040  2026-09-17
+blob    2fdb83576e984dfaa19c17629f70bc425dc6d796
+pulled  2026-09-21
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1371,6 +1376,15 @@ expanded here to the full 32-byte element (`i` then 31 zero bytes) each
 vector inserts or removes, rather than left as the bare integer
 `crypto_tests.cpp` passes to its own local helper, since this file has no
 such helper to call.
+
+What `b388f9bd0d2b` adds to `muhash_tests` is a regression test for that
+same commit, *crypto: Fix MuHash3072 division by itself*:
+an aliasing defect in `MuHash3072::operator/=`, where `div.m_numerator`
+read after the first `Multiply` call could already be the mutated value
+whenever `div` aliased `*this`. `MuHash3072` in `src/btclib/muhash.py`
+defines no `__mul__`, `__imul__`, `__truediv__` or `__itruediv__` and no
+accumulator-by-accumulator arithmetic of any spelling, so there is no
+operation in this tree the added case would be a vector for.
 
 Both files are read by `tests/muhash_test.py`.
 
@@ -1487,8 +1501,8 @@ measure.
 ```text
 repo    bitcoin/bitcoin
 path    src/test/descriptor_tests.cpp
-commit  e2b2f1c5c6f720381b8cc182e750aadd703e4b4f  2026-08-25
-pulled  2026-09-10, rawtr() added 2026-08-06
+commit  51ddab532cb38213e2258c24c492bc8a392ffc90  2026-09-14
+pulled  2026-09-21, rawtr() added 2026-08-06
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1520,10 +1534,12 @@ same key when neither of them derives, and a key origin prepended once
 per expression rather than once per participant -- and found neither in
 this tree, so none of those cases is owed here.
 
-The revisions this refresh crosses reach no case: the file's `DoCheck`
-helper takes on an assertion of the canonical serialization, and
-`DescriptorID` becomes `CompatDescriptorHash`, a rename that reaches each
-case's named-argument comment and no value in it.
+The revision this refresh crosses is bitcoin/bitcoin#35819, *test: add
+coverage for untested descriptor parse error paths*: new lines, almost
+all new `CheckUnparsable` cases -- already outside the transcribed
+subset for the reason above -- and one new `Check(...)`-shaped case
+asserting that a taptree of exactly 128 nesting levels parses.
+`CORE_VECTORS` gains nothing from it.
 
 ### Not vendored as a file: the message types of Core's `NetMsgType`
 

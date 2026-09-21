@@ -162,8 +162,8 @@ _EXEMPT: dict[str, str] = {
     "regenerated seven weeks after the generation file, and one pin would have": _UPSTREAM_FACT,
     "All 11 vectors, all eight columns: five over a generator that is not": _UPSTREAM_FACT,
     "secp256k1's, three over secp256k1's own, and three failure cases -- a zero": _UPSTREAM_FACT,
-    "All 15 vectors: the eight successes are the eight proofs of the file": _UPSTREAM_FACT,
-    "above, read back, and the seven failures are five permutations of A, B and": _UPSTREAM_FACT,
+    "All 17 vectors: the eight successes are the eight proofs of the file": _UPSTREAM_FACT,
+    "above, read back, and the nine failures are five permutations of A, B and": _UPSTREAM_FACT,
     "Three BIP374 failure conditions have no vector in either file and are": _UPSTREAM_FACT,
     "landing on infinity. None of the three is a proof anybody generates --": _UPSTREAM_FACT,
     "Verdict: **identical**. All 28 cases, both halves of each: one sending": _UPSTREAM_FACT,
@@ -427,6 +427,8 @@ _EXEMPT: dict[str, str] = {
     "are that blob's 88,986 plus the `\\n` the `end-of-file-fixer` hook": _UPSTREAM_FACT,
     "Verdict: **identical but for a trailing newline** -- our 30,915 bytes": _UPSTREAM_FACT,
     "are that blob's 30,914 plus the `\\n` the `end-of-file-fixer` hook": _UPSTREAM_FACT,
+    "The revision this refresh crosses is bitcoin/bitcoin#35819, *test: add": _UPSTREAM_FACT,
+    "asserting that a taptree of exactly 128 nesting levels parses.": _UPSTREAM_FACT,
 }
 
 
