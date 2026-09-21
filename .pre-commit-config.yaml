@@ -884,7 +884,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.13
+    rev: 0.12.17
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock
