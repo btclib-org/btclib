@@ -279,6 +279,13 @@ check = [
     "check-wheel-contents>=0.6.3",
     "pyroma>=5.0.1",
     "twine>=7.0.0",
+    # pyroma builds this project to read its metadata, non-isolated, and
+    # its own command line has no way to say which backend to import --
+    # the .pre-commit-config.yaml hook's own comment has the mechanism.
+    # This is [build-system]'s own specifier, so the environment
+    # satisfies `requires` by construction and the isolated fallback --
+    # which needs an index -- is never asked for
+    "uv_build>=0.12.0,<0.13",
 ]
 mutation = ["cosmic-ray>=8.7.0"]
 docs = [

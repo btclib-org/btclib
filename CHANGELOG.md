@@ -1304,6 +1304,12 @@ file per release is what keeps each of them under it.
   inside two JSON values, and a fence indented under a bullet** (issue
   btclib-org/.github#1017): each misled the parser or hid what follows.
 
+### `.pre-commit-config.yaml`'s `pyroma` hook is `repo: local`
+
+- **Bound now by the `check` group's `pyroma>=5.0.1` instead of a
+  `rev:`** (issue btclib-org/.github#1199): `autoupdate` has no `rev:`
+  left to offer it a prerelease on.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
