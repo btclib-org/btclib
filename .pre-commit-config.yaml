@@ -17,10 +17,11 @@ ci:
   # lands on
   autoupdate_commit_msg: "Update the pinned pre-commit hook revisions"
   autoupdate_schedule: weekly
-  # the hook pre-commit.ci cannot run, covered by the lint workflow, which
-  # is the required check and runs it: mypy shells out to uv, which is not
-  # installed there
-  skip: [mypy]
+  # the hooks pre-commit.ci cannot run, covered by the lint workflow,
+  # which is the required check and runs them: mypy and pyroma below both
+  # shell out to uv, which is not installed there (issue
+  # btclib-org/.github#1199)
+  skip: [mypy, pyroma]
 
 repos:
   # this file checking itself, on hooks pre-commit ships rather than a
@@ -144,12 +145,12 @@ repos:
       # diff that adds the hold -- which is where the reason for the hold
       # is being written anyway.
       #
-      # What the census left outside the pattern: pyroma's hold below
-      # refuses a prerelease, and that is a shape `pinned-rev` already
-      # reads; actionlint's is a floor rather than a ceiling, and
-      # `autoupdate` only ever proposes the newest release; a version in
-      # `additional_dependencies` is not a `rev`, and `autoupdate` rewrites
-      # `rev` and nothing else
+      # What the census left outside the pattern: actionlint's is a floor
+      # rather than a ceiling, and `autoupdate` only ever proposes the
+      # newest release; a version in `additional_dependencies` is not a
+      # `rev`, and `autoupdate` rewrites `rev` and nothing else; pyroma
+      # carries no `rev:` at all, its bound sitting in pyproject.toml's
+      # `check` group instead (issue btclib-org/.github#1199)
       - id: held-rev
         name: a held rev names the version it is held at, and its issue
         language: pygrep
@@ -919,39 +920,59 @@ repos:
   # exclusions in [tool.uv.build-backend] answer. additional_dependencies
   # replaces the manifest's list the same way, and what the manifest names
   # there is uv, which the pip path never looks for. The specifier below
-  # is [build-system]'s own range and not a pin, as pyroma's is: what the
-  # build has to satisfy is a declaration
+  # is [build-system]'s own range and not a pin, as a hook's `rev:`
+  # always is: what the build has to satisfy is a declaration
   - repo: https://github.com/henryiii/check-sdist
     rev: v1.6.0
     hooks:
       - id: check-sdist
         args: [--inject-junk, --installer=pip]
         additional_dependencies: ["uv_build>=0.12.0,<0.13"]
-  - repo: https://github.com/regebro/pyroma
-    # the newest *stable* tag: 5.1b1 and 5.1b2 sit above it, and
-    # `pre-commit autoupdate` offers a prerelease as readily as a release,
-    # having no notion of one -- it did so here and in pull request #315
-    # before it. What a beta of the packaging checker would gate is the
-    # release workflow, on a judgement its own author has not settled yet
-    rev: "5.0.1"
+  # test.yml's dist job runs pyroma against the built sdist,
+  # `uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz`;
+  # this rates the source tree instead, for an answer before pushing
+  # rather than after the build.
+  #
+  # A local hook with no `rev` is what takes pyroma out of
+  # `autoupdate`'s reach (btclib-org/.github#1199): the pyroma it runs is
+  # the one uv.lock pins from pyproject.toml's `check` group, and a hook
+  # repository's `rev` would be a second declaration of that dependency.
+  # `pinned-rev` above no longer reads a `rev:` here, and nothing else
+  # refuses a prerelease bound in its place -- the check group's own
+  # `pyroma>=5.0.1` names no prerelease, which is what holds the checker
+  # at a release; bumping it by hand, once pyroma cuts a release past
+  # 5.0.1, stays the maintainer's job.
+  #
+  # `language: system` and `uv run --locked` are the form section 4 of
+  # the organization standard gives a local hook of this shape, and uv
+  # is on PATH for every hook here, the lint gate itself being `uv run
+  # pre-commit run --all-files`. `--only-group check` adds that group to
+  # the environment the gate runs from and takes nothing out of it, and
+  # installs no project, so nothing is compiled. `-d --min=10 .`,
+  # `pass_filenames` and `always_run` are the upstream hook's own
+  # definition, written out because a local hook cannot inherit one.
+  #
+  # The backend is pyproject.toml's `uv_build`, in the same group: pyroma
+  # builds this project to read its metadata and its command line has no
+  # way to say how, so it asks `build` for the metadata without
+  # isolation and falls back to an isolated build -- which needs an
+  # index -- when that raises. The non-isolated path imports the backend
+  # out of the environment and checks nothing else, so the backend alone
+  # is what it takes: the specifier is [build-system]'s own. Measured,
+  # rather than read off the fallback's shape:
+  #
+  #   PIP_NO_INDEX=1 UV_PROJECT_ENVIRONMENT=<a directory that is new> \
+  #     uv run --locked --only-group check pyroma -d --min=10 .
+  #
+  # passes with the group's uv_build and dies in pip with it removed, the
+  # traceback ending in the isolated fallback installing what
+  # [build-system] requires
+  - repo: local
     hooks:
       - id: pyroma
-        # the backend, in pyroma's own environment. pyroma's command line
-        # has no isolation flag, but its code asks `build` for the
-        # metadata without isolation first and only falls back to an
-        # isolated build when that raises -- and an isolated build is a
-        # virtual environment pre-commit.ci cannot create, the same
-        # constraint the check-sdist hook above answers with
-        # --no-isolation. Without this line the backend named in
-        # [build-system] is not importable in the hook's own environment,
-        # the first attempt raises, and the fallback is what pre-commit.ci
-        # refuses.
-        #
-        # The specifier is [build-system]'s and has to stay it: `build`
-        # skips isolation only when the environment already satisfies
-        # what pyproject.toml requires, so a version here outside that
-        # range puts the fallback back. Not pinned, unlike the additional
-        # dependencies elsewhere in this file: what this has to match is
-        # a range rather than a release, and the isolated build it
-        # replaces would have resolved the same range itself
-        additional_dependencies: ["uv_build>=0.12.0,<0.13"]
+        name: pyroma (the packaging rating of the source tree)
+        language: system
+        entry: uv run --locked --only-group check pyroma
+        args: [-d, --min=10, .]
+        pass_filenames: false
+        always_run: true
