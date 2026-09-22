@@ -182,8 +182,8 @@ The analysis runs from `codeql.yml`, and default setup — the repository
 setting that used to hold it — is off:
 
 ```shell
-gh api repos/btclib-org/btclib/code-scanning/default-setup
-# {"state":"not-configured", ...}
+gh api repos/btclib-org/btclib/code-scanning/default-setup --jq '.state'
+# not-configured
 ```
 
 **The two cannot both be on**, and what that costs is not a workflow that
@@ -260,8 +260,8 @@ disable this workflow`, a generated workflow not being one this repository
 owns. The endpoint that reports it is the one that sets it:
 
 ```shell
-gh api repos/btclib-org/btclib/code-quality/setup
-# {"state":"not-configured","languages":["python"], ...}
+gh api repos/btclib-org/btclib/code-quality/setup --jq '{state, languages}'
+# {"languages":["python"],"state":"not-configured"}
 
 gh api -X PATCH repos/btclib-org/btclib/code-quality/setup \
   -F state=not-configured
@@ -759,15 +759,15 @@ curl -s https://app.readthedocs.org/api/v3/projects/btclib/ \
 - **The repository's `.homepage` names this same site**, read back from
   the endpoint rather than from `pyproject.toml`'s own copy of it:
 
-  ```shell
-  gh api repos/btclib-org/btclib --jq '.homepage'
-  # https://btclib.readthedocs.io/
-  ```
+```shell
+gh api repos/btclib-org/btclib --jq '.homepage'
+# https://btclib.readthedocs.io/
+```
 
-  `[project.urls] homepage` in `pyproject.toml` carries the identical
-  string (issue btclib-org/.github#533): a releasing tree's home is its
-  own documentation, and this is the only site this repository has, the
-  *Pages* section above recording that it serves none.
+`[project.urls] homepage` in `pyproject.toml` carries the identical
+string (issue btclib-org/.github#533): a releasing tree's home is its
+own documentation, and this is the only site this repository has, the
+*Pages* section above recording that it serves none.
 
 Tags older than the rule are mostly not activatable rather than merely not
 activated: a build needs `.readthedocs.yaml`, which reaches back to
@@ -809,12 +809,13 @@ this list is the whole of them:
 
 ```shell
 gh api repos/btclib-org/btclib --jq '.security_and_analysis'
-# the alerts themselves are not in that object: the endpoint that
-# answers for them has no body, and says so with its status -- 204 for
-# enabled, 404 for not
 gh api -i repos/btclib-org/btclib/vulnerability-alerts | head -1
 gh api repos/btclib-org/btclib/private-vulnerability-reporting
 ```
+
+The alerts themselves are not in `.security_and_analysis`: the endpoint
+that answers for them has no body, and says so with its status -- 204
+for enabled, 404 for not.
 
 | Setting | State |
 | --- | --- |
@@ -861,6 +862,10 @@ repository in it, and the plan is what sets it.
 gh api orgs/btclib-org --jq .plan.name
 # free
 ```
+
+The plan is a fact about a changing world rather than a setting this
+repository decides: an upgrade is the organization's own choice, not a
+drift this file's readback catches. Read at 2026-09-21T22:28:45Z.
 
 [GitHub's own table](https://docs.github.com/en/actions/reference/limits)
 is the authority, and two of its numbers matter here — the standard

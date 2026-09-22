@@ -1292,6 +1292,18 @@ file per release is what keeps each of them under it.
   the target it is valid for -- on `BitcoinCoreFetcher`, `ElectrumFetcher`
   and `EsploraFetcher`** (closes #2223): `fee.py` no longer declines it.
 
+### `REPOSITORY.md` marks its one observation
+
+- **The organization plan reading carries `a fact about a changing
+  world` and the instant it was read** (issue btclib-org/.github#1017):
+  every other quoted answer in this file is a setting.
+
+### `REPOSITORY.md` stops hiding readings from its own readback
+
+- **An aside glued to `.security_and_analysis`'s answer, an ellipsis
+  inside two JSON values, and a fence indented under a bullet** (issue
+  btclib-org/.github#1017): each misled the parser or hid what follows.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
