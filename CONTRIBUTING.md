@@ -1017,12 +1017,14 @@ interrupting one costs only the mutant it was on. And the `.sqlite`
 sessions are the artifact the workflow uploads: `cr-report`, `cr-html` and
 `cr-rate` all read one, and a downloaded one can be finished locally.
 
-For the counts, read the session with the workflow's own script rather than
+For the counts, read the session with the workflow's own script —
+`btclib-org/.github`'s `mutation_counts.py`, checked out beside this tree
+as `standard/` the way `reusable-mutation.yml` does — rather than
 `cr-rate`:
 
 ```shell
 uv run --locked --no-default-groups \
-    python .github/scripts/mutation_counts.py parsers.sqlite
+    python standard/.github/scripts/mutation_counts.py parsers.sqlite
 ```
 
 `cr-rate`'s `is_killed` is `test_outcome != SURVIVED`, so a mutant the

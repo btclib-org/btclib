@@ -1310,6 +1310,12 @@ file per release is what keeps each of them under it.
   `rev:`** (issue btclib-org/.github#1199): `autoupdate` has no `rev:`
   left to offer it a prerelease on.
 
+### The shared scripts are served from `btclib-org/.github` now
+
+- **`check_changelog.py`, `mutation_counts.py`, `wait_for_pypi_release.py`
+  and `wait_for_readthedocs_build.py` leave `.github/scripts/` for it**
+  (issue btclib-org/.github#1293): `check-changelog` is a remote hook now.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

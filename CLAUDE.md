@@ -319,11 +319,12 @@ Do not use Fable unless explicitly instructed.
   seam eaten, and the first gate run that repairs it exits 1 by
   design.** When the new base gained an entry at the anchor the branch
   appended at, `merge=union` can join the two with no conflict and drop
-  the blank line above the branch's `###` heading. The script that
-  names it is cheap and reads the file as it stands:
+  the blank line above the branch's `###` heading. The hook that names
+  it is served from `btclib-org/.github` now, and running it alone is
+  cheap and reads the file as it stands:
 
   ```shell
-  env -C <worktree> python3 .github/scripts/check_changelog.py
+  env -C <worktree> uvx pre-commit run check-changelog --all-files
   ```
 
   It prints `has no blank line above it -- the seam a merge=union rebase
@@ -526,9 +527,9 @@ Do not use Fable unless explicitly instructed.
   states what it mutates and what judges it, and, where a session has
   already weighed survivors, the scheduled run and its
   `*-survivors.txt` artifact — never a restated count.
-  `tests/mutation_counts_test.py` is not what enforces this: it tests
-  the counting script's own arithmetic against a synthetic session,
-  never a profile's own prose.
+  The counting script's own test, now `btclib-org/.github`'s rather
+  than this tree's, is not what enforces this: it tests the script's
+  arithmetic against a synthetic session, never a profile's own prose.
 
 ## Verifying
 

@@ -836,12 +836,11 @@ def test_the_main_guard_runs_the_script_as___main__(
 ) -> None:
     """Cover `if __name__ == "__main__":` without a subprocess.
 
-    A real subprocess -- what the mutation-counter test uses for its own
-    end-to-end check -- runs in its own interpreter, and this project
-    collects no coverage from one: `mutation_counts.py`'s own guard is
-    exactly as uncovered today. `runpy.run_path` executes the file fresh
-    with `__name__` set to `"__main__"` in this interpreter instead, so
-    the guard itself is under test, not only the function it calls.
+    This project collects no coverage from a child interpreter, so a real
+    subprocess would leave the guard uncovered. `runpy.run_path` executes
+    the file fresh with `__name__` set to `"__main__"` in this
+    interpreter instead, so the guard itself is under test, not only the
+    function it calls.
     """
     path = _write_readme(
         tmp_path,
