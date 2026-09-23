@@ -30,8 +30,9 @@ in SECURITY.md. The derivation stays in python:
   x-coordinate, under the hash function the caller passed;
 - `ecc.ecies.derive_keys` hashes the *compressed point* with sha512 and
   cuts the 64 bytes three ways, which is BIE1's shape and not this one;
-- `silent_payments.shared_secret` answers the point itself: BIP352 tags
-  it with a counter afterwards, and a BIP375 psbt carries it as a point;
+- `btclib_wallet.silent_payments.shared_secret` answers the point
+  itself: BIP352 tags it with a counter afterwards, and a BIP375 psbt
+  carries it as a point;
 - `ecc.ellswift.xdh` is the exception that proves the rule. BIP324
   defines the hash, libsecp256k1 implements that definition, and it is
   delegated whole -- `ellswift.xdh` is one call there.

@@ -4,24 +4,19 @@
 
 """The Electrum server protocol: newline-delimited JSON-RPC, no socket.
 
-Not to be confused with `btclib.mnemonic.electrum`, Electrum's seed
+Not to be confused with `btclib_wallet.mnemonic.electrum`, Electrum's seed
 scheme: this module is the wire protocol an Electrum *server* speaks,
 unrelated beyond sharing the project's name.
 
-Beside `btclib.p2p`, outside `btclib.fetch`, on the same pattern and for
-the same reason `btclib.p2p`'s own docstring states: `btclib.fetch.electrum`
-is the one place that goes and asks a server anything, and this module is
+Beside `btclib.p2p`, on the same pattern and for the same reason
+`btclib.p2p`'s own docstring states: `btclib_wallet.fetch.electrum` is
+the one place that goes and asks a server anything, and this module is
 what turns a question into a request line and a line into an answer,
-opening nothing. `btclib.fetch.__init__` imports every fetcher it ships,
-so a module that only ever *serves* this protocol -- an electrs-shaped
-index over its own chainstate, should one ever exist -- imports this and
-not `urllib`, `ssl` or `socket` through that package's `__init__`.
-Nothing here imports `btclib.fetch`, and nothing there imports this;
-`tests/electrum_test.py` asserts the first half by importing this module
-in a subprocess and checking `btclib.fetch` never enters `sys.modules` --
-a static AST walk would answer for an import statement and not for one
-reached through `importlib`, and the question that actually matters is
-what a process that only imports this module ends up with loaded.
+opening nothing. So a module that only ever *serves* this protocol -- an
+electrs-shaped index over its own chainstate, should one ever exist --
+imports this and not `urllib`, `ssl` or `socket`. `btclib_wallet`
+depends on `btclib` and not the reverse, so nothing here imports the
+fetchers.
 
 **Framing.** `encode_request` writes one JSON-RPC request, an id and a
 newline the server splits messages on; `decode_response` reads one reply
@@ -92,7 +87,7 @@ def encode_request(request_id: int, method: str, params: Any = ()) -> bytes:
     """Return one JSON-RPC request line, newline-terminated.
 
     The newline is part of the wire shape and not a transport's to add:
-    `LineTransport` (`btclib.fetch.transport`) takes and returns exactly
+    `LineTransport` (`btclib_wallet.fetch.transport`) takes and returns exactly
     one such line, so a caller building one by hand -- outside the
     per-method helpers below -- still gets the framing right.
     """
@@ -107,7 +102,7 @@ def decode_response(line: bytes, request_id: int) -> Any:
     is not this request's, or neither a `result` nor an `error` member.
     An `error` member is raised as `RpcError` rather than returned -- a
     JSON-RPC error object, `{"code", "message"}` and an optional `data`,
-    every field this module's own caller in `btclib.fetch.electrum` asks
+    every field this module's own caller in `btclib_wallet.fetch.electrum` asks
     for the way it asks a bitcoind JSON-RPC error's fields. A server that
     still answers the elder, non-object form of an error -- a bare string
     result under protocol 1.0 -- is read the same way, with code 0: the
@@ -146,7 +141,7 @@ def transaction_get_response(line: bytes, request_id: int) -> bytes:
 
     The result is the serialization as a hex string, `verbose` left at
     its default `false`; decoded to bytes here so a caller -- and
-    `btclib.fetch.fetcher.tx_from_raw`, which every other backend hands
+    `btclib_wallet.fetch.fetcher.tx_from_raw`, which every other backend hands
     the same octets to -- reads the transaction and not a string it has
     to already know is hex.
     """
@@ -292,7 +287,7 @@ def estimate_fee_response(line: bytes, request_id: int) -> float:
     `-1` is the protocol's own way of saying no estimate is available,
     and is returned rather than raised here: this module reads what the
     wire carries, and deciding that "no answer" is a refusal is
-    `btclib.fetch.electrum.ElectrumFetcher.estimate_fee`'s to make, the
+    `btclib_wallet.fetch.electrum.ElectrumFetcher.estimate_fee`'s to make, the
     same split `decode_response` already draws for a JSON-RPC `error`
     member.
     """

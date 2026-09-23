@@ -564,17 +564,15 @@ to `deps-latest`'s own result.
 1. Install what was just published into an environment of its own,
    then exercise something that touches the shipped data rather than
    only importing it. `import btclib` runs `__init__.py` alone, and the
-   files under `_data/` — the BIP39 wordlists among them — are opened
-   by path at the first call that needs one, not imported, so a wheel
-   missing `wordlist.txt` would install and import cleanly and only
-   fail there:
+   files under `_data/` are read by path when `btclib.network` and
+   `btclib.curves.curve` are first imported, so a wheel missing one
+   would pass `import btclib` and fail only there:
 
    ```shell
    uv run --isolated --no-project --with btclib \
-     python -c "from btclib.mnemonic.bip39 import seed_from_mnemonic; \
-       m = 'abandon abandon abandon abandon abandon abandon abandon ' \
-           'abandon abandon abandon abandon about'; \
-       print(seed_from_mnemonic(m, 'TREZOR').hex())"
+     python -c "from btclib.network import NETWORKS; \
+       from btclib.curves import CURVES; \
+       print(sorted(NETWORKS), CURVES['secp256r1'].n)"
    ```
 
 1. Check the PEP 740 attestations SECURITY.md says every release
@@ -624,10 +622,10 @@ to `deps-latest`'s own result.
    have no checkout, so they resolve to what PyPI actually serves rather
    than to a source tree, and none of them starts until `wait-for-index`
    has seen the index serve the version the tag names, so the run cannot
-   pass by testing the release before it. It checks a BIP39
-   vector against the `_data/` files a wheel missing one would still
-   install and import cleanly, and a BIP340 vector besides — both fixed
-   forever, so neither needs an edit after a release the way a
+   pass by testing the release before it. It checks a signature round
+   trip, which imports the modules reading the `_data/` files a wheel
+   missing one would still install cleanly with, and whose answer is
+   fixed forever, so it needs no edit after a release the way a
    version-pinned assertion would. From then on it runs weekly on its
    own, and a failure means the outside world moved, not this repository —
    a new interpreter release, PyPI serving a file that does not match its

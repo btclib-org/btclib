@@ -50,7 +50,6 @@ from typing import Any
 import pytest
 
 from btclib._libsecp256k1 import ENABLED, INSTALLED, NO_LIBSECP256K1
-from btclib.bip32.bip32 import derive, rootxprv_from_seed, xpub_from_xprv
 from btclib.curves import (
     bytes_from_point,
     curve,
@@ -64,12 +63,10 @@ from btclib.key import PubKeyData
 from btclib.script.taproot import output_pubkey
 from tests import needs_bindings
 
-# the seed, key and message the child works from: constants, because the
-# two processes have to be asked the same question
-_SEED = "0f" * 32
+# the key and message the child works from: constants, because the two
+# processes have to be asked the same question
 _PRV_KEY = 0x1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF
 _MSG_HASH = bytes(range(32))
-_DERIVATION = "m/44h/0h/0h/0/7"
 # BIP340 signing is randomized where the caller names no aux -- `sign_`
 # draws `secrets.token_bytes` for it, which is BIP340's own *Default
 # Signing* -- so the two processes are given the same aux and compared
@@ -95,7 +92,6 @@ sys.meta_path.insert(0, RefuseTheBindings())
 
 import btclib
 from btclib._libsecp256k1 import ENABLED, INSTALLED, NO_LIBSECP256K1
-from btclib.bip32.bip32 import derive, rootxprv_from_seed, xpub_from_xprv
 from btclib.curves import curve, mult
 from btclib.ecc import dh, dsa, ellswift, ssa
 from btclib.exceptions import BTClibValueError
@@ -104,15 +100,12 @@ from btclib.script.engine import tapscript as engine_tapscript
 
 assert "btclib_secp256k1" not in sys.modules, "the finder let the bindings in"
 
-rootxprv = rootxprv_from_seed({seed!r})
 print(json.dumps({{
     "installed": INSTALLED,
     "dispatch": curve._libsecp256k1_available,
     "point": mult({prv_key}),
     "dsa": dsa.sign_({msg_hash!r}, {prv_key}).serialize().hex(),
     "ssa": ssa.sign_({msg_hash!r}, {prv_key}, {aux!r}).serialize().hex(),
-    "xprv": derive(rootxprv, {derivation!r}),
-    "xpub": derive(xpub_from_xprv(rootxprv), "m/0/7"),
     "engine": engine_script.dsa_verify(
         {msg_hash!r},
         bytes.fromhex({sec!r}),
@@ -125,10 +118,8 @@ print(json.dumps({{
 def _child_answers(sec: str, sig: str) -> dict[str, Any]:
     """Run the child and return what it printed, failing on its stderr."""
     source = _CHILD.format(
-        seed=_SEED,
         prv_key=_PRV_KEY,
         msg_hash=_MSG_HASH,
-        derivation=_DERIVATION,
         aux=_AUX,
         sec=sec,
         sig=sig,
@@ -154,16 +145,15 @@ def test_btclib_answers_with_the_bindings_out_of_reach() -> None:
     """Import and answer, and answer what the bindings answer.
 
     Every layer at once, deliberately: the arithmetic (`mult`), the two
-    signature schemes, both BIP32 derivations, and the script engine's
-    adapter -- which is the whole of what issue #966 lists as reaching
-    the bindings. One child process for them, a python interpreter
-    costing more to start than any of them costs to run.
+    signature schemes and the script engine's adapter. One child process
+    for them, a python interpreter costing more to start than any of them
+    costs to run.
 
-    The child imports all eleven guarded modules and not only the ones it
-    then calls: `src/btclib/__init__.py` imports nothing eagerly, so `import
-    btclib` is the metadata lookup and no module at all, and a guard
-    nothing imports is a guard nothing checks. `ecc.dh`, `ecc.ellswift`
-    and `script.engine.tapscript` are the three the calls below would not
+    The child imports guarded modules beyond the ones it then calls:
+    `src/btclib/__init__.py` imports nothing eagerly, so `import btclib` is
+    the metadata lookup and no module at all, and a guard nothing imports
+    is a guard nothing checks. `ecc.dh`, `ecc.ellswift` and
+    `script.engine.tapscript` are the three the calls below would not
     reach on their own.
     """
     # the same question this process answers with the bindings serving
@@ -173,7 +163,6 @@ def test_btclib_answers_with_the_bindings_out_of_reach() -> None:
 
     sec = bytes_from_point(mult(_PRV_KEY)).hex()
     sig = dsa.sign_(_MSG_HASH, _PRV_KEY).serialize().hex()
-    rootxprv = rootxprv_from_seed(_SEED)
 
     answers = _child_answers(sec, sig)
 
@@ -182,8 +171,6 @@ def test_btclib_answers_with_the_bindings_out_of_reach() -> None:
     assert tuple(answers["point"]) == mult(_PRV_KEY)
     assert answers["dsa"] == sig
     assert answers["ssa"] == ssa.sign_(_MSG_HASH, _PRV_KEY, _AUX).serialize().hex()
-    assert answers["xprv"] == derive(rootxprv, _DERIVATION)
-    assert answers["xpub"] == derive(xpub_from_xprv(rootxprv), "m/0/7")
     assert answers["engine"] is True
 
 

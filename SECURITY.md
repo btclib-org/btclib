@@ -32,14 +32,11 @@ drive it, most likely belongs to one of those.
 What belongs here is everything btclib does around them:
 
 - the parsing and serialization of what comes from outside — keys,
-    addresses, signatures, scripts, transactions, PSBTs — and the
-    validation that decides what is accepted
-- the derivation paths: BIP32, BIP39, Electrum mnemonics, SLIP132
+    addresses, signatures, scripts, transactions — and the validation
+    that decides what is accepted
 - the script engine, and the taproot construction it validates against
 - the pure Python implementations, which are what runs whenever the
     conditions below are not met
-- the node clients of `btclib.fetch`: how each authenticates or, over
-    `-rest`, does not, and what each does with a reply
 - the distributions published to PyPI and their provenance
 
 Report it wherever you found it, though: routing a report is the
@@ -115,22 +112,18 @@ used to teach and to prototype as much as to build:
     immutable and not zeroized: it stays in the process memory until
     garbage collection, and may have been copied by the interpreter
     meanwhile. The constant-time properties of libsecp256k1 apply to the
-    C side of the boundary, not to what happens before and after it.
-    `bip32._cached_base58_decode` extends this by one step for an xprv
-    or xpub string handed to `derive` or `derive_from_account`: the
-    decoded key stays reachable from that cache, bounded by its
-    `maxsize`, past whatever reference the caller itself still holds
+    C side of the boundary, not to what happens before and after it
 - **`musig2.nonce_gen` and `sign` stay on this arithmetic by decision,
     not merely by default** (issue #1050). Delegating them would put
     `musig_nonce_gen`'s secnonce -- an opaque 132-byte struct the
     header calls "implementation defined and not guaranteed to be
     portable between different platforms or versions" -- into
-    `btclib.ecc.musig2`'s public API, against `src/btclib/psbt/musig2.py`'s
+    `btclib.ecc.musig2`'s public API, against `btclib_wallet.psbt.musig2`'s
     own decision to hold no session state at all. What it would buy is
     measured rather than assumed: the point-multiplication side has
     been regular since #254, and `sign`'s own line, `s = (k_1_ +
     values.b * k_2_ + values.e * a * d) % secp256k1.n`
-    (`src/btclib/ecc/musig2.py:850`), spreads 1.016x over uniform scalars
+    (`src/btclib/ecc/musig2.py:851`), spreads 1.016x over uniform scalars
     in `[1, n-1]` -- the magnitude leak that remains shows only for
     scalars with zero high bits, keys already lost for other reasons.
     The gain left is narrower than that figure suggests: delegating
@@ -157,18 +150,15 @@ used to teach and to prototype as much as to build:
     `ecdh.shared_secret`, `ellswift.xdh`, `dsa.nonce_rfc6979` and
     `ssa.nonce_bip340`. btclib passes none of them, and that is a
     decision, not an oversight. These call sites read one of those
-    straight into a Python `int`: `bip32.__prv_key_derivation` at
-    `int.from_bytes(key, byteorder="big", signed=False)`
-    (`src/btclib/bip32/bip32.py:837`), `commit_nonce.commit_nonce_` at
+    straight into a Python `int`: `commit_nonce.commit_nonce_` at
     `int.from_bytes(tweaked, byteorder="big", signed=False)`
     (`src/btclib/ecc/commit_nonce.py:158`) and `taproot._tweaked_prvkey`
     at `int.from_bytes(tweaked, "big")`
     (`src/btclib/script/taproot.py:469`). A caller-owned buffer can be
     wiped once the call that filled it returns; the `int` it is read
-    into cannot be, and outlives the call regardless — the
-    `_BIP32KeyData` working copy keeps `prv_key_int` for the whole of
-    a path derivation — so taking the buffer at these call sites would
-    cost a public signature and buy nothing, short of btclib no longer
+    into cannot be, and outlives the call regardless, so taking the
+    buffer at these call sites would cost a public signature and buy
+    nothing, short of btclib no longer
     holding a private key as a Python `int`, which is a change to that
     representation and not to a call site. `ellswift.xdh`
     (`src/btclib/ecc/ellswift.py:365`) is the one of them that returns
@@ -192,8 +182,8 @@ used to teach and to prototype as much as to build:
     is. `pip install "btclib[secp256k1]"` -- the spelling README.md and
     the guide give -- installs the bindings, and everything the next
     bullet says describes that installation. `pip install btclib`
-    installs no C at all: signing, verification, BIP32 derivation and key
-    agreement all run the Python arithmetic the last bullet describes,
+    installs no C at all: signing, verification and key agreement all
+    run the Python arithmetic the last bullet describes,
     which is tens of times slower and not constant-time. Nothing raises
     to say so, and `curves.is_libsecp256k1_serving()` is how a caller
     asks which of the two it has.
@@ -224,11 +214,10 @@ used to teach and to prototype as much as to build:
     secp256k1 with sha256, the lower-s form, no caller-imposed nonce and
     no commitment; `ssa.sign` for secp256k1 with sha256, a message of
     any size and no commitment; `taproot.output_prvkey`,
-    `dh.diffie_hellman`, `commit_nonce.commit_nonce_` and the private
-    half of `bip32.derive` for secp256k1, the tweaking of a key, the
-    shared point of a key agreement, the tweaking of a sign-to-contract
-    nonce and the offsetting of a parent key by the left half of an hmac
-    being other places a secret meets the curve.
+    `dh.diffie_hellman` and `commit_nonce.commit_nonce_` for secp256k1,
+    the tweaking of a key, the shared point of a key agreement and the
+    tweaking of a sign-to-contract nonce being other places a secret
+    meets the curve.
     Verification crosses it whole, not only in its multiplication:
     `dsa.verify` and `ssa.verify` are one libsecp256k1 call each, where
     the dispatch is on, for
@@ -267,27 +256,7 @@ used to teach and to prototype as much as to build:
     the recovery flag in one call: message signing is defined for
     secp256k1 alone, so there is no argument that sends it down the
     Python path — the switch above is what reaches it, and nothing a
-    caller passes does. BIP32 derivation is the same case, and
-    for the same reason: `bip32.derive` adds the offset with
-    `keys.prvkey_tweak_add` privately and `keys.PubkeyTweakChain`
-    publicly, and the Python arm behind them — BIP32's two sums, on
-    integers and on a point — is one no argument selects either.
-    `silent_payments.output_keys` is the sender's half of BIP352, which
-    is the same case a third time: it reaches
-    `silentpayments.create_outputs` for every private key an eligible
-    input carries, a keypair built and wiped per taproot input and a
-    scalar buffer per other one, exactly as `dsa.sign` and `ssa.sign`
-    build and wipe theirs. `scan_outputs`, BIP352's light-client scan, is
-    not delegated — it takes the shared secret already reduced, which is
-    the shape a light client has and the bindings' own `scan_outputs`
-    does not accept, wanting the raw inputs to derive it from instead —
-    so every secret that function meets is still Python's alone.
-    `scan_transaction_outputs`, the full-node sibling a wallet holding
-    the transaction itself can call, is a fourth case: where the
-    bindings serve secp256k1 it reaches `silentpayments.scan_outputs`
-    with `b_scan`, the recipient's scan private key, built once for a
-    whole transaction rather than once per input; off that path it falls
-    back to `scan_outputs` above and stays Python's alone.
+    caller passes does.
     Whatever the predicate above and a call's own conditions decline
     runs the Python implementation, whose scalar multiplication is
     a double-and-add in Jacobian coordinates: it is validated against the
@@ -356,12 +325,12 @@ used to teach and to prototype as much as to build:
     different call inside that arm and infinity is not delegated at
     all — `curve._mult_checked` at
     `return _libsecp256k1_multi_mult([m], [Q])`
-    (`src/btclib/curves/curve.py:844`). `dh.diffie_hellman` at
+    (`src/btclib/curves/curve.py:845`). `dh.diffie_hellman` at
     `sec = libsecp256k1_keys.pubkey_tweak_mul(`
-    (`src/btclib/ecc/dh.py:107`) is the one this bullet was written
-    from, and is an example rather than the population: key agreement,
-    a BIP374 discrete-log equality proof and the key generation of
-    BIP38's EC-multiply mode all reach the same multiplication.
+    (`src/btclib/ecc/dh.py:108`) is the one this bullet was written
+    from, and is an example rather than the population: key agreement
+    and a BIP374 discrete-log equality proof both reach the same
+    multiplication.
     The other delegations the bullet above names are different calls:
     a multiple of the generator is `secp256k1_ec_pubkey_create`, which
     runs `secp256k1_ecmult_gen`, and the tweaking of a key is
@@ -395,9 +364,9 @@ used to teach and to prototype as much as to build:
     published s-values carry is public already, and nothing library-side
     can withdraw that
 - randomness comes from the operating system through the `secrets`
-    module: the auxiliary randomness of BIP340 signing, the entropy of a
-    generated mnemonic, and the private keys of the key generation
-    helpers. Nothing here seeds a generator of its own
+    module: the auxiliary randomness of BIP340 signing and the private
+    keys of the key generation helpers. Nothing here seeds a generator
+    of its own
 - `btclib.ecc.ecies` ships no block cipher and takes AES-128-CBC as two
     callables, so the cipher's own resistance to timing and side-channel
     attack is whatever the caller passed in — btclib neither provides it
@@ -409,92 +378,3 @@ used to teach and to prototype as much as to build:
     `hmac.compare_digest`, so what btclib does with the envelope does not
     depend on the secret byte by byte; a caller wanting the same of the
     decryption should bring a cipher that gives it
-- `btclib.bip38` takes the same two callables for AES-256, ECB rather
-    than CBC, for the reason above. It differs from `ecies` in one way
-    worth its own notice: BIP38 has no MAC, so `decrypt` calls the
-    caller's cipher before it can tell a wrong password from a right
-    one -- the check is a re-derived Bitcoin address, compared against
-    the record's own four-byte hash only after decryption. A wrong
-    password still runs the cipher once; `scrypt`'s cost is what BIP38
-    relies on to make that expensive per guess, not a MAC that would
-    turn the guess away first
-- **a `btclib.fetch` backend is trusted, and they are not trusted alike.**
-    `BitcoinCoreFetcher`, `BitcoinCoreRestFetcher`, `EsploraFetcher` and
-    `ElectrumFetcher` each ask by default which chain they are talking to,
-    and `verify_network` is the same name, the same keyword-only argument,
-    the same default and the same opt-out on every one of them -- not the
-    same question, which is the next sentence. `BitcoinCoreFetcher` and
-    `BitcoinCoreRestFetcher` talk to a node that validated the chain it
-    reports, and `signet_challenge` holds either to the fetcher's label
-    beside `verify_network`: `rest_chaininfo` writes out what
-    `getblockchaininfo` answers and adds nothing, so `/chaininfo.json`
-    carries the members the JSON-RPC check reads. What `-rest` adds is that
-    it authenticates nobody who reaches it, so the endpoint is trusted on
-    whoever handed it over. `EsploraFetcher` and `ElectrumFetcher` talk to a
-    host that says it validated, and their own `verify_network` compares one
-    block rather than reading the host's own verdict on itself: the genesis,
-    against `NETWORKS[network].genesis_block` — `/block-height/0` for the
-    one, `blockchain.block.header` at height 0 for the other, whose answer
-    is the eighty bytes rather than a hash, so what is compared there is
-    their hash. No backend tells two signets apart on a genesis hash alone —
-    Core builds every signet's genesis from the same parameters, the
-    challenge going into the message start and not into the block — so the
-    node backends need `signet_challenge` for that half of the question, and
-    `EsploraFetcher` and `ElectrumFetcher`, which take none, cannot ask it.
-
-    Past that question, the answers a fetch itself makes are checked to
-    different degrees. The transaction: its id is recomputed
-    from the bytes that came back and refused unless it matches. An
-    output's amount: `get_tx_out` derives it from `get_tx`, so it is
-    covered by that same check — no shipped backend overrides it. The
-    block header: parsed and checked for a well-formed, real proof of
-    work by every backend alike, which says it is well-formed and cost
-    real work and not that it is the header at the height asked for or
-    on the chain meant — `Fetcher.get_block_header`'s own docstring is
-    where that caveat is written down. The height rests on the backend's
-    word. So does the tip hash, from every backend but one:
-    `ElectrumFetcher`'s `headers.subscribe` answers the tip's header
-    rather than a hash field, so what comes back is the hash of eighty
-    bytes that passed the same check, and not a string the server
-    chose.
-
-    An explorer also learns every txid and outpoint you look up, which is a
-    good deal of what a wallet is; btclib names a public deployment as a
-    constant and never as a default, so nothing here contacts anyone
-    until a caller writes the endpoint down. `Broadcaster.broadcast` is a
-    write and not idempotent: what it checks is that the backend named
-    the txid this code computed from the transaction handed to it, and
-    nothing checks that the transaction went on to propagate beyond
-    whichever peer or node answered
-- **`ElectrumFetcher` is the one backend that can prove an answer rather
-    than take it on trust.** `get_tx_merkle`/`verify_tx` check a
-    transaction's branch against a header this fetcher fetched with
-    `get_block_header` itself, `btclib.block.merkle_proof` doing the
-    arithmetic — a caller who runs the check learns that the transaction
-    is in the block that header names, not merely that some server said
-    so. It establishes nothing about that header being the right chain's
-    or the right height's, `Fetcher.get_block_header`'s own caveat and
-    unaffected by the branch matching underneath it. `transport` is
-    required and `TlsLineTransport`, the one shipped, is constructed with
-    the host it connects to, so nothing here contacts a server until a
-    caller names one: the same refusal to name one `BLOCKSTREAM_INFO`
-    already carries. It verifies the server's certificate and host name by
-    default, against the CA certificates `ssl.create_default_context`
-    loads; a server those do not trust is reached through a `context`
-    trusting its certificate, and what a context the caller supplies
-    accepts is the caller's to decide
-- **rpc credentials.** They are passed as arguments and refused in the
-    url, so that a password is not carried in a string that ends up in
-    config files, tracebacks and logs. bitcoind's `.cookie` needs none at
-    all and is the default. The transport is plain HTTP against
-    `127.0.0.1`, which is what bitcoind serves: a node on another host is
-    reached over an ssh tunnel or a TLS proxy, not by trusting the
-    network in between — the basic authentication this sends is a
-    base64 of the credential and nothing more. With the default
-    `urlopen_transport` it reaches the url the caller wrote down and no
-    other: no redirect is followed, so a 30x is a status the backend
-    reports rather than a second request carrying the same `Authorization`
-    to wherever a `Location` header named. A transport of the caller's own
-    is supported and does its own I/O, so there the same guarantee is
-    theirs to provide — a client that follows redirects is one that
-    decides where the credential goes

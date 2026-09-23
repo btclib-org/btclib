@@ -31,7 +31,7 @@ interpreter `.python-version` pins, coverage.py using `sys.monitoring`
 from 3.12 on.
 
 **A run that selects a subset is not gated.** `fail_under` applies to
-every report coverage writes, so `uv run pytest tests/bip32` would fail
+every report coverage writes, so `uv run pytest tests/ecc` would fail
 on the tree's coverage rather than on anything about that run. A path
 that leaves part of the suite behind, `-k`, `-m`, `--deselect`,
 `--ignore`, `--ignore-glob` or `--lf` therefore drops the threshold to
@@ -66,75 +66,31 @@ uv run pytest --no-cov
 ## The integration tests, and why they are off by default
 
 `tests/integration/` is the only part of the suite that needs something
-this repository does not ship: a `bitcoind` to talk to, an `hwi` to run,
-a device to press a button on. Each test skips itself without the switch
-that asks for it, so an ordinary run reports them skipped and says which
-switch was off:
+this repository does not ship: a `bitcoind` to talk to. Each test skips
+itself without the switch that asks for it, so an ordinary run reports
+them skipped and says which switch was off:
 
 ```shell
 BTCLIB_INTEGRATION=1 uv run pytest tests/integration
 ```
 
-That runs the regtest flow — btclib exports an account, Core imports it,
-Core pays it, btclib builds and signs the spend, and the node accepts the
-transaction or the test fails — and the p2p handshake: a `Version` this
-library serialized, sent over a socket straight at the node's p2p port,
-and read back against whatever Core answers with, up to and including
-`verack`. The node is this session's own: a data directory under
+That runs `btclib.coinstats` against the node's own `gettxoutsetinfo`, at
+the tip of a chain the test builds, and the p2p handshake: a `Version`
+this library serialized, sent over a socket straight at the node's p2p
+port, and read back against whatever Core answers with, up to and
+including `verack`. The node is this session's own: a data directory under
 pytest's `tmp_path` and ephemeral rpc and p2p ports, so nothing reaches a
 node you are running. Name another binary with
 `BTCLIB_BITCOIND=/path/to/bitcoind`.
-
-The HWI tests need a device as well, and a second switch for the one that
-asks it to sign:
-
-```shell
-BTCLIB_INTEGRATION=1 BTCLIB_HWI=hwi BTCLIB_HWI_SIGN=1 \
-    uv run pytest tests/integration/hwi_device_test.py -n0
-```
-
-`BTCLIB_HWI` is the executable, split on spaces, so an emulator is
-reached with `BTCLIB_HWI="hwi --emulators"`. Nothing there is
-destructive: enumerate, an xpub, an address on a screen, a signature.
-
-`-n0` because there is one device. `addopts` passes `-n auto`, which is
-right for the rest of the suite and wrong here: three workers are three
-HWI processes on one device, and the one that reaches it mid-exchange
-waits for an answer to somebody else's command until btclib's timeout
-ends it.
 
 These tests are outside the coverage ratchet, which `pyproject.toml`
 says where it omits them: the ratchet measures what an ordinary run
 executes, and a body that skips itself would be an uncovered line at
 every commit rather than a defect.
 
-Both halves run unattended, in three jobs across two workflows, and each job
-fails if its tests skipped rather than ran. The regtest one is
-`integration-bitcoind.yml`'s, and downloads a pinned Core release weekly, on
-every pull request and on every push to `main`. The other two are this module
-against an emulator, one vendor each, in `integration-hwi.yml` — a workflow
-with no `pull_request` trigger at all, so a firmware release or an emulator
-that stopped starting headless never shows up as a check on a review that has
-nothing to do with it. They run weekly, on a push to `main`, and on demand:
-
-```shell
-gh workflow run integration-hwi.yml --ref <branch>
-```
-
-`HWI against a Trezor emulator` downloads a pinned Model T binary and a
-pinned HWI, loads the seed HWI's own suite uses, and sets both switches:
-an emulator reached over udp is driven through DebugLink, which answers
-the confirmation a person would press, so even the signing test needs
-nobody.
-
-`HWI against a Ledger emulator` builds the Bitcoin app from a pinned tag
-in Ledger's own builder image and runs it under Speculos. It is the same
-module twice, because a Ledger app has its coin compiled in and this
-module asks about two: the mainnet build answers the xpub and the
-address on the screen, the testnet one signs the regtest spend. What
-presses the buttons there is `--automation`, matching the text the app
-draws, since Speculos has no DebugLink — the fragile part of that job,
-and why its Speculos logs are uploaded with the reports.
+Both run unattended in `integration-bitcoind.yml`, which fails the job if
+its tests skipped rather than ran, and downloads a pinned Core release
+weekly, on every pull request and on every push to `main`.
 
 ## Fuzzing, and replaying a crash it finds
 

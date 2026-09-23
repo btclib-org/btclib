@@ -16,16 +16,15 @@ name: pypi-install
 # btclib-org/.github#35).
 #
 # `import btclib` runs __init__.py alone, and the data files under
-# btclib/ -- `git ls-files | grep '^src/btclib/.*_data/'` is which, the
-# BIP39 wordlists among them -- are opened by path at the first call that needs
-# one, not imported, so a wheel missing one of them installs cleanly,
-# imports cleanly, and only fails there. test.yml's dist job shares that
-# blind spot with its own smoke test; this workflow's second check is the
-# one that does not have it.
+# btclib/ -- `git ls-files | grep '^src/btclib/.*_data/'` is which -- are
+# read when `btclib.network` and `btclib.curves.curve` are first imported,
+# so a wheel missing one of them installs cleanly, answers `import btclib`
+# cleanly, and fails at the first import of either. The signature check
+# below imports both.
 #
-# Version-independent on purpose, checking a BIP39 vector and a BIP340
-# one whose values are fixed forever, so neither needs an edit after a
-# release the way a version-pinned assertion would.
+# Version-independent on purpose, checking a signature whose value is
+# fixed forever, so it needs no edit after a release the way a
+# version-pinned assertion would.
 #
 # A schedule is also something GitHub itself stops firing: it suspends a
 # workflow's cron trigger after sixty days without repository activity,
@@ -157,18 +156,18 @@ jobs:
           # what a missing wheel would silently fall back to: btclib ships
           # data files opened by path rather than imported (see the
           # header), and a wheel built from an sdist that lost one of them
-          # installs and imports cleanly, failing only at the BIP39 check
-          # below. No wheel-only cell can see that kind of drift -- the
-          # risk is [tool.uv.build-backend] excluding what ships, not a
-          # build failure -- and btclib was the only one of the
-          # three publishing repositories with no cell that exercised it
-          # (issue #1153). A single extra cell rather than a second axis
-          # over the base matrix: a `["", "--no-binary"]` axis would
-          # multiply the base matrix to watch the sdist path on every os
-          # and python, sampling a risk that does not vary by platform or
-          # interpreter, being the same sdist everywhere. Pure Python, so
-          # nothing here compiles -- measured by hand against the
-          # published 2026.8.21, this is a packaging step and nothing
+          # installs and answers `import btclib` cleanly, failing only at
+          # the signature check below. No wheel-only cell can see that
+          # kind of drift -- the risk is [tool.uv.build-backend] excluding
+          # what ships, not a build failure -- and btclib was the only one
+          # of the three publishing repositories with no cell that
+          # exercised it (issue #1153). A single extra cell rather than a
+          # second axis over the base matrix: a `["", "--no-binary"]` axis
+          # would multiply the base matrix to watch the sdist path on
+          # every os and python, sampling a risk that does not vary by
+          # platform or interpreter, being the same sdist everywhere. Pure
+          # Python, so nothing here compiles -- measured by hand against
+          # the published 2026.8.21, this is a packaging step and nothing
           # more, unlike btclib-secp256k1's own sdist cell, which compiles
           # a C library. Python 3.13 rather than a version already in the
           # base matrix, so this adds a job rather than a property to an
@@ -250,22 +249,6 @@ jobs:
             assert btclib.__version__ != 'unknown'; \
             assert dsa.verify(b'btclib', PrvKeyData(1).pub.sec, \
               dsa.sign(b'btclib', 1))"
-      # the trezor test vector, whose seed is fixed forever: this is the
-      # check the header describes, the one that touches a _data/ file a
-      # bare import does not reach
-      - name: Verify a BIP39 seed, derived from shipped word lists
-        shell: bash
-        run: |
-          uv run --no-project python -c \
-            "from btclib.mnemonic.bip39 import seed_from_mnemonic; \
-            m = 'abandon abandon abandon abandon abandon abandon abandon ' \
-                'abandon abandon abandon abandon about'; \
-            seed = seed_from_mnemonic(m, 'TREZOR').hex(); \
-            expected = ( \
-              'c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa370' \
-              '8e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c8' \
-              '1b2f001698e7463b04'); \
-            assert seed == expected, seed"
 
   install-published-secp256k1:
     name: >-

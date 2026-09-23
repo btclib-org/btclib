@@ -160,34 +160,24 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        # electrum's Portuguese word-list is Monero's, and the blank lines
-        # of the licence header it opens with end in a space upstream.
-        # Vendored data is not ours to reformat, which is the reason
-        # pretty-format-json below leaves tests/**/_data/ alone: our copy
-        # being byte for byte upstream's is a property that can be
-        # checked, and a stripped space voids it for nothing. The loader
-        # reads the words and treats the header as the comment it is
-        #
-        # `fuzz/corpus/` is the second exclusion and a different reason: a
-        # fuzzing seed is one exact serialization of the object its
-        # harness parses, so an octet added to it or taken off it makes it
-        # a different input.
+        # `fuzz/corpus/` is the exclusion: a fuzzing seed is one exact
+        # serialization of the object its harness parses, so an octet added to
+        # it or taken off it makes it a different input.
         #
         # Which seeds are exposed is decided by the octets and not by the
         # format. `identify` calls a file binary when it holds an octet
         # outside libmagic's own text set -- everything below 0x20 but
         # 0x07-0x0d and 0x1b, and 0x7f -- and a seed it calls binary is
-        # never offered to a hook selecting on `types: [text]`. A
-        # descriptor and a base64 armor hold no such octet and are
-        # offered; so are a one-octet var_int and two raw script
+        # never offered to a hook selecting on `types: [text]`. A seed of
+        # printable text holds no such octet and is offered; so are a
+        # one-octet var_int and two raw script
         # serializations whose every octet happens to fall in that set,
         # which is the case that shows the rule is about the octets.
         #
         # Each hook carrying this exclusion has a live way to rewrite such
         # a seed, the octets it acts on being inside that same text set:
-        # `end-of-file-fixer` appends 0x0a, and the newline it appended to
-        # a descriptor seed is a character `descriptors.parse` refuses the
-        # whole descriptor for; `trailing-whitespace` cuts a 0x20 before a
+        # `end-of-file-fixer` appends 0x0a, an octet the serialization did
+        # not have; `trailing-whitespace` cuts a 0x20 before a
         # 0x0a; `mixed-line-ending` rewrites 0x0d 0x0a; and
         # `fix-byte-order-marker` strips 0xef 0xbb 0xbf. Every
         # `pre-commit-hooks` entry here that rewrites an octet of a text
@@ -195,7 +185,7 @@ repos:
         # `typos` below rewrite text in place as well and carry none:
         # each takes its exclusions from `pyproject.toml`, where the
         # corpus is named for both
-        exclude: ^(src/btclib/mnemonic/_data/electrum_portuguese\.txt$|fuzz/corpus/)
+        exclude: ^fuzz/corpus/
       - id: end-of-file-fixer
         # the corpus, for the reason given on trailing-whitespace above:
         # this is the hook that rewrote a seed
@@ -262,10 +252,8 @@ repos:
         # vendored into it is safe before anyone remembers this line;
         # check-json above still answers the question worth asking of
         # them, which is whether they parse. The lookahead names the
-        # files in there with no pinned blob for a reformat to void --
-        # btclib's own, one of chain data whose provenance is a txid
-        # rather than a blob, and one recorded from a node this repository
-        # does not ship -- because the default for anything else in that
+        # files in there with no pinned blob for a reformat to void,
+        # because the default for anything else in that
         # directory has to stay "not touched". (?x) is verbose mode,
         # i.e. the newlines below are not part of the pattern
         # `.vscode` is the second name in the alternation and is there for
@@ -276,10 +264,7 @@ repos:
         exclude: |
           (?x)^(\.vscode/
             |tests/([^/]+/)?_data/
-            (?!btclib_test_vectors\.json
-              |descriptor_checksums\.json
-              |rfc6979\.json
-              |electrum_test_vectors\.json
+            (?!rfc6979\.json
               |gettxoutsetinfo_regtest\.json
               |unspendable_script_pub_keys\.json))
       - id: check-merge-conflict
@@ -294,7 +279,7 @@ repos:
       # thing that moves.
       # test_*.py, i.e. --pytest-test-first, would guard the same thing,
       # pytest's default `python_files` collecting both; *_test.py, the
-      # convention the 71 test modules follow, needs no args. No
+      # convention the test modules follow, needs no args. No
       # exclude, and the hook's own exemptions, conftest.py and
       # __init__.py, are what keep it that way: shared test code lives in
       # the package __init__ -- the vector loaders in tests/__init__.py,
@@ -338,9 +323,7 @@ repos:
         # the keyword detector is right to notice, one golden file whose
         # findings are the same accident -- ACCA is one of the AWS key
         # prefixes and is also four hex digits, so any run of upper-case
-        # hex holding it matches -- and BIP85's vectors, where it is a
-        # field name rather than a value, the BIP printing a password as
-        # DERIVED PWD.
+        # hex holding it matches.
         # They are recorded in .secrets.baseline as already reviewed rather
         # than excluded from the scan: an exclusion makes a file blind for
         # good, and the difference is not theoretical -- an AWS key planted

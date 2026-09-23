@@ -112,8 +112,8 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # - `check_validity` defaults on `__init__`, `to_dict`, `from_dict`,
 #   `serialize` and `parse`, and the `if check_validity:` guards in
 #   `to_dict` and `serialize` themselves (`AddNot`) -- the same class
-#   `parsers.toml`'s follow-up names, closed here the way `bms.toml` and
-#   `bip322.toml` closed theirs: a negative version is invalid on its
+#   `parsers.toml`'s follow-up names, closed here the way `bms.toml`
+#   closed its own: a negative version is invalid on its
 #   own and needs `signed=True` to survive the round trip below, so one
 #   fixture exercises the checked-vs-bypassed default at every one of
 #   the five entry points at once.

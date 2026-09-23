@@ -50,6 +50,12 @@ workflow matrix move with the floor.
   called workflow as the signer**, the path of `release.yml` kept for
   v2026.9.13 and earlier, which it signed (issue btclib-org/.github#1301).
 
+### The wallet side leaves btclib for `btclib-wallet`
+
+- **The row-5 modules of issue #2129 are `btclib_wallet`'s, under the
+  same names** (issue #2129): RELEASE_NOTES.md lists each, and the
+  exception classes they raise stay in `btclib.exceptions`.
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

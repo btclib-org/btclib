@@ -25,7 +25,7 @@ module-path = [
     "src/btclib/script/__init__.py",
 ]
 
-# tests/script first, where nearly every mutant dies, and four files after
+# tests/script first, where nearly every mutant dies, and the files after
 # it that each reach statements no test in that directory does -- measured
 # with `--cov=btclib.script` over this command, which reports every module
 # here complete but for the seven lines named below:
@@ -35,8 +35,6 @@ module-path = [
 #   `sig_hash` on demand are reached by nothing that imports them by name
 # - tests/tx/tx_out_test.py is what asks a `ScriptPubKey` for its
 #   `addresses`, whose p2ms fallback the templates' own tests never take
-# - tests/wallet/wallet_test.py and tests/psbt/psbt_test.py are the two
-#   callers of `_script_of` and of `assert_valid_control_block`
 #
 # Not tests/script_engine, which sig_hash.toml pairs with tests/script and
 # which is the only thing that reaches `taproot._read_push_data`'s
@@ -50,8 +48,7 @@ module-path = [
 # Also not tests/fuzz_test.py, and for a different reason -- see the
 # comment on the operator filter below
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
-  tests/script tests/all_test.py tests/tx/tx_out_test.py \
-  tests/wallet/wallet_test.py tests/psbt/psbt_test.py"""
+  tests/script tests/all_test.py tests/tx/tx_out_test.py"""
 
 # seconds of wall clock, wide for the reason sig_hash.toml measures. This
 # scope holds the loops that need it: `script.parse` reads a push length

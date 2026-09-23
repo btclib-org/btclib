@@ -40,7 +40,8 @@ it is handed", and this is where the decision is held to. Issue #2170 is
 where the third was carved out of the second, for the `ecc` verifications:
 a signature, a key, an address or an opening whose size or encoding makes
 it impossible is refused there, and issue #2181 carried the same line into
-`bip322.verify`, where the encoding stands in for the size. What is left
+`btclib_wallet.bip322.verify`, where the encoding stands in for the size,
+and where its case is. What is left
 on the other side is `merkle_proof.verify` and the two script-engine
 spellings, which answer a structurally invalid argument with `False`.
 
@@ -63,8 +64,7 @@ No list is left, and that is deliberate: a finding this file makes next is
 a red test above, to be fixed or to be given a reason of its own.
 
 What no fixture here reaches, and why: `musig2.partial_sig_verify_` and
-`partial_sig_verify` want a `SessionContext` and a signing round,
-`psbt.musig2.partial_sig_verify` a `Psbt` carrying one, and
+`partial_sig_verify` want a `SessionContext` and a signing round, and
 `dsa.anti_exfil_host_verify` a host-device exchange. Those are driven by
 the tests of their own modules, against fixtures those modules build.
 """
@@ -76,7 +76,7 @@ from typing import Any
 
 import pytest
 
-from btclib import b58, bip322
+from btclib import b58
 from btclib.block import merkle_proof
 from btclib.curves import mult, secp256k1
 from btclib.ecc import bms, dleq, dsa, pedersen, ssa
@@ -95,9 +95,6 @@ _ADDR = b58.p2pkh(PubKeyData(_PUB))
 _DSA_SIG = dsa.sign(_MSG, _Q)
 _SSA_SIG = ssa.sign(_MSG, _Q)
 _BMS_SIG = bms.sign(_MSG, PrvKeyData(_Q))
-# BIP322 declares a `Sig` of its own, and it is not bms's: the two are
-# distinct classes, so each case is given the one its function takes
-_BIP322_SIG = bip322.sign(_MSG, PrvKeyData(_Q), _ADDR)
 _TX_ID = bytes.fromhex("01" * 32)
 # a DLEQ triple: A = a*G and C = a*B, so the proof holds for (A, B, C)
 _DLEQ_B = PrvKeyData(2).pub.sec
@@ -183,16 +180,6 @@ _CASES = (
         {0: _WRONG_OCTETS_VALUE},
         # the address is this scheme's public key, and the signature is
         # 65 octets or nothing
-        {1: _WRONG_STRING_VALUE, 2: _WRONG_STRING_VALUE},
-    ),
-    _Case(
-        "bip322.verify",
-        bip322.verify,
-        (_MSG, _ADDR, _BIP322_SIG),
-        {0: _WRONG_OCTETS_VALUE},
-        # the address is the challenge `to_spend` is built from, and the
-        # signature is written in one of the encodings this module reads
-        # or in none
         {1: _WRONG_STRING_VALUE, 2: _WRONG_STRING_VALUE},
     ),
     _Case(

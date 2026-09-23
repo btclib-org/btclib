@@ -61,14 +61,7 @@ _A_SCRIPT_FAILURE_SAYS_WHERE = (
     " engine is asked for, and a bool would drop it"
 )
 
-_AN_ASSERT_WITH_A_PAYLOAD = (
-    "it is the Signer's own question -- five conditions on the psbt, and"
-    " the message they prove it commits to -- so refusing and handing back"
-    " what was validated are one answer, not two"
-)
-
 _OTHER_CONTRACT: dict[str, str] = {
-    "btclib.bip322.assert_signed_message": _AN_ASSERT_WITH_A_PAYLOAD,
     "btclib.script.engine.__init__.verify_amounts": _A_SCRIPT_FAILURE_SAYS_WHERE,
     "btclib.script.engine.__init__.verify_input": _A_SCRIPT_FAILURE_SAYS_WHERE,
     "btclib.script.engine.__init__.verify_transaction": _A_SCRIPT_FAILURE_SAYS_WHERE,
@@ -85,17 +78,6 @@ _OTHER_CONTRACT: dict[str, str] = {
 # Each entry carries the reason it keeps the name it has -- and the
 # ratchet below is what closes the vocabulary all the same, an entry that
 # has gained a prefix being one this list no longer excuses (issue #814)
-_ITS_STANDARD_SPELLING = (
-    "the name is the standard's: BIP379's malleability analysis says a"
-    " miniscript mixes timelocks and has duplicate keys, and the three"
-    " PSBT_GLOBAL_TX_MODIFIABLE bits are named after the field"
-)
-
-_A_PREDICATE_WITH_A_SUBJECT = (
-    "`reads_back` is the round trip as a question, and the subject is the"
-    " script: `is_read_back` would ask who reads it"
-)
-
 _THE_STANDARD_NAMES_THE_OPERATION = (
     "BIP158 queries a Golomb-coded set with `gcs_match`, and Core spells"
     " the pair `GCSFilter::Match` and `MatchAny`: an `is_` would rename"
@@ -114,13 +96,7 @@ _CAN_ADDRV1_ASKS_CAPACITY_NOT_VALIDITY = (
 _ENGLISH_PREDICATE: dict[str, str] = {
     "btclib.block.block_filter.match": _THE_STANDARD_NAMES_THE_OPERATION,
     "btclib.block.block_filter.match_any": _THE_STANDARD_NAMES_THE_OPERATION,
-    "btclib.descriptors.miniscript.has_duplicate_keys": (_ITS_STANDARD_SPELLING),
-    "btclib.descriptors.miniscript.mixes_timelocks": (_ITS_STANDARD_SPELLING),
-    "btclib.descriptors.miniscript.reads_back": _A_PREDICATE_WITH_A_SUBJECT,
     "btclib.p2p.addrv2.can_addrv1": _CAN_ADDRV1_ASKS_CAPACITY_NOT_VALIDITY,
-    "btclib.psbt.psbt.has_sig_hash_single": _ITS_STANDARD_SPELLING,
-    "btclib.psbt.psbt.inputs_modifiable": _ITS_STANDARD_SPELLING,
-    "btclib.psbt.psbt.outputs_modifiable": _ITS_STANDARD_SPELLING,
 }
 
 
@@ -265,8 +241,7 @@ def _class_members() -> dict[str, bool]:
     """Return every argument-less member of a public class, property or not.
 
     A property is a class thing, so a module-level function is out of
-    scope however few arguments it takes -- `fetch.fetcher.client_errors`
-    is a context manager and could not be one. Methods of a private class
+    scope however few arguments it takes. Methods of a private class
     are out too: `_Decoder` is not API.
     """
     found: dict[str, bool] = {}
@@ -356,7 +331,7 @@ def test_the_walk_reaches_what_it_claims() -> None:
     assert _NAMED["btclib.ecc.ssa.batch_verify"] == "bool"
     assert _NAMED["btclib.ecc.dsa.assert_as_valid"] == "None"
     # a method, and a property among them
-    assert _NAMED["btclib.bip32.bip32.is_private"] == "bool"
+    assert _NAMED["btclib.key.is_compressed"] == "bool"
 
     # an op code is named for the op code
     assert "btclib.script.engine.script_op_codes.op_verify" not in _NAMED
@@ -387,10 +362,8 @@ def test_every_public_bool_is_named_by_the_vocabulary(dotted: str) -> None:
 
     What this closes is the gap the prefixes alone leave: they promise a
     shape to a caller who sees one, and say nothing about a bool that
-    carries none. Seven did before issue #814 -- four were renamed and
-    three more were, `Block.is_segwit` joining the `Tx.is_segwit` it is
-    computed from -- and the six that are left keep their names for the
-    reason each entry gives.
+    carries none. Those that keep their names keep them for the reason
+    each entry gives.
 
     So a bool added from here on either carries a prefix or is a decision
     somebody wrote down, which is what `check_` drifting for four
@@ -438,7 +411,7 @@ def test_a_bool_about_the_object_is_a_property(dotted: str) -> None:
 def test_the_walk_reaches_both_shapes() -> None:
     """One of each shape, so the filter is doing work rather than nothing."""
     assert _ARGUMENT_LESS_BOOLS["btclib.tx.tx.is_segwit"] is True
-    assert _ARGUMENT_LESS_BOOLS["btclib.bip32.bip32.is_private"] is True
+    assert _ARGUMENT_LESS_BOOLS["btclib.key.is_compressed"] is True
     # a bool of an argument is a function of it, and no property can be
     assert "btclib.script.script_pub_key.is_p2sh" not in _ARGUMENT_LESS_BOOLS
     assert "btclib.ecc.dsa.verify" not in _ARGUMENT_LESS_BOOLS
@@ -448,11 +421,9 @@ def test_the_walk_reaches_both_shapes() -> None:
 def test_an_argument_less_member_is_read_not_called(dotted: str) -> None:
     """Whatever it answers, a member that takes nothing is a `@property`.
 
-    The bool rule above, generalised to every return type: `PsbtView.tx`
-    was a property and `PsbtView.prevouts` a method, two reads of one
-    lazy view spelled two ways, and `master_fingerprint` and
-    `capabilities` were methods on the signer contract while every
-    implementation of them returned a stored value.
+    The bool rule above, generalised to every return type: two reads of
+    one object spelled two ways, one as an attribute and one as a call,
+    are one shape more than a reader should have to remember.
 
     What is not a read is here by shape and not by a list of names, which
     is what keeps this rule from needing one.
@@ -471,18 +442,16 @@ def test_an_argument_less_member_is_read_not_called(dotted: str) -> None:
 
 def test_the_walk_reaches_every_shape_of_member() -> None:
     """One of each, so neither branch above is running over nothing."""
-    assert _CLASS_MEMBERS["btclib.psbt.psbt_view.PsbtView.prevouts"] is True
-    assert _CLASS_MEMBERS["btclib.psbt_signer.PsbtSigner.master_fingerprint"] is True
+    assert _CLASS_MEMBERS["btclib.tx.tx.Tx.vsize"] is True
+    assert _CLASS_MEMBERS["btclib.key.PrvKeyData.pub"] is True
     # a cached_property is a read too, which testing for "property" alone
     # would have missed
     assert _CLASS_MEMBERS["btclib.script.script.Script.asm"] is True
     # and the three of HashObject that hashlib spells as attributes
     assert _CLASS_MEMBERS["btclib.alias.HashObject.digest_size"] is True
-    # and the four shapes that are not a read
+    # and the shapes that are not a read
     # OutPoint's and not Tx's, which takes an `unsigned_template` and so
     # is not argument-less at all
     assert _CLASS_MEMBERS["btclib.tx.out_point.OutPoint.assert_valid"] is False
-    assert _CLASS_MEMBERS["btclib.psbt.psbt.Psbt.to_v2"] is False
-    assert _CLASS_MEMBERS["btclib.hwi.HwiSigner.close"] is False
+    assert _CLASS_MEMBERS["btclib.ecc.dsa.Signer.wipe"] is False
     assert _CLASS_MEMBERS["btclib.alias.HashObject.digest"] is False
-    assert _CLASS_MEMBERS["btclib.fetch.fetcher.Fetcher.get_block_count"] is False

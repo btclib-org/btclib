@@ -33,12 +33,13 @@ that refuses more, which is the side that cannot accept what was to be
 refused.
 
 So a truth's `True` has to be its conservative value, and a flag whose
-`True` is the permissive one is a kind however little it computes. Three
-were: `verified`, `allow_partial` and `hybrid`, each waiving the very
-refusal it was written to make. They are in `_KINDS` under a comment of
-their own, and issue #884 is the one that asked, over `verified` and over
-`verify_script`'s `final` beside it -- which stays a truth, its `True`
-being the one that demands the true stack.
+`True` is the permissive one is a kind however little it computes.
+`verified` and `hybrid` are, each waiving the very refusal it was written
+to make, and `btclib_wallet`'s `allow_partial` is the same case. The two
+are in `_KINDS` under a comment of their own, and issue #884 is the one
+that asked, over `verified` and over `verify_script`'s `final` beside it
+-- which stays a truth, its `True` being the one that demands the true
+stack.
 
 The two tests below are that line, one each:
 
@@ -55,7 +56,7 @@ Every kind below was ungated when this file was written, `include_witness`
 excepted -- `Block.serialize` and `Tx.serialize` were gated with
 `utils.assert_type` as the serialization boundary was -- and so were
 `musig2.apply_tweak`'s `is_xonly`, which `_flag` refuses, and
-`KeyGroup(verify=)`. The two the issue names are the sharpest:
+`btclib_wallet`'s `KeyGroup(verify=)`. The two the issue names are the sharpest:
 
 ```text
 dsa.sign(msg, q, lower_s="no")        -> a low-s signature, "no" being true
@@ -80,15 +81,12 @@ The engine's five and `read_push_data` take the interpreter's own state,
 and what they are handed here is the smallest *valid* call of each: an
 empty signature is a False `op_checksig` answers rather than raises, an
 empty script is a script code of nothing, and OP_1 is a script that leaves
-a true stack. `hwi.enumerate_devices` runs a command line, so its stand-in
-is `python -c "print('[]')"` -- a device list of none, which is what an
-`emulators` of the wrong type must be refused in front of.
+a true stack.
 """
 
 from __future__ import annotations
 
 import ast
-import sys
 from dataclasses import dataclass, field
 from hashlib import sha256
 from io import BytesIO
@@ -97,25 +95,8 @@ from typing import Any
 
 import pytest
 
-from btclib import b32, b58, bip38, bip322, core_import, slip132, var_bytes
+from btclib import b32, b58, var_bytes
 from btclib._libsecp256k1 import INSTALLED
-from btclib.bip32.bip32 import (
-    _PythonPubKeyTweakChain,
-    derive,
-    derive_from_account,
-    derive_from_account_,
-    derive_from_account_range,
-    derive_from_account_range_,
-    prv_keyinfo_from_xprv,
-    pub_keyinfo_from_xpub,
-    rootxprv_from_seed,
-    xpub_from_xprv,
-)
-from btclib.bip32.der_path import (
-    hardenings_from_der_path,
-    indexes_from_der_path,
-    int_from_index_str,
-)
 from btclib.block.block import Block
 from btclib.curves.curve import (
     Curve,
@@ -127,33 +108,11 @@ from btclib.curves.sec_point import (
     bytes_from_prv_key_int,
     point_from_octets,
 )
-from btclib.descriptors.descriptors import parse as descriptor_from_string
 from btclib.ecc import bms, dsa, frost, musig2, ssa
 from btclib.exceptions import BTClibTypeError
 from btclib.fee import FeeRate
-from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
-from btclib.fetch.bitcoin_core_rest import BitcoinCoreRestClient, BitcoinCoreRestFetcher
-from btclib.fetch.electrum import ElectrumFetcher
-from btclib.fetch.esplora import EsploraFetcher
-from btclib.hwi import HwiSigner, enumerate_devices
 from btclib.key import PrvKeyData, PubKeyData
-from btclib.mnemonic import bip39, slip39
-from btclib.mnemonic.entropy import (
-    bin_str_entropy_from_random,
-    bin_str_entropy_from_rolls,
-)
-from btclib.mnemonic.mnemonic import WordLists
 from btclib.p2p import BlockPayload, SendCmpct, TxPayload, Version
-from btclib.psbt import musig2 as psbt_musig2
-from btclib.psbt.psbt import Psbt, assert_signed
-from btclib.psbt.psbt import join as psbt_join
-from btclib.psbt.psbt_in import PsbtIn
-from btclib.psbt.psbt_utils import (
-    deserialize_sized_int,
-    deserialize_tx,
-    serialize_sized_int,
-)
-from btclib.psbt_signer import SoftwareSigner
 from btclib.script.engine import script as engine
 from btclib.script.engine import script_op_codes, verify_transaction
 from btclib.script.engine.flags import NO_FLAGS, ScriptFlag
@@ -166,21 +125,6 @@ from btclib.tx.tx import Tx
 from btclib.tx.tx import join as tx_join
 from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
-from btclib.wallet.script_wallet import KeyGroup
-from tests.fetch import Recorded
-from tests.fetch.bitcoin_core_test import client
-from tests.fetch.electrum_test import LineRecorded
-from tests.psbt import psbt_cases
-
-
-def _is_signed(psbt: Psbt) -> bool:
-    """Return whether every input of the psbt is signed through."""
-    try:
-        assert_signed(psbt)
-    except Exception:  # noqa: BLE001
-        return False
-    return True
-
 
 _LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 
@@ -202,22 +146,6 @@ _MSG = b"Satoshi Nakamoto"
 _MSG_HASH = sha256(_MSG).digest()
 _DER_SIG = dsa.sign(_MSG, _PRV_KEY).serialize()
 
-_ROOT_XPRV = rootxprv_from_seed("00" * 32)
-_ACCOUNT_XPRV = derive(_ROOT_XPRV, "m/44h/0h/0h")
-
-
-# a block cipher this file never has to get right: `bip38.encrypt` and
-# `new_key_pair` need one to reach `compressed` at all, and what happens
-# to the plaintext is not this file's question, only whether the flag it
-# is refusing was read for its type. A 16-byte block in, the same 16
-# bytes out, is a cipher no BIP38 record could be decrypted with and a
-# perfectly good fixture
-def _block_cipher(key: bytes, block: bytes) -> bytes:
-    return block
-
-
-_INT_CODE = bip38.intermediate_code("test password")
-
 # the cheapest catalogued curve, and the point of it is that both
 # construction-time checks pass on it: a low-cardinality one is MOV-weak,
 # which is what `weakness_check=True` is there to refuse
@@ -228,18 +156,13 @@ _SMALL_CURVE = dict(
         strict=True,
     )
 )
-_XPUB = xpub_from_xprv(_ROOT_XPRV)
-_DESCRIPTOR = descriptor_from_string(f"wpkh({_XPUB}/0/*)")
-_ADDRESS = b58.p2pkh(PubKeyData(_SEC))
-_BIP322_SIG = bip322.sign(_MSG, PrvKeyData(_PRV_KEY), _ADDRESS)
 
-# a transaction with an input, which is what the engine and the psbt
-# boundary both refuse to work without
+# a transaction with an input, which is what the engine refuses to work
+# without
 _TX = Tx(vin=[TxIn(OutPoint(b"\x00" * 32, 0))], vout=[TxOut(1000, b"\x51")])
 # a second one spending another outpoint: what `join` refuses is two
 # transactions with an input in common, so one twice is no fixture
 _TX_2 = Tx(vin=[TxIn(OutPoint(b"\x11" * 32, 1))], vout=[TxOut(900, b"\x51")])
-_PSBTS = [Psbt.from_tx(_TX), Psbt.from_tx(_TX_2)]
 _TX_BYTES = _TX.serialize(include_witness=False, check_validity=False)
 # OP_1 as the output being spent: a script anyone can satisfy, so the one
 # verification below is about `check_amounts` and not about a signature
@@ -248,21 +171,6 @@ _PREVOUTS = [TxOut(2000, b"\x51")]
 _BLOCK = Block.parse(
     (Path(__file__).parent / "block" / "_data" / "block_1.bin").read_bytes()
 )
-
-# the first BIP174 vector that is signed through, which is what makes
-# `allow_partial` a flag both of whose values accept it
-_SIGNED_PSBT = next(
-    psbt
-    for psbt in (
-        Psbt.b64decode(case["encoded psbt"])
-        for case in psbt_cases("bip174_test_vectors.json", "valid psbts")
-    )
-    if _is_signed(psbt)
-)
-
-# a device that answers HWI's own shape and needs no device: the flag is
-# read in front of the command line, which is where it has to be
-_STAND_IN = [sys.executable, "-c", "print('[]')"]
 
 _KEY_AGG = musig2.key_agg([_SEC, _SEC_2])
 _FROST_TWEAK_CTX = frost.tweak_ctx_init(_SEC)
@@ -324,32 +232,6 @@ _KINDS = (
         b58.prv_key_data_from_wif,
         {"wif": b58.wif_from_prv_key(_PRV_KEY)},
         optional=True,
-    ),
-    _Case(
-        "btclib.bip38.encrypt",
-        "compressed",
-        bip38.encrypt,
-        {
-            "prv_key": _PRV_KEY,
-            "password": "pw",  # pragma: allowlist secret
-            "encrypt_block": _block_cipher,
-        },
-    ),
-    _Case(
-        "btclib.bip38.new_key_pair",
-        "compressed",
-        bip38.new_key_pair,
-        {"int_code": _INT_CODE, "encrypt_block": _block_cipher},
-    ),
-    # the one that is a bound method: a chain holds the point it steps,
-    # so the instance is built here and `bytes_from_point` above is the
-    # check this one reaches. A refused call must not step it, which is
-    # why the serialization happens before the step rather than after
-    _Case(
-        "btclib.bip32.bip32._PythonPubKeyTweakChain.tweak_add",
-        "compressed",
-        _PythonPubKeyTweakChain(_SEC).tweak_add,
-        {"tweak": _PRV_KEY.to_bytes(32, byteorder="big", signed=False)},
     ),
     _Case(
         "btclib.ecc.bms.gen_keys",
@@ -488,35 +370,6 @@ _KINDS = (
         taproot_parse,
         {"stream": b"\x51"},
     ),
-    # the psbt boundary: which integer encoding, and which transaction
-    _Case(
-        "btclib.psbt.psbt_utils.deserialize_sized_int",
-        "signed",
-        deserialize_sized_int,
-        {"k": b"\x00", "v": b"\x01\x00\x00\x00", "type_": "field", "size": 4},
-        valid=False,
-    ),
-    _Case(
-        "btclib.psbt.psbt_utils.serialize_sized_int",
-        "signed",
-        serialize_sized_int,
-        {"type_": b"\x00", "value": 1, "size": 4},
-        valid=False,
-    ),
-    _Case(
-        "btclib.psbt.psbt_utils.deserialize_tx",
-        "include_witness",
-        deserialize_tx,
-        {"k": b"\x00", "v": _TX_BYTES, "type_": "field"},
-        valid=False,
-    ),
-    _Case(
-        "btclib.psbt.psbt_utils.deserialize_tx",
-        "unsigned_template",
-        deserialize_tx,
-        {"k": b"\x00", "v": _TX_BYTES, "type_": "field", "include_witness": False},
-        valid=False,
-    ),
     _Case(
         "btclib.block.block.Block.serialize",
         "include_witness",
@@ -557,49 +410,6 @@ _KINDS = (
         {"data": [1, 2, 3], "from_bits": 8, "to_bits": 5},
     ),
     _Case(
-        "btclib.psbt.musig2.add_participant_pub_keys",
-        "sort",
-        psbt_musig2.add_participant_pub_keys,
-        {"psbt_map": PsbtIn(), "participant_pub_keys": [_SEC, _SEC_2]},
-        valid=False,
-    ),
-    _Case(
-        "btclib.mnemonic.entropy.bin_str_entropy_from_rolls",
-        "shuffle",
-        bin_str_entropy_from_rolls,
-        {"bits": 8, "dice_sides": 6, "rolls": [1, 2, 3, 4, 5, 6, 1, 2]},
-    ),
-    _Case(
-        "btclib.mnemonic.entropy.bin_str_entropy_from_random",
-        "to_be_hashed",
-        bin_str_entropy_from_random,
-        {"bits": 128},
-    ),
-    _Case(
-        "btclib.psbt.psbt.join",
-        "shuffle_inp",
-        psbt_join,
-        {
-            "psbts": _PSBTS,
-            "enforce_same_tx_version": True,
-            "enforce_same_tx_lock_time": True,
-            "shuffle_out": False,
-        },
-        valid=False,
-    ),
-    _Case(
-        "btclib.psbt.psbt.join",
-        "shuffle_out",
-        psbt_join,
-        {
-            "psbts": _PSBTS,
-            "enforce_same_tx_version": True,
-            "enforce_same_tx_lock_time": True,
-            "shuffle_inp": False,
-        },
-        valid=False,
-    ),
-    _Case(
         "btclib.tx.tx.join",
         "shuffle_inp",
         tx_join,
@@ -622,73 +432,6 @@ _KINDS = (
             "shuffle_inp": False,
         },
         valid=False,
-    ),
-    # which verification runs: a BMS signature over the message, or
-    # BIP322's own
-    _Case(
-        "btclib.bip322.assert_as_valid",
-        "legacy",
-        bip322.assert_as_valid,
-        {"msg": _MSG, "addr": _ADDRESS, "sig": _BIP322_SIG},
-    ),
-    _Case(
-        "btclib.bip322.verify",
-        "legacy",
-        bip322.verify,
-        {"msg": _MSG, "addr": _ADDRESS, "sig": _BIP322_SIG},
-    ),
-    _Case(
-        "btclib.hwi.enumerate_devices",
-        "emulators",
-        enumerate_devices,
-        {"executable": _STAND_IN},
-        valid=False,
-    ),
-    _Case(
-        "btclib.hwi.HwiSigner.__init__",
-        "emulators",
-        HwiSigner,
-        {"fingerprint": "00" * 4, "executable": _STAND_IN},
-        valid=False,
-    ),
-    _Case(
-        "btclib.psbt_signer.SoftwareSigner.__init__",
-        "musig2",
-        SoftwareSigner,
-        {"xkey": _ROOT_XPRV},
-        valid=False,
-    ),
-    _Case(
-        "btclib.psbt_signer.SoftwareSigner.from_accounts",
-        "musig2",
-        SoftwareSigner.from_accounts,
-        {"master_fingerprint": "00" * 4, "accounts": {"m/0h": _XPUB}},
-        valid=False,
-    ),
-    _Case(
-        "btclib.core_import.import_request",
-        "internal",
-        core_import.import_request,
-        {"descriptor": _DESCRIPTOR, "timestamp": 0},
-        valid=False,
-    ),
-    _Case(
-        "btclib.core_import.import_request",
-        "active",
-        core_import.import_request,
-        {"descriptor": _DESCRIPTOR, "timestamp": 0},
-    ),
-    _Case(
-        "btclib.core_import.account_import_requests",
-        "active",
-        core_import.account_import_requests,
-        {"receive": _DESCRIPTOR, "change": _DESCRIPTOR, "timestamp": 0},
-    ),
-    _Case(
-        "btclib.mnemonic.slip39.mnemonics_from_master_secret",
-        "extendable",
-        slip39.mnemonics_from_master_secret,
-        {"master_secret": "00" * 16},
     ),
     _Case(
         "btclib.ecc.musig2.apply_tweak",
@@ -701,13 +444,6 @@ _KINDS = (
         "is_xonly",
         frost.apply_tweak,
         {"tweak_ctx": _FROST_TWEAK_CTX, "tweak": b"\x01" * 32},
-    ),
-    _Case(
-        "btclib.wallet.script_wallet.KeyGroup.__init__",
-        "verify",
-        KeyGroup,
-        {"threshold": 2, "keys": [_XPUB, _XPUB]},
-        valid=False,
     ),
     # `serving` chooses which implementation every later call reaches, so
     # it is as much a kind as `compressed` is: a value read for its truth
@@ -743,14 +479,6 @@ _KINDS = (
         reason="`True` suppresses the NULLFAIL refusal, so a non-bool lets"
         " a non-empty signature that failed to verify through a consensus"
         " rule; `verify_script`'s `final` beside it tightens instead",
-    ),
-    _Case(
-        "btclib.psbt.psbt.assert_signed",
-        "allow_partial",
-        assert_signed,
-        {"psbt": _SIGNED_PSBT},
-        reason="`True` accepts an input still unsigned, so a non-bool"
-        " stores as complete a psbt nobody finished signing",
     ),
     _Case(
         "btclib.curves.sec_point.point_from_octets",
@@ -798,67 +526,9 @@ _KINDS = (
         " non-bool would serialize as the True a peer reading it takes"
         " for a request to relay transactions",
     ),
-    # the two extended-key parses. Their `compressed` computes nothing --
-    # a BIP32 key is compressed, so the flag is a check on a key that has
-    # already answered the question -- and it is the polarity that makes
-    # each a kind
-    _Case(
-        "btclib.bip32.bip32.prv_keyinfo_from_xprv",
-        "compressed",
-        prv_keyinfo_from_xprv,
-        {"xprv": _ROOT_XPRV},
-        optional=True,
-        reason="`True` is the value an extended key already has, so a"
-        " non-bool passes the check a False was written down to fail and"
-        " an uncompressed key is reported as this compressed one",
-    ),
-    _Case(
-        "btclib.bip32.bip32.pub_keyinfo_from_xpub",
-        "compressed",
-        pub_keyinfo_from_xpub,
-        {"xpub": _XPUB},
-        optional=True,
-        reason="`prv_keyinfo_from_xprv`'s above, on the public half",
-    ),
 )
 
 _TRUTHS = (
-    _Case(
-        "btclib.slip132.p2pkh_xkey",
-        "check_root_xkey",
-        slip132.p2pkh_xkey,
-        {"xkey": _ROOT_XPRV},
-        reason="whether the xkey is required to be a root one",
-    ),
-    _Case(
-        "btclib.slip132.p2wpkh_xkey",
-        "check_root_xkey",
-        slip132.p2wpkh_xkey,
-        {"xkey": _ROOT_XPRV},
-        reason="whether the xkey is required to be a root one",
-    ),
-    _Case(
-        "btclib.slip132.p2wpkh_p2sh_xkey",
-        "check_root_xkey",
-        slip132.p2wpkh_p2sh_xkey,
-        {"xkey": _ROOT_XPRV},
-        reason="whether the xkey is required to be a root one",
-    ),
-    _Case(
-        "btclib.mnemonic.bip39.seed_from_mnemonic",
-        "verify_checksum",
-        bip39.seed_from_mnemonic,
-        {"mnemonic": "abandon " * 11 + "about", "passphrase": ""},
-        reason="whether the mnemonic's checksum is checked; the seed is the"
-        " same either way, being a PBKDF2 of the words",
-    ),
-    _Case(
-        "btclib.mnemonic.bip39.mxprv_from_mnemonic",
-        "verify_checksum",
-        bip39.mxprv_from_mnemonic,
-        {"mnemonic": "abandon " * 11 + "about"},
-        reason="whether the mnemonic's checksum is checked",
-    ),
     _Case(
         "btclib.curves.curve.Curve.__init__",
         "weakness_check",
@@ -873,28 +543,6 @@ _TRUTHS = (
         Curve,
         _SMALL_CURVE,
         reason="whether n*G is verified to be the point at infinity",
-    ),
-    _Case(
-        "btclib.bip32.der_path.int_from_index_str",
-        "bip380_enforced",
-        int_from_index_str,
-        {"s": "0"},
-        reason="whether BIP380's spelling rules are enforced; an index both"
-        " accept is the same integer",
-    ),
-    _Case(
-        "btclib.bip32.der_path.indexes_from_der_path",
-        "bip380_enforced",
-        indexes_from_der_path,
-        {"der_path": "0/1"},
-        reason="whether BIP380's spelling rules are enforced",
-    ),
-    _Case(
-        "btclib.bip32.der_path.hardenings_from_der_path",
-        "bip380_enforced",
-        hardenings_from_der_path,
-        {"der_path": "0/1"},
-        reason="whether BIP380's spelling rules are enforced",
     ),
     _Case(
         "btclib.ecc.dsa.Sig.parse",
@@ -998,127 +646,12 @@ _TRUTHS = (
         reason="whether a lock time the others do not share is refused",
     ),
     _Case(
-        "btclib.psbt.psbt.join",
-        "enforce_same_tx_version",
-        psbt_join,
-        {
-            "psbts": _PSBTS,
-            "enforce_same_tx_lock_time": True,
-            "shuffle_inp": False,
-            "shuffle_out": False,
-        },
-        reason="whether a transaction version the others do not share is refused",
-    ),
-    _Case(
-        "btclib.psbt.psbt.join",
-        "enforce_same_tx_lock_time",
-        psbt_join,
-        {
-            "psbts": _PSBTS,
-            "enforce_same_tx_version": True,
-            "shuffle_inp": False,
-            "shuffle_out": False,
-        },
-        reason="whether a lock time the others do not share is refused",
-    ),
-    _Case(
         "btclib.script.engine.__init__.verify_transaction",
         "check_amounts",
         verify_transaction,
         {"prevouts": _PREVOUTS, "tx": _TX},
         reason="whether the outputs are required to be worth no more than"
         " the inputs; the scripts run either way",
-    ),
-    # the declaration the four below forward to, and the one that gives
-    # them the same name, the same keyword-only argument and the same
-    # default. Driven through a backend because the class it belongs to
-    # is abstract: `assert_network` is what a backend answers for itself,
-    # so there is no instance of the base to construct
-    _Case(
-        "btclib.fetch.fetcher.NetworkVerifyingFetcher.__init__",
-        "verify_network",
-        ElectrumFetcher,
-        {"transport": LineRecorded()},
-        reason="whether the host is asked which chain it serves before"
-        " the first answer leaves; a check, and the fetch is the same"
-        " fetch either way",
-    ),
-    _Case(
-        "btclib.fetch.bitcoin_core.BitcoinCoreFetcher.__init__",
-        "verify_network",
-        BitcoinCoreFetcher,
-        {"client": client()},
-        reason="whether the node is asked which chain it serves; a check,"
-        " and the one the fetcher makes before its first fetch",
-    ),
-    _Case(
-        "btclib.fetch.bitcoin_core_rest.BitcoinCoreRestFetcher.__init__",
-        "verify_network",
-        BitcoinCoreRestFetcher,
-        {
-            "client": BitcoinCoreRestClient(
-                "http://127.0.0.1:8332", transport=Recorded()
-            )
-        },
-        reason="whether the node is asked which chain it serves, the same"
-        " check over -rest, `/chaininfo.json` carrying the same `chain`",
-    ),
-    _Case(
-        "btclib.fetch.esplora.EsploraFetcher.__init__",
-        "verify_network",
-        EsploraFetcher,
-        {"base_url": "https://esplora.example/api", "transport": Recorded()},
-        reason="whether the explorer is asked which chain it serves; the"
-        " same check under the same name, made before its first fetch",
-    ),
-    _Case(
-        "btclib.fetch.electrum.ElectrumFetcher.__init__",
-        "verify_network",
-        ElectrumFetcher,
-        {"transport": LineRecorded()},
-        reason="whether the server is asked which chain it serves; the"
-        " same check again, over the header at height 0 this backend"
-        " hashes rather than a chain name it would be told",
-    ),
-    _Case(
-        "btclib.bip32.bip32.derive_from_account",
-        "branches_0_1_only",
-        derive_from_account,
-        {"mxkey": _ACCOUNT_XPRV, "branch": 0, "address_index": 0},
-        reason="whether a branch other than 0 and 1 is refused; the key"
-        " derived at a branch both accept is the same key",
-    ),
-    _Case(
-        "btclib.bip32.bip32.derive_from_account_",
-        "branches_0_1_only",
-        derive_from_account_,
-        {"mxkey": _ACCOUNT_XPRV, "branch": 0, "address_index": 0},
-        reason="the flag of `derive_from_account` above, in the spelling"
-        " that answers the key rather than its Base58Check text",
-    ),
-    _Case(
-        "btclib.bip32.bip32.derive_from_account_range",
-        "branches_0_1_only",
-        derive_from_account_range,
-        {"mxkey": _ACCOUNT_XPRV, "branch": 0, "address_indexes": [0]},
-        reason="the flag of `derive_from_account` above, over many"
-        " addresses of one branch rather than over one",
-    ),
-    _Case(
-        "btclib.bip32.bip32.derive_from_account_range_",
-        "branches_0_1_only",
-        derive_from_account_range_,
-        {"mxkey": _ACCOUNT_XPRV, "branch": 0, "address_indexes": [0]},
-        reason="the flag of `derive_from_account_range` above, in the"
-        " spelling that answers the keys rather than their text",
-    ),
-    _Case(
-        "btclib.mnemonic.mnemonic.WordLists.__init__",
-        "power_of_two",
-        WordLists,
-        {},
-        reason="whether a word list whose length is not a power of two is"
-        " refused, which is what Electrum's 1626 words need off",
     ),
     _Case(
         "btclib.tx.tx.Tx.assert_valid",
@@ -1181,8 +714,8 @@ def _bool_parameters() -> set[tuple[str, str]]:
 
     A method counts and a private function does not, as in
     `curve_parameter_test.py`; an `@overload` stub is not a function to
-    drive; and a function nested in another is a closure rather than API --
-    `Miniscript.to_script`'s `up` takes a `verify` that no caller can pass.
+    drive; and a function nested in another is a closure rather than API,
+    a parameter no caller can pass.
     """
     found: set[tuple[str, str]] = set()
 
@@ -1254,7 +787,7 @@ def test_every_bool_parameter_is_classified() -> None:
 
 
 def test_the_walk_reaches_what_it_claims() -> None:
-    """The shapes it must find, and the four it must not.
+    """The shapes it must find, and the ones it must not.
 
     A walk that found nothing would pass the test above.
     """
@@ -1267,7 +800,6 @@ def test_the_walk_reaches_what_it_claims() -> None:
 
     # the convention with a file of its own
     assert not [pair for pair in found if pair[1] == "check_validity"]
-    # a private function, a closure, and a parameter of another type
+    # a private function, and a parameter of another type
     assert ("btclib.ecc.musig2._flag", "is_xonly") not in found
-    assert ("btclib.descriptors.miniscript.up", "verify") not in found
     assert ("btclib.hashes.reduce_to_hlen", "hf") not in found

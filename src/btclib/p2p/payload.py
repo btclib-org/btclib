@@ -81,9 +81,9 @@ class Payload(ABC):
 
     An ABC and not a `Protocol`: `to_message` is behaviour to inherit
     rather than a shape to match, and the subclasses are this package's
-    own. `btclib.psbt_signer`'s `PsbtSigner` is the Protocol in this
-    library, and it is one because its implementations are other
-    people's.
+    own. A Protocol is for a shape whose implementations are other
+    people's, which is why `PsbtSigner`, in the separate `btclib_wallet`
+    package, is one.
     """
 
     # the message type these octets travel under, "version" or "ping":

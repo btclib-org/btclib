@@ -925,8 +925,8 @@ def test_a_sig_that_never_validated_answers_false_and_does_not_raise() -> None:
     stays valid, and the second pass looks redundant. What makes it not is
     the two ways an unvalidated instance is reachable: `check_validity=False`,
     which the library itself passes for values libsecp256k1 has just
-    computed, and `object.__setattr__`, which reaches past frozen as
-    `tests/bip32/bip32_test.py::test_assert_valid2` does on purpose.
+    computed, and `object.__setattr__`, which reaches past frozen as this
+    test does on purpose below.
 
     Both of those reach `_serialize_scalar`, where `to_bytes(...,
     signed=False)` raises OverflowError for a negative r -- an

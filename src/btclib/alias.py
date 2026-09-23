@@ -245,9 +245,9 @@ NetworkName = Literal["mainnet", "testnet", "regtest", "signet", "testnet4"]
 # WordLists.load_lang(lang, filename) adds a language, which is how a
 # word-list btclib does not ship is read -- electrum's 1626-word
 # Portuguese is one, on a registry of its own -- so the `lang: str`
-# parameters of mnemonic, bip39 and electrum stay str: a Literal there
-# would type check the library's own languages and reject the file a
-# caller has just loaded
+# parameters of btclib_wallet's mnemonic, bip39 and electrum stay str: a
+# Literal there would type check the library's own languages and reject the
+# file a caller has just loaded
 MnemonicLang = Literal[
     "cs",
     "en",
@@ -276,14 +276,14 @@ MnemonicLang = Literal[
 # against all 256 possible bytes (sig_hash_taproot_test.py's
 # test_valid_sighash_type), which a Literal-typed parameter could not be
 # called with. Narrowed only where the wire is already closed:
-# PsbtIn.sig_hash_type, checked against this same set once truthy.
-# psbt_in_test.py checks the two stay equal
+# btclib_wallet's PsbtIn.sig_hash_type, checked against this same set
+# once truthy, and its psbt_in_test.py checks the two stay equal
 ValidSigHashType = Literal[0, 1, 2, 3, 129, 130, 131]
 
 
 # The four address encodings a purpose level can name: 44 is p2pkh, 49
-# p2wpkh-p2sh, 84 p2wpkh and 86 p2tr. It types both sides of btclib.bip44
-# -- the mapping read out of _data/bip44_purposes.json and the script_type
+# p2wpkh-p2sh, 84 p2wpkh and 86 p2tr. It types both sides of btclib_wallet.bip44
+# -- the mapping read out of its _data/bip44_purposes.json and the script_type
 # argument that overrides it -- so the two cannot drift apart in silence.
 #
 # Qualified BIP44, and not named ScriptType, because it is not the
@@ -302,10 +302,10 @@ ValidSigHashType = Literal[0, 1, 2, 3, 129, 130, 131]
 BIP44ScriptType = Literal["p2pkh", "p2wpkh-p2sh", "p2wpkh", "p2tr"]
 
 # The three ways a script becomes an output, which is what a
-# wallet.ScriptWallet takes: the script is hashed into a p2sh, into a
-# p2wsh, or into a p2wsh that a p2sh wraps. Not ScriptType either, and
-# for BIP44ScriptType's reason -- `p2sh-p2wsh` is a nesting of one script
-# in another and not something type_and_payload answers -- while the
+# btclib_wallet.wallet.ScriptWallet takes: the script is hashed into a p2sh,
+# into a p2wsh, or into a p2wsh that a p2sh wraps. Not ScriptType either,
+# and for BIP44ScriptType's reason -- `p2sh-p2wsh` is a nesting of one
+# script in another and not something type_and_payload answers -- while the
 # overlap with those four is only apparent: these three say what happens
 # to a *script*, where those four say what happens to a key.
 #
@@ -314,14 +314,14 @@ BIP44ScriptType = Literal["p2pkh", "p2wpkh-p2sh", "p2wpkh", "p2tr"]
 # than a new line here
 EmbeddedScriptType = Literal["p2sh", "p2wsh", "p2sh-p2wsh"]
 
-# When a wallet.ScriptWallet orders the keys of a quorum, which is the
-# one thing about a pre-descriptor multisig wallet that cannot be read off
-# its script: "derived" sorts them at every index, which is BIP67 on the
-# derived keys and what sortedmulti() follows; "account" sorts the account
-# keys once and derives afterwards, which multi() states; "none" keeps
-# them as declared. The three are a strategy and not a constant because
-# deployed wallets disagree, and the sort_key beside them is what a wallet
-# ordering by something that is not a byte order needs
+# When a btclib_wallet.wallet.ScriptWallet orders the keys of a quorum,
+# which is the one thing about a pre-descriptor multisig wallet that cannot
+# be read off its script: "derived" sorts them at every index, which is
+# BIP67 on the derived keys and what sortedmulti() follows; "account" sorts
+# the account keys once and derives afterwards, which multi() states; "none"
+# keeps them as declared. The three are a strategy and not a constant
+# because deployed wallets disagree, and the sort_key beside them is what a
+# wallet ordering by something that is not a byte order needs
 KeyOrder = Literal["none", "account", "derived"]
 
 
@@ -432,7 +432,7 @@ HashDigestF = Callable[[Octets], bytes]
 CipherF = Callable[[bytes, bytes, bytes], bytes]
 
 # A single block under a key, with no mode and no padding: (key, block) to
-# the transformed block, both fixed-size. btclib.bip38 takes one of these
+# the transformed block, both fixed-size. btclib_wallet.bip38 takes one of these
 # in each direction for the same reason CipherF exists -- it ships no
 # cipher of its own -- but BIP38 calls AES-256 directly on one or two
 # 16-byte blocks rather than chaining them, so there is no iv and nothing

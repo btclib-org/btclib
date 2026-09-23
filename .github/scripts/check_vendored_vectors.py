@@ -68,9 +68,7 @@ BIP324's two were themselves written that way once, each pin citing
 one commit as the tip of every path it stood in for. Splitting them
 into one pin per real path is what brought them into this script's
 scope, and also corrected BIP327's, whose shared commit was the tip of
-only one of the eight. `tests/_data/descriptor_checksums.json` carries
-no `behind` line: it pins the document revision its checksums were
-checked against, not a copy this repository re-derives. Every heading
+only one of the eight. Every heading
 the ledger carries but this script did not check is listed in its own
 report, so nothing silently reads as "checked and clean" that was not
 checked at all.

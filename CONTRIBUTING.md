@@ -291,15 +291,14 @@ would make a published artifact refuse a version it in fact works with; a
 changes in the minor.
 
 **One is required and the other is an extra, and that was weighed rather
-than inherited.** Making `bitcoin-core-rpc` a `fetch` extra was
-considered and refused: an optional dependency whose absence changes a
-*speed* is a different object from one whose absence removes a
-*capability*, and only the first is what an extra is for. The bindings
-are the first — btclib answers without them, on a pure-Python arm that
-is supported, covered by CI and documented — and nothing stands behind
-"ask a node". A caller either has a client or does not have the feature,
-so a `fetch` extra would leave `btclib.fetch` importable and unable to
-answer, which is the shape an extra exists to avoid.
+than inherited.** Making `bitcoin-core-rpc` an extra was considered and
+refused: an optional dependency whose absence changes a *speed* is a
+different object from one whose absence removes a *capability*, and only
+the first is what an extra is for. The bindings are the first — btclib
+answers without them, on a pure-Python arm that is supported, covered by
+CI and documented. `bitcoin-core-rpc` is the second: `btclib.p2p.magic`
+takes Core's chain names and a signet's message start from it, and
+nothing in btclib stands behind them.
 
 **Both sibling floors name a release PyPI serves**, so `pyproject.toml` carries
 no `[tool.uv.sources]` table and uv resolves the bindings from the index
@@ -471,18 +470,15 @@ installed rather than by which tree the commit is made in. Run the gate
 by hand before committing, the `uv run pre-commit run --all-files` above.
 
 One of those hooks needs maintenance, and only one. The test vectors under
-`tests/_data/`, `tests/ecc/_data/` and `tests/script/_data/` are private
-keys by the hundred, so they are recorded in `.secrets.baseline` as
+`tests/ecc/_data/` and `tests/script/_data/` are private keys by the
+hundred, so they are recorded in `.secrets.baseline` as
 already reviewed —
 rather than excluded from the scan, which would leave those files unwatched
 for a credential that has no business being there.
 `tests/block/_generated_files/block_481824.json` is in the baseline for a
 narrower reason: `ACCA` is one of the AWS key prefixes and is also four hex
 digits, so the block's own signatures match the detector wherever a script
-is rendered as upper-case hex. `tests/_data/bip85_test_vectors.json` is
-there for a third reason again, and the narrowest: the detector reads the
-field name, and BIP85 prints the password of its two password
-applications as DERIVED PWD. Adding a vector to one of those files, or
+is rendered as upper-case hex. Adding a vector to one of those files, or
 changing what a golden file holds, means regenerating the baseline:
 
 ```shell
@@ -528,7 +524,6 @@ read by every checkout of this repository.
 | `os-windows` | weekly, a release | Windows images and interpreters |
 | `deps-latest` | weekly | platforms sampled, deps upgraded |
 | `deps-oldest` | weekly | the floor interpreter, deps at their floors |
-| `integration-hwi` | weekly, push to main | two device emulators |
 | `zkp-oracle` | weekly | a bindings build carrying `secp256k1-zkp` |
 | `links`, `mutation` | weekly | — |
 | `vendored-vectors` | weekly | the pin ledgers |
@@ -909,13 +904,13 @@ serves.
 `install-published` installs btclib itself from PyPI, nothing checked
 out, and asks whether it works rather than whether it installs:
 `import btclib` runs `__init__.py` alone, and the files under
-`src/btclib/*/_data/` — the wordlists among them — are opened by path at the
-first call that needs one, not imported, so a wheel missing one would
-pass the import and fail only here. This install names no extra, so the
-bindings are not asked for and the job is not entitled to assert they
+`src/btclib/*/_data/` are read by path when `btclib.network` and
+`btclib.curves.curve` are first imported, so a wheel missing one would
+pass `import btclib` and fail only here. This install names no extra, so
+the bindings are not asked for and the job is not entitled to assert they
 serve — the supported no-bindings configuration of issues #990, #991
-and #992. The first two checks below are version-independent, a BIP340
-vector and a BIP39 one whose values are fixed forever:
+and #992. The check below is version-independent, a signature whose value
+is fixed forever:
 
 ```shell
 python -m pip install btclib
@@ -924,13 +919,6 @@ python -c "import btclib; \
     from btclib.key import PrvKeyData; \
     assert dsa.verify(b'btclib', PrvKeyData(1).pub.sec, \
       dsa.sign(b'btclib', 1))"
-python -c "from btclib.mnemonic.bip39 import seed_from_mnemonic; \
-    m = 'abandon abandon abandon abandon abandon abandon abandon ' \
-        'abandon abandon abandon abandon about'; \
-    assert seed_from_mnemonic(m, 'TREZOR').hex() == ( \
-      'c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53' \
-      '495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f0016' \
-      '98e7463b04')"
 ```
 
 `install-published-secp256k1` installs `btclib[secp256k1]` instead,
@@ -970,13 +958,12 @@ is a test nobody has written rather than a regression somebody just
 caused. One parallel job per profile, each under its own budget, and no
 list of them here: `.github/mutation/` is the list, and every file in it
 states what it mutates and what judges it — the consensus code and the
-wire format it reads, the key, codec, descriptor, wallet, psbt and script
-layers, the signature schemes, and the boundaries where somebody else's
-bytes arrive. Where a session has already weighed survivors, the same
-header names the scheduled run and the `*-survivors.txt` artifact it
-uploaded, never a restated count. Those
-configurations are also what a local run reads, so there is one statement
-of what is mutated and what judges it:
+wire format it reads, the key, codec and script layers, the signature
+schemes, and the boundaries where somebody else's bytes arrive. Where a
+session has already weighed survivors, the same header names the scheduled
+run and the `*-survivors.txt` artifact it uploaded, never a restated
+count. Those configurations are also what a local run reads, so there is
+one statement of what is mutated and what judges it:
 
 ```shell
 uv run --locked --no-default-groups --group test --group mutation \
@@ -1058,76 +1045,7 @@ BTCLIB_INTEGRATION=1 BTCLIB_BITCOIND=/path/to/bitcoind \
 A step after it reads that report and fails the job if a regtest test
 skipped: pytest exits 0 for a module that skipped itself, so a job whose
 fixture stopped finding the node would stay green while asking Core
-nothing. The HWI tests skip there by design and are not counted; they are
-`integration-hwi.yml`'s, a workflow of its own rather than a second job
-here.
-
-`HWI against a Trezor emulator` is the first of its two jobs, and it
-gates nothing: it downloads a pinned emulator binary from
-`data.trezor.io` beside the same node, checks its sha256, installs a
-pinned HWI in an interpreter of its own — HWI declares `^3.9,<3.13`, and
-`src/btclib/hwi.py` says why it is a program here rather than a dependency —
-loads the seed HWI's own suite uses over DebugLink, and runs:
-
-```shell
-BTCLIB_INTEGRATION=1 BTCLIB_HWI_SIGN=1 \
-    BTCLIB_HWI="/path/to/hwi --emulators" \
-    BTCLIB_BITCOIND=/path/to/bitcoind \
-    uv run --locked --no-default-groups --group test \
-    pytest tests/integration/hwi_device_test.py -n0 --junitxml=hwi.xml
-```
-
-`-n0` because there is one device: `addopts` passes `-n auto`, and three
-workers are three HWI processes on one udp port.
-
-`BTCLIB_HWI_SIGN` can be set because HWI opens a udp device with
-`TrezorClientDebugLink`, which answers the button request itself. The
-workflow carries no `pull_request` trigger at all: a firmware release, an
-unreachable `data.trezor.io` or an emulator that stopped starting
-headless is trezor's day rather than the branch's, and a workflow that
-never triggers on a pull request produces no check there, not even a
-skipped one — so it runs weekly, on a push to `main`, and on
-`gh workflow run integration-hwi.yml --ref <branch>`, which is how a
-branch touching `src/btclib/hwi.py` is checked before it lands.
-
-`HWI against a Ledger emulator` is the second of the two, and it costs
-more because a Ledger does. There is no published app binary, so the job
-compiles one from a pinned tag of `LedgerHQ/app-bitcoin` inside Ledger's
-own builder image, pinned by digest — and compiles it twice, the coin
-being built in: `COIN=bitcoin` answers the mainnet questions of the
-module, `COIN=bitcoin_testnet` signs the regtest spend, and one binary
-cannot do both. Speculos comes from PyPI, where it carries its launcher
-and wants only `qemu-user-static` from the system, and it runs the two
-apps in turn:
-
-```shell
-SPECULOS_APPNAME="Bitcoin:2.5.0" speculos --display headless \
-    --api-port 0 --model nanox \
-    --automation file:.github/speculos-automation.json \
-    --log-level automation:DEBUG bitcoin.elf
-BTCLIB_INTEGRATION=1 BTCLIB_HWI="/path/to/hwi --emulators" \
-    uv run --locked --no-default-groups --group test \
-    pytest tests/integration/hwi_device_test.py -n0 \
-    -k "not signs_what_btclib_built" --junitxml=ledger-mainnet.xml
-```
-
-and again with `Bitcoin Test:2.5.0`, `bitcoin-test.elf`,
-`BTCLIB_HWI_SIGN=1` and `-k signs_what_btclib_built`. Nothing answers a
-button there the way DebugLink does on a Trezor, so `--automation` does:
-`.github/speculos-automation.json` is HWI's own file, vendored, and its
-rules match the text the app draws. That is the part that breaks when
-the app changes wording, and it breaks as a test waiting out btclib's
-timeout, which is why `automation:DEBUG` is on and both Speculos logs
-are uploaded with the reports.
-
-`.github/scripts/wait_for_hwi_device.py` is what stands between starting
-an emulator and running a test against it: Speculos answers no ping, so
-the question asked is the real one — `enumerate_devices` until one
-device is usable, or an `::error::` naming what was seen instead.
-
-All three jobs install the node through `.github/actions/install-bitcoind`,
-the repository's own composite action, so the release and its checksum
-are pinned once.
+nothing.
 
 The documentation, which the `docs` job of `docs.yml` runs with this same
 command by calling `reusable-docs.yml`, as read the docs does. `-W` is what
@@ -1192,7 +1110,7 @@ different question, asked by `tests/docs_examples_test.py`: any page under
 an example is edited by running `uv run pytest tests/docs_examples_test.py`
 and pasting back what the library answered — never by writing what it ought
 to answer. Keep them deterministic, which for `ssa.sign` means passing
-`aux` and for a mnemonic means passing the entropy; and keep every key on
+`aux`; and keep every key on
 those pages a published test vector, so that a reader who copies one copies
 something already known to the world.
 
@@ -1264,14 +1182,13 @@ deciding to.
 
 The two halves are independent. A module declares its own surface whether
 or not its parent publishes an edge to it, which is how
-`btclib.psbt.psbt_utils` and `btclib.curves.curve_group` say what they
-offer without becoming anybody's API: the module states the offer, the
+`btclib.curves.curve_group` says what it offers without becoming
+anybody's API: the module states the offer, the
 parent decides whether it is reachable.
 
 **A public name kept out of the list is a decision, and the docstring
 says why.** The `datadir` of `btclib.network` and of
-`btclib.curves.curve`, the three checksum tables of
-`btclib.descriptors`, and `btclib`'s own `name`, are the ones in the tree
+`btclib.curves.curve`, and `btclib`'s own `name`, are the ones in the tree
 today; each stays
 importable from the module that defines it, which is where the test suite
 takes it from. `tests/all_test.py` checks all of this and finds the
@@ -1298,13 +1215,12 @@ own mistake, it is a call mypy already refuses, and it leaves as a
 12 being a private key in this library and never a public one, where a
 well-formed public key that simply did not sign is False.
 
-**`ecc`'s verifications and `bip322.verify` carve one case out of
-that**, as `ecc.musig2` and `ecc.frost` do: a value of a declared type
-whose size or encoding makes it impossible to read as a signature, a
-key, an address, a digest or an opening raises rather than answering
-False. The function is not saying the signature is forged, it is saying
-it has no way to find out (issue #2170). So
-`dsa.verify(msg, "not a key", sig)` raises `BTClibValueError`, and
+**`ecc`'s verifications carve one case out of that**, as `ecc.musig2` and
+`ecc.frost` do: a value of a declared type whose size or encoding makes it
+impossible to read as a signature, a key, an address, a digest or an
+opening raises rather than answering False. The function is not saying the
+signature is forged, it is saying it has no way to find out (issue #2170).
+So `dsa.verify(msg, "not a key", sig)` raises `BTClibValueError`, and
 `bms.verify(msg, "not an address", sig)` with it, while a signature that
 is well formed and simply does not verify is False.
 
@@ -1321,22 +1237,6 @@ reference reads the same way: `dleq_verify_proof` asserts
 asserts `len(m) == 32`, while `s >= GE.ORDER` and a challenge that does
 not match are its False.
 
-**Where a parameter declares an encoding rather than a size, the
-encoding decides**, and `bip322.verify` is where the carve-out reaches
-outside `ecc` (issue #2181). What it raises there is a `BTClibValueError`
-or a `BTClibRuntimeError` -- a `ful` payload over too few octets draws
-the second -- and no rule says which class a given unreadable input
-draws (issue #2197). Its signature is base64 of one of BIP322's own
-variants, or the 65-octet compact signature the legacy variant carries,
-so text written in neither is refused; its address becomes the
-script_pub_key of `to_spend`, so a string that decodes to no address is
-refused with it. A real address the signature does not spend, and a
-script the engine does not satisfy, stay False. The `legacy` keyword is
-a policy over schemes and not a fact about the octets, so a compact
-signature offered where `legacy=False` asked for BIP322 proper is False,
-beside the restriction to p2pkh that is the other thing the keyword
-decides.
-
 `ecc.dsa`'s malformed DER encoding is the one thing on the other side of
 the line, and it is there because a measurement put it there rather than
 because the rule reaches it: its own wycheproof vectors ask that question
@@ -1348,34 +1248,35 @@ what issue #745 found and this replaces. The `assert_*` twin beside each
 of these is the spelling that says *why* a value was refused, and the two
 are how a caller chooses between an answer and a reason.
 
-**Both halves are gated, and both hold.**
-`tests/input_validation_test.py` drives the two rules over every public
-function whose required parameters are all library input types.
-`tests/bool_contract_test.py` drives them from hand-written fixtures over
-the verifications that walk cannot reach — a signature verification needs
-a valid message, key and signature, and a `Sig | Octets` no vocabulary of
-wrong values can build. `tests/built_object_contract_test.py` does the
-same for a function whose parameter is an object the caller already built
-— a `Psbt`, a `PsbtIn`, a sequence of extended keys — which is the family
-`check_validity=False` makes reachable, an invalid object being something a
-caller may legitimately hold. `tests/curve_parameter_test.py` drives
-the same rules over a parameter that carries a *default*: reaching one
-means every argument in front of it has to be valid, which is the table
-of valid values the automatic walk exists to do without, so `ec` is
-driven from a table there as `hf` and `network` are driven where their
-own checks live. None of these test files has an exemption list, which is
-the state to keep: a finding is a red test, to be fixed or to be given a
-reason of its own beside the two families that have one.
+**Both halves are gated, and both hold.** `tests/input_validation_test.py`
+drives the two rules over every public function whose required parameters
+are all library input types. `tests/bool_contract_test.py` drives them
+from hand-written fixtures over the verifications that walk cannot reach —
+a signature verification needs a valid message, key and signature, and a
+`Sig | Octets` no vocabulary of wrong values can build.
+`tests/built_object_contract_test.py` does the same for a function whose
+parameter is an object the caller already built — a `CmpctBlock` handed to
+`p2p.compact_blocks.reconstruct` — which is the family
+`check_validity=False` makes reachable, an invalid object being something
+a caller may legitimately hold. `tests/curve_parameter_test.py` drives the
+same rules over a parameter that carries a *default*: reaching one means
+every argument in front of it has to be valid, which is the table of valid
+values the automatic walk exists to do without, so `ec` is driven from a
+table there as `hf` and `network` are driven where their own checks live.
+None of these test files has an exemption list, which is the state to
+keep: a finding is a red test, to be fixed or to be given a reason of its
+own beside the two families that have one.
 
 **A `bool` parameter is a kind or a truth, and only the first is
 type-checked.** A flag that decides *what is computed* refuses a non-bool,
-`musig2._flag` stating the reason: a kind written down and read back — json,
-a configuration file, a coordinator's message — arrives as whatever it was
-written as, and `"false"` is true, so `KeyGroup(verify=)` would compute
-every address of the other script rather than raise. A flag that decides
-only *whether a check runs* is read for its truth: `check_validity` and
-`slip132`'s `check_root_xkey` either run a check or skip one, and neither
-changes an answer. `tests/check_validity_test.py` owns that convention.
+`musig2._flag` stating the reason: a kind written down and read back —
+json, a configuration file, a coordinator's message — arrives as whatever
+it was written as, and `"false"` is true, so
+`btclib_wallet.wallet.KeyGroup(verify=)` would compute every address of
+the other script rather than raise. A flag that decides only *whether a
+check runs* is read for its truth: `check_validity` either runs a check or
+skips one, and never changes an answer. `tests/check_validity_test.py`
+owns that convention.
 
 **A truth's `True` has to be its conservative value**, which is the second
 half of the same rule and the one issue #884 asked for. Every wrong value
@@ -1415,15 +1316,15 @@ parameter; and a **reduction outside the `try`**, which refuses a message
 **Which of those a function is, its name says**, and the vocabulary is
 closed: a public function that answers a `bool` carries one of the four
 prefixes below, or is one of the English predicates
-`tests/name_contract_test.py` names — `Psbt.inputs_modifiable` and
-`Miniscript.mixes_timelocks` among them, where the name is the standard's
-and `is_` would cost the reading. A bool that is neither fails that gate,
-so a new one is a prefix or a decision somebody wrote down.
+`tests/name_contract_test.py` names — `BasicBlockFilter.match` among them,
+where the name is the standard's and `is_` would cost the reading. A bool
+that is neither fails that gate, so a new one is a prefix or a decision
+somebody wrote down.
 
 **A member that takes nothing but `self` is a `@property`**, whatever it
 answers, and that is gated: it is read off the object rather than called,
-so `tx.is_segwit` and not `tx.is_segwit()`, `view.prevouts` and not
-`view.prevouts()`. `functools.cached_property` is one of these — a read
+so `tx.is_segwit` and not `tx.is_segwit()`, `tx.vsize` and not
+`tx.vsize()`. `functools.cached_property` is one of these — a read
 that parses once, as `Script.asm` does.
 
 What is *not* a read is exempt by shape rather than by a list of names:
@@ -1435,13 +1336,6 @@ exemption named individually is `alias.HashObject`'s `digest`,
 `hexdigest` and `copy`, because hashlib calls them that way — and hashlib
 draws the same line itself, `block_size` and `digest_size` being
 attributes there as they are properties here.
-
-A `Protocol` member is under the rule too, and that makes the shape a
-promise: declaring `PsbtSigner.master_fingerprint` a property says
-reading it is free, which every implementation of it can keep. Where a
-future one cannot — HWI's own `get_master_fingerprint` is a device call —
-the answer is to relax the contract deliberately, not to leave room for
-it in advance.
 
 The bool half of the same rule: Thirty were properties and six were methods,
 which made the six the exception; they are properties now. It also makes
@@ -1490,11 +1384,11 @@ validity at construction is not validity at use. Passing it is supported —
 a public function that takes an already-built object and asks it nothing
 is one a caller can reach with an object the library itself would refuse.
 
-`btclib.bip32` is the shape to copy. `derive` validates and calls
+`btclib_wallet.bip32` is the shape to copy. `derive` validates and calls
 `_derive`, which does not, and `_key_data_from_bip32_key` is the one place
 a `BIP32Key` of any spelling becomes a validated `BIP32KeyData`, every
-public wrapper going through it. `descriptors` then composes the twins
-directly — `_xpub_from_xprv(_derive(_key_data_from_bip32_key(xprv),
+public wrapper going through it. `btclib_wallet.descriptors` then composes
+the twins directly — `_xpub_from_xprv(_derive(_key_data_from_bip32_key(xprv),
 prefix, None))` — paying one validation instead of three, and no base58
 round trip between them. The leading underscore those three carry means
 what it means anywhere in Python: private. `__all__` is what decides

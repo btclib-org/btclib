@@ -48,22 +48,17 @@ license-files = ["LICENSE", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 requires-python = ">=3.11"
 # Required, where the bindings below are an extra, and that asymmetry was
-# weighed rather than inherited: a `fetch` extra was considered and
-# refused (issue #1126). CONTRIBUTING.md's dependency paragraph carries
-# the reasoning, beside the ceiling argument it already makes; the
-# releases themselves are named here and nowhere else, a floor moving
-# whenever this tree starts calling something newer and a second copy of
-# the number being the one that goes stale.
+# weighed rather than inherited (issue #1126). CONTRIBUTING.md's dependency
+# paragraph carries the reasoning, beside the ceiling argument it already
+# makes; the releases themselves are named here and nowhere else, a floor
+# moving whenever this tree starts calling something newer and a second copy
+# of the number being the one that goes stale.
 dependencies = [
-    # 2026.9.3 is the release `BitcoinCoreRestClient` first ships in, and
-    # `btclib.fetch` imports it at module level rather than behind a
-    # guard, so anything resolving older fails on the import itself. The
-    # rest of what this tree calls -- `BitcoinCoreRpcClient`, `RpcError`,
-    # `chain_from_network`, `magic_from_chain`,
-    # `magic_from_signet_challenge` -- is in 2026.8.29, the split of the
-    # package into errors, chains, transport and client modules behind
+    # `btclib.p2p.magic` calls `chain_from_network`, `magic_from_chain` and
+    # `magic_from_signet_challenge`, all three in 2026.8.29, the split of
+    # the package into errors, chains, transport and client modules behind
     # its facade and the first release the `chains` module exists in
-    "bitcoin-core-rpc>=2026.9.3",
+    "bitcoin-core-rpc>=2026.8.29",
     # `typing.override` is 3.12's, `typing.TypeIs` is 3.13's, and the
     # floor is 3.11, so both come from the backport; 4.4 is the release
     # that adds `override`, 4.10 the one that adds `TypeIs`, and the
@@ -366,7 +361,6 @@ source-exclude = [
     "/tests/mutation_sessions_test.py",
     "/tests/normalize_sdist_test.py",
     "/tests/verify_dist_contents_test.py",
-    "/tests/wait_for_hwi_device_test.py",
     "/tests/what_runs_when_test.py",
     # the same reasoning, for fuzz/ rather than .github/scripts: git-only
     # below is why it is not in the sdist, and this test reads
@@ -592,7 +586,7 @@ addopts = "-ra --cov --durations=8 -n auto --dist worksteal --strict-config --st
 xfail_strict = true
 # --strict-markers is on, so a marker is declared here or it is a typo.
 # `integration` is what needs something this repository does not ship: a
-# bitcoind to talk to, an HWI to run. Those tests skip themselves without
+# bitcoind to talk to. Those tests skip themselves without
 # BTCLIB_INTEGRATION in the environment, so the marker is for selecting
 # them (`-m integration`) and for excluding them from a run that has the
 # variable set for other reasons
@@ -616,18 +610,16 @@ markers = [
 filterwarnings = ["error"]
 
 [tool.codespell]
-# the vendored data is skipped rather than corrected, and the distinction
-# matters in both directions. The BIP39 wordlists are normative: "sting"
-# is word 1712 of the English list, and correcting it to "string" changes
-# every mnemonic ever derived from it. The test vectors have to stay byte
-# for byte what upstream published, so a typo inside a Bitcoin Core
-# comment or a signed message is part of the vector; tests/_data/README.md
-# pins them, and this list is what keeps a spell checker from unpinning
-# them. _generated_files holds committed output, rewritten by the tests
-# themselves, and .secrets.baseline and uv.lock are hashes
-# by extension rather than by directory, so that tests/_data/README.md --
-# which records where each of those files came from -- is still spell
-# checked, being prose about the data and not the data
+# the vendored data is skipped rather than corrected: the test vectors
+# have to stay byte for byte what upstream published, so a typo inside a
+# Bitcoin Core comment or a signed message is part of the vector;
+# tests/_data/README.md pins them, and this list is what keeps a spell
+# checker from unpinning them. _generated_files holds committed output,
+# rewritten by the tests themselves, and .secrets.baseline and uv.lock are
+# hashes by extension rather than by directory, so that
+# tests/_data/README.md -- which records where each of those files came
+# from -- is still spell checked, being prose about the data and not the
+# data
 
 # fuzz/corpus/'s own seed files, added under btclib-org/btclib#1438: the
 # same content sniff for a NUL byte [tool.typos.files] argues below
@@ -650,26 +642,18 @@ filterwarnings = ["error"]
 # this entry. Untested in the hook itself: pre-commit hands codespell
 # the bare paths git ls-files emits, none of them carrying one
 skip = "*/_data/*.json,*/_data/*.csv,*/_data/*.txt,*/_data/*.bin,*/_generated_files/*,.secrets.baseline,uv.lock,fuzz/corpus/*"
-# identifiers, not misspellings: "wit" is a transaction's witness and
-# "nd" is the Neutered Derivation the bip32 docstrings spell out. Both
-# are real words to codespell's dictionary, so neither can be fixed by
-# writing it differently -- unlike the rest of what this hook found,
-# which was corrected instead of listed here
-# "ser" and "unser" join them for a reason of this file's own rather than
+# identifiers, not misspellings: "wit" is a transaction's witness, a
+# real word to codespell's dictionary, so it cannot be fixed by writing it
+# differently -- unlike the rest of what this hook found, which was
+# corrected instead of listed here
+# "ser" and "unser" join it for a reason of this file's own rather than
 # of the prose: `[tool.typos.default.extend-words]` below configures the
 # other spell checker with `ser = "ser"` and `unser = "unser"`, and a TOML
 # key cannot be written in the backticks the rule below hides a deliberate
 # misspelling in. Every *prose* mention of either is backticked and
 # already invisible to this hook; what these two entries cover is the two
 # lines that configure the other one.
-# "te" is what electrum's own NFD spelling of "término" tokenizes into:
-# base "e" and the combining acute accent on it are two codepoints, so
-# the word splits into "te" and "rmino" at the mark, and "te" alone is in
-# codespell's dictionary as a typo for "the"/"be"/"we"/"to". The
-# passphrase in tests/mnemonic/electrum_test.py needs that exact NFD
-# spelling -- issue #1284 has why -- so the split is fixed here rather
-# than by composing the accent away
-ignore-words-list = "wit,nd,ser,unser,te"
+ignore-words-list = "wit,ser,unser"
 # a misspelling written on purpose goes in backticks, and that is a
 # convention of this repository rather than a preference: prose that
 # documents a spell checker has to name what it catches, and the prose
@@ -702,11 +686,9 @@ ignore-regex = '`[^`]*`'
 # there, and the list has to be written again rather than shared because
 # the glob syntax differs: "*/_data/*.json" matches at any depth for
 # codespell and one directory deep for typos. Spelled codespell's way it
-# left the normative BIP39 italian wordlist in the scan, where 18 words
-# are "corrected" into English -- `tabacco` to tobacco, `normale` to
-# normal --
-# and the hook runs with --write-changes, so that is a rewrite of every
-# mnemonic derived from that list, not a report
+# would leave the deeper vendored files in the scan, and the hook runs
+# with --write-changes, so a word it "corrects" there is a rewrite of a
+# vector, not a report
 extend-exclude = [
     "**/_data/*.json",
     "**/_data/*.csv",
@@ -744,10 +726,9 @@ extend-exclude = [
 [tool.typos.default]
 # addresses, keys and signatures written inline in the test sources, which
 # splitting into words turns into a spell checker's worst input: `SHS`
-# inside a base58 address, `Owrk` inside a base64 psbt. The rule is what
-# keeps a vector byte for byte -- this hook fixes in place, so with the
-# rule off it rewrites the sources it reads, an extended key's `ThmBZ`
-# becoming `ThemBZ`.
+# inside a base58 address. The rule is what keeps a vector byte for byte
+# -- this hook fixes in place, so with the rule off it rewrites the
+# sources it reads.
 # Ignored by shape rather than by file, unlike the vendored data above --
 # these literals sit next to prose that has to stay checked, and a skipped
 # tests/*.py would take the prose with it.
@@ -763,17 +744,6 @@ extend-ignore-re = ['[0-9A-Za-z+/]{26,}={0,2}']
 [tool.typos.default.extend-identifiers]
 # BIP342 spells it so, and the x is the placeholder for the opcode number
 OP_SUCCESSx = "OP_SUCCESSx"
-# HWI's own former spelling of error code -4, refuse included: upstream
-# renamed it to UNKNOWN_DEVICE_TYPE and kept this as a compat alias,
-# tests/hwi_test.py's transcription follows the rename, and CHANGELOG.md
-# still narrates the misspelling that was pinned before it
-UNKNWON_DEVICE_TYPE = "UNKNWON_DEVICE_TYPE"
-# BOLT9's own name for the feature at bits 8/9, `optin` for opt-in
-# (09-features.md). src/btclib/bolt9.py transcribes that table and the hook
-# runs with --write-changes, so without this line the name becomes
-# `var_onion_option`, which names no feature of the BOLT and reads as a
-# transcription error to anybody checking the table against its source
-var_onion_optin = "var_onion_optin"
 # `secp256k1_borromean_verify_impl`'s own out-parameter, the challenges it
 # saves for a rewind (secp256k1-zkp,
 # src/modules/rangeproof/borromean_impl.h), which
@@ -784,16 +754,13 @@ var_onion_optin = "var_onion_optin"
 evalues = "evalues"
 
 [tool.typos.default.extend-words]
-# "nd" is the Neutered Derivation of the bip32 docstrings, as for codespell
-# above; "ands" is the verb, mult's further condition anded onto the
-# bindings predicate. Neither can be written differently
-nd = "nd"
+# "ands" is the verb, mult's further condition anded onto the bindings
+# predicate, and cannot be written differently
 ands = "ands"
 # BIP322's prefix for the full variant of a signature, three characters
-# as the other two are. The hook runs with --write-changes, so without
-# this line it turns `ful` into `full` in src/btclib/bip322.py -- which
-# is a signature every other implementation refuses, written by a spell
-# checker into a wire format
+# as the other two are, which CHANGELOG.md quotes. The hook runs with
+# --write-changes, so without this line it turns `ful` into `full` there,
+# the name of no variant
 ful = "ful"
 # src/btclib/__init__.py names ruff's CPY001 (flake8-copyright) rule by
 # code; without this entry the hook splits it and rewrites the comment
@@ -850,28 +817,13 @@ unser = "unser"
 extend-glob = ["CHANGELOG.md", "RELEASE_NOTES.md", ".pre-commit-config.yaml"]
 extend-ignore-re = ['`[^`]*`']
 
-[tool.typos.type.mixed-case-vectors]
-# electrum's seed-type table quotes several of its mnemonics a second time
-# in mIxEd CaSe, that being exactly the normalization under test, and a
-# checker that splits camelCase reads the halves as words: `SqUeEzE` is an
-# `Ue` it offers to correct to "Use". With --write-changes that is a
-# rewrite of a vector electrum published, and the test would then be
-# measuring btclib against btclib.
-# Ignored by shape and not by file, as [tool.typos.default]'s literal rule
-# above is: a lower-case letter followed by an upper-case one inside one
-# word is the shape, so the prose and the identifiers of the same file stay
-# checked. Some of those words trip it today, and the rule covers the class
-# because which of them trips it is a fact about a dictionary that updates
-extend-glob = ["electrum_test.py"]
-extend-ignore-re = ['\w*[a-z][A-Z]\w*']
-
 [tool.coverage.run]
 # what the ratchet measures, named here rather than on the command line
 # that starts it. Unnamed, `--cov` measures every file the run imports,
 # and that reaches `.github/scripts`'s own modules through the tests
-# that load them by path -- `wait_for_hwi_device.py`'s `if __name__ ==
-# "__main__":` guard, untouched by anything in `tests/`, is what stays
-# uncovered today. So a bare `uv run pytest --cov` fails on a pristine
+# that load them by path -- `check_py_arm_authority.py`'s `if __name__ ==
+# "__main__":` guard, untouched by anything in `tests/`, is one that stays
+# uncovered. So a bare `uv run pytest --cov` fails on a pristine
 # checkout while the coverage-py job passes -- a local gate stricter
 # than the one it exists to reproduce, which is the worse of the two
 # directions: it asks for a fix that CI does not want. Named, the job
@@ -992,18 +944,17 @@ warn_unreachable = true
 python_version = "3.11"
 # a regular expression, `re.search`'d against each discovered path
 # (mypy/modulefinder.py's matches_exclude) rather than a glob -- so an
-# unanchored "build" matches the substring anywhere in a path, not only
-# the docs/sdist build/ directory it names. That dropped
-# tests/tx_builder_test.py, tests/build_system_test.py,
-# tests/wait_for_readthedocs_build_test.py, tests/block/build_test.py
-# and .github/scripts/wait_for_readthedocs_build.py from the gate with
-# no diagnostic (issue #2115). mypy's own --exclude help text anchors
-# its own example too, but at the other end: its own example is
-# `/setup\.py$`, pinning a trailing `$` to one filename rather than a
-# leading `^` to a directory. `^` is what ties the match to the start
-# of the path matches_exclude builds (a plain os.path.relpath, no
-# leading "./"), and the trailing "/" is what stops it also matching a
-# file merely named build
+# unanchored "build" matches the substring anywhere in a path, not only the
+# docs/sdist build/ directory it names. That dropped
+# tests/build_system_test.py, tests/wait_for_readthedocs_build_test.py,
+# tests/block/build_test.py and
+# .github/scripts/wait_for_readthedocs_build.py from the gate with no
+# diagnostic (issue #2115). mypy's own --exclude help text anchors its own
+# example too, but at the other end: its own example is `/setup\.py$`,
+# pinning a trailing `$` to one filename rather than a leading `^` to a
+# directory. `^` is what ties the match to the start of the path
+# matches_exclude builds (a plain os.path.relpath, no leading "./"), and the
+# trailing "/" is what stops it also matching a file merely named build
 exclude = [
     "^build/",
 ]
@@ -1228,10 +1179,8 @@ ignore = [
     "boolean-positional-value-in-call",
     # flake8-unused-arguments: a dispatch table's members share one
     # signature so a caller does not need to know which one it is
-    # calling -- descriptors.py's `_parse_*` functions all take
-    # `(args, context, network, prv_keys)` and most ignore `context`,
-    # and p2p's per-message `parse` classmethods override one shared
-    # signature the same way. The rule cannot tell a deliberately
+    # calling -- p2p's per-message `parse` classmethods override one
+    # shared signature and most ignore part of it. The rule cannot tell a deliberately
     # uniform interface from a parameter nobody reads; the two member
     # codes this tree has not hit today read the same call sites through
     # a classmethod or a staticmethod instead of a plain function or
@@ -1248,8 +1197,7 @@ ignore = [
     # `Octets`/`String` out of a module's runtime namespace this way
     # turns `sphinx.ext.autodoc`'s resolution of the deferred annotation
     # into a fallback on the annotation's own text, and `-n` fails the
-    # build on the unresolved cross-reference -- the same failure mode
-    # `core_import.py`'s own comment already documents for `Descriptor`.
+    # build on the unresolved cross-reference.
     # Most of this package's modules defer their annotations with
     # `from __future__ import annotations`, so the import stays live for
     # the same reason in each of them
@@ -1364,21 +1312,12 @@ ignore = [
 "src/btclib/__init__.py" = ["F822"]
 "src/btclib/p2p/__init__.py" = ["F822"]
 "src/btclib/script/__init__.py" = ["F822"]
-# collecting entropy from dice is a conversation: the module prompts with
-# input() and prints how many rolls it needs and which ones count, so its
-# prints are the interface, not a debugging leftover -- unlike a print
-# anywhere else in the library, which is deleted rather than ignored
-"src/btclib/mnemonic/entropy.py" = ["T201"]
 # T20 is selected for the library, which writes to no stream of its own;
 # a script whose caller is a workflow step is the case it is not about.
 # The vendored-vector checker: BEHIND, SKIPPED and the all-clear line
 # are what a weekly run's log says happened, the issue it opens or
 # closes being the same report a second way
 ".github/scripts/check_vendored_vectors.py" = ["T201"]
-# and the device wait, whose whole output is one line for the log of the
-# job that started an emulator: what it saw and how long it took, or the
-# ::error:: annotation naming what it saw instead
-".github/scripts/wait_for_hwi_device.py" = ["T201"]
 # and the py-arm authority re-derivation: which module it is
 # measuring, one line per disagreement found, and the all-clear or count
 # at the end are what a weekly run's log says happened

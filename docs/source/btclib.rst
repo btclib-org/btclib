@@ -7,18 +7,12 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   btclib.bip32
    btclib.block
    btclib.curves
-   btclib.descriptors
    btclib.ecc
-   btclib.fetch
-   btclib.mnemonic
    btclib.p2p
-   btclib.psbt
    btclib.script
    btclib.tx
-   btclib.wallet
 
 Submodules
 ----------
@@ -65,62 +59,6 @@ btclib.bech32 module
    :members:
    :show-inheritance:
 
-btclib.bip21 module
--------------------
-
-.. automodule:: btclib.bip21
-   :members:
-   :show-inheritance:
-
-btclib.bip322 module
---------------------
-
-.. automodule:: btclib.bip322
-   :members:
-   :show-inheritance:
-
-btclib.bip38 module
--------------------
-
-.. automodule:: btclib.bip38
-   :members:
-   :show-inheritance:
-
-btclib.bip44 module
--------------------
-
-.. automodule:: btclib.bip44
-   :members:
-   :show-inheritance:
-
-btclib.bip85 module
--------------------
-
-.. automodule:: btclib.bip85
-   :members:
-   :show-inheritance:
-
-btclib.bolt11 module
---------------------
-
-.. automodule:: btclib.bolt11
-   :members:
-   :show-inheritance:
-
-btclib.bolt9 module
--------------------
-
-.. automodule:: btclib.bolt9
-   :members:
-   :show-inheritance:
-
-btclib.coin_selection module
-----------------------------
-
-.. automodule:: btclib.coin_selection
-   :members:
-   :show-inheritance:
-
 btclib.coinstats module
 -----------------------
 
@@ -132,13 +70,6 @@ btclib.consensus module
 -----------------------
 
 .. automodule:: btclib.consensus
-   :members:
-   :show-inheritance:
-
-btclib.core_import module
--------------------------
-
-.. automodule:: btclib.core_import
    :members:
    :show-inheritance:
 
@@ -170,13 +101,6 @@ btclib.hashes module
    :members:
    :show-inheritance:
 
-btclib.hwi module
------------------
-
-.. automodule:: btclib.hwi
-   :members:
-   :show-inheritance:
-
 btclib.kdf module
 -----------------
 
@@ -188,13 +112,6 @@ btclib.key module
 -----------------
 
 .. automodule:: btclib.key
-   :members:
-   :show-inheritance:
-
-btclib.minikey module
----------------------
-
-.. automodule:: btclib.minikey
    :members:
    :show-inheritance:
 
@@ -216,48 +133,6 @@ btclib.number\_theory module
 ----------------------------
 
 .. automodule:: btclib.number_theory
-   :members:
-   :show-inheritance:
-
-btclib.psbt\_signer module
---------------------------
-
-.. automodule:: btclib.psbt_signer
-   :members:
-   :show-inheritance:
-
-btclib.psbt\_signer\_contract module
-------------------------------------
-
-.. automodule:: btclib.psbt_signer_contract
-   :members:
-   :show-inheritance:
-
-btclib.silent\_payments module
-------------------------------
-
-.. automodule:: btclib.silent_payments
-   :members:
-   :show-inheritance:
-
-btclib.slip132 module
----------------------
-
-.. automodule:: btclib.slip132
-   :members:
-   :show-inheritance:
-
-btclib.tx\_builder module
--------------------------
-
-.. automodule:: btclib.tx_builder
-   :members:
-   :show-inheritance:
-
-btclib.tx\_or\_psbt module
---------------------------
-
-.. automodule:: btclib.tx_or_psbt
    :members:
    :show-inheritance:
 

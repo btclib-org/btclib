@@ -45,7 +45,6 @@ own with its branch already in its path.
 [![fuzz workflow status](https://github.com/btclib-org/btclib/actions/workflows/fuzz.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/fuzz.yml?query=branch%3Amain)
 [![integration-bitcoind workflow status](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml?query=branch%3Amain)
 [![zkp-oracle workflow status](https://github.com/btclib-org/btclib/actions/workflows/zkp-oracle.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/zkp-oracle.yml?query=branch%3Amain)
-[![integration-hwi workflow status](https://github.com/btclib-org/btclib/actions/workflows/integration-hwi.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/integration-hwi.yml?query=branch%3Amain)
 [![deps-latest workflow status](https://github.com/btclib-org/btclib/actions/workflows/deps-latest.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/deps-latest.yml?query=branch%3Amain)
 [![pypi-install workflow status](https://github.com/btclib-org/btclib/actions/workflows/pypi-install.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/pypi-install.yml?query=branch%3Amain)
 [![deps-oldest workflow status](https://github.com/btclib-org/btclib/actions/workflows/deps-oldest.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/deps-oldest.yml?query=branch%3Amain)
@@ -75,10 +74,9 @@ argument*](./CONTRIBUTING.md#breaking-a-caller-is-not-an-argument) says
 what that promises a caller and what it does not).
 
 The test suite covers virtually the whole code base, a floor the build
-enforces, and it answers to vectors their authors publish: the BIPs' and
-the SLIPs' own, Bitcoin Core's script, transaction, sighash and
-key-encoding files, HWI's, trezor's for BIP39 and SLIP39, and Appendix A.2
-of RFC 6979. `tests/_data/README.md` pins each vendored file to the
+enforces, and it answers to vectors their authors publish: the BIPs' own,
+Bitcoin Core's script, transaction, sighash and key-encoding files, and
+Appendix A.2 of RFC 6979. `tests/_data/README.md` pins each vendored file to the
 upstream commit it was copied from, and says whether the two still match —
 including the few vectors that are btclib's own, having no upstream.
 
@@ -112,11 +110,6 @@ Included features are:
 - ECDSA signature with (message) compact encoding: standard p2pkh and
   [BIP137](https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki)/[Electrum](https://electrum.org/#home)
   extensions to p2wpkh and p2wpkh-p2sh
-- [BIP322](https://github.com/bitcoin/bips/blob/master/bip-0322.mediawiki)
-  signed messages, where the address is a script to satisfy rather than a
-  key to recover: the simple, full and proof-of-funds variants, verified
-  by the script engine, so multisig, taproot and time locks sign as well
-  as p2pkh does
 - [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979.html) for deterministic signature
   schemes
 - EC Schnorr signature (according to
@@ -143,100 +136,24 @@ Included features are:
 - p2pkh/p2sh addresses and WIFs
 - Bech32 encoding/decoding
 - p2wpkh/p2wsh native segwit addresses and their legacy p2sh-wrapped versions
-- [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
-  hierarchical deterministic key chains
-- [BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
-  mnemonic for generating deterministic keys, in the wordlists of the
-  reference implementation, with the language read off the words
-- [Electrum](https://electrum.org/#home) standard for mnemonic, reading
-  the same wordlists as BIP39 except for Portuguese, which is Electrum's
-  own list
-- [SLIP39](https://github.com/satoshilabs/slips/blob/master/slip-0039.md)
-  Shamir backup: a master secret split into mnemonic shares, of which a
-  threshold number recovers it
-- [BIP44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki)
-  address from an extended key and a
-  `m/purpose'/coin_type'/account'/change/address_index` path, the purpose
-  selecting the encoding: 44 p2pkh, 49 p2wpkh-p2sh, 84 p2wpkh (BIP84),
-  86 p2tr (BIP86)
-- [SLIP132](https://github.com/satoshilabs/slips/blob/master/slip-0132.md)
-  key versions (xprv, yprv, zprv, Yprv, Zprv, tprv, uprv, vprv, and Uprv)
-  with corresponding mapping to
-  p2pkh/p2sh, p2wpkh-p2sh, p2wpkh, p2wsh-p2sh, p2wsh and p2tr addresses
-- [BIP85](https://github.com/bitcoin/bips/blob/master/bip-0085.mediawiki)
-  deterministic entropy: one root key behind many wallets, a hardened
-  path saying which, and each application taking what it needs of the 512
-  bits it reaches — a BIP39 mnemonic, the Bitcoin Core `hdseed` WIF, an
-  xprv, raw bytes, a base64 or base85 password, dice rolls, and the
-  SHAKE256 stream an RSA key generator reads
-- [BIP352](https://github.com/bitcoin/bips/blob/master/bip-0352.mediawiki)
-  silent payments: one reusable bech32m address, and a different taproot
-  output for every payment to it — the sender's outputs, the receiver's
-  scan, the labels that give one wallet many published addresses, and the
-  tweak data a light client scans from
 - Script encoding/decoding
 - nulldata, p2pk, p2ms, p2pkh, p2sh, p2wpkh, p2wsh and p2tr ScriptPubKeys
 - a script engine: a transaction verified against the consensus rules,
   legacy, segwit and tapscript, with Bitcoin Core's own vectors behind it
-- [BIP380](https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki)
-  output descriptors: the checksum, the parser, the scripts a descriptor
-  names, and the spend
-- [BIP379](https://github.com/bitcoin/bips/blob/master/bip-0379.md)
-  miniscript, read, written and spent, inside `wsh()` and as a `tr()` leaf:
-  the expression compiled to a script, a script read back into the
-  expression it is, the type system that says an expression is well formed,
-  the bounds a spend of it is analysed by, and the non-malleable witness
-  that satisfies it
 - OutPoint, TxIn, TxOut, and TX data classes
 - legacy, segwit_v0 and taproot transaction hash signatures
 - BlockHeader and Block data classes
 - merkle proofs verified against a header's merkle root
 - proof-of-work arithmetic: compact targets, retargeting, work, hash rate
-- [BIP174](https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki)
-  partially signed bitcoin transactions (PSBT):
-  PsbtIn, PsbtOut, and Psbt data classes, with the taproot fields of
-  [BIP371](https://github.com/bitcoin/bips/blob/master/bip-0371.mediawiki)
-  and the MuSig2 ones of
-  [BIP373](https://github.com/bitcoin/bips/blob/master/bip-0373.mediawiki)
-- PsbtView, the same psbt read a map at a time out of a stream, for a
-  signer with less memory than the psbt takes: the maps it is asked for,
-  the transaction being built, the outputs being spent and both sig_hashes
-- [BIP370](https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki)
-  PSBT version 2, the unsigned transaction computed from the fields rather
-  than carried as one: the lock time its inputs require, the identifier
-  that ignores their sequences, the modifiable flags a Constructor must
-  obey, and conversion either way
-- [BIP375](https://github.com/bitcoin/bips/blob/master/bip-0375.mediawiki)
-  silent payments in a PSBT: the six fields that carry an ECDH share, its
-  BIP374 proof and the address being paid, the output script that may not
-  exist yet, and the identifier that reads the address in its place — with
-  both roles the BIP adds, the Signer that writes the shares and derives
-  the scripts and the Transaction Extractor that recomputes every one of
-  them before the transaction goes out
-- [BIP21](https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki)
-  `bitcoin:` payment URIs
 - fee rates carrying their unit (sat/kvB, sat/vB, and the BTC/kvB Bitcoin
   Core quotes one in), the fee a virtual size owes at one, what a child
   owes for the unconfirmed ancestors it is mined with, and the dust
   threshold of any output type, computed as Bitcoin Core computes it
   rather than tabulated
-- wallets, several sources of addresses behind one vocabulary: an extended
-  key at a BIP44 account or a set of individual keys, which also answer
-  the private key that signs for an address — what `sign(address, msg)`
-  needs — an output descriptor per chain, and a script template with
-  multisig quorums in it, for the pre-descriptor wallets no descriptor
-  states — and, for the ones that turn out to have a descriptor after all,
-  the ranged descriptor lifted out of the script itself, confirmed against
-  the addresses it derives. Each answers `address(branch, index)`,
-  `script_pub_key(branch, index)` and `position_of(script_pub_key)`, the
-  last being "is this output mine", compared whole and never on a key
-  origin's fingerprint
-- an external signer behind one contract, with Bitcoin Core's
-  [HWI](https://github.com/bitcoin-core/HWI) behind it for a hardware
-  wallet
-- a chain backend behind one interface — a transaction by id, the output
-  an outpoint names, the chain tip — over a full node's JSON-RPC or a
-  block explorer's HTTP api
+
+The wallet side — key derivation, mnemonics, PSBTs, output descriptors,
+signers and chain backends — is the `btclib-wallet` distribution, imported
+as `btclib_wallet`, which depends on this one.
 
 ---
 
@@ -257,7 +174,7 @@ predicate — a process-wide dispatch switch, secp256k1 as the curve,
 and sha256 or no hash function at all — with whatever further
 conditions the call site ands onto it. Those conditions differ from
 one function to the next, and `SECURITY.md` states each of them, for
-`dsa.sign`, `ssa.sign` and `silent_payments.output_keys` alike.
+`dsa.sign` and `ssa.sign` alike.
 Whatever that conjunction declines runs the Python arithmetic, which
 the suite validates against the bindings but which is not
 constant-time. A process that has the bindings turns that switch off
@@ -265,16 +182,8 @@ with `curves.set_libsecp256k1_serving(serving=False)`, or with
 `BTCLIB_NO_LIBSECP256K1` in the environment, and every operation here
 is then the Python arithmetic. So a caller whose threat model includes
 timing should stay on the delegated paths, or keep the key out of the
-process altogether: `btclib.hwi` drives a hardware wallet through HWI,
-behind the same `PsbtSigner` contract a software signer answers.
-`silent_payments.scan_outputs`, BIP352's light-client scan, is
-Python-only regardless: it accepts the shared secret already reduced,
-the shape a light client has and the bindings have no entry point for.
-`scan_transaction_outputs`, its full-node sibling, is not: where the
-bindings serve secp256k1 it reaches them with `b_scan`, the
-recipient's scan private key, the same as `output_keys` above — a
-caller holding the transaction itself gets the delegated path a light
-client cannot reach.
+process altogether: `btclib_wallet.hwi` drives a hardware wallet through
+HWI, behind the same `PsbtSigner` contract a software signer answers.
 
 Crossing that call is not the same as constant time. Where that
 conjunction delegates a `mult` of a point that is not the generator, its
@@ -336,68 +245,25 @@ and the compression a record carries and a key does not are `key`'s,
 which holds those records as objects:
 `key.PubKeyData` is what an address builder takes and `key.PrvKeyData`
 what `ecc.bms` signs with, so a caller states which half of a pair it
-holds. A spelling that carries either belongs
-to the module that defines it, so a WIF is `b58`'s, an extended key is
-`bip32`'s, and a Casascius minikey is `minikey`'s, read-only. `bip32` and
-`mnemonic` derive keys.
-`script`, `tx`, `block` and `psbt` build and validate what goes on
-the chain, and `script.engine` runs a transaction against the consensus
-rules. `p2p` is the wire format peers speak — the message envelope, its
-framing, the message start each network begins with, and the payloads a
-connection opens with — and it opens no socket: `fetch` is the one
-package that goes and asks, and neither imports the other.
+holds. A spelling that carries either belongs to the module that defines
+it, so a WIF is `b58`'s. `script`, `tx` and `block` build and validate what
+goes on the chain, and `script.engine` runs a transaction against the
+consensus rules. `p2p` is the wire format peers speak — the message
+envelope, its framing, the message start each network begins with, and the
+payloads a connection opens with — and it opens no socket.
 
-Above them, `bip44` composes `bip32`, `script.taproot` and both address
-encodings into an address from an extended key and a derivation path, and
-`descriptors` reads the BIP380 grammar and hands back the scripts a
-descriptor names -- with `descriptors.miniscript` reading BIP379's
-language, which is a script written as a tree of fragments, and
-satisfying one. `psbt_signer`
-is the contract an external signer answers; `hwi` is that contract over
-Bitcoin Core's HWI.
+Nothing in btclib imports `btclib_wallet`: the wallet side is built on
+this package, and `tests/imports_test.py` holds the edge to one direction.
 
-Nothing in the library imports `bip322`, `bip85`, `bip38`, `slip132`,
-`wallet`, `hwi`, `p2p` or `fetch`: they are the top of the stack,
-and `fetch` is the only one that goes out to the network. `bip38` is a
-password-protected private key, Base58Check with `scrypt` and the caller's
-own AES-256, over `b58` and `curves` alone. `bolt11` is BOLT11's
-own codec -- bech32 with `m=1` explicit, `ecc.dsa` for the signature and
-its recovery -- and `bip21` is this tier's one importer, composing it for
-the typed `lightning=` parameter the way it already composes `b32`, `b58`
-and `network` below it. `wallet` remembers
-which addresses it has handed out — over `bip44`, over `descriptors` or
-over a script template of its own — and its key wallets sign for one with
-`ecc.bms`.
-`bip322` is the other message signing, and it is at the top rather than
-beside `ecc.bms` because it needs everything below it: a script, a
-transaction, a psbt and the engine that runs them. `bip85` derives the
-entropy behind another wallet's seed from one root key, and is up here
-because a BIP39 sentence and a WIF are two of the formats it hands
-back.
-
-The rpc client `fetch` speaks through is not in that stack: it is
+`btclib.p2p.magic` takes the message start of each network from
 [bitcoin-core-rpc](https://github.com/btclib-org/bitcoin-core-rpc), a
 package of its own that btclib depends on — zero dependencies of its
 own, standard library only, and usable by anyone who wants a node
-client and no bitcoin library. `btclib.fetch` turns its answers into `Tx`
-and `TxOut`, and where the backend is a node — over JSON-RPC or over
-`-rest` — checks the chain it reports against the network those are
-labelled for.
-
-The dependency stops at `src/btclib/fetch/` and at `src/btclib/p2p/magic.py`,
-which is where the p2p message start is — that package's table, not a
-second copy of it. bitcoin-core-rpc declares its own `FetchError`, and
-declares zero dependencies of its own, importing nothing of btclib's;
-`btclib.fetch.fetcher.client_errors` re-raises it as `btclib.exceptions`'
-own, with the `status` and the `code` carried across: an `except
-FetchError` written against btclib catches what a fetcher raises. No
-module loads `urllib.request` on its way to anything else: importing it
-is what reaching the client or its transport costs, and `src/btclib/fetch/`
-is the only place that does. `btclib.p2p`'s message start reaches this
-same package's chain vocabulary instead, which depends on nothing beyond
-the standard library, so a caller who parses messages pays nothing for a
-client it never uses. Constructing a client opens no socket; the first
-call does.
+client and no bitcoin library. It is the one module here that imports
+that package, and what it reaches is the package's chain vocabulary,
+which depends on nothing beyond the standard library. No module loads
+`urllib.request` on its way to anything else, so a caller who parses
+messages pays nothing for a client it never uses.
 
 ---
 

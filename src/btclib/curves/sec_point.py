@@ -65,9 +65,9 @@ def scalar_from_prv_key(prv_key: Integer, ec: Curve = secp256k1) -> int:
     reading them with `bytes_from_octets` and the size handed to it,
     rather than with `int_from_integer`; the annotation could not, the
     two unions being one. A WIF and an extended key are not among the
-    spellings -- they are `b58`'s and `bip32`'s objects, and turning one
-    into a scalar is a call a caller makes rather than a spelling this
-    layer guesses at (issue #1188).
+    spellings -- they are `b58`'s and `btclib_wallet.bip32`'s objects, and
+    turning one into a scalar is a call a caller makes rather than a
+    spelling this layer guesses at (issue #1188).
 
     The range is checked in Python for every curve. `keys.prvkey_verify`
     is libsecp256k1's answer to the same question and is not called for
@@ -264,8 +264,9 @@ def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
     `scalar_from_prv_key` does -- what a public key is, at this layer, is
     a point of the curve, and nothing above knows more about one than
     this file (issue #1188). A spelling that carries a network or a
-    compression flag is not among them: an extended key is `bip32`'s
-    object, read by `bip32.point_from_xpub`.
+    compression flag is not among them: an extended key is
+    `btclib_wallet.bip32`'s object, read by
+    `btclib_wallet.bip32.point_from_xpub`.
 
     **A prepared point is read as the point it holds.**
     `curves.PreparedPoint` is a `Point` plus a caller's word that it will

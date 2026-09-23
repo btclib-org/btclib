@@ -27,7 +27,6 @@ from typing import Any
 
 import pytest
 
-from btclib.bip32 import BIP32KeyData, BIP32KeyOrigin
 from btclib.block import Block, BlockHeader, PartialMerkleTree
 from btclib.ecc import bms, ssa
 from btclib.ecc.borromean import BorromeanSig
@@ -77,7 +76,6 @@ from btclib.p2p import (
     Verack,
     WtxidRelay,
 )
-from btclib.psbt import Psbt, PsbtIn, PsbtOut
 from btclib.script import Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import public_classes_with
@@ -88,10 +86,6 @@ from tests import public_classes_with
 _CONTRACT_EXCEPTIONS = (BTClibValueError, BTClibRuntimeError, BTClibTypeError)
 
 _TX_ID = "01" * 32
-_XPRV = (
-    "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFo"
-    "CMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
-)
 
 
 def _block_1() -> bytes:
@@ -129,11 +123,6 @@ def _inventory() -> Inventory:
     return Inventory(InventoryType.MSG_BLOCK, BlockHeader.parse(_block_1()[:80]).hash)
 
 
-def _psbt() -> Psbt:
-    """Return the psbt of the transaction above, maps and all."""
-    return Psbt.from_tx(_tx())
-
-
 def _partial_merkle_tree() -> PartialMerkleTree:
     """Return the tree that keeps the coinbase of the block after genesis."""
     txids = [tx.id for tx in Block.parse(_block_1()).transactions]
@@ -156,7 +145,6 @@ _CASES: list[tuple[str, type[Any], bytes]] = [
         PartialMerkleTree,
         _partial_merkle_tree().serialize(),
     ),
-    ("bip32_key", BIP32KeyData, BIP32KeyData.b58decode(_XPRV).serialize()),
     ("ssa_sig", ssa.Sig, ssa.sign(b"parse contract", 1).serialize()),
     ("bms_sig", bms.Sig, bms.sign(b"parse contract", PrvKeyData(1)).serialize()),
     # the public-value proof, which is the smallest one this format has:
@@ -170,9 +158,6 @@ _CASES: list[tuple[str, type[Any], bytes]] = [
         RangeProof(-1, 0, 100000, (), (), BorromeanSig(bytes(32), [[1]])).serialize(),
     ),
     ("witness", Witness, Witness([b"\x51", b"\x52\x53"]).serialize()),
-    ("psbt", Psbt, _psbt().serialize()),
-    ("psbt_in", PsbtIn, PsbtIn(redeem_script=b"\x51").serialize()),
-    ("psbt_out", PsbtOut, PsbtOut(redeem_script=b"\x51").serialize()),
     ("p2p_message", Message, Message("f9beb4d9", "ping", bytes(8)).serialize()),
     (
         "p2p_network_address",
@@ -377,20 +362,14 @@ def test_a_truncated_field_names_itself() -> None:
 def test_a_fixed_size_object_reports_its_own_length() -> None:
     """A buffer that is the object reports the buffer, not a field of it.
 
-    The three fixed-size encodings agree on the message -- and on saying
-    it whatever `check_validity` says, which is what a semantic check
-    would have gated.
+    The message says it whatever `check_validity` says, which is what a
+    semantic check would have gated.
     """
     header_bytes = _block_1()[:80]
-    key_bytes = BIP32KeyData.b58decode(_XPRV).serialize()
 
     err_msg = "invalid decoded length: 70 instead of 80"
     with pytest.raises(BTClibValueError, match=err_msg):
         BlockHeader.parse(header_bytes[:70], check_validity=False)
-
-    err_msg = "invalid decoded length: 70 instead of 78"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        BIP32KeyData.parse(key_bytes[:70], check_validity=False)
 
 
 def test_a_truncation_does_not_round_trip() -> None:
@@ -412,52 +391,10 @@ def test_a_truncation_does_not_round_trip() -> None:
         Tx.parse(tx_bytes + b"junk")
 
 
-def test_a_key_origin_is_a_fingerprint_and_then_indexes() -> None:
-    """The fingerprint is four octets wide, whatever the origin means.
-
-    Deferred to `check_validity`, a slice of a shorter buffer answered with
-    whatever was there and the object serialized back longer than what it
-    was parsed from. The remainder was already unconditional:
-    `indexes_from_der_path` refuses what is not a whole number of 4-octet
-    indexes, whatever `check_validity` says, so this is the other half of
-    one boundary.
-
-    Its own test rather than a line in the inventory above, because none of
-    the three generic properties applies to a key origin, and that is worth
-    saying once: four octets are a valid key origin with an empty path, so
-    a prefix of a longer encoding *is* an object; the record carries no
-    length and consumes the whole buffer, so nothing can trail it -- four
-    junk octets are one more index; and `parse` takes `Octets` rather than
-    `BinaryData`, so there is no stream to leave alone.
-    """
-    for check_validity in (True, False):
-        for raw in (b"", b"\x00", b"\x00\x00\x00"):
-            err_msg = "not enough data for the master fingerprint"
-            with pytest.raises(BTClibValueError, match=err_msg):
-                BIP32KeyOrigin.parse(raw, check_validity=check_validity)
-
-    # and what the refusal must not take with it: the shortest key origin
-    # there is, and one with a path
-    assert BIP32KeyOrigin.parse(b"\xde\xad\xbe\xef").description == "deadbeef"
-    key_origin = BIP32KeyOrigin("deadbeef", "m/44h/0h")
-    assert BIP32KeyOrigin.parse(key_origin.serialize()) == key_origin
-
-
 # what a parser of this library is *not* held to, and why. A name here is
 # a decision, which is the difference between an exclusion and an
 # oversight -- the test below fails on either
 _EXCLUDED = {
-    "btclib.bip21.Bip21": (
-        "a bitcoin: URI is text and not octets: it has no fixed-width"
-        " field, nothing can follow it in a stream, and its own grammar"
-        " is what tests/bip21_test.py holds it to"
-    ),
-    "btclib.bip32.key_origin.BIP32KeyOrigin": (
-        "a four-octet prefix of it is a valid key origin with an empty"
-        " path, and the record has no length of its own, so two of the"
-        " three properties are false of it by design; the boundary it does"
-        " owe its caller is the test above"
-    ),
     "btclib.block.block_filter.BasicBlockFilter": (
         "a Golomb-coded set has no length of its own, only the count of the"
         " values coded in it, so a filter is the whole of the octets it is"
@@ -538,8 +475,7 @@ def test_every_parser_is_covered_or_named_an_exclusion() -> None:
     `public_classes_with` is the walk, and it is `tests/__init__.py`'s
     because `serialization_boundary_test.py` holds these same parsers to
     a different contract -- where the bytes end is not what type the
-    argument is. A private class is skipped there, which is what leaves
-    `_BIP32KeyData` out here; its public subclass is in the inventory.
+    argument is. A private class is skipped there.
     """
     covered = {f"{cls.__module__}.{cls.__qualname__}" for _, cls, _ in _CASES}
     assert not covered & _EXCLUDED.keys()

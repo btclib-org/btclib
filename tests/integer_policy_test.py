@@ -26,19 +26,6 @@ from btclib import base58, bech32, var_int
 from btclib.alias import TaprootScriptTree
 from btclib.amount import valid_sats_amount
 from btclib.b58 import wif_from_prv_key
-from btclib.bip32 import BIP32KeyData
-from btclib.bip32.bip32 import (
-    derive,
-    derive_from_account_,
-    rootxprv_from_seed,
-    xpub_from_xprv,
-)
-from btclib.bip32.der_path import (
-    bytes_from_der_path,
-    indexes_from_der_path,
-    str_from_der_path,
-    str_from_index_int,
-)
 from btclib.block import BlockHeader
 from btclib.block.block import bip34_commitment
 from btclib.block.block_context import BlockContext
@@ -62,9 +49,7 @@ from btclib.exceptions import BTClibTypeError
 from btclib.fee import FeeRate, fee_from_vsize
 from btclib.hashes import merkle_root_from_branch, sha256
 from btclib.key import PrvKeyData
-from btclib.mnemonic.entropy import bin_str_entropy_from_wordlist_indexes
 from btclib.number_theory import mod_inv, mod_inv_batch_var, mod_inv_var
-from btclib.psbt.psbt import PSBT_V2, Psbt
 from btclib.script import input_script_sig, sig_hash
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.utils import (
@@ -74,7 +59,6 @@ from btclib.utils import (
     int_from_integer,
     is_integer,
 )
-from btclib.wallet.script_wallet import KeyGroup
 
 _TX_ID = "01" * 32
 _RATE = FeeRate(sats_per_kvbyte=1000)
@@ -88,10 +72,6 @@ _NOW = datetime(2026, 8, 4, tzinfo=UTC)
 # two index parameters below have to be handed something valid to index
 _SCRIPT_TREE: TaprootScriptTree = [(0xC0, ["OP_1"])]
 _PREVOUTS = [TxOut(1, b"")]
-_XPUB = xpub_from_xprv(rootxprv_from_seed("00" * 32))
-# account depth, hardened: what derive_from_account_'s own is_hardened
-# check wants
-_ACCOUNT_XPRV = derive(rootxprv_from_seed("00" * 32), "m/44h/0h/0h")
 
 
 def _tx(version: Any = 1, lock_time: Any = 0) -> Tx:
@@ -101,23 +81,6 @@ def _tx(version: Any = 1, lock_time: Any = 0) -> Tx:
         [TxIn(OutPoint(_TX_ID, 0), b"", 0xFFFFFFFF)],
         [TxOut(1, b"")],
     )
-
-
-def _psbt(**field: Any) -> Psbt:
-    """Return the shortest psbt there is, with one field of it replaced.
-
-    Version 2, whose fields are its own: a v0 psbt refuses
-    `tx_modifiable` outright, which is a rule about the value of a field
-    whose type has to be asked first.
-    """
-    fields: dict[str, Any] = {
-        "tx_version": 1,
-        "inputs": [],
-        "outputs": [],
-        "version": PSBT_V2,
-        "hd_key_paths": {},
-    }
-    return Psbt(**(fields | field), check_validity=False)
 
 
 def _header(version: Any = 1, nonce: Any = 1) -> BlockHeader:
@@ -146,42 +109,18 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("input sequence", lambda v: TxIn(OutPoint(_TX_ID, 0), b"", v)),
     ("transaction version", _tx),
     ("transaction lock time", lambda v: _tx(lock_time=v)),
-    # a psbt is asked by `assert_valid`, `check_validity=False` on the way
-    # in being what lets a field of any type at all into one
-    ("psbt version", lambda v: _psbt(version=v).assert_valid()),
-    ("psbt tx modifiable", lambda v: _psbt(tx_modifiable=v).assert_valid()),
-    ("psbt fallback lock time", lambda v: _psbt(fallback_lock_time=v).assert_valid()),
-    ("key group threshold", lambda v: KeyGroup(v, [_XPUB])),
     ("header version", _header),
     ("header nonce", lambda v: _header(nonce=v)),
     ("block height", lambda v: BlockContext(v, _NOW)),
     ("bip34 height", lambda v: BlockContext(1, _NOW, v)),
     ("private key scalar", PrvKeyData),
-    (
-        "bip32 depth",
-        lambda v: BIP32KeyData(
-            b"\x04\x88\xad\xe4", v, b"\x00" * 4, 0, b"\x00" * 32, b"\x00" * 33
-        ),
-    ),
-    (
-        "bip32 index",
-        lambda v: BIP32KeyData(
-            b"\x04\x88\xad\xe4", 0, b"\x00" * 4, v, b"\x00" * 32, b"\x00" * 33
-        ),
-    ),
     ("dust threshold", lambda v: valid_sats_amount(1, dust=v)),
-    ("derivation index", indexes_from_der_path),
-    ("derivation index in a sequence", lambda v: indexes_from_der_path([v])),
-    ("derivation path as bytes", bytes_from_der_path),
-    ("derivation path as text", str_from_der_path),
-    ("derivation index as a step", str_from_index_int),
     ("output size", lambda v: bytes_from_octets(b"x", v)),
     ("output size in an iterable", lambda v: bytes_from_octets(b"x", [v])),
     ("base58 output size", lambda v: base58.decode(base58.encode(b"x"), v)),
     ("var_int", var_int.serialize),
     ("var_int max_size", lambda v: var_int.parse(b"\x01", max_size=v)),
     ("bech32 5-bit value", lambda v: bech32.encode("bc", [v])),
-    ("word-list index", lambda v: bin_str_entropy_from_wordlist_indexes([v], 2048)),
     ("modular operand", lambda v: mod_inv_var(v, 7)),
     ("modulus", lambda v: mod_inv_var(3, v)),
     ("blinded modular operand", lambda v: mod_inv(v, 7)),
@@ -240,30 +179,6 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     (
         "dsa recovery key_id",
         lambda v: recover_pub_key_(v, _DSA_MSG_HASH, _DSA_SIG),
-    ),
-    # `_assert_valid_branch` and `_assert_valid_address_index` compared
-    # with `<`, `>=` and `in {0, 1}` alone, none of which a bool fails,
-    # so the refusal used to come from the string round trip
-    # `_derive_from_account` builds and re-parses -- an incidental
-    # `BTClibValueError` rather than this layer's own `is_integer`
-    # (issue #1403)
-    (
-        "bip32 account branch",
-        lambda v: derive_from_account_(_ACCOUNT_XPRV, v, 0),
-    ),
-    (
-        "bip32 account address index",
-        lambda v: derive_from_account_(_ACCOUNT_XPRV, 0, v),
-    ),
-    # `max_index` reaches the same two helpers as a bound rather than a
-    # derivation value, and was not refused at all: `branch > max_index`
-    # and `address_index > max_index` both hold for `max_index=True`
-    # against a branch/address_index of `0`, so the call answered the
-    # depth-5 key silently narrowed to a range of `{0, 1}` rather than
-    # raising anything (issue #1413)
-    (
-        "bip32 account max_index",
-        lambda v: derive_from_account_(_ACCOUNT_XPRV, 0, 0, max_index=v),
     ),
     # `CurveGroup.is_on_curve` is the one funnel behind a `Point` tuple,
     # `point_from_pub_key`, `_x_from_bip340pub_key`, `PreparedPoint` and
@@ -341,26 +256,6 @@ _WORDINGS = [
         lambda v: recover_pub_key_(v, _DSA_MSG_HASH, _DSA_SIG),
         "non-integer key_id: True",
     ),
-    # `_assert_valid_branch`/`_assert_valid_address_index`'s own
-    # `is_integer` check (issue #1403), ahead of the incidental refusal
-    # the string round trip used to answer for the same mistake
-    (
-        "bip32 account branch",
-        lambda v: derive_from_account_(_ACCOUNT_XPRV, v, 0),
-        "non-integer branch: True",
-    ),
-    (
-        "bip32 account address index",
-        lambda v: derive_from_account_(_ACCOUNT_XPRV, 0, v),
-        "non-integer address index: True",
-    ),
-    # `max_index`'s own `is_integer` check, the bound rather than the
-    # value (issue #1413)
-    (
-        "bip32 account max_index",
-        lambda v: derive_from_account_(_ACCOUNT_XPRV, 0, 0, max_index=v),
-        "non-integer max_index: True",
-    ),
     # separate from the three families above: `is_on_curve`'s own
     # refusal of a bool coordinate (issue #1249), one sentence per
     # coordinate and shared by every funnel behind it
@@ -414,15 +309,9 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert OutPoint.from_dict({"txid": _TX_ID, "vout": 1}).vout == 1
     assert TxIn(OutPoint(_TX_ID, 0), b"", 1).sequence == 1
     assert _tx(version=1, lock_time=1).lock_time == 1
-    assert _psbt(fallback_lock_time=1).fallback_lock_time == 1
-    assert KeyGroup(1, [_XPUB]).threshold == 1
     assert _header(nonce=1).nonce == 1
     assert BlockContext(1, _NOW).height == 1
     assert valid_sats_amount(1, dust=1) == 1
-    assert indexes_from_der_path(1) == [1]
-    assert indexes_from_der_path([1, 2]) == [1, 2]
-    assert bytes_from_der_path(1).hex() == "01000000"
-    assert str_from_der_path([1]) == "m/1"
     assert int_from_integer(1) == 1
     assert hex_string(1) == "01"
     assert mult(1) == secp256k1.G
@@ -432,20 +321,16 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert ssa_verify(b"msg", secp256k1.G[0], _SSA_SIG)
     assert ssa_challenge_(b"msg", 1, 1, secp256k1, hashlib.sha256)
     assert recover_pub_key_(1, _DSA_MSG_HASH, _DSA_SIG) == secp256k1.G
-    assert derive_from_account_(_ACCOUNT_XPRV, 1, 1).depth == 5
-    assert derive_from_account_(_ACCOUNT_XPRV, 1, 1, max_index=1).depth == 5
     assert secp256k1.is_on_curve(secp256k1.G) is True
     assert point_from_pub_key(secp256k1.G) == secp256k1.G
     assert PreparedPoint(secp256k1.G).point == secp256k1.G
     assert bytes_from_point(secp256k1.G).hex().startswith("02")
-    assert str_from_index_int(1) == "1"
     assert bytes_from_octets(b"x", 1) == b"x"
     assert bytes_from_octets(b"xx", [1, 2]) == b"xx"
     assert base58.decode(base58.encode(b"x"), 1) == b"x"
     assert var_int.serialize(1) == b"\x01"
     assert var_int.parse(b"\x01", max_size=1) == 1
     assert bech32.encode("bc", [1]) == b"bc1pdg93mv"
-    assert bin_str_entropy_from_wordlist_indexes([1], 2048) == "00000000001"
     assert mod_inv_var(3, 7) == 5
     assert mod_inv(3, 7) == 5
     assert mod_inv_batch_var([3, 2], 7) == [5, 4]
@@ -461,26 +346,18 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     # bool refusal must not take the int with it where a float is annotated
     assert hash_rate(1, 600) == hash_rate(1.0, 600.0)
 
-    # the str and bytes spellings of a path are untouched by any of it
-    assert indexes_from_der_path("m/44h/0h") == [2147483692, 2147483648]
-
 
 def test_what_is_no_integer_at_all_is_refused_the_same_way() -> None:
     """The policy is about integers, and a bool is only its sharpest case.
 
-    These boundaries used to convert what they were handed -- a derivation
-    path through `int()`, a dust threshold through a comparison -- or to
+    These boundaries used to convert what they were handed -- a dust
+    threshold through a comparison -- or to
     complain about the wrong thing: an output size that is neither a number
     nor an iterable of them met `tuple()` and answered "not iterable", from
     underneath the library rather than through its exception contract.
     """
     with pytest.raises(BTClibTypeError, match="non-integer satoshi dust"):
         valid_sats_amount(1, dust=1.0)  # type: ignore[arg-type]
-
-    with pytest.raises(BTClibTypeError, match="invalid derivation index type"):
-        indexes_from_der_path([2.0])  # type: ignore[list-item]
-    with pytest.raises(BTClibTypeError, match="invalid derivation index type"):
-        str_from_index_int(1.0)  # type: ignore[arg-type]
 
     for out_size in (1.5, object(), "1"):
         with pytest.raises(BTClibTypeError, match="invalid output size type"):
@@ -502,12 +379,6 @@ def test_an_int_subclass_that_is_not_a_bool_is_still_an_integer() -> None:
 
     Issue #273 asks whether the sighash types should become an `IntEnum`;
     `type(value) is int` would have answered it in advance, and with a no.
-
-    The path step is the case that has to be *answered* with a number and
-    not merely accepted as one: `str()` of an `IntEnum` is its name up to
-    Python 3.10, so a derivation path of one would have read
-    "Sighash.ALL" there and "1" on every later interpreter -- which the
-    3.10 cells of the matrix caught and this assertion now pins.
     """
 
     class Sighash(IntEnum):
@@ -516,9 +387,6 @@ def test_an_int_subclass_that_is_not_a_bool_is_still_an_integer() -> None:
     assert is_integer(Sighash.ALL)
     assert valid_sats_amount(Sighash.ALL) == 1
     assert FeeRate(sats_per_kvbyte=Sighash.ALL).sats_per_kvbyte == 1
-    assert indexes_from_der_path(Sighash.ALL) == [1]
-    assert indexes_from_der_path([Sighash.ALL]) == [1]
-    assert str_from_index_int(Sighash.ALL) == "1"
     assert bytes_from_octets(b"x", Sighash.ALL) == b"x"
     assert base58.decode(base58.encode(b"x"), Sighash.ALL) == b"x"
     assert var_int.serialize(Sighash.ALL) == b"\x01"

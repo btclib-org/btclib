@@ -8,7 +8,6 @@ import pytest
 
 from btclib.alias import INF
 from btclib.b58 import wif_from_prv_key
-from btclib.bip32 import BIP32KeyData, rootxprv_from_seed
 from btclib.curves import (
     Curve,
     PreparedPoint,
@@ -316,9 +315,9 @@ def test_a_scalar_is_an_int_or_its_octets_and_nothing_else() -> None:
 
     The integer, its `n_size` octets, their hex, and the buffers
     `bytes_from_octets` takes beside them. A WIF and an extended key are
-    not among them: they are `b58`'s and `bip32`'s objects, and this file
-    knows about a curve and not about bitcoin, so it could not decode one
-    without importing a layer above itself.
+    not among them: they are `b58`'s and `btclib_wallet.bip32`'s objects,
+    and this file knows about a curve and not about bitcoin, so it could
+    not decode one without importing a layer above itself.
 
     On secp256k1 the size alone separates a scalar from a point --
     `n_size` is 32 where a point is 33 or 65. That is a coincidence and
@@ -331,12 +330,15 @@ def test_a_scalar_is_an_int_or_its_octets_and_nothing_else() -> None:
     for spelling in (q, octets, octets.hex(), bytearray(octets), memoryview(octets)):
         assert scalar_from_prv_key(spelling) == q
 
-    # a WIF and an xprv reach here as text, and text is hex or nothing
-    for text in (wif_from_prv_key(q), rootxprv_from_seed("5e" * 32)):
+    # a WIF and an xprv reach here as text, and text is hex or nothing;
+    # the xprv is BIP32's root key of the seed `"5e" * 32`
+    xprv = (
+        "xprv9s21ZrQH143K3jDQ9kSBrkWCHhPnhmGaTk3LkDNedVbXcXMERAJzNVtb8oi8f3k"
+        "mzhNe8gj7WMbGNpsRRbE59dWU27jWqmKvFsg7A4vgdAD"
+    )
+    for text in (wif_from_prv_key(q), xprv):
         with pytest.raises(BTClibValueError, match="invalid hex string"):
             scalar_from_prv_key(text)
-    with pytest.raises(BTClibTypeError, match="invalid octets type: BIP32KeyData"):
-        scalar_from_prv_key(BIP32KeyData.b58decode(rootxprv_from_seed("5e" * 32)))  # type: ignore[arg-type]
 
     for out_of_range in (0, secp256k1.n):
         with pytest.raises(BTClibValueError, match="private key not in 1..n-1"):

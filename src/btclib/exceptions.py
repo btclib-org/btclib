@@ -121,7 +121,7 @@ class FetchError(BTClibRuntimeError):
     imports nothing of btclib's, so its `FetchError` derives from a
     `BTClibRuntimeError` of its own, and an `except BTClibRuntimeError`
     written against this module would not catch it.
-    `btclib.fetch.fetcher.client_errors` is the one place the two meet.
+    `btclib_wallet.fetch.fetcher.client_errors` is the one place the two meet.
     """
 
 
@@ -188,8 +188,8 @@ class RpcError(FetchError):
 class SignerError(BTClibRuntimeError):
     """An external signer failed, and `code` is the number it gave.
 
-    What `btclib.psbt_signer`'s contract fails with, and what
-    `btclib.hwi` raises around HWI's structured errors: the JSON CLI
+    What `btclib_wallet.psbt_signer`'s contract fails with, and what
+    `btclib_wallet.hwi` raises around HWI's structured errors: the JSON CLI
     answers `{"error": <msg>, "code": <n>}`, and the number is the part a
     caller acts on. -14 is ACTION_CANCELED, which is somebody pressing the
     button that says no and is not worth a retry; -3 is DEVICE_CONN_ERROR,
@@ -230,7 +230,7 @@ class SignerNotFoundError(SignerError):
     class, and the two are not the same thing to report before a signing
     operation.
 
-    Without it the distinction is not recoverable. `btclib.hwi` turns
+    Without it the distinction is not recoverable. `btclib_wallet.hwi` turns
     every `OSError` into a `SignerError` -- a missing executable and a
     permission the udev rules do not grant arrive as one class with one
     `code` of None -- so a caller had to either match on the text of a
@@ -311,8 +311,8 @@ class NotAPrvKeyError(BTClibValueError):
     a failed attempt has to say which kind of failure it was, and this is
     the kind that means "wrong format, keep going". Each raiser asks it
     of the one format it reads: `b58.prv_key_data_from_wif` for text that
-    is no WIF, `bip38` for a record no version prefix claims, `minikey`
-    for text of no minikey shape.
+    is no WIF, `btclib_wallet.bip38` for a record no version prefix
+    claims, `btclib_wallet.minikey` for text of no minikey shape.
 
     A BTClibValueError, so code catching that keeps catching this.
     """
@@ -326,9 +326,9 @@ class InvalidPrvKeyError(BTClibValueError):
     format might accept, so `b58.prv_key_data_from_wif` raising this is
     more use to `b58._pub_keyinfo_from_key` than a "try the next
     spelling" that would end in "not a private key": a WIF, with a fault
-    in it. `bip32.prv_keyinfo_from_xprv` answers the same way about an
-    xprv whose version bytes name a network and whose key prefix is not
-    the private one.
+    in it. `btclib_wallet.bip32.prv_keyinfo_from_xprv` answers the same
+    way about an xprv whose version bytes name a network and whose key
+    prefix is not the private one.
 
     A BTClibValueError, so code catching that keeps catching this.
     """
@@ -345,7 +345,7 @@ class InconclusiveError(BTClibValueError):
     speaking for rules it does not have.
 
     A BTClibValueError, so code catching that keeps catching this, and
-    so that `btclib.bip322.verify` answers False without a second
+    so that `btclib_wallet.bip322.verify` answers False without a second
     `except`: an inconclusive signature is not one that verified. A
     caller that means to tell the two apart names this class.
     """
@@ -354,9 +354,9 @@ class InconclusiveError(BTClibValueError):
 class NoDescriptorError(BTClibValueError):
     """No output descriptor states this script: it is not that a lift failed.
 
-    What `wallet.ScriptWallet.descriptor` refuses with, and the one
-    refusal there that is a fact about the wallet rather than about the
-    code asking: a script spelling its timelock `<n> OP_CSV OP_DROP`, or
+    What `btclib_wallet.wallet.ScriptWallet.descriptor` refuses with, and
+    the one refusal there that is a fact about the wallet rather than about
+    the code asking: a script spelling its timelock `<n> OP_CSV OP_DROP`, or
     ordering a quorum after derivation inside a combinator, is a script
     BIP380 to BIP390 cannot write down -- and will still be one at the
     next release. A caller catching this has an answer ("watch these

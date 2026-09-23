@@ -37,8 +37,7 @@ raising `BTClibException`. Where the accepting object serializes --
 `.serialize()`, or `.b64encode()` behind a `.b64decode()` entry point --
 the reserialization has to reproduce the seed's own bytes; where it does
 not (`var_int.parse` returns a plain `int`, `script.parse` a plain
-`list`, `descriptors.parse` a `Descriptor` with no wire form of its own),
-the seed is accepted parse-only and nothing else is asked of it.
+`list`), the seed is accepted parse-only and nothing else is asked of it.
 
 **Trying every declared entry point rather than picking one by filename
 convention buys the manifest's simplicity at a stated price: where a
@@ -85,11 +84,6 @@ from btclib.exceptions import BTClibException
 
 _FUZZ = Path(__file__).parent.parent / "fuzz"
 _CORPUS = _FUZZ / "corpus"
-
-# the one harness whose declared entry point takes text rather than
-# bytes: fuzz_descriptor.py decodes with errors="replace" before calling
-# btclib.descriptors.descriptors:parse, and a seed is tried the same way
-_TEXT_HARNESS = "fuzz_descriptor"
 
 
 def _harness_paths() -> tuple[Path, ...]:
@@ -160,10 +154,11 @@ def _canonical_spec(module: str, remote: str, attr: str) -> str:
     """Return "module:Qual.name", telling a submodule bind from a class one.
 
     `from btclib import var_bytes; var_bytes.parse(...)` binds a module,
-    where `parse` is that module's own function; `from btclib.bip322
-    import Sig; Sig.b64decode(...)` binds a class, where `b64decode` is a
-    method on it. Trying the submodule import is what tells the two
-    apart, both being an ordinary `from X import Y` to the AST alone.
+    where `parse` is that module's own function; `from btclib.ecc.ecies
+    import Envelope; Envelope.b64decode(...)` binds a class, where
+    `b64decode` is a method on it. Trying the submodule import is what
+    tells the two apart, both being an ordinary `from X import Y` to the
+    AST alone.
     """
     try:
         importlib.import_module(f"{module}.{remote}")
@@ -239,14 +234,11 @@ def _seed_paths(name: str) -> tuple[Path, ...]:
     return tuple(sorted((_CORPUS / name).glob("*.bin")))
 
 
-def _accept(spec: str, data: bytes, harness: str) -> tuple[bool, bool | None]:
+def _accept(spec: str, data: bytes) -> tuple[bool, bool | None]:
     """Try `spec` against `data`; return (accepted, round_trip)."""
     entry_point = _resolve(spec)
-    argument: Any = (
-        data.decode("utf-8", errors="replace") if harness == _TEXT_HARNESS else data
-    )
     try:
-        obj = entry_point(argument)
+        obj = entry_point(data)
     except BTClibException:
         return False, None
     return True, _round_trip(spec, obj, data)
@@ -346,7 +338,7 @@ def test_every_seed_is_accepted(harness: str, seed: Path) -> None:
     declared = _entry_points(tree)
     assert declared
     data = seed.read_bytes()
-    accepted = [spec for spec in declared if _accept(spec, data, harness)[0]]
+    accepted = [spec for spec in declared if _accept(spec, data)[0]]
     assert accepted, f"{seed} is refused by every declared entry point: {declared}"
 
 
@@ -364,7 +356,7 @@ def test_accepted_seed_round_trips(harness: str, seed: Path) -> None:
     mismatches = [
         spec
         for spec in declared
-        for accepted, round_trip in (_accept(spec, data, harness),)
+        for accepted, round_trip in (_accept(spec, data),)
         if accepted and round_trip is False
     ]
     assert not mismatches, f"{seed} does not round-trip under: {mismatches}"
@@ -432,7 +424,7 @@ def test_round_trip_is_unchecked_when_b64decode_has_no_b64encode() -> None:
     """A b64decode entry point whose object cannot re-armor is parse-only.
 
     No harness's declared b64decode entry point lacks a b64encode
-    counterpart today -- Sig, Envelope and Psbt all carry one -- so this
-    is exercised on a bare object rather than on any seed.
+    counterpart today -- Envelope carries one -- so this is exercised on a
+    bare object rather than on any seed.
     """
-    assert _round_trip("btclib.bip322:Sig.b64decode", object(), b"") is None
+    assert _round_trip("btclib.ecc.ecies:Envelope.b64decode", object(), b"") is None

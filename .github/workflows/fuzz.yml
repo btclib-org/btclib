@@ -9,9 +9,8 @@ name: fuzz
 # `addrv2`, `inventory`, `compact_blocks`, `block_filters`, `keepalive`,
 # `negotiation`, `address` and `data`. Reached only once a transaction,
 # a script or a signature is already being handled: `Tx`, `Block`,
-# `Psbt`, `Witness`, `var_int`, `var_bytes`, the script and tapscript
-# decoders, output descriptors, the BIE1 envelope `ecies.Envelope` reads,
-# and the base64 forms of a psbt, of a BIP322 signature and of that
+# `Witness`, `var_int`, `var_bytes`, the script and tapscript decoders,
+# the BIE1 envelope `ecies.Envelope` reads, and the base64 form of that
 # envelope -- the raw framing of the envelope going one entry point
 # beyond btclib-org/btclib#1402's own list, its base64 armor being what
 # that list named. btclib-org/.github#342 is where that ranking -- an

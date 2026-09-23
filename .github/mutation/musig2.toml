@@ -1,5 +1,5 @@
 # MuSig2, mutated: BIP327's key aggregation, nonce aggregation and partial
-# signatures, and the BIP373 psbt fields a signing session is carried in.
+# signatures.
 # The one signature scheme in btclib where a wrong answer is not a wrong
 # signature but a lost key -- nonce reuse across sessions, a tweak applied
 # twice, a partial signature verified against the wrong aggregate nonce --
@@ -8,19 +8,14 @@
 # of the protocol built on them.
 
 [cosmic-ray]
-# both halves, judged by the same two test files: `ecc/musig2.py` is the
-# scheme and `psbt/musig2.py` the BIP373 role, which is why psbt.toml
-# names its five other modules one by one and leaves this one here
-module-path = [
-    "src/btclib/ecc/musig2.py",
-    "src/btclib/psbt/musig2.py",
-]
+# the scheme; the BIP373 role that carries a session in a psbt is
+# `btclib_wallet.psbt.musig2`, mutated there
+module-path = "src/btclib/ecc/musig2.py"
 
-# both modules' own files, complete over the two -- measured with `--cov`
-# over this command -- for a seventh of a second, which makes this profile
-# and wallet.toml the two that finish soonest here
+# the module's own file -- the command `--cov` over this module answers
+# for
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
-  tests/ecc/musig2_test.py tests/psbt/musig2_test.py"""
+  tests/ecc/musig2_test.py"""
 
 # seconds of wall clock, wide for the reason sig_hash.toml measures --
 # a timeout is answered KILLED, so slack is the safe direction. As in
@@ -32,10 +27,9 @@ timeout = 300
 
 excluded-modules = []
 
-# the exclusion wallet.toml explains: every `|` in the two modules is in an
-# annotation --
+# every `|` in the module is in an annotation --
 #
-#   grep -n ' | ' src/btclib/ecc/musig2.py src/btclib/psbt/musig2.py
+#   grep -n ' | ' src/btclib/ecc/musig2.py
 #
 # -- and the unfiltered session that decided it executed every BitOr
 # mutant and killed none of them. The arithmetic this scope does have
@@ -66,16 +60,6 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   `partial_sig_verify`'s, weakened from `!=` to `>`: each was exercised
 #   with the longer array on one side only. The tweaks and their flags are
 #   one list of pairs, so a flag left over is a tweak nobody named.
-# - the BIP373 session filters in `psbt/musig2.py`, `key_data[32:] ==
-#   tweaked_pub_key + leaf_hash` weakened to `>=` and `<=`. One input may
-#   hold a session per leaf, so that suffix is what tells them apart, and
-#   an ordering takes in whatever sorts the right way. The test files
-#   another participant's nonce and partial signature under this
-#   participant in a session that is not this one -- one key sorting under
-#   the real aggregate key and one over it -- so a weakened comparison
-#   replaces this participant's own nonce and the spend stops verifying.
-#   The values have to be another participant's: the same nonce under a
-#   foreign session overwrites with an identical one and says nothing.
 # - `sign`'s `0 < k_2_ < secp256k1.n`, weakened to `1 <`: zero was
 #   refused and one was never offered.
 #

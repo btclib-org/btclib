@@ -1,10 +1,11 @@
 # Where the threshold lives
 
 A bitcoin spend can require more than one party in two ways, and btclib
-implements both. They are separate code paths, and the numbers *k*, *t*
-and *n* do not tell them apart. What tells them apart is where the
-threshold is enforced: in consensus, by every node, or in cryptography,
-settled off-chain before the transaction exists.
+and `btclib_wallet` implement both between them. They are separate code
+paths, and the numbers *k*, *t* and *n* do not tell them apart. What
+tells them apart is where the threshold is enforced: in consensus, by
+every node, or in cryptography, settled off-chain before the transaction
+exists.
 
 ## The discriminant
 
@@ -62,7 +63,7 @@ size, whatever *n* is.
 `OP_CHECKMULTISIG` stops at `MAX_PUBKEYS_PER_MULTISIG` keys, which
 `src/btclib/script/engine/script.py` enforces. A `multi_a()` leaf is
 bounded by the stack instead, one element per key, which is what
-`_MAX_PUBKEYS_PER_MULTI_A` in `src/btclib/descriptors/miniscript.py`
+`_MAX_PUBKEYS_PER_MULTI_A` in `btclib_wallet.descriptors.miniscript`
 states; and a tapscript spend charges its sigops budget 50 for every
 non-empty signature, whether or not that signature verifies.
 
@@ -139,12 +140,12 @@ a FROST group, and a FROST group key can be one key inside a MuSig2
 aggregation. That is how "either the board's 2-of-3 or the chief
 executive" is expressed with one on-chain key.
 
-## A FROST spend's psbt transport is btclib's own
+## A FROST spend's psbt transport is btclib-wallet's own
 
 BIP373 assigns MuSig2 psbt field types of its own — participant public
 keys, a public nonce and a partial signature on an input, participant
-public keys on an output — which `src/btclib/psbt/psbt_in.py` and
-`src/btclib/psbt/psbt_out.py` carry and `src/btclib/psbt/musig2.py`
+public keys on an output — which `btclib_wallet.psbt.psbt_in` and
+`btclib_wallet.psbt.psbt_out` carry and `btclib_wallet.psbt.musig2`
 gives meaning to. They are MuSig2-specific and do not extend to a
 threshold: a participants field would have to map a group key to its
 *t*, its *n*, the identifiers and the public shares, rather than an
@@ -157,26 +158,26 @@ taproot tweaks are the same and carry over.
 BIP445 specifies no psbt transport of its own, and no type bytes are
 assigned for FROST: choosing bytes in the space BIP174 reserves for
 future assignment is how two implementations collide. So
-`src/btclib/psbt/frost.py` writes the session into the key space BIP174
+`btclib_wallet.psbt.frost` writes the session into the key space BIP174
 reserves for proprietary use instead, under a btclib identifier. No
 other wallet reads those records, and when a psbt BIP does assign FROST
 type bytes they are dropped rather than aliased -- that module's
 docstring is where both are stated, and it is the whole of what a reader
 of a psbt carrying them is owed.
 
-## Where each of them lives in btclib
+## Where each of them lives
 
 The two routes are both implemented, and they do not touch.
 
-The script threshold is the descriptor grammar in
-`src/btclib/descriptors/descriptors.py` — `multi()` and `sortedmulti()`
-(BIP383), `multi_a()` and `sortedmulti_a()` (BIP386, BIP387) — with the
-op codes `OP_CHECKMULTISIG` and `OP_CHECKSIGADD` under
-`src/btclib/script/`.
+The script threshold is the op codes `OP_CHECKMULTISIG` and
+`OP_CHECKSIGADD` under `src/btclib/script/`, with the descriptor grammar
+that writes one in `btclib_wallet.descriptors.descriptors` — `multi()`
+and `sortedmulti()` (BIP383), `multi_a()` and `sortedmulti_a()` (BIP386,
+BIP387).
 
 The cryptographic threshold is `src/btclib/ecc/musig2.py` (BIP327) and
-`src/btclib/ecc/frost.py` (BIP445), with `src/btclib/psbt/musig2.py`
-(BIP373) and `src/btclib/psbt/frost.py` carrying a session of each
+`src/btclib/ecc/frost.py` (BIP445), with `btclib_wallet.psbt.musig2`
+(BIP373) and `btclib_wallet.psbt.frost` carrying a session of each
 through a psbt -- the first in the fields BIP373 assigns, the second in
 proprietary records of btclib's own. MuSig2 also has a spelling in the
 descriptor grammar, BIP390's `musig()` key expression, inside a `tr()`

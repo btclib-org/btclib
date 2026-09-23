@@ -36,11 +36,11 @@ def _documented_in(text: str) -> set[str]:
     """Every module one documentation page publishes the members of.
 
     An automodule stanza and nothing else. A toctree line naming
-    `btclib.psbt` is not one: it makes the package's *page* reachable
+    `btclib.script` is not one: it makes the package's *page* reachable
     from `btclib.rst`, which is what a toctree is for, and says nothing
     about whether that page renders the package's own `__init__` -- the
     docstring, and the names re-exported flat that a caller reads
-    `btclib.psbt` for. Counting it as documentation is what would let a
+    `btclib.script` for. Counting it as documentation is what would let a
     package keep its page, its submodules and its toctree line while
     losing itself out of the middle of them.
 
@@ -148,8 +148,8 @@ def test_a_toctree_line_is_not_a_stanza() -> None:
 
     The two tests above are only as good as this scan, and the shape it
     has to tell apart is the one every per-package page has: a toctree
-    line for `btclib.psbt` in `btclib.rst`, stanzas for the submodules in
-    `btclib.psbt.rst`, and the package's own stanza at the end of it. Read
+    line for `btclib.script` in `btclib.rst`, stanzas for the submodules in
+    `btclib.script.rst`, and the package's own stanza at the end of it. Read
     the toctree as documentation and dropping that last stanza passes --
     the suite finding the name in the toctree, and sphinx warning about
     nothing, autodoc having no idea a page was meant to carry it.
@@ -158,12 +158,12 @@ def test_a_toctree_line_is_not_a_stanza() -> None:
         ".. toctree::\n"
         "   :maxdepth: 4\n"
         "\n"
-        "   btclib.psbt\n"
+        "   btclib.script\n"
         "\n"
-        ".. automodule:: btclib.psbt.psbt_utils\n"
+        ".. automodule:: btclib.script.script_pub_key\n"
         "   :members:\n"
     )
-    assert _documented_in(source) == {"btclib.psbt.psbt_utils"}
+    assert _documented_in(source) == {"btclib.script.script_pub_key"}
 
 
 @pytest.mark.parametrize(

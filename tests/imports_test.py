@@ -85,7 +85,7 @@ def test_exceptions_imports_nothing_of_btclibs_and_no_client(
     and `ssl` and `socket` under it, behind every import reaching here --
     which is most of the library, an exception being what most of it
     raises. Since the client became a package of its own, the classes are
-    btclib's again and `btclib.fetch.fetcher.client_errors` translates at
+    btclib's again and `btclib_wallet.fetch.fetcher.client_errors` translates at
     the one boundary that needs it.
 
     So the cost pinned here is nothing at all: no btclib module beyond
@@ -194,26 +194,21 @@ def test_the_codec_does_not_pay_for_the_rpc_package() -> None:
     assert transport_cost not in loaded
 
 
-def test_electrum_codec_does_not_import_fetch() -> None:
-    """`btclib.electrum` is the codec `btclib.fetch.electrum` is built on.
+def test_electrum_codec_stays_stdlib_light() -> None:
+    """`btclib.electrum` is the codec, and importing it opens nothing.
 
-    Not the reverse: `btclib.fetch.__init__` imports every fetcher, so an
-    importer of this module alone -- node, should it ever serve the
-    protocol rather than only speak it -- does not pay for `urllib`,
-    `ssl` and `socket` through that package. `btclib.p2p`'s own docstring
-    states the same rule for the same reason.
+    `btclib_wallet.fetch.electrum` is the fetcher built on it, and that
+    package's `__init__` imports every fetcher, `urllib`, `ssl` and
+    `socket` behind them: an importer of this module alone -- node, should
+    it ever serve the protocol rather than only speak it -- pays for none
+    of that. `btclib.p2p`'s own docstring states the same rule for the
+    same reason, and `_HEAVY_MODULES` below is the list both are held to.
 
-    A subprocess and not `unimported_btclib`: that fixture takes btclib
-    out of `sys.modules` and leaves `bitcoin_core_rpc` wherever an
-    earlier test in this process put it, so `btclib.fetch`'s absence
-    needs a fresh interpreter to mean anything -- the same reason the
-    p2p test above uses one.
+    A subprocess and not `unimported_btclib`, for the reason the p2p test
+    above gives.
     """
-    probe = "import btclib.electrum, sys; print(sorted(sys.modules))"
-    loaded = subprocess.run(  # noqa: S603
-        [sys.executable, "-c", probe], check=True, capture_output=True, encoding="utf-8"
-    ).stdout
-    assert "btclib.fetch" not in loaded
+    loaded = _loaded_after_importing("btclib.electrum")
+    assert not set(loaded) & set(_HEAVY_MODULES)
 
 
 def test_the_tests_package_imports_no_btclib_submodule() -> None:
@@ -257,28 +252,6 @@ def test_address_encodings_stay_below_script(unimported_btclib: None) -> None:
     importlib.import_module("btclib.b58")
     importlib.import_module("btclib.b32")
     assert not [name for name in btclib_modules() if name.startswith("btclib.script")]
-
-
-def test_b58_stays_below_bip32(unimported_btclib: None) -> None:
-    """b58 and b32 must not import btclib.bip32.
-
-    A WIF is Base58Check with a prefix and a flag, and `b58` parses and
-    writes the whole of it; an extended key is BIP32's own format, so
-    reading one is `bip32`'s job, not `b58`'s (CLAUDE.md's *Architecture*,
-    issue #1188). Issue #2129 puts `b58` and `b32` in `btclib` and `bip32`
-    in `btclib-wallet`, so this edge is one of those
-    `test_the_application_slab_has_no_inbound_edge` below refuses, and it
-    stays in front of that check as a different instrument: that one
-    reads import statements, this one reads `sys.modules`, which holds
-    what arrives transitively through modules `b58`'s own statements
-    never name.
-    `tests/b58_test.py` imports `btclib.bip32` at module scope for a
-    refusal test of its own, so the fixture is what keeps that import
-    from making this assertion pass for the wrong reason.
-    """
-    importlib.import_module("btclib.b58")
-    importlib.import_module("btclib.b32")
-    assert "btclib.bip32" not in btclib_modules()
 
 
 def test_network_stays_below_block(unimported_btclib: None) -> None:
@@ -451,63 +424,11 @@ def test_hashes_stays_stdlib_light() -> None:
     )
 
 
-def test_mnemonic_stays_stdlib_light() -> None:
-    """`btclib.mnemonic` to the seed is `mnemonic-codes`, row 3 of issue #2129.
-
-    Three functions that build an extended private key --
-    `bip39.mxprv_from_mnemonic`, `slip39.mxprv_from_mnemonics` and
-    `electrum.mxprv_from_mnemonic`, which refuses the pre-2.0 scheme
-    outright -- are why this reaches `bip32` and `network` rather than
-    stopping at the seed the way BIP39 and SLIP39 themselves do. A
-    fourth, `electrum.old_master_pub_key_from_mnemonic`, answers that
-    pre-2.0 scheme with a plain public-key point instead of an extended
-    key, which is why it reaches `curves` and neither of the other two.
-    Issue #2129 places the seed-to-key functions in `btclib-wallet`, row
-    5, and the rest of the package in `mnemonic-codes`. What this checks
-    is that the reach, wherever it stops, never leaves stdlib-light
-    territory on the way.
-    """
-    _assert_stays_within(
-        "btclib.mnemonic",
-        {
-            "btclib",
-            "btclib.alias",
-            "btclib.exceptions",
-            "btclib.utils",
-            "btclib.mnemonic",
-            "btclib.mnemonic.bip39",
-            "btclib.mnemonic.dispatch",
-            "btclib.mnemonic.electrum",
-            "btclib.mnemonic.entropy",
-            "btclib.mnemonic.mnemonic",
-            "btclib.mnemonic.slip39",
-            "btclib.bip32",
-            "btclib.bip32.bip32",
-            "btclib.bip32.der_path",
-            "btclib.bip32.key_origin",
-            "btclib.base58",
-            "btclib.hashes",
-            "btclib._ripemd160",
-            "btclib.var_int",
-            "btclib.curves",
-            "btclib.curves.curve",
-            "btclib.curves.curve_group",
-            "btclib.curves.curve_group_2",
-            "btclib.curves.curve_group_f",
-            "btclib.curves.sec_point",
-            "btclib.number_theory",
-            "btclib._libsecp256k1",
-            "btclib.network",
-            "btclib.consensus",
-        },
-    )
-
-
-# Row 5 of issue #2129, `btclib-wallet`, in that table's order: the units
-# nothing on the protocol side imports. It points the other way from the
-# checks above -- it imports btclib rather than being imported by it -- so
-# its own check is the opposite shape: not what it reaches, but that
-# nothing below it reaches back.
+# Row 5 of issue #2129, `btclib-wallet`, in that table's order, with
+# `mnemonic/`, which went with `bip85`: the units that left this package
+# for `btclib_wallet`. That package imports btclib rather than being
+# imported by it, so the check on it is not what it reaches but that
+# nothing here reaches back -- under its old name or its new one.
 _APPLICATION_SLAB = (
     "bip32",
     "bip44",
@@ -531,13 +452,11 @@ _APPLICATION_SLAB = (
     "psbt_signer_contract",
     "core_import",
     "fetch",
+    "mnemonic",
 )
 
-# Left out of the scan and not in the slab: `mnemonic/`'s seed-to-key
-# functions import `bip32`, and issue #2129 places those functions in
-# `btclib-wallet` and the rest of the package in `mnemonic-codes`, so
-# until they part the package straddles the line.
-_SLAB_SCAN_LEAVES_OUT = ("mnemonic",)
+# the import package row 5 is published as
+_WALLET_PACKAGE = "btclib_wallet"
 
 
 def _is_btclib(name: str) -> bool:
@@ -551,8 +470,17 @@ def _is_btclib(name: str) -> bool:
     return name == "btclib" or name.startswith("btclib.")
 
 
+def _is_btclib_or_wallet(name: str) -> bool:
+    """Answer whether a dotted name is this package's or `btclib_wallet`'s."""
+    return (
+        _is_btclib(name)
+        or name == _WALLET_PACKAGE
+        or name.startswith(f"{_WALLET_PACKAGE}.")
+    )
+
+
 def _btclib_names_imported_by(path: Path) -> set[str]:
-    """Return every dotted btclib name one source file's own imports name.
+    """Return every dotted btclib or btclib_wallet name one file's imports name.
 
     `from btclib import wallet` and `from btclib.wallet import Wallet` name
     the same package two different ways; joining the `from` module with
@@ -563,8 +491,12 @@ def _btclib_names_imported_by(path: Path) -> set[str]:
     names: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            names.update(alias.name for alias in node.names if _is_btclib(alias.name))
-        elif isinstance(node, ast.ImportFrom) and _is_btclib(node.module or ""):
+            names.update(
+                alias.name for alias in node.names if _is_btclib_or_wallet(alias.name)
+            )
+        elif isinstance(node, ast.ImportFrom) and _is_btclib_or_wallet(
+            node.module or ""
+        ):
             module = node.module or ""
             names.add(module)
             names.update(f"{module}.{alias.name}" for alias in node.names)
@@ -606,8 +538,29 @@ def test_the_application_slab_check_finds_a_planted_edge() -> None:
     assert edges == {"outside.py": ["btclib.wallet.wallet"]}
 
 
+def test_the_application_slab_scan_reads_both_names(tmp_path: Path) -> None:
+    """`_btclib_names_imported_by` collects the slab under either name.
+
+    The tree has no import of `btclib_wallet`, so without a planted file
+    nothing would show that the scan below reads one at all: a collector
+    keyed on `btclib` alone would answer the same empty set for a module
+    importing the package above it.
+    """
+    planted = tmp_path / "planted.py"
+    planted.write_text(
+        "import btclib_wallet.bip32\nfrom btclib_wallet import psbt\n"
+        "from btclib_secp256k1 import dsa\n",
+        encoding="utf-8",
+    )
+    assert _btclib_names_imported_by(planted) == {
+        "btclib_wallet.bip32",
+        "btclib_wallet",
+        "btclib_wallet.psbt",
+    }
+
+
 def test_the_application_slab_has_no_inbound_edge() -> None:
-    """Nothing on the protocol side imports the slab: issue #2129's rule 2.
+    """Nothing here imports the slab: issue #2129's rule 2.
 
     Static rather than a subprocess probe: `import btclib` alone loads
     nothing (`btclib/__init__.py`'s own `__getattr__` is why), so no
@@ -616,28 +569,26 @@ def test_the_application_slab_has_no_inbound_edge() -> None:
     file's own import statements name can. `root.rglob("*.py")` walks the
     installed package the same way `module_names` does, from
     `btclib.__path__`, so this checks the tree the suite runs against
-    rather than a copy on disk that might be stale. The files scanned are
-    every one outside the slab, less `_SLAB_SCAN_LEAVES_OUT`'s.
+    rather than a copy on disk that might be stale. Every file is scanned,
+    for both spellings of the slab: `btclib.<unit>`, which no longer
+    resolves, and `btclib_wallet`, which depends on this package and so
+    cannot be depended on by it.
+
+    The slab's units are asserted absent from the tree first. A unit that
+    came back, as a copy or as a module re-exporting `btclib_wallet`'s, is
+    what rule 3 refuses, and a scan that walked it would be reading the
+    slab from inside rather than the protocol side.
     """
     root = Path(btclib.__path__[0])
-    slab_roots = tuple(f"btclib.{name}" for name in _APPLICATION_SLAB)
-    unscanned_units = (*_APPLICATION_SLAB, *_SLAB_SCAN_LEAVES_OUT)
-    for name in unscanned_units:
-        # a misspelt slab unit would be scanned rather than guarded, and
-        # green; a left-out unit that no longer exists is a stale entry
-        assert (root / f"{name}.py").is_file() or (root / name).is_dir(), name
-    unscanned_files = {
-        path
-        for name in unscanned_units
-        for path in (
-            [root / f"{name}.py"]
-            if (root / f"{name}.py").is_file()
-            else (root / name).rglob("*.py")
-        )
-    }
+    for name in _APPLICATION_SLAB:
+        assert not (root / f"{name}.py").exists(), name
+        assert not (root / name).exists(), name
+    slab_roots = (
+        _WALLET_PACKAGE,
+        *(f"btclib.{name}" for name in _APPLICATION_SLAB),
+    )
     imports_by_file = {
         str(path.relative_to(root)): _btclib_names_imported_by(path)
         for path in root.rglob("*.py")
-        if path not in unscanned_files
     }
     assert _slab_edges(imports_by_file, slab_roots) == {}
