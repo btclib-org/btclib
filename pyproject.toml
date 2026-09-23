@@ -364,13 +364,10 @@ source-exclude = [
     "/tests/docs_commands_test.py",
     "/tests/generate_sbom_test.py",
     "/tests/interpreters_test.py",
-    "/tests/mutation_counts_test.py",
     "/tests/mutation_sessions_test.py",
     "/tests/normalize_sdist_test.py",
     "/tests/verify_dist_contents_test.py",
     "/tests/wait_for_hwi_device_test.py",
-    "/tests/wait_for_pypi_release_test.py",
-    "/tests/wait_for_readthedocs_build_test.py",
     "/tests/what_runs_when_test.py",
     # the same reasoning, for fuzz/ rather than .github/scripts: git-only
     # below is why it is not in the sdist, and this test reads
@@ -872,18 +869,18 @@ extend-ignore-re = ['\w*[a-z][A-Z]\w*']
 [tool.coverage.run]
 # what the ratchet measures, named here rather than on the command line
 # that starts it. Unnamed, `--cov` measures every file the run imports,
-# and that reaches .github/scripts/mutation_counts.py through the test
-# importing it by path: the script's `main()` then reads as uncovered,
-# nothing running it but a test spawning it as a subprocess, and
-# subprocess coverage is not collected. So a bare `uv run pytest --cov`
-# fails on a pristine checkout while the coverage-py job passes -- a
-# local gate stricter than the one it exists to reproduce, which is the
-# worse of the two directions: it asks for a fix that CI does not want.
-# Named, the job and the local run are the same command, and the scripts
-# lose nothing by it, mypy taking them as CONTRIBUTING.md's command says.
-# Covering that `main()` instead would mean either coverage's subprocess
-# handshake for one script, or a test calling it in-process for the sake
-# of the measurement
+# and that reaches `.github/scripts`'s own modules through the tests
+# that load them by path -- `wait_for_hwi_device.py`'s `if __name__ ==
+# "__main__":` guard, untouched by anything in `tests/`, is what stays
+# uncovered today. So a bare `uv run pytest --cov` fails on a pristine
+# checkout while the coverage-py job passes -- a local gate stricter
+# than the one it exists to reproduce, which is the worse of the two
+# directions: it asks for a fix that CI does not want. Named, the job
+# and the local run are the same command, and the scripts lose nothing
+# by it, mypy taking them as CONTRIBUTING.md's command says. Covering
+# that guard instead would mean a test calling it in-process the way
+# `generate_sbom_test.py`'s own guard test does, for the sake of the
+# measurement alone
 source = ["btclib", "tests"]
 # tests/integration is omitted because the ratchet measures what an
 # ordinary run executes, and those tests skip themselves without
@@ -1373,12 +1370,9 @@ ignore = [
 # prints are the interface, not a debugging leftover -- unlike a print
 # anywhere else in the library, which is deleted rather than ignored
 "src/btclib/mnemonic/entropy.py" = ["T201"]
-# the mutation counter's one line of output is what the workflow step
-# exists to put in the log. T20 is selected for the library, which writes
-# to no stream of its own; a script whose caller is a workflow step is the
-# case it is not about
-".github/scripts/mutation_counts.py" = ["T201"]
-# and the vendored-vector checker: BEHIND, SKIPPED and the all-clear line
+# T20 is selected for the library, which writes to no stream of its own;
+# a script whose caller is a workflow step is the case it is not about.
+# The vendored-vector checker: BEHIND, SKIPPED and the all-clear line
 # are what a weekly run's log says happened, the issue it opens or
 # closes being the same report a second way
 ".github/scripts/check_vendored_vectors.py" = ["T201"]
@@ -1386,25 +1380,10 @@ ignore = [
 # job that started an emulator: what it saw and how long it took, or the
 # ::error:: annotation naming what it saw instead
 ".github/scripts/wait_for_hwi_device.py" = ["T201"]
-# and the release wait, whose output is the log of a job with nothing
-# else in it: one line per question the index has not answered yet, the
-# answer when it comes, or the ::error:: annotation naming the version
-# that never arrived
-".github/scripts/wait_for_pypi_release.py" = ["T201"]
-# and the documentation wait, the same shape one service over: one line
-# per answer read the docs gave that was not the page, the page when it
-# comes, or the ::error:: annotation naming the last answer and the
-# builds page that says why
-".github/scripts/wait_for_readthedocs_build.py" = ["T201"]
 # and the py-arm authority re-derivation: which module it is
 # measuring, one line per disagreement found, and the all-clear or count
 # at the end are what a weekly run's log says happened
 ".github/scripts/check_py_arm_authority.py" = ["T201"]
-# and the changelog check, run by the check-changelog hook and read on
-# the terminal of whoever's commit it refused: one line per finding,
-# naming the line and the reason, or the all-clear, is the whole of
-# its report
-".github/scripts/check_changelog.py" = ["T201"]
 # the D rules are not here: a public test function, fixture or method
 # states what it verifies -- the property, the vector, the failure
 # mode -- under the same docstring gate as the library's public

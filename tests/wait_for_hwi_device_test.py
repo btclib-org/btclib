@@ -15,11 +15,9 @@ that also means the workflow failed.
 
 `enumerate_devices` is substituted by a scripted sequence of answers,
 each either a list of devices or a `SignerError` to raise, and `time` by
-a clock that only moves when the script sleeps on it -- the same shape
-`wait_for_pypi_release_test.py` uses for its own deadline, and for the
-same reason: a regression that falls through to a real `time.sleep`
-turns into an immediate failure here instead of a suite that sits for
-whichever timeout was passed.
+a clock that only moves when the script sleeps on it: a regression that
+falls through to a real `time.sleep` turns into an immediate failure
+here instead of a suite that sits for whichever timeout was passed.
 
 The script is loaded by path, `.github/scripts` being no package, as the
 other scripts under it are tested. It defines no dataclass of its own --
