@@ -150,13 +150,14 @@ jobs:
       concurrency-suffix: "-release"
 
   # and the one required check on main this workflow was not asking for.
-  # `Regtest against Bitcoin Core` gates every merge, which is why it was
-  # left out and why leaving it out was wrong: a rehearsal is dispatched
-  # from a branch, and a tag is pushed at a commit whose merge that check
-  # answered for -- but the calls to test.yml, lint.yml and docs.yml are
-  # every one of them a required check too, made again here for exactly
-  # that reason. integration-bitcoind.yml declared `workflow_call` for
-  # this from the day it became a gate; nothing had ever called it
+  # `regtest / Regtest against Bitcoin Core` gates every merge, which is
+  # why it was left out and why leaving it out was wrong: a rehearsal is
+  # dispatched from a branch, and a tag is pushed at a commit whose merge
+  # that check answered for -- but the calls to test.yml, lint.yml and
+  # docs.yml are every one of them a required check too, made again here
+  # for exactly that reason. integration-bitcoind.yml declared
+  # `workflow_call` for this from the day it became a gate; nothing had
+  # ever called it
   integration-bitcoind:
     name: Run the integration-bitcoind workflow
     uses: ./.github/workflows/integration-bitcoind.yml # zizmor: ignore[self-repository]

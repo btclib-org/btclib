@@ -60,15 +60,15 @@ repos/btclib-org/btclib/branches/main/protection --jq
 | Check | Produced by |
 | --- | --- |
 | `test: every job passed` | `test.yml`, aggregate over its own jobs |
-| `Regtest against Bitcoin Core` | `integration-bitcoind.yml`, its regtest job |
 | `docs / Build the documentation` | `docs.yml`, calling `reusable-docs.yml` |
 | `lint / Lint and type-check` | `lint.yml`, calling `reusable-lint.yml` |
+| `regtest / Regtest against Bitcoin Core` | `integration-bitcoind.yml` |
 
 A workflow needs an aggregate when every one of its jobs has to gate:
 `test.yml` is the one with several, and a context naming any one of them
 would leave the rest outside the rule. Where a single job is what gates,
-that job *is* the context, which is why most of the checks above are job
-names.
+that job *is* the context, which is why every check above ends in one
+job's `name:`.
 `integration-bitcoind.yml` holds only the regtest job: the HWI jobs — `HWI
 against a Trezor emulator` and `HWI against a Ledger emulator` — live in
 `integration-hwi.yml`, a workflow with no `pull_request` trigger at all, so a
@@ -88,26 +88,20 @@ workflow that reported it, so moving a job is free and renaming one is
 not — the pull request that renames a required check stops producing the
 old name and never produces one the rule is waiting for.
 
-`docs.yml`'s own job contributes no name of its own: its whole body is a
-call to `btclib-org/.github`'s `reusable-docs.yml`, so the context joins
-the calling job's id to the called job's own name, `docs.yml`'s `docs` job
-calling `reusable-docs.yml` whose own job is still named
-`Build the documentation`, together producing
-`docs / Build the documentation` (issue btclib-org/.github#35).
+A job whose whole body is a call to one of `btclib-org/.github`'s reusable
+workflows contributes no name of its own: the context joins the calling
+job's id to the called job's `name:`, so `docs.yml`'s `docs` job calling
+`reusable-docs.yml`, whose own job is named `Build the documentation`,
+produces `docs / Build the documentation`. `lint.yml` calls
+`reusable-lint.yml` and `integration-bitcoind.yml` calls
+`reusable-integration-bitcoind.yml` the same way (issues
+btclib-org/.github#35 and btclib-org/.github#1196).
 
-`lint.yml`'s own job contributes no name of its own either, for the same
-reason: its whole body is a call to `btclib-org/.github`'s
-`reusable-lint.yml`, so the context joins the calling job's id to the
-called job's own name, `lint.yml`'s `lint` job calling `reusable-lint.yml`
-whose own job is still named `Lint and type-check`, together producing
-`lint / Lint and type-check` (issue btclib-org/.github#35).
-
-`Regtest against Bitcoin Core` is the newest of the four, and it is here
-because its cost was measured rather than assumed: 36 seconds of work for a
-disposable regtest node, which is less than the gate it runs beside. It answers
-the one claim the recorded vectors cannot make. `integration-bitcoind.yml`
-therefore carries no `paths` filter: a required check that never runs blocks a
-merge, where a skipped one satisfies it.
+`regtest / Regtest against Bitcoin Core` is here because its cost was measured
+rather than assumed: 36 seconds of work for a disposable regtest node, which is
+less than the gate it runs beside. It answers the one claim the recorded vectors
+cannot make. `integration-bitcoind.yml` therefore carries no `paths` filter: a
+required check that never runs blocks a merge, where a skipped one satisfies it.
 
 The plan puts a ceiling on how many jobs the organization runs at once,
 and *Plan-gated settings* below is where that figure lives, beside the
@@ -145,9 +139,9 @@ gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
   "strict": true,
   "checks": [
     {"context": "test: every job passed", "app_id": 15368},
-    {"context": "Regtest against Bitcoin Core", "app_id": 15368},
     {"context": "docs / Build the documentation", "app_id": 15368},
-    {"context": "lint / Lint and type-check", "app_id": 15368}
+    {"context": "lint / Lint and type-check", "app_id": 15368},
+    {"context": "regtest / Regtest against Bitcoin Core", "app_id": 15368}
   ]
 }
 JSON
