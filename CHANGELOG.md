@@ -1322,6 +1322,12 @@ file per release is what keeps each of them under it.
   `regtest / Regtest against Bitcoin Core`** (closes #2234); the first two
   list it last, as the endpoint does, not before `docs` as an earlier entry did.
 
+### `tests/imports_test.py` guards row 5 of the decomposition
+
+- **`_APPLICATION_SLAB` names the units of `btclib-wallet`, and the scan
+  for an inbound edge leaves `mnemonic/` out** (issue #2129): its
+  seed-to-key functions import `bip32` and are row 5 by that issue's table.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
