@@ -265,9 +265,16 @@ def test_b58_stays_below_bip32(unimported_btclib: None) -> None:
     A WIF is Base58Check with a prefix and a flag, and `b58` parses and
     writes the whole of it; an extended key is BIP32's own format, so
     reading one is `bip32`'s job, not `b58`'s (CLAUDE.md's *Architecture*,
-    issue #1188). `tests/b58_test.py` imports `btclib.bip32` at module
-    scope for a refusal test of its own, so the fixture is what keeps
-    that import from making this assertion pass for the wrong reason.
+    issue #1188). Issue #2129 puts `b58` and `b32` in `btclib` and `bip32`
+    in `btclib-wallet`, so this edge is one of those
+    `test_the_application_slab_has_no_inbound_edge` below refuses, and it
+    stays in front of that check as a different instrument: that one
+    reads import statements, this one reads `sys.modules`, which holds
+    what arrives transitively through modules `b58`'s own statements
+    never name.
+    `tests/b58_test.py` imports `btclib.bip32` at module scope for a
+    refusal test of its own, so the fixture is what keeps that import
+    from making this assertion pass for the wrong reason.
     """
     importlib.import_module("btclib.b58")
     importlib.import_module("btclib.b32")
@@ -316,15 +323,16 @@ def test_script_publishes_sig_hash_and_the_engine_without_importing_them(
     assert "btclib.tx" in btclib_modules()
 
 
-# What issue #1192 means by heavier than the stdlib basics. Not `socket`:
-# `btclib/__init__.py` reads `__version__` through `importlib.metadata`,
-# which pulls in `email.utils` and, through it, `socket`, on every
-# interpreter before 3.13 -- test_the_codec_does_not_pay_for_the_rpc_package
-# above measures this and does not assert `socket`'s absence for the same
-# reason, so a candidate check that did would be red on part of the matrix
-# and green on the rest for a fact about the interpreter rather than about
-# the candidate. These four are never pulled in by anything below btclib,
-# on any interpreter of the matrix.
+# What heavier than the stdlib basics means for issue #2129's rule that a
+# package below `btclib` is stdlib-light. Not `socket`: `btclib/__init__.py`
+# reads `__version__` through `importlib.metadata`, which pulls in
+# `email.utils` and, through it, `socket`, on every interpreter before
+# 3.13 -- test_the_codec_does_not_pay_for_the_rpc_package above measures
+# this and does not assert `socket`'s absence for the same reason, so a
+# check here that did would be red on part of the matrix and green on the
+# rest for a fact about the interpreter rather than about the module under
+# check. None of these is pulled in by anything below btclib, on any
+# interpreter of the matrix.
 _HEAVY_MODULES = ("urllib.request", "ssl", "http.client", "bitcoin_core_rpc")
 
 
@@ -345,14 +353,11 @@ def _loaded_after_importing(module_name: str) -> list[str]:
 
 
 def _assert_stays_within(entry_point: str, allowed_btclib_modules: set[str]) -> None:
-    """Assert one candidate's own closure, subset rather than equal.
+    """Assert one module's own closure, subset rather than equal.
 
-    Subset because a new edge into the candidate is the defect this test
-    exists to catch, and a removed one is not: the elliptic-curve
-    candidate's own reach is explicitly expected to shrink as issue #1188
-    lands, and an equality assertion would fail on that shrinking exactly
-    as loudly as on a real regression, which is not what "a check that
-    belongs in the cut" should cost the next branch that removes an edge.
+    Subset because a new edge into the module is the defect this exists
+    to catch, and a removed one is not: an equality assertion would fail
+    on a removed edge exactly as loudly as on a regression.
     """
     loaded = _loaded_after_importing(entry_point)
     btclib_loaded = {m for m in loaded if m == "btclib" or m.startswith("btclib.")}
@@ -361,17 +366,17 @@ def _assert_stays_within(entry_point: str, allowed_btclib_modules: set[str]) -> 
 
 
 def test_curves_stays_stdlib_light() -> None:
-    """`btclib.curves` is issue #1185's candidate, minus `ecc`.
+    """`btclib.curves` is row 2 of issue #2129, `ellipticcurves`, without `ecc`.
 
     `ecc` is left out of this check rather than pinned as "less bms": its
     own `__init__` imports `bms` eagerly beside every other scheme, so
-    asking for any one scheme today reaches `bms` and, through it, `b32`,
-    `b58`, `key` and `network` regardless of which scheme was asked for --
-    there is no way to import "ecc, less bms" as the tree stands, and
-    pinning the amalgam would assert a shape issue #1185 proposes to
-    undo rather than one the tree has. `curves` alone has no such wrinkle:
-    it is the package's own arithmetic, and its docstring already states
-    "Nothing here knows what a signature is."
+    asking for any one scheme reaches `bms` and, through it, `b32`, `b58`,
+    `key` and `network` regardless of which scheme was asked for -- there
+    is no way to import "ecc, less bms" as the tree stands, and pinning
+    the amalgam would assert a shape issue #2129 undoes, `bms` staying in
+    `btclib` when `ecc` descends, rather than one the tree has. `curves`
+    alone has no such wrinkle: it is the package's own arithmetic, and its
+    docstring already states "Nothing here knows what a signature is."
     """
     _assert_stays_within(
         "btclib.curves",
@@ -392,14 +397,16 @@ def test_curves_stays_stdlib_light() -> None:
     )
 
 
-def test_the_codec_candidate_stays_stdlib_light() -> None:
-    """`btclib.base58` and `btclib.bech32` are issue #1186's one candidate.
+def test_the_codecs_stay_stdlib_light() -> None:
+    """`btclib.base58` and `btclib.bech32` stay in `btclib` under issue #2129.
 
-    One package for both, per that issue's own "one, not two" decision, so
-    this imports both rather than each alone. `base58` reaches `hashes`
-    for its checksum -- the one edge that would need answering before the
-    pair could depend on something other than btclib, which is issue
-    #1191's question and not this one's.
+    Codecs with no bitcoin in them (CLAUDE.md's *Architecture*), and not a
+    package of their own: their consumers spread over rows 4 and 5 of
+    that issue's table, so no single package is short of them. One
+    allowlist for the pair, the two being held to the same reach. `base58`
+    reaches `hashes` for its checksum, and `_ripemd160` and `var_int`
+    arrive with it; `bech32` reaches nothing of btclib's beyond the
+    substrate.
     """
     loaded = _loaded_after_importing("btclib.base58")
     loaded_both = set(loaded) | set(_loaded_after_importing("btclib.bech32"))
@@ -419,14 +426,16 @@ def test_the_codec_candidate_stays_stdlib_light() -> None:
 
 
 def test_hashes_stays_stdlib_light() -> None:
-    """`btclib.hashes`, with `_ripemd160`, is issue #1191's candidate.
+    """`btclib.hashes`, with `_ripemd160`, stays in `btclib` under issue #2129.
 
-    Its own case for being a package rather than plumbing is that it is a
-    vocabulary -- `hash160`, `hash256`, `siphash`, the merkle helpers --
-    and that `_hashlib_has_ripemd160` makes whether this interpreter's
-    hashlib still carries RIPEMD-160 a runtime-profile question. Neither
-    of those is a stdlib-heavy import, which is what this checks rather
-    than assumes.
+    Not a package of its own, for the reason `base58` and `bech32` are
+    not; that issue sends `tagged_hash`, `reduce_to_hlen` and
+    `_assert_valid_hf` down to `ellipticcurves`, row 2, re-exported under
+    `btclib.hashes`. A name that descends lands in a package the issue's
+    rule 4 holds stdlib-light, and `_hashlib_has_ripemd160` makes whether
+    this interpreter's hashlib carries RIPEMD-160 a runtime question
+    rather than an import; this checks that the module reaches nothing
+    heavy rather than assumes it.
     """
     _assert_stays_within(
         "btclib.hashes",
@@ -443,7 +452,7 @@ def test_hashes_stays_stdlib_light() -> None:
 
 
 def test_mnemonic_stays_stdlib_light() -> None:
-    """`btclib.mnemonic` is issue #1183's candidate: BIP39, SLIP39, Electrum.
+    """`btclib.mnemonic` to the seed is `mnemonic-codes`, row 3 of issue #2129.
 
     Three functions that build an extended private key --
     `bip39.mxprv_from_mnemonic`, `slip39.mxprv_from_mnemonics` and
@@ -453,9 +462,10 @@ def test_mnemonic_stays_stdlib_light() -> None:
     fourth, `electrum.old_master_pub_key_from_mnemonic`, answers that
     pre-2.0 scheme with a plain public-key point instead of an extended
     key, which is why it reaches `curves` and neither of the other two.
-    Issue #1183 keeps all four in btclib and moves the rest. What this
-    checks is that the reach, wherever it stops, never leaves
-    stdlib-light territory on the way.
+    Issue #2129 places the seed-to-key functions in `btclib-wallet`, row
+    5, and the rest of the package in `mnemonic-codes`. What this checks
+    is that the reach, wherever it stops, never leaves stdlib-light
+    territory on the way.
     """
     _assert_stays_within(
         "btclib.mnemonic",
@@ -493,17 +503,41 @@ def test_mnemonic_stays_stdlib_light() -> None:
     )
 
 
-# issue #1184's candidate: the modules nothing in btclib imports. It points
-# the other way from the four above -- it would import btclib, not be
-# imported by it -- so its own check is the opposite shape: not what it
-# reaches, but that nothing below it reaches back.
+# Row 5 of issue #2129, `btclib-wallet`, in that table's order: the units
+# nothing on the protocol side imports. It points the other way from the
+# checks above -- it imports btclib rather than being imported by it -- so
+# its own check is the opposite shape: not what it reaches, but that
+# nothing below it reaches back.
 _APPLICATION_SLAB = (
+    "bip32",
+    "bip44",
+    "bip85",
+    "slip132",
+    "psbt",
+    "descriptors",
+    "silent_payments",
+    "bip21",
+    "bolt11",
+    "bolt9",
+    "bip38",
+    "minikey",
+    "bip322",
+    "coin_selection",
+    "tx_builder",
+    "tx_or_psbt",
     "wallet",
     "hwi",
-    "core_import",
     "psbt_signer",
     "psbt_signer_contract",
+    "core_import",
+    "fetch",
 )
+
+# Left out of the scan and not in the slab: `mnemonic/`'s seed-to-key
+# functions import `bip32`, and issue #2129 places those functions in
+# `btclib-wallet` and the rest of the package in `mnemonic-codes`, so
+# until they part the package straddles the line.
+_SLAB_SCAN_LEAVES_OUT = ("mnemonic",)
 
 
 def _is_btclib(name: str) -> bool:
@@ -573,7 +607,7 @@ def test_the_application_slab_check_finds_a_planted_edge() -> None:
 
 
 def test_the_application_slab_has_no_inbound_edge() -> None:
-    """Nothing in btclib imports `wallet`, `hwi`, `core_import` or the signers.
+    """Nothing on the protocol side imports the slab: issue #2129's rule 2.
 
     Static rather than a subprocess probe: `import btclib` alone loads
     nothing (`btclib/__init__.py`'s own `__getattr__` is why), so no
@@ -582,13 +616,19 @@ def test_the_application_slab_has_no_inbound_edge() -> None:
     file's own import statements name can. `root.rglob("*.py")` walks the
     installed package the same way `module_names` does, from
     `btclib.__path__`, so this checks the tree the suite runs against
-    rather than a copy on disk that might be stale.
+    rather than a copy on disk that might be stale. The files scanned are
+    every one outside the slab, less `_SLAB_SCAN_LEAVES_OUT`'s.
     """
     root = Path(btclib.__path__[0])
     slab_roots = tuple(f"btclib.{name}" for name in _APPLICATION_SLAB)
-    slab_files = {
+    unscanned_units = (*_APPLICATION_SLAB, *_SLAB_SCAN_LEAVES_OUT)
+    for name in unscanned_units:
+        # a misspelt slab unit would be scanned rather than guarded, and
+        # green; a left-out unit that no longer exists is a stale entry
+        assert (root / f"{name}.py").is_file() or (root / name).is_dir(), name
+    unscanned_files = {
         path
-        for name in _APPLICATION_SLAB
+        for name in unscanned_units
         for path in (
             [root / f"{name}.py"]
             if (root / f"{name}.py").is_file()
@@ -598,6 +638,6 @@ def test_the_application_slab_has_no_inbound_edge() -> None:
     imports_by_file = {
         str(path.relative_to(root)): _btclib_names_imported_by(path)
         for path in root.rglob("*.py")
-        if path not in slab_files
+        if path not in unscanned_files
     }
     assert _slab_edges(imports_by_file, slab_roots) == {}
