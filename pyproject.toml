@@ -1454,10 +1454,13 @@ parametrize-names-type = "csv"
 # 2020-2022) would not have matched either.
 # Anchored with ^ for the same reason: unanchored, CPY001 is a search
 # over the first 4096 bytes and not a check that the notice opens the
-# file, so an import or a docstring placed above it would still pass.
-# No file here opens with a shebang, so nothing legitimate sits between
-# byte zero and the notice for the anchor to exclude
-notice-rgx = "^# Copyright \\(c\\) The btclib developers\\n# Distributed under the MIT software license, see the accompanying\\n# LICENSE file or https://opensource\\.org/license/mit for the full text\\."
+# file or follows its `#!` line, so an import or a docstring placed
+# above it would still pass.
+# `(#![^\n]*\n)?` after the anchor: only a `#!` line may precede
+# the notice, for the shebang a script run by path opens with, and
+# nothing else -- `notice-rgx` is `COPYRIGHT` transcribed this way
+# (btclib-org/.github#1294)
+notice-rgx = "^(#![^\\n]*\\n)?# Copyright \\(c\\) The btclib developers\\n# Distributed under the MIT software license, see the accompanying\\n# LICENSE file or https://opensource\\.org/license/mit for the full text\\."
 
 # what keeps the docstrings of the public surface complete, ruff having
 # no rule for a missing argument: the D family below asks that a

@@ -1328,6 +1328,12 @@ file per release is what keeps each of them under it.
   for an inbound edge leaves `mnemonic/` out** (issue #2129): its
   seed-to-key functions import `bip32` and are row 5 by that issue's table.
 
+### `notice-rgx` admits a `#!` line ahead of the copyright notice
+
+- **`^(#![^\n]*\n)?` precedes the escaped `COPYRIGHT` text instead of a
+  bare `^`** (issue btclib-org/.github#1294): only a `#!` line may
+  precede the notice, for a script run by path.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
