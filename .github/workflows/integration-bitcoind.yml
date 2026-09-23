@@ -18,10 +18,10 @@ name: integration-bitcoind
 # concurrency group, the pinned release and its sha256, and the two
 # environment-variable names tests/integration/conftest.py reads.
 #
-# `Regtest against Bitcoin Core` is a required check on main: what it
-# asks is whether Core accepts what this branch built, and the node is a
-# pinned release verified against a published sha256, so the answer is
-# about btclib. A run of it can still go red on an unreachable
+# `regtest / Regtest against Bitcoin Core` is a required check on main:
+# what it asks is whether Core accepts what this branch built, and the
+# node is a pinned release verified against a published sha256, so the
+# answer is about btclib. A run of it can still go red on an unreachable
 # bitcoincore.org or a runner slow enough to miss the node's startup
 # timeout; that is a re-run, and it is the price of the question.
 #
@@ -92,7 +92,7 @@ on:
   # that the merge result is, and workflow_call because release.yml calls
   # this workflow, as it calls test.yml, lint.yml and docs.yml: a
   # rehearsal is dispatched from a branch, where the required check this
-  # job's name is on main has asked nothing
+  # job reports on main has asked nothing
   push:
     branches: [main]
   workflow_call:

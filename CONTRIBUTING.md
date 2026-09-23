@@ -1040,11 +1040,11 @@ dump`, which cannot read one of these sessions at all.
 
 The `integration-bitcoind` workflow, which gates and is the exception here: it runs
 on every pull request, on every push to `main` and before a release, and
-`Regtest against Bitcoin Core` is required on `main`. It runs weekly too,
-and that workflow's own header says what the weekly run asks that the
-others do not: it pins one Core release, so the tree is not the question a
-schedule puts to it -- whether bitcoincore.org still serves that release
-is. It asks the one question the rest of CI cannot, whether Bitcoin Core
+`regtest / Regtest against Bitcoin Core` is required on `main`. It runs
+weekly too, and that workflow's own header says what the weekly run asks
+that the others do not: it pins one Core release, so the tree is not the
+question a schedule puts to it -- whether bitcoincore.org still serves that
+release is. It asks the one question the rest of CI cannot, whether Bitcoin Core
 accepts what btclib built. It downloads a pinned Core release, verifies
 its published sha256, and runs the tests `tests/README.md` documents with
 the binary named rather than found on PATH:

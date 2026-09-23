@@ -22,10 +22,10 @@ name: integration-hwi
 # one the Trezor speaks, and the app-2.x one behind a Ledger's wallet
 # policies and psbt exchange, and a green run of either says nothing
 # about the other. Neither gates: REPOSITORY.md's required-checks table
-# names only `Regtest against Bitcoin Core`, and an emulator is a service
-# to keep working rather than a claim about the branch. What checks the
-# HWI command line on every commit stays tests/hwi_test.py, whose
-# stand-in device is a subprocess answering HWI's own json.
+# names no HWI job, and an emulator is a service to keep working rather
+# than a claim about the branch. What checks the HWI command line on
+# every commit stays tests/hwi_test.py, whose stand-in device is a
+# subprocess answering HWI's own json.
 
 on:
   schedule:

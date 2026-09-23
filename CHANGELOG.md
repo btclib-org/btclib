@@ -1316,6 +1316,12 @@ file per release is what keeps each of them under it.
   and `wait_for_readthedocs_build.py` leave `.github/scripts/` for it**
   (issue btclib-org/.github#1293): `check-changelog` is a remote hook now.
 
+### `REPOSITORY.md` names the regtest check the way the rule does
+
+- **The table, the `PATCH` example and the prose name the check
+  `regtest / Regtest against Bitcoin Core`** (closes #2234); the first two
+  list it last, as the endpoint does, not before `docs` as an earlier entry did.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
