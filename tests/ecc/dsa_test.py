@@ -560,8 +560,9 @@ def test_prv_key_is_not_a_pub_key() -> None:
         assert str(prv_key_int) not in str(wrong_type.value)
 
     # the very same key, in its public representations, still verifies.
-    # An xpub is not among them: it is `bip32`'s object, and a caller
-    # holding one passes `bip32.point_from_xpub` of it (issue #1188)
+    # An xpub is not among them: it is `btclib_wallet.bip32`'s object, and
+    # a caller holding one passes `btclib_wallet.bip32.point_from_xpub` of
+    # it (issue #1188)
     for pub_key in (
         pub_key_point,
         pub_key_compressed,

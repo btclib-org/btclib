@@ -42,12 +42,13 @@ with no socket cannot have more than one line outstanding.
 
 **The merkle proof.** `assert_merkle_proof` and `verify_merkle_proof`
 check what `transaction_get_merkle_response` returns against a
-`BlockHeader` the caller already holds, and are what `Fetcher`'s own
-class docstring means by "returns evidence beside the data": the branch
-and position are not evidence until they are checked against a root, and
-that check is `btclib.block.merkle_proof.assert_as_valid`, unmodified --
-this module supplies the shapes either side of it and reimplements
-neither the arithmetic nor CVE-2017-12842's hardening.
+`BlockHeader` the caller already holds, and are what
+`btclib_wallet.fetch.Fetcher`'s own class docstring means by "returns
+evidence beside the data": the branch and position are not evidence until
+they are checked against a root, and that check is
+`btclib.block.merkle_proof.assert_as_valid`, unmodified -- this module
+supplies the shapes either side of it and reimplements neither the
+arithmetic nor CVE-2017-12842's hardening.
 """
 
 from __future__ import annotations
@@ -196,8 +197,9 @@ def block_header_request(request_id: int, height: int) -> bytes:
     `cp_height` left unsent, at its protocol default of zero: with it,
     the answer is the raw header hex alone, rather than a second, unasked
     merkle proof -- the `{"branch", "header", "root"}` checkpoint shape --
-    this codec has no method for and `Fetcher.get_block_header`'s own
-    checks, run on the header this returns, have no use for.
+    this codec has no method for and
+    `btclib_wallet.fetch.Fetcher.get_block_header`'s own checks, run on
+    the header this returns, have no use for.
     """
     return encode_request(request_id, "blockchain.block.header", [height])
 
@@ -218,8 +220,8 @@ class MerkleProof:
     display order -- the order `assert_merkle_proof` below, `Tx.id` and a
     block explorer all already use. `block_height` is the server's own
     claim of which block, unchecked here: it is what a caller passes to
-    `Fetcher.get_block_header` to fetch the header this proof is checked
-    against, so a wrong claim there is a wrong header fetched, and the
+    `btclib_wallet.fetch.Fetcher.get_block_header` to fetch the header
+    this proof is checked against, so a wrong claim there is a wrong header fetched, and the
     branch check below is what refuses it.
     """
 
