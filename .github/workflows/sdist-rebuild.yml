@@ -62,12 +62,5 @@ jobs:
     # sdist-builder, submodules and python-version all take their
     # defaults -- "uv", "" and "" -- which is exactly what this file
     # built before this conversion: `uv build --sdist`, no submodules and
-    # no setup-python step. attest-signer: reusable-attest, since the
-    # callee verifies the release GitHub marks latest, and release.yml's
-    # attest job signs through btclib-org/.github's reusable-attest.yml,
-    # v2026.9.24 being the first release signed that way. The callee's
-    # header says why the called workflow is the signer (issue
-    # btclib-org/.github#1301)
+    # no setup-python step
     uses: btclib-org/.github/.github/workflows/reusable-sdist-rebuild.yml@main
-    with:
-      attest-signer: reusable-attest
