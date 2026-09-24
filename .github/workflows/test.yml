@@ -859,9 +859,9 @@ jobs:
     # not for a dependency's own result -- unlike failure(), which walks
     # needs -- so this condition goes false, and the job skips instead
     # of failing, only when the run as a whole was superseded. A skipped
-    # job satisfies a required check -- this job's own draft/closed
-    # condition below already relies on exactly that, and has since
-    # before this change; integration-bitcoind.yml, by contrast, deliberately
+    # job satisfies a required check -- this job's own closed condition
+    # below already relies on exactly that; integration-bitcoind.yml, by
+    # contrast, deliberately
     # carries no `paths` filter, for the same reason stated in
     # REPOSITORY.md and in that workflow's own comment: a required check
     # that never runs blocks a merge, where a skipped one satisfies it,
@@ -870,13 +870,26 @@ jobs:
     # dependency failed, or was individually cancelled (a matrix cell
     # hitting its own timeout-minutes, say), because cancelled() does not
     # go true for that.
-    # and the draft condition every job above carries, so a draft
-    # skips uniformly rather than tripping the check below -- the
-    # closed one for the same reason, added at the trigger above
-    if: ${{ !cancelled() && !github.event.pull_request.draft && github.event.action != 'closed' }}
+    # The draft flag is not part of this condition: a skipped required
+    # check reads as passing, and this job's own check run does not exist
+    # until every job above has settled, so declining it here while draft
+    # would leave the draft's skip as the only check of this name on the
+    # sha until a later run's own aggregate exists. The closed condition
+    # stays, added at the trigger above: a closed pull request has
+    # nothing left to become ready (btclib-org/.github#1327)
+    if: ${{ !cancelled() && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # a skipped required check reads as passing, so the draft flag
+      # moves from the job's own `if:` above into this first step: the
+      # job still runs while draft, and reports a failure instead of a
+      # skip (btclib-org/.github#1327)
+      - name: Fail while this pull request is a draft
+        if: github.event.pull_request.draft
+        run: |
+          echo "::error::this pull request is a draft"
+          exit 1
       # unconditional -- no `if:` of its own -- and deciding in the
       # shell rather than in a boolean `contains(needs.*.result, ...)`
       # expression: issue #1001 saw four matrix cells die in "Set up job"

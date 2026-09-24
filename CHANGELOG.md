@@ -101,6 +101,12 @@ Private helpers in `curves.curve`, `curve_group`, `curve_group_2` and
 `ecc.ellswift` that loop on a scalar's bits, call `pubkey_tweak_mul_sum`, or
 wrap a `_var` function gain the suffix (closes #2259).
 
+### `codeql-passed` and `test-passed` no longer skip while draft
+
+A skipped required check reads as passing, so both aggregates now fail
+a first step on `github.event.pull_request.draft` instead of skipping
+on it (issue btclib-org/.github#1327).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
