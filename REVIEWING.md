@@ -472,8 +472,8 @@ because that document, and not this one, is where the rule lives.
 - A change under `curves/` or `ecc/`: does it keep **both arithmetic
   paths** right, and is the condition selecting them tested on both
   sides? Which of them calls the `btclib_secp256k1` bindings and which
-  the Python arithmetic is `CLAUDE.md`'s *Architecture*, and the suite
-  validates the second against the first.
+  the Python arithmetic is `ARCHITECTURE.md`'s, and the suite validates
+  the second against the first.
 - A change under `tests/**/_data/`: does `tests/_data/README.md` still
   say which revision of upstream the file is, and does the file carry
   the name upstream publishes it under? A citation in a test module

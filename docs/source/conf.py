@@ -163,8 +163,7 @@ html_theme = "furo"
 
 # -- Links out of the included root markdown files ----------------------------
 
-# Some pages of the toctree are this repository's root markdown files --
-# README, CONTRIBUTING, REVIEWING, SECURITY, RELEASE_NOTES and CHANGELOG --
+# Some pages of the toctree are this repository's root markdown files,
 # each pulled into a *_link.md shim by a myst {include}. The shims are what
 # the code below reads, so adding one needs no edit here.
 # Those files are written for the two places that read them unrendered --

@@ -13,8 +13,8 @@ of them is resolved.
 The population is every tracked `*.md`, citing being what these files do
 rather than a property of any one of them: `tests/_data/README.md` and
 `CHANGELOG.md` name the module a verdict's values sit in, `CONTRIBUTING.md`
-and `REVIEWING.md` the file a rule lives in, and `CLAUDE.md` the module a
-layer is drawn at.
+and `REVIEWING.md` the file a rule lives in, and `ARCHITECTURE.md` the
+module a layer is drawn at.
 
 Whose a cited path is, the tree decides. A list of the paths other
 projects own is a list to keep, and the day a vendored file arrives
@@ -26,7 +26,7 @@ reddens citations that are correct:
 
 - without the directory half a path written relative to `src/` or to
   `src/btclib/` is left to a file name this tree does have, which is
-  `CLAUDE.md`'s `curves/curve_group.py` and `RELEASE_NOTES.md`'s
+  `CHANGELOG.md`'s `ecc/frost.py` and `RELEASE_NOTES.md`'s
   `btclib/b58.py`;
 - without the file name half another project's tests are left to
   `tests/`, the directory everyone puts them in, which is `REVIEWING.md`'s

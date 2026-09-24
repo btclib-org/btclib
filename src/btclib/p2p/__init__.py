@@ -34,8 +34,9 @@ are `btclib.p2p.magic`'s, and that module reaches the `bitcoin-core-rpc`
 package's `chains` vocabulary, which depends on nothing beyond the
 standard library -- `urllib.request`, and `ssl` and `socket` under it,
 live in that package's `client` and `transport` instead, which a
-message-start lookup never reaches. README.md states the property this
-keeps: "No module loads `urllib.request` on its way to anything else."
+message-start lookup never reaches. ARCHITECTURE.md states the property
+this keeps: "no module loads `urllib.request` on its way to anything
+else".
 `__getattr__` below still answers the three lazily, the same pattern
 `btclib/script/__init__.py` uses for `sig_hash` and `engine`: `import
 btclib.p2p` stays what a parser needs and nothing else, whether or not

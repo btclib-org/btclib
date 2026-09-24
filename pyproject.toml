@@ -1231,7 +1231,7 @@ ignore = [
     # attribute is what this rule is for, and it cannot tell that caller
     # from a test verifying an implementation detail on purpose, or from
     # a sibling module inside this package's own layered architecture
-    # (CLAUDE.md's Architecture section) reaching into another module's
+    # (ARCHITECTURE.md) reaching into another module's
     # private state the way curve_group.py reads a Curve's own
     # `_fixed_points` cache
     "private-member-access",
