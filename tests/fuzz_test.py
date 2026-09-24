@@ -20,7 +20,6 @@ green rather than for having written it once.
 
 import contextlib
 import importlib
-import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -29,16 +28,12 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from btclib import b32, b58, base58, bech32, bip322, descriptors, var_bytes, var_int
-from btclib.bip21 import Bip21
-from btclib.bip32.bip32 import BIP32KeyData
-from btclib.bip32.key_origin import BIP32KeyOrigin
+from btclib import b32, b58, base58, bech32, var_bytes, var_int
 from btclib.block.block import Block
 from btclib.block.block_filter import BasicBlockFilter
 from btclib.block.block_header import BlockHeader
 from btclib.block.partial_merkle_tree import PartialMerkleTree
 from btclib.curves.sec_point import point_from_octets
-from btclib.descriptors import miniscript
 from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.ecc.borromean import BorromeanSig
 from btclib.ecc.rangeproof import RangeProof
@@ -87,10 +82,6 @@ from btclib.p2p.negotiation import (
     WtxidRelay,
 )
 from btclib.p2p.reject import Reject, RejectCode
-from btclib.psbt import psbt_utils
-from btclib.psbt.psbt import Psbt
-from btclib.psbt.psbt_in import PsbtIn
-from btclib.psbt.psbt_out import PsbtOut
 from btclib.script import script, sig_hash, taproot
 from btclib.script.engine import verify_input, verify_transaction
 from btclib.script.script_pub_key import ScriptPubKey
@@ -134,13 +125,6 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     # refusal, which stands in front of the Golomb decoding
     "BasicBlockFilter.parse": BasicBlockFilter.parse,
     "PartialMerkleTree.parse": PartialMerkleTree.parse,
-    "Psbt.parse": Psbt.parse,
-    "PsbtIn.parse": PsbtIn.parse,
-    "PsbtOut.parse": PsbtOut.parse,
-    "psbt_utils.deserialize_map": psbt_utils.deserialize_map,
-    "psbt_utils.parse_leaf_script": psbt_utils.parse_leaf_script,
-    "psbt_utils.parse_taproot_tree": psbt_utils.parse_taproot_tree,
-    "psbt_utils.parse_taproot_bip32": psbt_utils.parse_taproot_bip32,
     "Message.parse": Message.parse,
     "NetworkAddress.parse": NetworkAddress.parse,
     "TimestampedNetworkAddress.parse": TimestampedNetworkAddress.parse,
@@ -189,8 +173,6 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     # BIP61's payload: two var_bytes strings around a code octet, and a
     # trailing hash that is either exactly thirty-two octets or absent
     "Reject.parse": Reject.parse,
-    "BIP32KeyData.parse": BIP32KeyData.parse,
-    "BIP32KeyOrigin.parse": BIP32KeyOrigin.parse,
     "dsa.Sig.parse": dsa.Sig.parse,
     "ssa.Sig.parse": ssa.Sig.parse,
     "bms.Sig.parse": bms.Sig.parse,
@@ -205,9 +187,6 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     # how many rings follow, so a flip there asks for a body the buffer
     # does not hold
     "RangeProof.parse": RangeProof.parse,
-    # no bip322.Sig.parse: that class has none, its three payloads being
-    # three unrelated serializations told apart by the prefix of the text
-    # form alone, so the text entry point below is where it is read
     "ecies.Envelope.parse": ecies.Envelope.parse,
     "point_from_octets": point_from_octets,
     "base58.decode": base58.decode,
@@ -215,7 +194,7 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
 }
 
 # The same contract, for what a user pastes rather than what a peer
-# sends: an address, a WIF, an extended key, a descriptor.
+# sends: an address, a signature, an encrypted envelope.
 #
 # The base64 wrappers are here rather than above, and each is a parser of
 # its own: `b64decode` decodes and then hands the bytes to `parse`, so
@@ -227,15 +206,8 @@ TEXT_PARSERS: dict[str, Callable[[str], Any]] = {
     "bech32.decode": bech32.decode,
     "b32.witness_from_address": b32.witness_from_address,
     "b58.h160_from_address": b58.h160_from_address,
-    "Bip21.parse": Bip21.parse,
-    "BIP32KeyData.b58decode": BIP32KeyData.b58decode,
     "bms.Sig.b64decode": bms.Sig.b64decode,
-    "bip322.Sig.b64decode": bip322.Sig.b64decode,
-    "Psbt.b64decode": Psbt.b64decode,
     "ecies.Envelope.b64decode": ecies.Envelope.b64decode,
-    "descriptors.checksum": descriptors.checksum,
-    "descriptors.parse": descriptors.parse,
-    "miniscript.parse": miniscript.parse,
 }
 
 
@@ -248,14 +220,12 @@ TEXT_PARSERS: dict[str, Callable[[str], Any]] = {
 _CLASS_DECODER_METHODS = ("parse", "b64decode", "b58decode")
 
 # And the module-function side of the same family: a bare function takes the
-# same three roles under different names, `descriptors.checksum` being the one
-# member with no class to read a `b64decode` or a `b58decode` off. What this
-# tuple does not reach is a decoder named otherwise -- `point_from_octets` and
-# `b58.h160_from_address` are two such, both driven by the dicts above and
-# found by neither this walk nor any tuple of literal names, since nothing
-# about their name says they decode. Their coverage rests on the dicts, by
-# hand, not on this walk
-_MODULE_DECODER_NAMES = ("parse", "decode", "checksum")
+# same roles under different names. What this tuple does not reach is a
+# decoder named otherwise -- `point_from_octets` and `b58.h160_from_address`
+# are two such, both driven by the dicts above and found by neither this walk
+# nor any tuple of literal names, since nothing about their name says they
+# decode. Their coverage rests on the dicts, by hand, not on this walk
+_MODULE_DECODER_NAMES = ("parse", "decode")
 
 
 def _classes_driven_here() -> set[str]:
@@ -311,8 +281,8 @@ def test_every_module_function_that_decodes_is_driven_here() -> None:
     """And the same promise where the entry point is a module function.
 
     The walk above finds classes, so a module-level decoder needs its
-    own names: `parse`, `decode` and `checksum` are what a bare function
-    carries in place of a class's `parse`, `b64decode` and `b58decode`.
+    own names: `parse` and `decode` are what a bare function carries in
+    place of a class's `parse`, `b64decode` and `b58decode`.
     What is asserted is containment and not equality: the dicts already
     drive entry points named otherwise, and a tuple of literal names wide
     enough to find every one of those is the exclusion list this file
@@ -375,14 +345,6 @@ def _load(*parts: str) -> bytes:
         return file_.read()
 
 
-def _first_valid_psbt() -> bytes:
-    """Return BIP174's first valid psbt, re-serialized to bytes."""
-    filename = Path("psbt") / "_data" / "bip174_test_vectors.json"
-    with (Path(__file__).parent / filename).open(encoding="ascii") as file_:
-        vectors = json.load(file_)
-    return Psbt.b64decode(vectors["valid psbts"][0]["encoded psbt"]).serialize()
-
-
 # Block 1, the smallest there is at 215 bytes: what the mutations below
 # cost is paid once per example, so the sample is chosen for being the
 # shortest thing that still has a header, a transaction, and the two
@@ -405,7 +367,6 @@ TX_BIN = bytes.fromhex(
     "2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f880"
     "53ae00000000"
 )
-PSBT_BIN = _first_valid_psbt()
 # a p2p envelope carrying a payload, so that the mutations reach the
 # checksum and the length field with octets behind them rather than a
 # header alone
@@ -532,7 +493,6 @@ MUTATED_PARSERS: dict[str, tuple[Callable[[bytes], Any], bytes]] = {
     "Tx.parse": (Tx.parse, TX_BIN),
     "BlockHeader.parse": (BlockHeader.parse, BLOCK_HEADER_BIN),
     "Block.parse": (Block.parse, BLOCK_BIN),
-    "Psbt.parse": (Psbt.parse, PSBT_BIN),
 }
 
 

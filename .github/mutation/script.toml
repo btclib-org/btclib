@@ -25,33 +25,36 @@ module-path = [
     "src/btclib/script/__init__.py",
 ]
 
-# tests/script first, where nearly every mutant dies, and four files after
-# it that each reach statements no test in that directory does -- measured
-# with `--cov=btclib.script` over this command, which reports every module
-# here complete but for the seven lines named below:
+# tests/script first, where nearly every mutant dies, and the files after
+# it that each reach statements no test in that directory does:
 #
 # - tests/all_test.py is `src/btclib/script/__init__.py`'s only caller: the
 #   PEP 562 `__getattr__` and `__dir__` that import `engine` and
 #   `sig_hash` on demand are reached by nothing that imports them by name
 # - tests/tx/tx_out_test.py is what asks a `ScriptPubKey` for its
 #   `addresses`, whose p2ms fallback the templates' own tests never take
-# - tests/wallet/wallet_test.py and tests/psbt/psbt_test.py are the two
-#   callers of `_script_of` and of `assert_valid_control_block`
 #
-# Not tests/script_engine, which sig_hash.toml pairs with tests/script and
-# which is the only thing that reaches `taproot._read_push_data`'s
-# OP_PUSHDATA branch (lines 100-104, 107 and 152 -- an unknown op code
-# past a push in a tapscript). Its vectors cost far more wall clock
-# than this command, so buying those seven lines would multiply the
-# session many times over; the handful of mutants on them are
-# reported as survivors here instead, and engine.toml kills them from
-# its own side.
+# The command does not cover every module here, and a mutant on a line it
+# leaves unreached is reported as a survivor. The test command with
+# coverage asked for lists those lines, `-o addopts=` clearing
+# pyproject.toml's bare `--cov`, which would otherwise widen
+# `--cov=btclib.script` back to the whole package; the `engine/` and
+# `sig_hash.py` rows it prints are the other two profiles':
+#
+#   python -m pytest -o addopts= -x -q -p no:randomly \
+#     --cov=btclib.script --cov-branch --cov-report=term-missing \
+#     --cov-fail-under=0 \
+#     tests/script tests/all_test.py tests/tx/tx_out_test.py
+#
+# Not tests/script_engine, which sig_hash.toml pairs with tests/script:
+# its vectors cost far more wall clock than this command, so what only
+# they reach is left to the survivor list rather than bought by
+# multiplying the session.
 #
 # Also not tests/fuzz_test.py, and for a different reason -- see the
 # comment on the operator filter below
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
-  tests/script tests/all_test.py tests/tx/tx_out_test.py \
-  tests/wallet/wallet_test.py tests/psbt/psbt_test.py"""
+  tests/script tests/all_test.py tests/tx/tx_out_test.py"""
 
 # seconds of wall clock, wide for the reason sig_hash.toml measures. This
 # scope holds the loops that need it: `script.parse` reads a push length
@@ -61,7 +64,7 @@ timeout = 300
 
 excluded-modules = []
 
-# The `BitOr` exclusion wallet.toml explains and parsers.toml argues.
+# The `BitOr` exclusion parsers.toml argues.
 # Expected to be the other way here -- the templates do arithmetic on a
 # witness version and on flags -- and measured to be annotations only:
 #

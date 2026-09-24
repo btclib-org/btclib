@@ -40,7 +40,7 @@ from tests import load, vector_id
 # `network_from_chain` is the pair, which lives with the rest of
 # Core's vocabulary in the module that speaks Core's protocol -- and
 # imports nothing of btclib, so a key-encoding test reads it without
-# acquiring `btclib.fetch`.
+# acquiring the package's rpc client.
 #
 # It raises on a name it does not know, which is the property wanted at
 # collection time: a chain Core adds to this file later stops the run

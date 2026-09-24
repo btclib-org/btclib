@@ -170,8 +170,9 @@ __all__ = [
 ]
 
 # `SessionContext._bindings_ctx`'s element types, under TYPE_CHECKING for
-# the reason `bip32.py`'s own `_PubKeyTweakChain` union is: `from __future__
-# import annotations` leaves an annotation a string, so nothing here is
+# the reason btclib_wallet's `bip32.py` puts its own `_PubKeyTweakChain`
+# union there: `from __future__ import annotations` leaves an annotation a
+# string, so nothing here is
 # evaluated at runtime and the bindings need not be installed for the
 # module to import -- this is only for mypy, which runs where they are
 if TYPE_CHECKING:
@@ -725,7 +726,7 @@ def session_values(session_ctx: SessionContext) -> SessionValues:
     own `L` and `second`, which it likewise computes once and reuses
     for every key. Computed again here rather than threaded out of
     `key_agg_and_tweak` above: doing that would widen
-    `KeyAggContext`, which `btclib/psbt/musig2.py` and callers outside
+    `KeyAggContext`, which `btclib_wallet/psbt/musig2.py` and callers outside
     this module already read, for a value only `_session_key_agg_coeff`
     wants. What earns them a place on `SessionValues` instead of a
     second cached field on `SessionContext` is that every caller of

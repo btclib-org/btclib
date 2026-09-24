@@ -54,10 +54,10 @@ every `bool` one. Each carries the table this walk avoids, and a walk of
 its own over the parameter it is about, so the table cannot go stale
 quietly.
 
-A **method**, and a function taking a `Tx`, a `Psbt` or a callback, needs
-a valid instance the vocabulary cannot build. That is the part of issue
-#744 that stays hand-read, and `tests/bool_contract_test.py` is where the
-bool half of it is driven from fixtures instead.
+A **method**, and a function taking a `Tx` or a callback, needs a valid
+instance the vocabulary cannot build. That is the part of issue #744 that
+stays hand-read, and `tests/bool_contract_test.py` is where the bool half
+of it is driven from fixtures instead.
 `test_the_walk_reaches_what_it_claims` pins what the walk does find, so a
 narrowing of it fails here rather than quietly running over less.
 
@@ -108,9 +108,7 @@ _LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 # to be the same on two runs, the lists below being read as statements
 # about the tree
 _WRONG_TYPE: dict[str, tuple[Any, ...]] = {
-    "BIP32Key": (None, 1.5),
     "BinaryData": (None, 1.5),
-    "DerPath": (None, 1.5),
     "Integer": (None, 1.5),
     # an Octets, beside None and 1.5: every Octets is itself iterable, so
     # a signature reading Sequence[Octets] or Iterable[Octets] accepts
@@ -145,11 +143,7 @@ _WRONG_TYPE: dict[str, tuple[Any, ...]] = {
 # in the one above -- so a `# type: ignore` is never needed to build the
 # call, which is the same line drawn twice
 _WRONG_VALUE: dict[str, tuple[Any, ...]] = {
-    "BIP32Key": ("not an xkey",),
     "BinaryData": ("not hex at all",),
-    # a string no path spelling reads, an index below zero, and one above
-    # the four bytes a BIP32 index has
-    "DerPath": ("m/x", -1, [2**32]),
     "Integer": ("not hex at all",),
     # a hex string that is not hex, and one of odd length
     "Octets": ("not hex at all", "9"),
@@ -351,9 +345,8 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
     assert all(_is_declared(alias) for alias in _WRONG_TYPE)
 
     without_a_wrong_value = {
-        # three Literals: a value outside them is what mypy refuses, and a
+        # two Literals: a value outside them is what mypy refuses, and a
         # test passing one would be testing the type checker
-        "BIP44ScriptType",
         "NetworkField",
         "ScriptType",
         # the two hash-function types are always behind a default -- `hf`
@@ -367,9 +360,6 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
         # a callable, and the same again: its wrong values are the
         # non-callables, and it is never a required parameter
         "CipherF",
-        # a callable of a different arity, for the same reason: BIP38's
-        # cipher takes a key and a block, with no iv to make it CipherF's
-        "BlockCipherF",
         # the internal coordinates: no public parameter takes them from a
         # caller, `curves` converting to them and back
         "JacPoint",
@@ -390,14 +380,13 @@ def test_the_walk_reaches_what_it_claims() -> None:
     parameters are not all in the vocabulary.
     """
     assert _DRIVABLE["btclib.hashes.sha256"] == ["Octets"]
-    assert _DRIVABLE["btclib.bip32.bip32.derive"] == ["BIP32Key", "DerPath"]
+    assert _DRIVABLE["btclib.ecc.dleq.generate_proof"] == ["Integer", "PubKey"]
     # `network` and `compressed` carry defaults and are not driven
     assert _DRIVABLE["btclib.b58.prv_key_data_from_wif"] == ["String"]
 
     assert "btclib.hashes._assert_valid_hf" not in _DRIVABLE
-    # a required parameter the vocabulary cannot build: a Tx, a Psbt
+    # a required parameter the vocabulary cannot build: a Tx
     assert "btclib.script.sig_hash.legacy" not in _DRIVABLE
-    assert "btclib.psbt.psbt.finalize" not in _DRIVABLE
 
 
 def test_every_driven_function_is_under_both_rules() -> None:

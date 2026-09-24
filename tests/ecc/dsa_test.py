@@ -560,8 +560,9 @@ def test_prv_key_is_not_a_pub_key() -> None:
         assert str(prv_key_int) not in str(wrong_type.value)
 
     # the very same key, in its public representations, still verifies.
-    # An xpub is not among them: it is `bip32`'s object, and a caller
-    # holding one passes `bip32.point_from_xpub` of it (issue #1188)
+    # An xpub is not among them: it is `btclib_wallet.bip32`'s object, and
+    # a caller holding one passes `btclib_wallet.bip32.point_from_xpub` of
+    # it (issue #1188)
     for pub_key in (
         pub_key_point,
         pub_key_compressed,
@@ -925,8 +926,8 @@ def test_a_sig_that_never_validated_answers_false_and_does_not_raise() -> None:
     stays valid, and the second pass looks redundant. What makes it not is
     the two ways an unvalidated instance is reachable: `check_validity=False`,
     which the library itself passes for values libsecp256k1 has just
-    computed, and `object.__setattr__`, which reaches past frozen as
-    `tests/bip32/bip32_test.py::test_assert_valid2` does on purpose.
+    computed, and `object.__setattr__`, which reaches past frozen as this
+    test does on purpose below.
 
     Both of those reach `_serialize_scalar`, where `to_bytes(...,
     signed=False)` raises OverflowError for a negative r -- an

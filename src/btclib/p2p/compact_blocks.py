@@ -1031,7 +1031,7 @@ def reconstruct(compact_block: CmpctBlock, pool: Sequence[Tx] = ()) -> PartialBl
     `CmpctBlock` is what the first has to be and a sequence of `Tx` the
     second, so that "not a compact block at all" leaves as this library's
     own exception rather than as an `AttributeError` about a field name.
-    `psbt.assert_signatures_only` is the precedent, and
+    `btclib_wallet.psbt.assert_signatures_only` is the precedent, and
     `tests/built_object_contract_test.py` the gate over the family.
 
     What is *not* re-asked is `CmpctBlock.assert_valid`: a message built

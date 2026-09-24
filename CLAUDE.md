@@ -40,31 +40,29 @@ which is the single most important thing to know before touching
   test suite validates it *against* the bindings, which are the authority
   on the answer. `SECURITY.md` publishes this as a known limitation
 
-Layers, roughly bottom-up: `curves/` (curve arithmetic) → `ecc/` (dsa, ssa,
-bms, borromean, pedersen, rfc6979/bip340 nonces). At the key boundary,
-`base58` and `bech32` are the low-level codecs; `bip32/` depends on
-`base58`; `b58` and `b32` depend on `key`, and `key` on `curves` and
-`network` -- none of the three reaching `bip32/`, so importing
-`btclib.b58` does not put `btclib.bip32` in `sys.modules`, which is the
-measurement behind the arrow. `key.PubKeyData` is the (SEC-bytes,
-network) pair an address builder takes, and `key.PrvKeyData` the
-(scalar, network, compressed) triple `ecc.bms` signs with: a caller
-states which half of a pair it holds rather than leaving a size or a
-format to decide it (issue #1188). What each spelling of a key resolves
-through is the module that defines it: a WIF is Base58Check with a prefix
-and a flag, so `b58.prv_key_data_from_wif` reads it and
+Layers, roughly bottom-up: `curves/` (curve arithmetic) → `ecc/` (dsa,
+ssa, bms, borromean, pedersen, rfc6979/bip340 nonces). At the key
+boundary, `base58` and `bech32` are the low-level codecs; `b58` and `b32`
+depend on `key`, and `key` on `curves` and `network`. `key.PubKeyData` is
+the (SEC-bytes, network) pair an address builder takes, and
+`key.PrvKeyData` the (scalar, network, compressed) triple `ecc.bms` signs
+with: a caller states which half of a pair it holds rather than leaving a
+size or a format to decide it (issue #1188). What each spelling of a key
+resolves through is the module that defines it: a WIF is Base58Check with
+a prefix and a flag, so `b58.prv_key_data_from_wif` reads it and
 `b58.wif_from_prv_key` writes it; an extended key is BIP32's format, so
-`bip32.prv_keyinfo_from_xprv`, `bip32.pub_keyinfo_from_xpub`,
-`bip32.pub_keyinfo_from_xkey` and `bip32.point_from_xpub` are the parse,
-and a caller holding one calls one of them and passes the scalar or the
-point on (issue #1188). The scalar and the curve point in their octet
-spellings are facts about the curve, so `curves.scalar_from_prv_key` and
-`curves.point_from_pub_key` read them, and the network and the
-compression a record carries and a key does not are `key`'s. `slip132` sits
-above the address encodings, beside `bip44`. `mnemonic/`, `script/`,
-`tx/`, `block/`, `psbt/` and `descriptors` build on those layers.
-`alias.py` holds the type aliases the public API accepts, and much of the
-surface takes "anything convertible" rather than one type.
+its parse is `btclib_wallet.bip32`'s, and a caller holding one parses it
+there and passes the scalar or the point on (issue #1188). The scalar and
+the curve point in their octet spellings are facts about the curve, so
+`curves.scalar_from_prv_key` and `curves.point_from_pub_key` read them,
+and the network and the compression a record carries and a key does not
+are `key`'s. `script/`, `tx/`, `block/` and `p2p/` build on those layers.
+The wallet side -- BIP32, mnemonics, PSBTs, descriptors, the node clients
+-- is the `btclib-wallet` distribution, imported as `btclib_wallet`: it
+imports `btclib` and nothing here imports it, which
+`tests/imports_test.py` asserts (issue #2129). `alias.py` holds the type
+aliases the public API accepts, and much of the surface takes "anything
+convertible" rather than one type.
 
 Each of those pairs is one idea split in two, and each split runs one
 way only: `curves/` is arithmetic and `ecc/` is what is built on it;
@@ -469,8 +467,7 @@ Do not use Fable unless explicitly instructed.
   release wants it, and do not estimate:
 
   ```shell
-  git ls-files 'tests/_data/*' 'tests/*/_data/*' \
-      src/btclib/mnemonic/_data/wordlist.txt | grep -cv 'README.md'
+  git ls-files 'tests/_data/*' 'tests/*/_data/*' | grep -cv 'README.md'
   ```
 
   CHANGELOG.md has no command of this kind: a `###` heading names one

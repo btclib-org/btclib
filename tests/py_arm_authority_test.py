@@ -4,12 +4,12 @@
 
 """What says the Python arm is right, other than the bindings.
 
-The suite validates btclib's Python arithmetic *against* libsecp256k1,
-and `tests/bip32/bip32_test.py` says so in as many words: "The bindings
-are the authority on the answer here as everywhere else the library keeps
-a Python path". For btclib that is the property worth checking -- the
-bindings are the reference implementation, and agreeing with them is what
-a second implementation owes.
+The suite validates btclib's Python arithmetic *against* libsecp256k1, and
+`tests/curves/curve_test.py` says so in as many words: "The bindings are
+the authority on the answer -- they are what bitcoin runs". For btclib
+that is the property worth checking -- the bindings are the reference
+implementation, and agreeing with them is what a second implementation
+owes.
 
 Issue #198 needs the other property. A test framework built on btclib
 runs the Python arm precisely so that Bitcoin Core's use of libsecp256k1
@@ -113,8 +113,6 @@ _TESTS = Path(__file__).parent
 # Wycheproof, an RFC -- and not btclib, which is why `vectors.json` and
 # `btclib_test_vectors.json` appear nowhere here
 _THIRD_PARTY_VECTORS: dict[str, tuple[str, ...]] = {
-    "bip322_test.py": ("basic-test-vectors.json", "generated-test-vectors.json"),
-    "bip32/bip32_test.py": ("bip32_test_vectors.json", "bip32_invalid_keys.json"),
     "curves/curve_test.py": ("pubkey.json",),
     "curves/sec_point_test.py": ("script_tests.json",),
     "ecc/bms_test.py": ("signmessage.json",),
@@ -145,18 +143,14 @@ _THIRD_PARTY_VECTORS: dict[str, tuple[str, ...]] = {
     "script/taproot_test.py": ("script_assets_test.json",),
     "script_engine/script_test.py": ("script_tests.json",),
     "script_engine/transactions_test.py": ("tx_valid.json", "tx_invalid.json"),
-    "silent_payments_test.py": ("send_and_receive_test_vectors.json",),
 }
 
 # arm -> the modules of `_THIRD_PARTY_VECTORS` whose run reaches it. An
 # empty tuple is an arm no third-party vector reaches, and the module
 # docstring says what would
 _AUTHORITY: dict[str, tuple[str, ...]] = {
-    "bip32.bip32.__prv_key_derivation": ("bip32/bip32_test.py", "ecc/bms_test.py"),
-    "bip32.bip32._pub_key_tweak_chain": ("bip32/bip32_test.py",),
-    "curves.curve.__init__": ("curves/curve_test.py", "silent_payments_test.py"),
+    "curves.curve.__init__": ("curves/curve_test.py",),
     "curves.curve._jac_double_mult": (
-        "bip322_test.py",
         "ecc/bms_test.py",
         "ecc/musig2_test.py",
         "ecc/rfc6979_test.py",
@@ -166,11 +160,8 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
         "script/sig_hash_taproot_test.py",
         "script_engine/script_test.py",
         "script_engine/transactions_test.py",
-        "silent_payments_test.py",
     ),
     "curves.curve._mult_checked": (
-        "bip32/bip32_test.py",
-        "bip322_test.py",
         "curves/curve_test.py",
         "curves/sec_point_test.py",
         "ecc/bms_test.py",
@@ -185,22 +176,17 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
         "script/taproot_test.py",
         "script_engine/script_test.py",
         "script_engine/transactions_test.py",
-        "silent_payments_test.py",
     ),
     "curves.curve._multi_mult_x_only_var": ("ecc/ssa_test.py",),
     "curves.curve._sum_var": (
         "curves/curve_test.py",
         "ecc/musig2_test.py",
-        "silent_payments_test.py",
     ),
     "curves.curve._tweak_add_var": (
         "curves/curve_test.py",
         "ecc/musig2_test.py",
-        "silent_payments_test.py",
     ),
     "curves.curve._x_octets": (
-        "bip32/bip32_test.py",
-        "bip322_test.py",
         "curves/curve_test.py",
         "curves/sec_point_test.py",
         "ecc/bms_test.py",
@@ -215,7 +201,6 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
         "script/taproot_test.py",
         "script_engine/script_test.py",
         "script_engine/transactions_test.py",
-        "silent_payments_test.py",
     ),
     "curves.curve.double_mult_var": (
         "curves/curve_test.py",
@@ -223,18 +208,12 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
         "ecc/ssa_test.py",
     ),
     "curves.curve.multi_mult_var": (
-        "bip32/bip32_test.py",
         "curves/curve_test.py",
         "ecc/musig2_test.py",
         "ecc/ssa_test.py",
     ),
-    "curves.sec_point._mult_sec_var": (
-        "curves/sec_point_test.py",
-        "silent_payments_test.py",
-    ),
+    "curves.sec_point._mult_sec_var": ("curves/sec_point_test.py",),
     "curves.sec_point.bytes_from_prv_key_int": (
-        "bip32/bip32_test.py",
-        "bip322_test.py",
         "curves/curve_test.py",
         "curves/sec_point_test.py",
         "ecc/bms_test.py",
@@ -244,12 +223,11 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
         "script/taproot_test.py",
         "script_engine/script_test.py",
     ),
-    "ecc.bms.assert_as_valid": ("bip322_test.py", "ecc/bms_test.py"),
+    "ecc.bms.assert_as_valid": ("ecc/bms_test.py",),
     "ecc.commit_nonce.commit_nonce_": ("ecc/ssa_test.py",),
     "ecc.dh.diffie_hellman": ("ecc/wycheproof_test.py",),
     "ecc.dsa.__init__": (),
     "ecc.dsa.assert_as_valid_": (
-        "bip322_test.py",
         "ecc/bms_test.py",
         "ecc/rfc6979_test.py",
         "ecc/wycheproof_test.py",
@@ -257,16 +235,15 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
         "script_engine/script_test.py",
         "script_engine/transactions_test.py",
     ),
-    "ecc.dsa.recover_pub_key_": ("bip322_test.py", "ecc/bms_test.py"),
+    "ecc.dsa.recover_pub_key_": ("ecc/bms_test.py",),
     "ecc.dsa.recover_pub_keys_": (),
     "ecc.dsa.sign_": (
-        "bip322_test.py",
         "ecc/bms_test.py",
         "ecc/rfc6979_test.py",
         "script/sig_hash_legacy_test.py",
         "script_engine/script_test.py",
     ),
-    "ecc.dsa.sign_recoverable_": ("bip322_test.py", "ecc/bms_test.py"),
+    "ecc.dsa.sign_recoverable_": ("ecc/bms_test.py",),
     "ecc.ellswift.create_var": ("ecc/ellswift_test.py",),
     "ecc.ellswift.decode_var": ("ecc/ellswift_test.py",),
     "ecc.ellswift.encode_var": ("ecc/ellswift_test.py",),
@@ -274,54 +251,43 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
     "ecc.musig2.partial_sig_verify_": ("ecc/musig2_test.py",),
     "ecc.ssa.__init__": ("ecc/ssa_test.py",),
     "ecc.ssa.assert_as_valid_": (
-        "bip322_test.py",
         "ecc/musig2_test.py",
         "ecc/ssa_test.py",
         "script/sig_hash_taproot_test.py",
         "script_engine/script_test.py",
         "script_engine/transactions_test.py",
-        "silent_payments_test.py",
     ),
     "ecc.ssa.sign_": (
-        "bip322_test.py",
         "ecc/ssa_test.py",
         "script/sig_hash_taproot_test.py",
         "script_engine/script_test.py",
-        "silent_payments_test.py",
     ),
     "script.engine.script.dsa_verify": (
-        "bip322_test.py",
         "script/sig_hash_legacy_test.py",
         "script_engine/script_test.py",
         "script_engine/transactions_test.py",
     ),
     "script.engine.tapscript.ssa_verify": (
-        "bip322_test.py",
         "script/sig_hash_taproot_test.py",
         "script_engine/script_test.py",
         "script_engine/transactions_test.py",
     ),
     "script.taproot._tweaked_prvkey": (
-        "bip322_test.py",
         "script/sig_hash_taproot_test.py",
         "script/taproot_test.py",
         "script_engine/script_test.py",
     ),
     "script.taproot._tweaked_pubkey": (
-        "bip322_test.py",
         "script/sig_hash_taproot_test.py",
         "script/taproot_test.py",
         "script_engine/script_test.py",
     ),
     "script.taproot.check_output_pubkey": (
-        "bip322_test.py",
         "script/sig_hash_taproot_test.py",
         "script/taproot_test.py",
         "script_engine/script_test.py",
         "script_engine/transactions_test.py",
     ),
-    "silent_payments.output_keys": ("silent_payments_test.py",),
-    "silent_payments.scan_transaction_outputs": ("silent_payments_test.py",),
 }
 
 # the ones the measurement found nothing for, named so that closing one

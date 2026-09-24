@@ -3,7 +3,7 @@
 # script-number codec the engine and `Tx.height` both read, `int_from_bits`
 # is the RFC 6979 bit-string-to-int helper `borromean`, `ssa` and the other
 # deterministic-nonce modules share, and `read_exactly`/`assert_no_trailing`
-# are the exact-read boundary `tx`, `psbt` and `bip32` share. Issue #327
+# are the exact-read boundary `tx`, `block` and `p2p` share. Issue #327
 # measured this file at 325 mutants while sizing the wire-format profile and
 # left it for a session of its own; #219's question is the same one here --
 # 100% statement coverage, and whether the suite would notice a wrong bound.
@@ -12,22 +12,22 @@
 module-path = "src/btclib/utils.py"
 
 # tests/utils_test.py exercises decode_num/encode_num, read_exactly,
-# assert_no_trailing, hex_string and int_from_bits directly -- it
-# round-trips every sign, zero and length boundary rather than relying on
-# a caller to reach them -- but does not import is_integer or
-# int_from_json_number, so those two need a caller's test to be reached
-# at all. tests/integer_policy_test.py is is_integer's own file, already
-# named in parsers.toml for the same reason; tests/bip32 and tests/block
-# are int_from_json_number's only two callers, through `from_dict`.
-# tests/ecc/ssa_test.py is beside them for int_from_bits' own boundary --
-# every real caller hashes into exactly `ec.nlen` bits, so this file's
-# `blen < nlen` case is the only one that exercises the other direction.
+# assert_no_trailing, hex_string, int_from_bits and int_from_json_number
+# directly -- it round-trips every sign, zero and length boundary rather
+# than relying on a caller to reach them -- but does not import is_integer,
+# so that one needs a caller's test to be reached at all.
+# tests/integer_policy_test.py is is_integer's own file, already named in
+# parsers.toml for the same reason; tests/block is int_from_json_number's
+# caller, through `from_dict`. tests/ecc/ssa_test.py is beside them for
+# int_from_bits' own boundary -- every real caller hashes into exactly
+# `ec.nlen` bits, so this file's `blen < nlen` case is the only one that
+# exercises the other direction.
 # Not tests/script_engine: encode_num/decode_num's boundaries are already
 # the round trip above, and the engine's mutants cost far more wall
 # clock each for coverage this file's own suite already gives cheaply.
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
   tests/utils_test.py tests/integer_policy_test.py tests/ecc/ssa_test.py \
-  tests/bip32 tests/block"""
+  tests/block"""
 
 # seconds of wall clock: see sig_hash.toml for why a per-mutant timeout is
 # answered KILLED rather than left pending, and why the width is paid only

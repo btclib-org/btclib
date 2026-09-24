@@ -42,7 +42,7 @@ timeout = 300
 
 excluded-modules = []
 
-# The `BitOr` exclusion wallet.toml explains and parsers.toml argues.
+# The `BitOr` exclusion parsers.toml argues.
 # Measured rather than assumed, as script.toml's own comment on this
 # exclusion asks:
 #
@@ -66,7 +66,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # uploads, at run 34833390559 -- the largest scope in this session and
 # the one furthest from finishing, both modules together being nearly
 # as large as sig_hash.py and engine.toml combined. Most survivors are
-# the deferred-annotation class fetch.toml documents (both modules
+# the deferred-annotation class parsers.toml documents (both modules
 # carry many typed signatures), the keyword-only marker, or an `is`
 # CPython's small-int cache makes indistinguishable from `==`.
 #

@@ -44,9 +44,11 @@ from btclib.script import (
 from btclib.script import script as script_module
 from btclib.script.script import ERROR_COMMAND
 from btclib.script.script_pub_key import (
+    _script_from,
     assert_nulldata,
     assert_segwit,
     is_segwit,
+    script_from_script_pub_key,
 )
 from tests import load, vector_id
 
@@ -1171,3 +1173,49 @@ def test_a_leading_op_code_is_compared_for_equality() -> None:
     err_msg = "invalid redeem script hash length marker: 33 instead of 32"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2wsh(b"\x00\x21" + b"\x00" * 32)
+
+
+def test_script_from_takes_an_output_however_the_caller_holds_it() -> None:
+    """A `ScriptPubKey`, its bytes, their hex and its address are one script.
+
+    `btclib_wallet`'s "is this output mine" questions are what call it,
+    and they are tested there; this is the helper's own contract, held
+    here because the helper is this module's.
+    """
+    script_pub_key = ScriptPubKey.from_address(b32.p2wpkh(PrvKeyData(1).pub))
+    script = script_pub_key.script
+    for spelling in (
+        script_pub_key,
+        script,
+        bytearray(script),
+        memoryview(script),
+        script.hex(),
+        script_pub_key.address,
+    ):
+        assert _script_from(spelling) == script
+        assert script_from_script_pub_key(spelling) == script
+
+
+@pytest.mark.parametrize(
+    "script_pub_key, error, match",
+    [
+        ("", BTClibValueError, "empty script_pub_key"),
+        ("not hex, not an address", BTClibValueError, "neither a script nor"),
+        (5, BTClibTypeError, "invalid script_pub_key type"),
+    ],
+)
+def test_script_from_refuses_what_names_no_output(
+    script_pub_key: Any, error: type[Exception], match: str
+) -> None:
+    """The empty string, text that is neither spelling, and a non-string."""
+    with pytest.raises(error, match=match):
+        _script_from(script_pub_key)
+
+
+def test_script_from_script_pub_key_asks_the_object_first() -> None:
+    """A `ScriptPubKey` its own `assert_valid` refuses is refused here."""
+    script = ScriptPubKey.from_address(b32.p2wpkh(PrvKeyData(1).pub)).script
+    unchecked = ScriptPubKey(script, "no such network", check_validity=False)
+    assert _script_from(unchecked) == script
+    with pytest.raises(BTClibValueError, match="unknown network"):
+        script_from_script_pub_key(unchecked)

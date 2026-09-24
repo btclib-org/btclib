@@ -385,7 +385,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bitcoin-core-rpc", specifier = ">=2026.9.3" },
+    { name = "bitcoin-core-rpc", specifier = ">=2026.8.29" },
     { name = "btclib-secp256k1", marker = "extra == 'secp256k1'", specifier = ">=0.8.0.6" },
     { name = "typing-extensions", specifier = ">=4.10" },
 ]

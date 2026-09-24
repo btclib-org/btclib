@@ -35,6 +35,7 @@ from btclib.exceptions import (
     InvalidContributionError,
     RpcError,
     ScriptError,
+    SignerError,
 )
 
 HTTP_MESSAGE = "getblockcount at http://127.0.0.1:8332: HTTP 503"
@@ -64,6 +65,20 @@ CASES = [
         "getblock: block not found (rpc error code -5)",
         {"code": -5, "data": None},
         id="RpcError-without-data",
+    ),
+    pytest.param(
+        SignerError("the device said no", -14),
+        ("the device said no", -14),
+        "the device said no (signer error code -14)",
+        {"code": -14},
+        id="SignerError",
+    ),
+    pytest.param(
+        SignerError("no answer that was json"),
+        ("no answer that was json", None),
+        "no answer that was json",
+        {"code": None},
+        id="SignerError-without-code",
     ),
     pytest.param(
         ScriptError("unbalanced conditional", 3, 2),

@@ -56,8 +56,8 @@ def wif_from_prv_key(
     three things a WIF encodes, and they are the three arguments. A
     spelling that carries the other two with it is parsed first -- a WIF
     by `prv_key_data_from_wif` below, an xprv by
-    `bip32.prv_keyinfo_from_xprv` -- and the fields of what comes back
-    are handed here.
+    `btclib_wallet.bip32.prv_keyinfo_from_xprv` -- and the fields of what
+    comes back are handed here.
     """
     assert_type(compressed, bool, "compressed")
     net = network_from_name(network)
@@ -91,7 +91,8 @@ def _wif_network(prefix: bytes, network: str | None) -> str:
     # regtest, signet and testnet4 all use, so comparing names would
     # reject a signet WIF as "not a signet wif: prefix 0xef" --
     # naming the very prefix signet asks for (issue #207).
-    # `bip32.prv_keyinfo_from_xprv` makes the same membership check
+    # `btclib_wallet.bip32.prv_keyinfo_from_xprv` makes the same
+    # membership check
     if prefix != network_from_name(network).wif:
         raise InvalidPrvKeyError(f"not a {network} wif: prefix 0x{prefix.hex()}")
     # the declared network, not the lookup's guess: for a caller who

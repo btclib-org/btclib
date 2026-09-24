@@ -52,11 +52,10 @@ name: zkp-oracle
 
 on:
   schedule:
-    # An integration sentinel, the others being
-    # integration-bitcoind.yml and integration-hwi.yml: no published
+    # An integration sentinel, the other being
+    # integration-bitcoind.yml: no published
     # wheel of btclib-secp256k1 ships the extension this job builds, the
-    # same shape as an emulator or a regtest node this repository does
-    # not ship either.
+    # same shape as a regtest node this repository does not ship either.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
     # Only the default branch schedules workflows, so on any other

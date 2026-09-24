@@ -25,6 +25,101 @@ full year, short month, short day (YYYY-M-D)
 
 - **`requires-python` is `>=3.11`.** A 3.10 install no longer resolves
   this release; 3.10 reaches end of life on 2026-10-31.
+- **`btclib.bip21` is `btclib_wallet.bip21`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.bip21` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.bip21` in its place.
+- **`btclib.bip32` is `btclib_wallet.bip32`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.bip32` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.bip32` in its place.
+- **`btclib.bip322` is `btclib_wallet.bip322`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.bip322` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.bip322` in its place.
+- **`btclib.bip38` is `btclib_wallet.bip38`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.bip38` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.bip38` in its place.
+- **`btclib.bip44` is `btclib_wallet.bip44`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.bip44` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.bip44` in its place.
+- **`btclib.bip85` is `btclib_wallet.bip85`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.bip85` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.bip85` in its place.
+- **`btclib.bolt11` is `btclib_wallet.bolt11`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.bolt11` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.bolt11` in its place.
+- **`btclib.bolt9` is `btclib_wallet.bolt9`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.bolt9` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.bolt9` in its place.
+- **`btclib.coin_selection` is `btclib_wallet.coin_selection`** (issue
+  #2129), in the `btclib-wallet` distribution, and `import
+  btclib.coin_selection` raises `ModuleNotFoundError`. Act on it by
+  installing `btclib-wallet` and importing `btclib_wallet.coin_selection`
+  in its place.
+- **`btclib.core_import` is `btclib_wallet.core_import`** (issue #2129),
+  in the `btclib-wallet` distribution, and `import btclib.core_import`
+  raises `ModuleNotFoundError`. Act on it by installing `btclib-wallet`
+  and importing `btclib_wallet.core_import` in its place.
+- **`btclib.descriptors` is `btclib_wallet.descriptors`** (issue #2129),
+  in the `btclib-wallet` distribution, and `import btclib.descriptors`
+  raises `ModuleNotFoundError`. Act on it by installing `btclib-wallet`
+  and importing `btclib_wallet.descriptors` in its place.
+- **`btclib.fetch` is `btclib_wallet.fetch`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.fetch` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.fetch` in its place.
+- **`btclib.hwi` is `btclib_wallet.hwi`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.hwi` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.hwi` in its place.
+- **`btclib.minikey` is `btclib_wallet.minikey`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.minikey` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.minikey` in its place.
+- **`btclib.mnemonic` is `btclib_wallet.mnemonic`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.mnemonic` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.mnemonic` in its place.
+- **`btclib.psbt` is `btclib_wallet.psbt`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.psbt` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.psbt` in its place.
+- **`btclib.psbt_signer` is `btclib_wallet.psbt_signer`** (issue #2129),
+  in the `btclib-wallet` distribution, and `import btclib.psbt_signer`
+  raises `ModuleNotFoundError`. Act on it by installing `btclib-wallet`
+  and importing `btclib_wallet.psbt_signer` in its place.
+- **`btclib.psbt_signer_contract` is
+  `btclib_wallet.psbt_signer_contract`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.psbt_signer_contract`
+  raises `ModuleNotFoundError`. Act on it by installing `btclib-wallet`
+  and importing `btclib_wallet.psbt_signer_contract` in its place.
+- **`btclib.silent_payments` is `btclib_wallet.silent_payments`** (issue
+  #2129), in the `btclib-wallet` distribution, and `import
+  btclib.silent_payments` raises `ModuleNotFoundError`. Act on it by
+  installing `btclib-wallet` and importing `btclib_wallet.silent_payments`
+  in its place.
+- **`btclib.slip132` is `btclib_wallet.slip132`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.slip132` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.slip132` in its place.
+- **`btclib.tx_builder` is `btclib_wallet.tx_builder`** (issue #2129), in
+  the `btclib-wallet` distribution, and `import btclib.tx_builder` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.tx_builder` in its place.
+- **`btclib.tx_or_psbt` is `btclib_wallet.tx_or_psbt`** (issue #2129), in
+  the `btclib-wallet` distribution, and `import btclib.tx_or_psbt` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.tx_or_psbt` in its place.
+- **`btclib.wallet` is `btclib_wallet.wallet`** (issue #2129), in the
+  `btclib-wallet` distribution, and `import btclib.wallet` raises
+  `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
+  importing `btclib_wallet.wallet` in its place.
 
 ## v2026.9.24
 

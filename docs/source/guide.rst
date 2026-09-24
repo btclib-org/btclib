@@ -53,10 +53,10 @@ particular btclib does **not**:
 
 .. warning::
 
-   Every private key, WIF and mnemonic on this page is a **published
-   test vector**, copied from BIP39, BIP143 or BIP340 so that you can
-   check btclib's answer against the specification itself. They are
-   known to the whole world. Never send bitcoin to an address derived
+   Every private key and WIF on this page is either a **published test
+   vector**, copied from BIP143 or BIP340 so that you can check btclib's
+   answer against the specification itself, or a scalar as small as 1.
+   They are known to the whole world. Never send bitcoin to an address derived
    from any of them, and never reuse one for anything real.
 
 Installing
@@ -152,18 +152,19 @@ The four aliases:
     The two spellings that do carry both are read where they are defined
     (issue #1188). A WIF is ``b58``'s own object,
     ``b58.prv_key_data_from_wif`` reading it and ``b58.wif_from_prv_key``
-    building it; an extended key is ``bip32``'s, and
-    ``bip32.prv_keyinfo_from_xprv`` answers the same
+    building it; an extended key is ``btclib_wallet.bip32``'s, and
+    ``btclib_wallet.bip32.prv_keyinfo_from_xprv`` answers the same
     ``(scalar, network, compressed)`` triple from an ``xprv``.
     An address builder takes neither spelling: it takes the public key,
     which ``b58.prv_key_data_from_wif(wif).pub`` and
-    ``bip32.pub_keyinfo_from_xkey(xkey)`` are the two ways to reach.
+    ``btclib_wallet.bip32.pub_keyinfo_from_xkey(xkey)`` are the two ways
+    to reach.
 
     **The arithmetic layer reads it with** ``curves.scalar_from_prv_key``,
     and a second name for the same union of types would be nothing a type
     checker could tell apart (issue #1188). It does not take an extended
     key: ``dsa.sign(msg, xprv)`` does not work; pass
-    ``bip32.prv_keyinfo_from_xprv(xprv)[0]``. ``ecc.bms``
+    ``btclib_wallet.bip32.prv_keyinfo_from_xprv(xprv)[0]``. ``ecc.bms``
     is narrower still: message signing wants the network and the
     compression too, so it takes the ``btclib.key.PrvKeyData`` a WIF and
     a scalar both resolve to — ``b58.prv_key_data_from_wif(wif)`` for the
@@ -177,8 +178,8 @@ The four aliases:
     holds rather than leaving the size and the format to decide
     (issue #1188). ``btclib.key.PrvKeyData(q).pub`` derives it from a
     scalar, ``b58.prv_key_data_from_wif(wif).pub`` from a WIF, and
-    ``bip32.pub_keyinfo_from_xkey(xkey)`` answers the pair a
-    ``PubKeyData`` is built from for an extended key.
+    ``btclib_wallet.bip32.pub_keyinfo_from_xkey(xkey)`` answers the pair
+    a ``PubKeyData`` is built from for an extended key.
 
 >>> from btclib import b58
 >>> from btclib.key import PrvKeyData
@@ -198,247 +199,34 @@ The same scalar, two addresses: ``compressed`` is what decides which
 public key it derives, and the address follows from that. A WIF carries
 that flag, which is why ``prv_key_data_from_wif`` answers it.
 
-A mnemonic, and the seed underneath it
---------------------------------------
+Four address flavours
+---------------------
 
-A BIP39 mnemonic is a human-transcribable encoding of some entropy,
-with a checksum so that a typo is caught. :mod:`btclib.mnemonic.bip39`
-is the whole of it.
+Which address a key becomes is a decision separate from the key itself:
+one public key has a p2pkh, a p2wpkh-p2sh, a p2wpkh and a p2tr address,
+and the address function is what picks. BIP44, BIP49, BIP84 and BIP86
+tie the purpose of a derivation path to one of them, and that convention
+is ``btclib_wallet.bip44``'s; here the key is given directly.
 
-To make a fresh one, pass nothing and the operating system's ``secrets``
-module supplies the entropy:
-
->>> from btclib.mnemonic import bip39
->>> words = bip39.mnemonic_from_entropy()
->>> len(words.split())
-12
-
-That one is genuinely random, so this page cannot show you its value.
-The rest of this section uses BIP39's own first test vector — sixteen
-zero bytes — which is why you may recognize it:
-
->>> mnemonic = bip39.mnemonic_from_entropy(bytes.fromhex("00" * 16))
->>> mnemonic
-'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
-
-Note the ``bytes.fromhex``. ``mnemonic_from_entropy`` takes ``Entropy``,
-where a ``str`` is a *binary* ``0``/``1`` string rather than hex, so the
-hex spelling has to be decoded first:
-
->>> bip39.entropy_from_mnemonic(mnemonic)
-'00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
-
-128 bits, and they round-trip. More entropy means more words: 128 bits
-gives 12, 256 bits gives 24.
-
->>> len(bip39.mnemonic_from_entropy(bytes.fromhex("00" * 32)).split())
-24
-
-The checksum is what catches a backup written down wrong, and it is
-checked on the way back in:
-
->>> bip39.entropy_from_mnemonic(mnemonic.replace("about", "abandon"))
-Traceback (most recent call last):
-btclib.exceptions.BTClibValueError: invalid checksum: 0000; expected: 0011
-
-From mnemonic to seed is PBKDF2 with 2048 iterations, salted with the
-string ``"mnemonic"`` and the passphrase:
-
->>> seed = bip39.seed_from_mnemonic(mnemonic, "TREZOR")
->>> seed.hex()
-'c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04'
-
-That is byte for byte BIP39's published seed for this mnemonic and this
-passphrase, which is the point of using a vector.
-
-The passphrase is not a password on the mnemonic: it is an input to the
-derivation, so every passphrase yields a different, equally valid
-wallet, and there is nothing anywhere that can tell you a passphrase was
-wrong.
-
->>> bip39.seed_from_mnemonic(mnemonic, "").hex()[:32]
-'5eb00bbddcf069084889a8ab91555681'
->>> bip39.seed_from_mnemonic(mnemonic, "TREZOR") == seed
-True
-
-The root extended private key is the seed run through BIP32, and
-``mxprv_from_mnemonic`` does both steps:
-
->>> rootxprv = bip39.mxprv_from_mnemonic(mnemonic, "TREZOR")
->>> rootxprv
-'xprv9s21ZrQH143K3h3fDYiay8mocZ3afhfULfb5GX8kCBdno77K4HiA15Tg23wpbeF1pLfs1c5SPmYHrEpTuuRhxMwvKDwqdKiGJS9XFKzUsAF'
-
-btclib does not store that anywhere. It is a string in your process, and
-what happens to it next is entirely yours.
-
-One backup behind many wallets
-------------------------------
-
-A second wallet means a second seed, and a second seed means a second
-paper backup — which is the part of this that goes wrong. BIP85 removes
-the second backup rather than the second wallet: a fully hardened path
-off one root key derives the *entropy* another wallet is seeded from, so
-what you keep is still one root key. :mod:`btclib.bip85` is that
-derivation and the formats the BIP defines on top of it.
-
-The examples here use a key of the BIP's own rather than the
-``rootxprv`` above, so the values below are the ones the specification
-publishes:
-
->>> from btclib import bip85
->>> master = "xprv9s21ZrQH143K2LBWUUQRFXhucrQqBpKdRRxNVq2zBqsx8HVqFk2uYo8kmbaLLHRdqtQpUm98uKfu3vca1LqdGhUtyoFnCNkfmXRyPXLjbKb"
->>> bip85.mnemonic_from_root_key(master)
-'girl mad pet galaxy egg matter matrix prison refuse sense ordinary nose'
-
-That is a BIP39 mnemonic like any other: type it into any wallet that
-reads one. What it is not is random — it is a function of the root key
-and the path, so it comes back the same forever, and the index is how
-you ask for the next one:
-
->>> bip85.mnemonic_from_root_key(master, index=1).split()[:3]
-['mystery', 'car', 'occur']
-
-The length and the language are path levels too, not formatting:
-another word count is another wallet, and so is another language.
-
->>> len(bip85.mnemonic_from_root_key(master, 24).split())
-24
->>> bip85.mnemonic_from_root_key(master, 12, "it").split()[:2]
-['smilzo', 'opinione']
-
-A wallet that does not read BIP39 takes one of the other formats: the
-WIF is what Bitcoin Core imports as an ``hdseed``, taking the leading
-256 bits as a private key, and the xprv is a BIP32 root of its own,
-taking all 512 as a chain code and a key.
-
->>> bip85.wif_from_root_key(master)
-'Kzyv4uF39d4Jrw2W7UryTHwZr1zQVNk4dAFyqE6BuMrMh1Za7uhp'
->>> bip85.xprv_from_root_key(master)[:14]
-'xprv9s21ZrQH14'
-
-Not everything derived this way is a wallet. A password is a slice of
-the same entropy in base64 or base85, and dice rolls are drawn from a
-SHAKE256 stream seeded with it — useful where a die is what a wallet
-asks you for, and reproducible where a real die is not:
-
->>> bip85.base64_password_from_root_key(master, 21)
-'dKLoepugzdVJvdL56ogNV'
->>> bip85.rolls_from_root_key(master, 10)
-[1, 0, 0, 2, 0, 1, 5, 5, 2, 4]
-
-For a path no function here formats, ``entropy_from_der_path`` is the
-derivation itself and the truncation is yours:
-
->>> bip85.entropy_from_der_path(master, "m/83696968h/0h/0h").hex()[:32]
-'efecfbccffea313214232d29e71563d9'
-
-RSA is where the BIP stops rather than btclib: it says a key generator
-should read BIP85's own SHAKE256 stream and says nothing about how the
-primes are found, so ``rsa_drng_from_root_key`` hands back that stream
-and the key belongs to whatever library reads it.
-
-What this costs is worth stating plainly. Every wallet derived here
-hangs off the one root key: back it up and you have backed up all of
-them; lose it and they go together, none of them being re-derivable
-from anything else. A passphrase on the BIP39 mnemonic underneath the
-root key is what changes the answer, because it changes the root key
-itself.
-
-An account, its xpub, and the addresses under it
-------------------------------------------------
-
-:mod:`btclib.bip32.bip32` derives keys along a path. ``derive`` takes an
-extended key and a path and hands back another extended key, as a
-string:
-
->>> from btclib import bip32
->>> account = bip32.derive(rootxprv, "m/84h/0h/0h")
->>> xpub = bip32.xpub_from_xprv(account)
->>> xpub
-'xpub6Crgkie5Rb7wDabkf4Uf6A2qnuERMA3p2QrnmHNQDrsXTaGvz9zugU38Apne8WqrcbSjdLwbhtfHrzWjNCJPVAkkNoQhMfzhBm8rKMA8KxH'
-
-Paths are case-, blank- and slash-insensitive, and hardening may be
-written ``h``, ``H`` or ``'``. The apostrophe is the one from the
-specifications and the one that needs escaping in a shell, so ``h`` is
-usually the easier spelling:
-
->>> bip32.derive(rootxprv, "m/84'/0'/0'") == account
-True
->>> bip32.derive(rootxprv, [0x80000054, 0x80000000, 0x80000000]) == account
-True
-
-The account **xpub** is the useful object: it derives every receiving
-and change address of that account and cannot produce a single private
-key. That is what you copy onto the machine that watches the balance.
-
-``derive_from_account`` is the two remaining levels, and it refuses the
-mistakes that make this dangerous — it insists the account key be
-hardened, that the branch be ``0`` (receive) or ``1`` (change), and that
-the index be sane:
-
->>> bip32.derive_from_account(xpub, 0, 0)
-'xpub6FoBDgKSsn7RYSaiPAFqm476huu2RpAd2XswekGkmvNDRXvvvuqwSLXg1gvaSby83KTLrFNzXCp1gH4V2JJzMJryGNv7gE2Uk4kd8JXmvEF'
->>> bip32.derive_from_account(xpub, 2, 0)
-Traceback (most recent call last):
-btclib.exceptions.BTClibValueError: invalid branch number: 2 not in (0, 1)
-
-The four address flavours
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Which address a key becomes is a separate decision from where the key
-came from, and BIP44/49/84/86 are the convention that ties a purpose
-number to a script type. btclib does not enforce the tie — you pick the
-path, then you pick the address function — but following it is what lets
-another wallet find your coins from the same mnemonic.
-
-The address functions take a public key, so the derived extended key is
-resolved with ``bip32.pub_keyinfo_from_xkey`` first — it answers the SEC
-octets and the network, from either half of a key pair, which is the
-pair a ``PubKeyData`` is built from.
-
->>> from btclib import b32, b58
->>> from btclib.key import PubKeyData
+>>> from btclib import b32
 >>> from btclib.script import taproot
->>> for purpose, address in [
-...     (44, lambda k: b58.p2pkh(k)),
-...     (49, lambda k: b58.p2wpkh_p2sh(k)),
-...     (84, lambda k: b32.p2wpkh(k)),
-...     (86, lambda k: b32.p2tr(taproot.output_pubkey(k)[0])),
+>>> pub = PrvKeyData(1).pub
+>>> for name, address in [
+...     ("p2pkh", lambda k: b58.p2pkh(k)),
+...     ("p2wpkh-p2sh", lambda k: b58.p2wpkh_p2sh(k)),
+...     ("p2wpkh", lambda k: b32.p2wpkh(k)),
+...     ("p2tr", lambda k: b32.p2tr(taproot.output_pubkey(k)[0])),
 ... ]:
-...     acct = bip32.xpub_from_xprv(bip32.derive(rootxprv, f"m/{purpose}h/0h/0h"))
-...     xkey = bip32.derive_from_account(acct, 0, 0)
-...     print(purpose, address(PubKeyData(*bip32.pub_keyinfo_from_xkey(xkey))))
-44 1PEha8dk5Me5J1rZWpgqSt5F4BroTBLS5y
-49 3Aho3kS7vgVWKTpRHjcqBoPXiCujiSuTaZ
-84 bc1qv5rmq0kt9yz3pm36wvzct7p3x6mtgehjul0feu
-86 bc1p3ryfth56dp058avv97ppn065ctsk263puvwp4rcka3wpg6cudp9qd3jsuu
+...     print(name, address(pub))
+p2pkh 1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH
+p2wpkh-p2sh 3JvL6Ymt8MVWiCNHC7oWU6nLeHNJKLZGLN
+p2wpkh bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4
+p2tr bc1pmfr3p9j00pfxjh0zmgp99y8zftmd3s5pmedqhyptwy6lm87hf5sspknck9
 
 The taproot one is the odd one out and deliberately so: a BIP86 address
 is not the hash of the key but the key *tweaked* by a commitment to an
 empty script tree, which ``taproot.output_pubkey`` computes. It returns
 the 32-byte x-only output key and the parity bit that spending it needs.
-
-SLIP-132 version bytes
-~~~~~~~~~~~~~~~~~~~~~~
-
-Some wallets label an account key by script type, spelling it ``ypub``
-or ``zpub`` instead of ``xpub``. That is SLIP-132, and it changes four
-version bytes and nothing else. :mod:`btclib.slip132` takes the
-**root** key and does the derivation itself, because the version and the
-path have to agree:
-
->>> from btclib import slip132
->>> bip32.xpub_from_xprv(slip132.p2wpkh_xkey(rootxprv))
-'zpub6rXDN3yuixCtvAyzKn3uWLDr8qXKEQ2orduEL5AAysdHZmuPVUL2vbMQDEhp8L9hRsgM8J8idDNPdZjrob8R5e7x7UoYXVdfjDG96TLa7La'
->>> bip32.xpub_from_xprv(slip132.p2wpkh_p2sh_xkey(rootxprv))
-'ypub6XRZqAj8R959SPF3UeP8gLsosvY7dskBv68N1rtd6pBwRwvAYJob7XS2VdxawoSdBdNEi32eQatwPBm412BZyfig481iqZKgseAZbdQdmMK'
-
-Hand it something that is not a root key and it says so rather than
-guessing:
-
->>> slip132.p2wpkh_xkey(xpub)
-Traceback (most recent call last):
-btclib.exceptions.BTClibValueError: not a root key: depth 3, parent fingerprint 0xa40176dc
 
 Addresses and the scripts behind them
 -------------------------------------
@@ -792,145 +580,6 @@ something that cannot be replayed out of context: a date, a
 counterparty, and what the statement is for. The module docstring of
 :mod:`btclib.ecc.bms` says the same at more length, and it is worth
 reading before you use this for anything that matters.
-
-Partially signed transactions
------------------------------
-
-A PSBT (BIP174) is the container that lets an unsigned transaction, the
-data needed to sign it, and the signatures themselves travel between
-programs that do not trust each other — a watch-only wallet, a hardware
-signer, a coordinator. BIP174 describes the work as *roles*, and
-:mod:`btclib.psbt.psbt` gives you the data structure for each of them,
-not a wallet that plays them.
-
-**Creator.** From an unsigned transaction:
-
->>> from btclib.psbt import Psbt
->>> psbt = Psbt.from_tx(unsigned)
->>> psbt.b64encode()
-'cHNidP8BAFIBAAAAAe9R4bgEzInRgtJ5ZVw6qJ6BWxswn+KH2bK1XVe5DsaKAQAAAAD/////AcADtCMAAAAAFgAUHQ8XKg7LSK7hvh8mh9KWOuM/caEAAAAAAAAA'
->>> len(psbt.inputs), len(psbt.outputs)
-(1, 1)
-
-**Updater.** A signer cannot compute a segwit sighash without the amount
-being spent, and the amount is not in the transaction, so the updater
-puts it in:
-
->>> psbt.inputs[0].witness_utxo = prevout
->>> psbt.inputs[0].witness_utxo.value
-600000000
-
-**Signer.** btclib does not sign a PSBT for you — it has no idea which
-keys are yours. What it hands you is the message: ``ecdsa_sig_hash``
-reads the utxo and the scripts off the psbt, which is where a psbt keeps
-them, and returns the hash the input signs. The signature then goes in
-the slot BIP174 defines for it, keyed by public key, with the hash type
-appended:
-
->>> from btclib.psbt import ecdsa_sig_hash
->>> msg_hash = ecdsa_sig_hash(psbt, 0)
->>> der = dsa.sign_(msg_hash, prv_key).serialize()
->>> psbt.inputs[0].partial_sigs = {pub_key: der + b"\x01"}
->>> psbt.assert_signable()
-
-The hash type is the one the input asks for, ``SIGHASH_ALL`` when it
-asks for none, and a keyword argument when the signer chooses.
-``sig_hash.from_tx`` above cannot serve here: it reads the redeem script
-out of an input's script_sig and the witness script off its witness
-stack, and an unsigned transaction has neither — in a psbt they are
-fields. A taproot input signs ``taproot_sig_hash`` instead, its
-signature being schnorr and travelling in the taproot fields rather than
-in ``partial_sigs``.
-
-A PSBT survives base64 round-tripping, which is how it moves between
-programs:
-
->>> Psbt.b64decode(psbt.b64encode()) == psbt
-True
-
-**Version 2 (BIP370).** In version 2 the unsigned transaction stops
-being a field: the transaction version, each input's outpoint and
-sequence, and each output's amount and script live in the psbt itself,
-which is what lets a *Constructor* add inputs and outputs after the psbt
-exists. btclib holds every psbt that way and computes the transaction
-from it, so the two versions differ only in how they are written, and
-converting is a method each way:
-
->>> v2 = psbt.to_v2()
->>> v2.version, v2.tx_version, v2.lock_time
-(2, 1, 0)
->>> v2.inputs[0].previous_tx_id == psbt.tx.vin[0].prev_out.tx_id
-True
->>> v2.tx == psbt.tx
-True
->>> v2.to_v0() == psbt
-True
-
-``psbt.tx`` is computed from the fields at every access, so writing into
-it writes into a copy: to change what is being built, set the field —
-``psbt.inputs[0].sequence``, ``psbt.outputs[0].amount``.
-
-A version 2 psbt says what may still be changed, in
-``PSBT_GLOBAL_TX_MODIFIABLE``, and btclib honours it: ``sort_inputs``,
-``sort_outputs`` and ``join`` refuse to reorder or add on a side
-the flags do not allow, since every signature already made commits to
-the order it saw:
-
->>> v2.tx_modifiable = 0
->>> v2.sort_inputs()
-Traceback (most recent call last):
-btclib.exceptions.BTClibValueError: the inputs are not modifiable
-
-The lock time of a version 2 psbt is computed too, from the lock times
-its inputs require and the fallback for when none does — and a psbt
-whose inputs require both a block height and a timestamp has no lock
-time at all, one ``nLockTime`` being one number of one kind. That is a
-psbt btclib refuses rather than resolves.
-
-**Finalizer and Extractor.** ``finalize`` turns the partial
-signatures into a final script_sig or witness and ``extract_tx`` pulls
-out the network transaction. Be aware of the shape they handle: they
-build what BIP174's own vectors need, which are p2sh and p2wsh
-multisig, and they do not know that a bare p2wpkh input wants its
-signature in the witness rather than in the script_sig. For a
-single-key segwit input, build the witness yourself as the previous
-section does — two stack items, signature then public key — and use
-``verify_transaction`` to check the result.
-
-**A psbt too large to hold.** Everything above reads the whole psbt into
-memory first, which for a psbt whose inputs each carry the previous
-transaction they spend is all of them at once. ``PsbtView`` reads the same
-psbt out of a seekable stream — a file as much as a ``BytesIO`` — and
-keeps no map at all: it learns where each one begins and reads one when
-it is asked for it.
-
->>> from io import BytesIO
->>> from btclib.psbt import PsbtView
->>> view = PsbtView(BytesIO(psbt.serialize()))
->>> view.input_count, view.output_count
-(1, 1)
->>> view.input(0).witness_utxo.value
-600000000
->>> view.ecdsa_sig_hash(0) == msg_hash
-True
-
-It is a reader: the stream is never written, so a signer assembles its own
-answer out of the maps the view hands it, one ``PsbtIn`` per input signed.
-
->>> from btclib.psbt import PsbtIn
->>> psbt_in = view.input(0)
->>> psbt_in.partial_sigs = {pub_key: der + b"\x01"}
->>> answer = PsbtIn.parse(psbt_in.serialize())
->>> answer.partial_sigs == psbt.inputs[0].partial_sigs
-True
-
-What it holds between calls is in the module docstring of
-:mod:`btclib.psbt.psbt_view`, and so is the one rule using it imposes:
-the stream must not change while the view is alive. A view answers from
-the bytes that were there when it read them, and an amount or a script
-that changes between two reads is a sighash committing to a transaction
-the signer was never shown — so a psbt on removable or untrusted storage
-is copied into memory you control before it is viewed.
 
 Where to go next
 ----------------

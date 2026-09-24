@@ -249,7 +249,7 @@ def _reaches_outside_the_sdist(tree: ast.Module) -> bool:
 def _missing_source_excludes(tests_dir: Path, excluded: Iterable[str]) -> list[str]:
     """Every `*.py` under `tests_dir`, recursively, unlisted in `excluded`.
 
-    Recursive, `tests/bip32/`, `tests/ecc/` and the rest of the package's
+    Recursive, `tests/ecc/`, `tests/script/` and the rest of the package's
     own subdirectories being as reachable from an installed test as the
     top level is -- a module there naming `.github` or `fuzz` would be
     just as unrunnable from an unpacked sdist. `source-exclude`'s own

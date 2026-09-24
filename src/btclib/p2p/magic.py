@@ -21,7 +21,7 @@ block challenge and differs between two deployments that report the same
 chain. A field would be right for every other network and a lie for
 signet, which is an annotation accepting the mistake rather than
 refusing it.
-`btclib.fetch.transport` re-exports the same package's HTTP transport on
+`btclib_wallet.fetch.transport` re-exports the same package's HTTP transport on
 the same reasoning: a second copy is a second thing to keep true.
 
 `magic_from_chain` and `magic_from_signet_challenge` are therefore
@@ -30,7 +30,7 @@ aliases and not wrappers -- the package's own objects, so
 they take Core's vocabulary: a chain name, "main", "test", "testnet4",
 "signet" or "regtest", and a challenge as the hex a config file writes or
 the octets a parser holds. Their exceptions are the package's too, as
-`btclib.fetch.transport` says of the transport it re-exports: an unknown
+`btclib_wallet.fetch.transport` says of the transport it re-exports: an unknown
 chain leaves as `BtcRpcValueError`, which is not a class
 `btclib.exceptions` declares.
 
@@ -40,7 +40,7 @@ BIP network names -- "mainnet", "testnet" -- where Core says "main" and
 "test", so a caller holding a `Network` and passing its name straight to
 `magic_from_chain` is told its network is unknown.
 `bitcoin_core_rpc.chain_from_network` is the bridge, and
-`btclib.fetch.bitcoin_core` uses it exactly this way: "chain_from_network
+`btclib_wallet.fetch.bitcoin_core` uses it exactly this way: "chain_from_network
 on the way in, client_errors on the way out".
 
 On the way out there is nothing to translate, and that is by

@@ -6,15 +6,13 @@
 
 No transport anywhere here -- there is none in this module to test, by
 design -- so every case is a line built or read by hand. The transaction
-and header vectors are `tests/fetch/__init__.py`'s TX_ID and
-TIP_HEADER_RAW, block 481824; the merkle branch is a second vector from
-the same block, `tests/block/_data/block_481824_complete.bin`'s
-transaction at index 1, computed with the sibling-walk
-`tests/block/merkle_proof_test.py` already uses and checked here against
+vector is block 170's first payment and the header is block 481824's;
+the merkle branch is a second vector from that block,
+`tests/block/_data/block_481824_complete.bin`'s transaction at index 1,
+computed with the sibling-walk `tests/block/merkle_proof_test.py`
+already uses and checked here against
 `btclib.block.merkle_proof.assert_as_valid` directly rather than
-recomputed at collection time -- `tests/fetch/electrum_test.py` shares
-the same four literals so that a fetcher test and a codec test agree on
-what a real server would have answered without importing one another.
+recomputed at collection time.
 """
 
 from __future__ import annotations
@@ -43,7 +41,21 @@ from btclib.electrum import (
     verify_merkle_proof,
 )
 from btclib.exceptions import BTClibTypeError, BTClibValueError, RpcError
-from tests.fetch import TIP_HEADER_RAW, TIP_HEIGHT, TIP_ID, TX_ID
+
+# transaction 1 of block 170: the first bitcoin payment between two people
+TX_ID = "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16"
+# block 481824 -- the first block with a segwit transaction in it, and the
+# one vendored whole under tests/block/_data
+TIP_HEIGHT = 481824
+TIP_ID = "0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893"
+# the first eighty bytes of tests/block/_data/block_481824.bin, i.e. the
+# header of that same block -- its hash, recomputed by BlockHeader.parse,
+# is TIP_ID above, which is what makes this vector checkable without a node
+TIP_HEADER_RAW = (
+    "02000020801b81629334be8e7af5ebfb9df09c18e1f833b5f0efcb0000000000000000"
+    "0040d1ca077fefe7fb797711baa0c063eca9b8ed9469ae0128982b44ad0c253864913"
+    "29e59e93c011822ff5422"
+)
 
 # block 481824's transaction at index 1: 225 bytes, no witness, so its
 # hash and its id are the same value. The branch is the eleven siblings
@@ -185,12 +197,13 @@ def test_headers_subscribe_round_trips_height_and_header() -> None:
         {"height": "not an int", "hex": TIP_HEADER_RAW},
         {"height": TIP_HEIGHT, "hex": 12345},
         {"height": True, "hex": TIP_HEADER_RAW},
+        [TIP_HEIGHT, TIP_HEADER_RAW],
     ],
 )
 def test_headers_subscribe_response_refuses_a_malformed_object(
-    members: dict[str, object],
+    members: object,
 ) -> None:
-    """A missing or wrongly typed member is refused, `bool` height included."""
+    """A result that is not an object is refused, and so is a bad member."""
     with pytest.raises(BTClibTypeError):
         headers_subscribe_response(reply(id=1, result=members), 1)
 
@@ -288,9 +301,9 @@ def test_a_wrong_position_is_refused() -> None:
 def test_a_truncated_transaction_decodes_to_short_octets() -> None:
     """The codec decodes the hex; a whole transaction is not its question.
 
-    `Tx.parse`, reached through `btclib.fetch.fetcher.tx_from_raw`, is
-    what refuses a serialization that stops early -- exercised in
-    `tests/fetch/electrum_test.py`, over the fetcher that calls it.
+    `Tx.parse` is what refuses a serialization that stops early, and
+    `btclib_wallet.fetch.fetcher.tx_from_raw` is where the fetcher built
+    on this codec calls it.
     """
     raw = transaction_get_response(reply(id=1, result=MERKLE_TX_RAW.hex()[:20]), 1)
     assert raw == MERKLE_TX_RAW[:10]

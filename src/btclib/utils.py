@@ -259,10 +259,10 @@ def read_exactly(stream: BinaryIO, size: int, what: str) -> bytes:
 
     `BinaryIO` and not the `BytesIO` of `alias.BinaryData`: `.read` is
     the whole of what a short read is about, so a file object is as much
-    an answer here as a buffer, and `btclib.psbt.psbt_view` reads from
-    one -- a view over a psbt is the one reader in this library that does
-    not consume the stream it is given, so it does not need one the rest
-    of the library can also `getbuffer()`.
+    an answer here as a buffer. `btclib_wallet.psbt.psbt_view`, in another
+    package, reads from one: a view over a psbt does not consume the
+    stream it is given, so it needs no stream that can also
+    `getbuffer()`.
     """
     data = stream.read(size)
     if len(data) != size:

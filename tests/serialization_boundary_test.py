@@ -82,12 +82,8 @@ from typing import Any
 
 import pytest
 
-from btclib import bip322, var_bytes, var_int
-from btclib.bip21 import Bip21
-from btclib.bip32.bip32 import BIP32KeyData
-from btclib.bip32.key_origin import BIP32KeyOrigin
+from btclib import var_bytes, var_int
 from btclib.block import BasicBlockFilter, Block, BlockHeader, PartialMerkleTree
-from btclib.descriptors import descriptors, miniscript
 from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.ecc.borromean import BorromeanSig
 from btclib.ecc.rangeproof import RangeProof
@@ -136,12 +132,9 @@ from btclib.p2p import (
     Version,
     WtxidRelay,
 )
-from btclib.psbt import Psbt, PsbtIn, PsbtOut
-from btclib.psbt.psbt_utils import PSBT_V0, PSBT_V2
 from btclib.script import Witness, script, taproot
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load_bin, module_names, public_classes_with
-from tests.psbt import psbt_cases
 
 # a value of no type any of these positions declares. `Any`, because
 # every position they are handed to declares something narrower: what
@@ -153,25 +146,10 @@ _WRONG_TYPES: tuple[Any, ...] = (None, 1.5, [1, 2])
 # rather than the argument
 _NOT_AN_ARRAY: tuple[Any, ...] = (*_WRONG_TYPES, "ab", {"a": 1})
 
-# and the same list where `None` is a type the position declares, which is
-# a statement about the signature rather than an exemption from the rule
-_NOT_NONE: tuple[Any, ...] = tuple(w for w in _WRONG_TYPES if w is not None)
-
 _TX_ID = "01" * 32
 
 _TX = Tx(1, 0x12345678, [TxIn(OutPoint(_TX_ID, 0), b"", 0xFFFFFFFF)], [TxOut(1, b"")])
 _BLOCK = Block.parse(load_bin("block", "_data", "block_1.bin"))
-# a published psbt rather than one built here: what makes the json cases
-# worth running is a mapping with something in it, and the BIP174 vectors
-# are where a psbt carrying derivations, scripts and signatures comes from
-_PSBT = next(
-    psbt
-    for psbt in (
-        Psbt.b64decode(case["encoded psbt"])
-        for case in psbt_cases("bip174_test_vectors.json", "valid psbts")
-    )
-    if any(psbt_in.hd_key_paths for psbt_in in psbt.inputs)
-)
 # framed rather than encrypted: `ecies.encrypt` takes a block cipher this
 # library does not carry, and the framing is all this file is about
 _ENVELOPE = ecies.Envelope.from_ciphertext(
@@ -197,11 +175,7 @@ _JSON_CASES = (
     _JsonCase("Tx", Tx, _TX),
     _JsonCase("BlockHeader", BlockHeader, _BLOCK.header),
     _JsonCase("Block", Block, _BLOCK),
-    _JsonCase("Psbt", Psbt, _PSBT),
-    _JsonCase("PsbtIn", PsbtIn, _PSBT.inputs[0]),
-    _JsonCase("PsbtOut", PsbtOut, _PSBT.outputs[0]),
     _JsonCase("Witness", Witness, Witness([b"\x51", b"\x52\x53"])),
-    _JsonCase("BIP32KeyOrigin", BIP32KeyOrigin, BIP32KeyOrigin("deadbeef", "m/44h/0h")),
     _JsonCase("Network", Network, NETWORKS["mainnet"]),
 )
 
@@ -213,18 +187,13 @@ _JSON_ARRAYS = (
     ("Tx", Tx, _TX, "vin"),
     ("Tx", Tx, _TX, "vout"),
     ("Block", Block, _BLOCK, "transactions"),
-    ("Psbt", Psbt, _PSBT, "inputs"),
-    ("Psbt", Psbt, _PSBT, "outputs"),
-    ("Psbt", Psbt, _PSBT, "bip32_derivs"),
-    ("PsbtIn", PsbtIn, _PSBT.inputs[0], "bip32_derivs"),
-    ("PsbtOut", PsbtOut, _PSBT.outputs[0], "taproot_hd_key_paths"),
     ("Witness", Witness, Witness([b"\x51"]), "stack"),
 )
 
 _ARRAY_IDS = tuple(f"{label}-{key}" for label, _, _, key in _JSON_ARRAYS)
 
-# what reads octets: every `parse` but Bip21's, a URI being text. The
-# class and the method name, so that the walk at the end can say which
+# what reads octets: every class-level `parse`. The class and the method
+# name, so that the walk at the end can say which
 # decoders are covered
 _OCTETS_DECODERS = (
     ("OutPoint.parse", OutPoint, "parse"),
@@ -235,12 +204,7 @@ _OCTETS_DECODERS = (
     ("Block.parse", Block, "parse"),
     ("BasicBlockFilter.parse", BasicBlockFilter, "parse"),
     ("PartialMerkleTree.parse", PartialMerkleTree, "parse"),
-    ("Psbt.parse", Psbt, "parse"),
-    ("PsbtIn.parse", PsbtIn, "parse"),
-    ("PsbtOut.parse", PsbtOut, "parse"),
     ("Witness.parse", Witness, "parse"),
-    ("BIP32KeyData.parse", BIP32KeyData, "parse"),
-    ("BIP32KeyOrigin.parse", BIP32KeyOrigin, "parse"),
     ("BorromeanSig.parse", BorromeanSig, "parse"),
     ("RangeProof.parse", RangeProof, "parse"),
     ("bms.Sig.parse", bms.Sig, "parse"),
@@ -291,14 +255,9 @@ _OCTETS_DECODERS = (
 
 _OCTETS_IDS = tuple(label for label, _, _ in _OCTETS_DECODERS)
 
-# and what reads text: the base64 and base58 decoders, and the one
-# `parse` whose argument is a string
+# and what reads text: the base64 decoders
 _TEXT_DECODERS = (
-    ("Bip21.parse", Bip21, "parse"),
-    ("BIP32KeyData.b58decode", BIP32KeyData, "b58decode"),
-    ("Psbt.b64decode", Psbt, "b64decode"),
     ("bms.Sig.b64decode", bms.Sig, "b64decode"),
-    ("bip322.Sig.b64decode", bip322.Sig, "b64decode"),
     ("ecies.Envelope.b64decode", ecies.Envelope, "b64decode"),
 )
 
@@ -319,10 +278,6 @@ _EXTRA_ARGUMENTS = {
     ("btclib.block.block.Block", "serialize"): "include_witness",
     ("btclib.block.block_filter.BasicBlockFilter", "parse"): "block_hash",
     ("btclib.ecc.borromean.BorromeanSig", "parse"): "rsizes",
-    ("btclib.psbt.psbt_in.PsbtIn", "serialize"): "psbt_version",
-    ("btclib.psbt.psbt_in.PsbtIn", "parse"): "psbt_version",
-    ("btclib.psbt.psbt_out.PsbtOut", "serialize"): "psbt_version",
-    ("btclib.psbt.psbt_out.PsbtOut", "parse"): "psbt_version",
     ("btclib.ecc.ecies.Envelope", "parse"): "magic",
     ("btclib.ecc.ecies.Envelope", "b64decode"): "magic",
     ("btclib.ecc.dsa.Sig", "parse"): "strict",
@@ -342,15 +297,13 @@ _WRITERS = ("serialize", "to_dict", "b64encode", "b58encode")
 _FAMILY = (*_READERS, *_WRITERS)
 
 # and the same family where it is a module function rather than a method:
-# four codecs with no class between them and the encoding. Each is driven
+# the codecs with no class between them and the encoding. Each is driven
 # on what it converts, which is its first argument
 _MODULE_READERS = (
     ("var_int.parse", var_int.parse, "invalid octets type"),
     ("var_bytes.parse", var_bytes.parse, "invalid octets type"),
     ("script.parse", script.parse, "invalid octets type"),
     ("taproot.parse", taproot.parse, "invalid octets type"),
-    ("descriptors.parse", descriptors.parse, "invalid descriptor type"),
-    ("miniscript.parse", miniscript.parse, "invalid miniscript type"),
 )
 
 _MODULE_READER_IDS = tuple(label for label, _, _ in _MODULE_READERS)
@@ -379,17 +332,14 @@ _MODULE_WRITERS = (
 
 _MODULE_WRITER_IDS = tuple(label for label, _, _, _ in _MODULE_WRITERS)
 
-# what those ten take besides the thing they convert, and what drives
-# each: five of the six were ungated when this file was written and issue
-# #872 is where they were measured. `forbid_zero_size` is the one that is
+# what those take besides the thing they convert, and what drives each:
+# issue #872 is where they were measured. `forbid_zero_size` is the one that is
 # driven by nothing, being a flag that decides whether a check runs and
 # therefore read for its truth, as `check_validity` is
 _MODULE_EXTRA_ARGUMENTS = {
     ("btclib.var_int", "parse"): ["max_size"],
     ("btclib.var_bytes", "parse"): ["forbid_zero_size"],
     ("btclib.script.taproot", "parse"): ["exit_on_op_success"],
-    ("btclib.descriptors.descriptors", "parse"): ["network", "prv_keys"],
-    ("btclib.descriptors.miniscript", "parse"): ["context", "prv_keys"],
 }
 
 
@@ -434,12 +384,12 @@ def test_from_dict_names_the_field_it_has_not_got(case: _JsonCase) -> None:
     """The second rule: a mapping without the field is a wrong value.
 
     Every key in turn, and a key `from_dict` ignores -- a transaction's
-    txid, a header's difficulty, the psbt's derived "tx" -- is one whose
-    absence is no error at all, which is why the assertion is on what a
-    failure may be rather than on which keys fail. What must never happen
-    is a bare `KeyError` reaching the caller: `exceptions.py`'s guarantee
-    is that no public function lets a native exception through, and this
-    is the family the guarantee has to hold for.
+    txid, a header's difficulty -- is one whose absence is no error at
+    all, which is why the assertion is on what a failure may be rather
+    than on which keys fail. What must never happen is a bare `KeyError`
+    reaching the caller: `exceptions.py`'s guarantee is that no public
+    function lets a native exception through, and this is the family the
+    guarantee has to hold for.
 
     The count is asserted too, or a `from_dict` that stopped reading its
     mapping would pass this by never failing.
@@ -539,11 +489,6 @@ def test_a_json_null_is_not_an_amount() -> None:
     with pytest.raises(BTClibValueError, match="missing transaction output field"):
         TxOut.from_dict({k: v for k, v in dict_.items() if k != "value"})
 
-    # and the psbt output, where None is the field being absent and stays
-    # a value the boundary takes
-    psbt_out = _as_json(_PSBT.outputs[0])
-    assert PsbtOut.from_dict({**psbt_out, "amount": None}).amount is None
-
 
 @pytest.mark.parametrize("label, cls, method", _OCTETS_DECODERS, ids=_OCTETS_IDS)
 def test_the_octets_boundary_refuses_what_is_no_octets(
@@ -580,10 +525,7 @@ def test_a_codec_that_is_a_function_refuses_a_wrong_type_too(
 ) -> None:
     """The same rule where there is no class between the two sides.
 
-    The four octet codecs went through `bytes_from_octets` already; the
-    two descriptor parsers went through nothing, and left "'NoneType'
-    object has no attribute 'partition'" and "object of type 'float' has
-    no len()".
+    The octet codecs go through `bytes_from_octets`.
     """
     for wrong in _WRONG_TYPES:
         with pytest.raises(BTClibTypeError, match=err_msg):
@@ -630,32 +572,6 @@ def test_a_transaction_says_which_serialization_it_is_asked_for() -> None:
             _TX.serialize(wrong)
         with pytest.raises(BTClibTypeError, match="invalid include_witness type"):
             _BLOCK.serialize(wrong)
-
-
-@pytest.mark.parametrize("cls", [PsbtIn, PsbtOut], ids=["PsbtIn", "PsbtOut"])
-def test_a_map_is_written_and_read_as_a_version_that_exists(cls: type[Any]) -> None:
-    """`psbt_version` decides which fields a map carries, so it is asked.
-
-    Every version that is not 0 wrote and read the BIP370 fields, so a
-    `None`, a 3 or a string was a version 2 map and said nothing -- and
-    the psbt they belong to holds its own version to `PSBT_V0` or
-    `PSBT_V2` already, which is the same question one layer up.
-    """
-    map_ = _PSBT.inputs[0] if cls is PsbtIn else _PSBT.outputs[0]
-    for version in (PSBT_V0, PSBT_V2):
-        assert cls.parse(map_.serialize(psbt_version=version), psbt_version=version)
-
-    for wrong in _WRONG_TYPES:
-        with pytest.raises(BTClibTypeError, match="invalid version type"):
-            map_.serialize(psbt_version=wrong)
-        with pytest.raises(BTClibTypeError, match="invalid version type"):
-            cls.parse(map_.serialize(), psbt_version=wrong)
-
-    for wrong_value in (1, 3):
-        with pytest.raises(BTClibValueError, match="invalid psbt version"):
-            map_.serialize(psbt_version=wrong_value)
-        with pytest.raises(BTClibValueError, match="invalid psbt version"):
-            cls.parse(map_.serialize(), psbt_version=wrong_value)
 
 
 def test_a_block_filter_is_read_against_the_hash_of_its_block() -> None:
@@ -722,57 +638,6 @@ def test_a_var_bytes_flag_is_read_for_its_truth() -> None:
         assert var_bytes.parse(b"\x01\x02", forbid_zero_size=wrong) == b"\x02"
 
 
-def test_a_descriptor_is_parsed_for_a_network_that_exists() -> None:
-    """The two arguments `descriptors.parse` takes besides the text.
-
-    A name no network has was carried into the `Descriptor` and refused
-    by whichever encoder came to use it, one call later than the argument
-    that was wrong; `prv_keys` was walked with `in` and `[]`, so a list
-    of pairs answered "not found" for every key rather than saying it is
-    not a mapping. `None` is a type it declares, so it is asserted to
-    work rather than driven -- a statement about the signature, and the
-    one `built_object_contract_test.py` records as `optional`.
-    """
-    descriptor = f"pk({PrvKeyData(1).pub.sec.hex()})"
-    assert descriptors.parse(descriptor, "testnet").network == "testnet"
-    assert descriptors.parse(descriptor, prv_keys={}).network == "mainnet"
-    assert descriptors.parse(descriptor, prv_keys=None).network == "mainnet"
-    # and normalized, which is what going through the library's own
-    # question buys beyond refusing what is not one
-    assert descriptors.parse(descriptor, " TestNet ").network == "testnet"
-
-    for wrong in _WRONG_TYPES:
-        with pytest.raises(BTClibTypeError, match="not a network name"):
-            descriptors.parse(descriptor, wrong)
-    for wrong in _NOT_NONE:
-        with pytest.raises(BTClibTypeError, match="invalid prv_keys type"):
-            descriptors.parse(descriptor, prv_keys=wrong)
-    with pytest.raises(BTClibValueError, match="unknown network"):
-        descriptors.parse(descriptor, "mainet")
-
-
-def test_a_miniscript_is_parsed_in_a_context_that_exists() -> None:
-    """The same pair for the miniscript parser, its own first argument.
-
-    Every rule reads the context by asking whether it is `TAPSCRIPT`, so
-    a third value was the p2wsh one silently: the expression was
-    type-checked and sized under rules it was not offered to.
-    """
-    expression = f"pk({PrvKeyData(1).pub.sec.hex()})"
-    for context in (miniscript.P2WSH, miniscript.TAPSCRIPT):
-        assert miniscript.parse(expression, context).context == context
-    assert miniscript.parse(expression, prv_keys=None).context == miniscript.P2WSH
-
-    for wrong in _WRONG_TYPES:
-        with pytest.raises(BTClibTypeError, match="invalid context type"):
-            miniscript.parse(expression, wrong)
-    for wrong in _NOT_NONE:
-        with pytest.raises(BTClibTypeError, match="invalid prv_keys type"):
-            miniscript.parse(expression, prv_keys=wrong)
-    with pytest.raises(BTClibValueError, match="unknown spend context"):
-        miniscript.parse(expression, "P2SH")
-
-
 def test_every_json_boundary_is_covered() -> None:
     """The inventory is a promise only if omission is what fails.
 
@@ -808,7 +673,7 @@ def test_every_decoder_is_covered() -> None:
 def test_every_codec_that_is_a_function_is_covered() -> None:
     """And the same promise where the family is a module function.
 
-    The walk that finds the methods finds classes, so these ten would be
+    The walk that finds the methods finds classes, so these would be
     invisible to it: a `parse` or a `serialize` added to a module of this
     library is held to nothing until it appears in one of the two tables
     above.
@@ -853,7 +718,7 @@ def test_the_family_takes_no_argument_this_file_does_not_drive() -> None:
     fails here until it is driven above or given a reason of its own.
 
     The argument this walk does not count is the object's own: the
-    encoding a reader is handed -- `data`, `dict_`, `uri`, `address` --
+    encoding a reader is handed -- `data`, `dict_` --
     which the tests above drive for every class carrying one, and which a
     writer does not have at all, the object being what it writes.
     """

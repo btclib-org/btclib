@@ -8,15 +8,14 @@
 `re.search(pattern, subpath)`, unanchored unless the pattern itself
 anchors -- so `"build"` drops any path merely containing that substring,
 not only the top-level `build/` directory a packaging tool writes.
-`tests/tx_builder_test.py`, `tests/build_system_test.py`,
-`tests/wait_for_readthedocs_build_test.py`, `tests/block/build_test.py`
-and `.github/scripts/wait_for_readthedocs_build.py` left the type gate
-this way, none of them imported by anything the gate does reach, with
-`mypy src/btclib tests .github/scripts` exiting 0 throughout (issue
-#2115). `src/btclib/tx_builder.py` and `src/btclib/block/build.py` also
-carry the substring and stayed in: each is imported by a module the
-crawl does reach (`coin_selection.py`, `genesis.py`), and an import mypy
-follows is checked whatever the crawl's own exclude says.
+`tests/build_system_test.py`, `tests/wait_for_readthedocs_build_test.py`,
+`tests/block/build_test.py` and `.github/scripts/wait_for_readthedocs_build.py`
+left the type gate this way, none of them imported by anything the gate
+does reach, with `mypy src/btclib tests .github/scripts` exiting 0
+throughout (issue #2115). `src/btclib/block/build.py` also carries the
+substring and stayed in: it is imported by a module the crawl does reach
+(`genesis.py`), and an import mypy follows is checked whatever the
+crawl's own exclude says.
 
 This module reads pyproject.toml rather than importing mypy, which
 `CONTRIBUTING.md`'s own gate command runs from `lint`, a group

@@ -1,6 +1,5 @@
 # FROST, mutated: BIP445's Lagrange interpolation, nonce generation and
-# partial signatures, and the proprietary psbt fields a signing session
-# is carried in. A threshold signature is made by a subset of the group,
+# partial signatures. A threshold signature is made by a subset of the group,
 # so an interpolating value taken over the wrong identifier set, an
 # accumulator that stops tracking parity or a partial signature checked
 # against another participant's public share is a session that answers no
@@ -12,20 +11,15 @@
 # asks it of the t-of-n one beside it.
 
 [cosmic-ray]
-# both halves, judged by the same two test files, for musig2.toml's
-# reason: `ecc/frost.py` is the scheme and `psbt/frost.py` the transport
-# for it, and psbt.toml names its six modules one by one so that neither
-# of these is swept in there
-module-path = [
-    "src/btclib/ecc/frost.py",
-    "src/btclib/psbt/frost.py",
-]
+# the scheme; the proprietary psbt fields that carry a session are
+# `btclib_wallet.psbt.frost`, mutated there
+module-path = "src/btclib/ecc/frost.py"
 
-# both modules' own files, complete over the two, lines and branches --
-# measured with `--cov=btclib.ecc.frost --cov=btclib.psbt.frost
-# --cov-branch` over this command
+# the module's own file, complete over it, lines and branches -- the
+# command `--cov=btclib.ecc.frost --cov-branch` over this module answers
+# for
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
-  tests/ecc/frost_test.py tests/psbt/frost_test.py"""
+  tests/ecc/frost_test.py"""
 
 # seconds of wall clock, wide for the reason sig_hash.toml measures -- a
 # timeout is answered KILLED, so slack is the safe direction. The scheme
@@ -39,10 +33,10 @@ timeout = 300
 
 excluded-modules = []
 
-# the exclusion wallet.toml explains and parsers.toml argues. Every `|`
-# in the two modules is in an annotation --
+# the exclusion parsers.toml argues. Every `|` in the module is in an
+# annotation --
 #
-#   grep -n ' | ' src/btclib/ecc/frost.py src/btclib/psbt/frost.py
+#   grep -n ' | ' src/btclib/ecc/frost.py
 #
 # -- and the one other bitwise operator is `^`, which is `_bytes_xor` over
 # the nonce seed and which no filter touches
@@ -54,8 +48,8 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # the `frost` profile that spent its whole budget with most of the
 # scope's mutants never run.
 #
-# None of the survivors was a defect in either module. Each was applied
-# to the tree by hand and run against the two test files: alive at that
+# None of the survivors was a defect in the module. Each was applied to
+# the tree by hand and run against its test file: alive at that
 # run, and dead under the tests beside this commit, except the ones
 # listed as equivalent, which those tests leave alive.
 #
@@ -102,31 +96,6 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   without the memo of the context it came from.
 #   `test_a_session_context_is_replaced_and_not_carried_over`.
 #
-# and in `tests/psbt/frost_test.py`:
-#
-# - the second entry of `_SESSION_KEY_SIZES`, the width of a record keyed
-#   with a tapleaf hash, in every arithmetic form it was mutated to: no
-#   test gave `assert_valid_records` a session in a leaf.
-#   `test_a_session_in_a_leaf_script` now does.
-# - `_pub_share`'s `0 <= my_id < len(...)` at `<=` and at `-1 <=`: the
-#   test that named a participant the group does not have named one far
-#   past it, and now names one on each side of the range,
-#   `test_only_the_public_shares_the_psbt_knows_travel`. `add_threshold_
-#   info` checks the same range beside it, extended alike in
-#   `test_the_updater_files_key_material_it_has_checked`.
-# - the `*,` that makes the tapleaf hash keyword-only, turned `/,` in
-#   `partial_sign`: `test_the_tapleaf_hash_is_keyword_only`, which holds
-#   every function that takes one to it.
-# - `_session_parts`'s `tweak_ctx.x_only_pub_key != expected` weakened to
-#   `>`: the merkle-root case in `test_a_session_the_psbt_does_not_
-#   describe` has the tweaked key sorting above the output key, which is
-#   the one order `>` refuses. The output keys added there sort on either
-#   side of it.
-# - `_tweaks`'s `return [taproot_tweak], [True]` turned `[False]`. The
-#   group's own key has an even y, where an x-only tweak and a plain one
-#   apply the same value, so `test_a_threshold_key_of_odd_y_is_tweaked_
-#   x_only` signs over the group with every share negated.
-#
 # The rest are equivalent by construction, bar one input class named
 # where it applies:
 #
@@ -134,10 +103,9 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   what it was built from, and as `is not`, because both lengths are
 #   small ints and Python keeps one object per value of those:
 #   `_validate_session_params` calls it after refusing an `n` above
-#   `MAX_PARTICIPANTS` and more identifiers than `n`. So is
-#   `assert_valid_records`'s `len(key_data) != _INFO_KEY_SIZE` as
-#   `is not`. `_derive_interpolating_value`'s `curr_id == my_id` as `is`
-#   is the same class for an `int` `my_id`, the identifiers having been
+#   `MAX_PARTICIPANTS` and more identifiers than `n`.
+#   `_derive_interpolating_value`'s `curr_id == my_id` as `is` is the
+#   same class for an `int` `my_id`, the identifiers having been
 #   range-checked and a `my_id` past the cached ones equalling none of
 #   them. A `bool` `my_id` tells the two apart, `False` equalling the
 #   identifier 0 and not being that object; no test passes one, an
@@ -155,9 +123,6 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # - `SessionContext`'s `@dataclass(frozen=True, init=False)` as
 #   `init=True`: a dataclass never replaces an `__init__` the class
 #   defines, and this one does.
-# - `_INFO_KEY_SIZE` and `_PAIR_SIZE`, `ID_SIZE + PK_SIZE`, as `|`: the
-#   two widths share no set bit, so `ID_SIZE & PK_SIZE` is 0 and `|`
-#   is `+`.
 
 # one mutant at a time, in this working tree: see sig_hash.toml
 [cosmic-ray.distributor]

@@ -210,8 +210,10 @@ class KeyPairSpellings(NamedTuple):
 
     The WIF and the xprv are here for the refusals alone: `ecc` takes a
     scalar and a point, and a spelling that carries a network is read
-    where its format is defined -- a WIF by `b58`, an xprv by `bip32`
-    (issue #1188).
+    where its format is defined -- a WIF by `b58`, an xprv by
+    `btclib_wallet.bip32` (issue #1188). The xprv is written out as the
+    Base58Check of its BIP32 serialization, so building it asks nothing
+    of the package that parses one.
     """
 
     q: int
@@ -229,13 +231,12 @@ class KeyPairSpellings(NamedTuple):
 def key_pair_spellings() -> KeyPairSpellings:
     """Build one `KeyPairSpellings`, computed on call rather than at import.
 
-    `btclib.base58`, `btclib.bip32` and `btclib.curves` are imported
+    `btclib.base58` and `btclib.curves` are imported
     inside this function rather than at the top of the module, for the
     reason the block comment above gives: a top-level import would run at
     collection, the same moment `Q = mult(q)` would.
     """
     from btclib.base58 import encode as b58encode  # noqa: PLC0415
-    from btclib.bip32 import BIP32KeyData  # noqa: PLC0415
     from btclib.curves import mult  # noqa: PLC0415
 
     q = 12
@@ -250,15 +251,18 @@ def key_pair_spellings() -> KeyPairSpellings:
     wif_compressed_string = b58encode(b"\x80" + q_bytes + b"\x01").decode("ascii")
     wif_uncompressed_string = b58encode(b"\x80" + q_bytes).decode("ascii")
 
-    xprv_data = BIP32KeyData(
-        version=bytes.fromhex("04 88 ad e4"),
-        depth=0,
-        parent_fingerprint=bytes.fromhex("00000000"),
-        index=0,
-        chain_code=32 * b"\x00",
-        key=b"\x00" + q_bytes,
+    # BIP32's serialization: version, depth, parent fingerprint, child
+    # index, chain code, and the key behind a zero octet
+    xprv_bytes = (
+        bytes.fromhex("04 88 ad e4")
+        + b"\x00"
+        + 4 * b"\x00"
+        + 4 * b"\x00"
+        + 32 * b"\x00"
+        + b"\x00"
+        + q_bytes
     )
-    xprv_string = xprv_data.b58encode(check_validity=False)
+    xprv_string = b58encode(xprv_bytes).decode("ascii")
 
     Q = mult(q)
     x_Q_bytes = Q[0].to_bytes(32, byteorder="big", signed=False)
@@ -279,8 +283,8 @@ def key_pair_spellings() -> KeyPairSpellings:
     )
 
     # an xpub is the only public spelling that names a network, and it is
-    # `bip32.pub_keyinfo_from_xpub`'s to read (issue #1188), so every
-    # family here is network-unaware
+    # `btclib_wallet.bip32.pub_keyinfo_from_xpub`'s to read (issue #1188),
+    # so every family here is network-unaware
     net_unaware_compressed_pub_keys: list[bytes | str] = [
         Q_compressed_hexstring,
         Q_compressed_hexstring2,
@@ -383,8 +387,7 @@ else:
 needs_zkp = pytest.mark.zkp
 
 # --------------------------------------------------------------------------
-# AES-128 and AES-256, shared by `ecc/ecies_test.py`'s CBC vectors and
-# `bip38_test.py`'s ECB ones.
+# AES-128, for `ecc/ecies_test.py`'s CBC vectors.
 #
 # **Why a test writes its own block cipher.** btclib takes no
 # cryptographic dependency and ships no cipher: hashlib and the
@@ -402,13 +405,12 @@ needs_zkp = pytest.mark.zkp
 #
 # It is written for the vectors, not for use: correct, small enough to
 # read against FIPS-197, and slow. Do not import it from anywhere but
-# `ecc/ecies_test.py` and `bip38_test.py`.
+# `ecc/ecies_test.py`.
 # --------------------------------------------------------------------------
 
 _AES_BLOCK_SIZE = 16
-# FIPS-197 section 5.2, the round constants a 128- or 256-bit key
-# schedule needs: the highest index either ever reads is `i // nk - 1`
-# with `i < 4 * (nr + 1)`, which stays below 7 for both key lengths
+# FIPS-197 section 5.2, the round constants a 128-bit key schedule
+# reads: index `i // nk - 1` with `i < 4 * (nr + 1)`, which reaches 9
 _AES_RCON = (0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36)
 
 
@@ -467,16 +469,12 @@ _AES_SBOX, _AES_INV_SBOX = _aes_build_boxes()
 
 
 def aes_expand_key(key: bytes) -> list[list[int]]:
-    """Return the round keys of an AES-128 or AES-256 key, by its length.
+    """Return the round keys of an AES-128 key.
 
-    `nk` -- the key length in 32-bit words -- is 4 for AES-128 and 8 for
-    AES-256; `nr`, the number of rounds, is `nk + 6` either way, FIPS-197
-    table 1. The schedules differ in one place: AES-256's, alone among
-    the three FIPS-197 defines, runs an extra SubWord with no rotation
-    and no round constant every fourth word that RotWord does not
-    already cover -- `i % nk == 4`, reachable only where `nk > 6`, so an
-    AES-128 schedule never takes the branch and an AES-256 one always
-    does at 6 of its 60 words.
+    `nk`, the key length in 32-bit words, is 4 and `nr`, the number of
+    rounds, is `nk + 6`, FIPS-197 table 1. AES-256's extra SubWord every
+    fourth word is not here: nothing in this suite asks for a 256-bit
+    key, and a branch no test reaches is one no test checks.
     """
     nk = len(key) // 4
     nr = nk + 6
@@ -486,8 +484,6 @@ def aes_expand_key(key: bytes) -> list[list[int]]:
         if i % nk == 0:
             word = [_AES_SBOX[b] for b in (*word[1:], word[0])]
             word[0] ^= _AES_RCON[i // nk - 1]
-        elif nk > 6 and i % nk == 4:
-            word = [_AES_SBOX[b] for b in word]
         words.append([a ^ b for a, b in zip(words[i - nk], word, strict=True)])
     return [
         [b for word in words[4 * r : 4 * r + 4] for b in word] for r in range(nr + 1)

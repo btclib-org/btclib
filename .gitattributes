@@ -51,18 +51,6 @@ RELEASE_NOTES.md merge=union
 # Everything above is the same file in every repository of the organization;
 # everything below is this one's, and the comparison stops at this heading.
 
-# Electrum's Portuguese word-list is Monero's, and the blank lines of the
-# licence header it opens with end in a space upstream. Our copy being byte
-# for byte upstream's is a property that can be checked, so those six bytes
-# stay: `.pre-commit-config.yaml` excludes the file from trailing-whitespace
-# for that reason, which covers the hook and nothing else. git enforces the
-# same rule on its own, and does more than report it — `git apply
-# --whitespace=fix` strips them, saying only "1 line applied after fixing
-# whitespace errors", and `git diff --check` calls them an error of ours.
-# `-whitespace` turns both off, for the one path whose bytes are not ours to
-# choose.
-src/btclib/mnemonic/_data/electrum_portuguese.txt -whitespace
-
 # No driver on `changelog/v<version>.md`, which is where a release keeps
 # its own section once CHANGELOG.md's window has moved past it. `union`
 # is for a file two branches append to at one anchor, and nothing appends

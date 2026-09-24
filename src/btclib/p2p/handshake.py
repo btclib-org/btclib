@@ -42,15 +42,15 @@ buffers are two objects, each writing back the octets it came from.
 `tests/p2p/handshake_test.py` drives that, and the exclusion in
 `parse_contract_test.py` names it.
 
-And `Version.parse` takes `Octets` where every other parser in this
-package takes `BinaryData`, because a `version` payload does not say how
-long it is: whether the last octet is the relay flag or the first octet
-of whatever comes next is a question the buffer cannot answer, and the
+And `Version.parse` takes `Octets` where most of this package's parsers
+take `BinaryData`, because a `version` payload does not say how long it
+is: whether the last octet is the relay flag or the first octet of
+whatever comes next is a question the buffer cannot answer, and the
 envelope's length field is what answers it. A caller has that already --
 `Version.parse(message.payload)` -- so what a stream would add is the
-one reading that is silently wrong. `btclib.bip32.key_origin` is the
-other parser in this library that takes `Octets` for this reason, and
-`parse_contract_test.py` states it there too.
+one reading that is silently wrong. `reject.Reject.parse` is the other
+parser in this package that takes `Octets`, BIP61's trailing hash
+carrying no length either, and `parse_contract_test.py` states both.
 
 Core's conditionals reach further up than the relay flag, and this
 module's requirements stop where they stop being about a message anybody

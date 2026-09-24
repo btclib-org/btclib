@@ -643,8 +643,9 @@ def _sec_from_point(Q: Point) -> bytes:
     on the way out, the form that does not drop a y this side would have
     to lift again -- point_from_octets on the compressed form costs
     better than twice what it does on this one, a lift delegated to the
-    bindings against two int.from_bytes, the lesson bip32.py records for
-    public derivation. The 32 octets more are all but free to write here.
+    bindings against two int.from_bytes, the lesson btclib_wallet's bip32.py
+    records for public derivation. The 32 octets more are all but free to
+    write here.
     """
     p_size = secp256k1.p_size
     return b"\x04" + Q[0].to_bytes(p_size, "big") + Q[1].to_bytes(p_size, "big")

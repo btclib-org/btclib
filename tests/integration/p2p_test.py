@@ -5,9 +5,8 @@
 """`btclib.p2p` against a real Core, over a socket this test opens itself.
 
 `tests/p2p/` reads a `version` Bitcoin Core sent once, on the day the
-capture was taken; `regtest_test.py` reaches a real node, but only over
-`bitcoin_core_rpc`, so no octet this library serializes for the wire is
-ever framed, sent, and answered by Core. Neither can say that Core still
+capture was taken, and no octet this library serializes for the wire is
+framed, sent, and answered by Core there. It cannot say that Core still
 sends what a fixture captured, or still accepts what this library still
 emits -- issue #1412 is what both of those being true, once, does not
 establish for the next commit.

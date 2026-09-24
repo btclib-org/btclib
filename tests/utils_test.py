@@ -296,12 +296,10 @@ def test_octets_are_bytes_or_the_hex_string_of_bytes_and_nothing_else() -> None:
 def test_a_buffer_becomes_the_bytes_the_signature_promises() -> None:
     """`-> bytes`, and not the caller's own buffer handed back.
 
-    A `bytearray` or a `memoryview` returned as it came stays the
-    caller's, so a write to it afterwards rewrites whatever the library
-    built from it -- a `BIP32KeyData` chain code and the xprv that key
-    serializes to, which `tests/bip32/bip32_test.py` pins. Nor is either
-    the `bytes` the annotation promises: a bytearray keys no dict and a
-    memoryview concatenates with nothing (issue #1255).
+    A `bytearray` or a `memoryview` returned as it came stays the caller's,
+    so a write to it afterwards rewrites whatever the library built from it.
+    Nor is either the `bytes` the annotation promises: a bytearray keys no
+    dict and a memoryview concatenates with nothing (issue #1255).
     """
     for spelling in (b"\x00\x01", bytearray(b"\x00\x01"), memoryview(b"\x00\x01")):
         assert type(bytes_from_octets(spelling)) is bytes

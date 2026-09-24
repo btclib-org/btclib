@@ -5,17 +5,16 @@
 """Tests for the `btclib.ecc.ecies` module.
 
 **This file drives an AES-128, and it is here because tests are not
-shipped.** `tests/__init__.py` has why a test writes its own block cipher
-rather than taking a dependency, AES-256 for `bip38_test.py` beside this
-module's AES-128: the keys below are fixed test vectors published in
-Electrum's own test suite, so there is no secret for a timing side
-channel to leak. What this cipher buys is the only evidence that matters
-for a scheme with no specification: btclib decrypting ciphertexts that
-Electrum really produced.
+shipped.** `tests/__init__.py` has why a test writes its own block
+cipher rather than taking a dependency: the keys below are fixed test
+vectors published in Electrum's own test suite, so there is no secret
+for a timing side channel to leak. What this cipher buys is the only
+evidence that matters for a scheme with no specification: btclib
+decrypting ciphertexts that Electrum really produced.
 
 The CBC chaining and the PKCS#7 padding are this module's own: BIE1
-names both, where BIP38 names neither, so they stay beside the vectors
-that need them rather than in the shared block cipher.
+names both, so they stay beside the vectors that need them rather than
+in the block cipher `tests/__init__.py` holds.
 """
 
 import base64
@@ -37,8 +36,8 @@ from tests import aes_decrypt_block, aes_encrypt_block, aes_expand_key, aes_xor
 
 # --------------------------------------------------------------------------
 # AES-128-CBC with PKCS#7, for this file alone. The block cipher itself is
-# `tests`', shared with `bip38_test.py`'s AES-256-ECB; the chaining and the
-# padding are BIE1's own and stay here. See the module docstring.
+# `tests`'; the chaining and the padding are BIE1's own and stay here.
+# See the module docstring.
 # --------------------------------------------------------------------------
 
 _BLOCK_SIZE = 16

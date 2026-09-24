@@ -10,7 +10,7 @@ Each is read where its format is defined, and what a read answers is a
 scalar, a point or a tuple of them with a network: the canonical form is
 what comes *out* of a conversion and never what goes *in*, so a caller
 that has one has to spell it back for the next call, which parses it
-again. That round trip is what `bip32.derive_` and
+again. That round trip is what `btclib_wallet.bip32.derive_` and
 `curves.sec_point._sec_from_pub_key` work around locally -- issues 886
 and 887. Issue 896 is the same round trip where `script.taproot` reads an
 internal key, and there it is this module that answers it.

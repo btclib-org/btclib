@@ -7,7 +7,7 @@
 `__all__` is a decision about the public surface, and it had drifted: it
 carried a benchmark's worth of multiplication implementations in `btclib.curves`
 while `btclib.ecc` advertised four helpers and none of the six signature
-schemes behind them, and `btclib.mnemonic` neither of its two schemes.
+schemes behind them.
 
 Every module and package of the library declares one, at every depth, which
 is the answer issue #338 asked for: a name is public here because a list
@@ -43,12 +43,9 @@ import pytest
 import btclib
 import btclib.curves
 import btclib.ecc
-import btclib.mnemonic
-import btclib.psbt
 import btclib.script
 from btclib import consensus
 from btclib.curves import curve_group, curve_group_2
-from btclib.psbt import psbt_utils
 from btclib.script import script_pub_key
 from tests import module_names
 
@@ -59,11 +56,6 @@ from tests import module_names
 UNEXPORTED = {
     "btclib": ["name"],
     "btclib.curves.curve": ["datadir"],
-    "btclib.descriptors.descriptors": [
-        "CHECKSUM_CHARSET",
-        "GENERATOR",
-        "INPUT_CHARSET",
-    ],
     "btclib.network": ["datadir"],
 }
 
@@ -101,14 +93,10 @@ def _reexports(*groups: tuple[ModuleType, list[str]]) -> dict[str, ModuleType]:
 # decomposition gives it the re-exported exception classes of more than
 # one package, which a single `(canonical, names)` pair cannot record.
 #
-# The `bitcoin-core-rpc` package is the canonical source of the rpc client
-# and of the transport under it, and btclib depends on it rather than
-# carrying a copy. Some of the modules below aliasing it held those objects
-# themselves before it became a package of its own; others were written
-# afterwards, aliasing it from the start rather than ever declaring a second
-# copy. Either way, each states its own reasoning in its own docstring -- a
-# transport has one bounded-read policy, and an import path published here
-# stays valid.
+# The `bitcoin-core-rpc` package is the canonical source of the network
+# magic a node is spoken to with, and btclib depends on it rather than
+# carrying a copy: `btclib.p2p.magic` aliases the two functions, and its
+# docstring states the reasoning.
 #
 # `btclib.consensus` is the second decision: a transaction's counts and a
 # witness stack's are arithmetic on the block weight, and neither `btclib.tx`
@@ -117,55 +105,17 @@ def _reexports(*groups: tuple[ModuleType, list[str]]) -> dict[str, ModuleType]:
 # still, being where the rest of Core's header is and where a caller reading
 # a block's own rules goes.
 #
-# `btclib.psbt.psbt_utils` is the third: the two psbt versions decide what
-# an input and an output map write and read, and neither `psbt_in` nor
-# `psbt_out` can import `psbt`, so the pair is defined below all three.
-# `btclib.psbt.psbt` names them still, being where the rest of the format's
-# constants are.
-#
 # So a name here is not a name about to leak: it is the same object under
 # the name a caller already had, which each entry records its canonical
 # module for and the test below asserts. What would be a leak is a module
 # not listed here, or a listed module exporting a name its recorded
 # canonical module does not
 REEXPORTED = {
-    "btclib.fetch.bitcoin_core": _reexports(
-        (
-            bitcoin_core_rpc,
-            [
-                "COOKIE_USER",
-                "DEFAULT_DATADIR",
-                "BitcoinCoreRpcClient",
-                "chain_from_network",
-                "cookie_auth",
-            ],
-        ),
-    ),
-    "btclib.fetch.bitcoin_core_rest": _reexports(
-        (bitcoin_core_rpc, ["BitcoinCoreRestClient"]),
-    ),
-    "btclib.fetch.transport": _reexports(
-        (
-            bitcoin_core_rpc,
-            [
-                "DEFAULT_MAX_BODY_SIZE",
-                "DEFAULT_TIMEOUT",
-                "MAX_ERROR_BODY_SIZE",
-                "HttpTransport",
-                "SessionTransport",
-                "http_request",
-                "urlopen_transport",
-            ],
-        ),
-    ),
     "btclib.p2p.magic": _reexports(
         (bitcoin_core_rpc, ["magic_from_chain", "magic_from_signet_challenge"]),
     ),
     "btclib.block.limits": _reexports(
         (consensus, ["MAX_BLOCK_WEIGHT", "WITNESS_SCALE_FACTOR"]),
-    ),
-    "btclib.psbt.psbt": _reexports(
-        (psbt_utils, ["PSBT_V0", "PSBT_V2"]),
     ),
 }
 
@@ -187,10 +137,6 @@ REEXPORTED = {
 # test_the_root_publishes_every_top_level_module asserts the same partition
 # against the directory with nothing on the unpublished side
 CHILD_MODULES = {
-    "btclib.bip32": {
-        "groups": [],
-        "unpublished": ["bip32", "der_path", "key_origin"],
-    },
     "btclib.block": {
         "groups": ["build", "merkle_proof", "mining", "proof_of_work"],
         "unpublished": [
@@ -214,10 +160,6 @@ CHILD_MODULES = {
             "sec_point",
         ],
     },
-    "btclib.descriptors": {
-        "groups": ["miniscript"],
-        "unpublished": ["descriptors", "key_expression"],
-    },
     "btclib.ecc": {
         "groups": [
             "bip340_nonce",
@@ -235,31 +177,6 @@ CHILD_MODULES = {
             "rangeproof",
             "rfc6979_nonce",
             "ssa",
-        ],
-        "unpublished": [],
-    },
-    "btclib.fetch": {
-        "groups": [],
-        "unpublished": [
-            "bitcoin_core",
-            "bitcoin_core_rest",
-            "broadcaster",
-            "decorators",
-            "electrum",
-            "esplora",
-            "fee_estimator",
-            "fetcher",
-            "transport",
-        ],
-    },
-    "btclib.mnemonic": {
-        "groups": [
-            "bip39",
-            "dispatch",
-            "electrum",
-            "entropy",
-            "mnemonic",
-            "slip39",
         ],
         "unpublished": [],
     },
@@ -281,17 +198,6 @@ CHILD_MODULES = {
             "negotiation",
             "payload",
             "reject",
-        ],
-    },
-    "btclib.psbt": {
-        "groups": ["frost", "musig2", "silent_payments"],
-        "unpublished": [
-            "psbt",
-            "psbt_in",
-            "psbt_out",
-            "psbt_size",
-            "psbt_utils",
-            "psbt_view",
         ],
     },
     "btclib.script": {
@@ -320,15 +226,6 @@ CHILD_MODULES = {
             "tx_context",
             "tx_in",
             "tx_out",
-        ],
-    },
-    "btclib.wallet": {
-        "groups": [],
-        "unpublished": [
-            "descriptor_wallet",
-            "key_wallet",
-            "script_wallet",
-            "wallet",
         ],
     },
 }
@@ -585,91 +482,6 @@ def test_script_publishes_the_three_subgroups_the_cli_promises() -> None:
         _ = btclib.script.sig_hashes
 
 
-def test_mnemonic_exports_its_three_schemes() -> None:
-    """Verify bip39, electrum and slip39 are exported and importable."""
-    for name in ("bip39", "electrum", "slip39"):
-        assert name in btclib.mnemonic.__all__
-        module = getattr(btclib.mnemonic, name)
-        assert module.__name__ == f"btclib.mnemonic.{name}"
-
-
-def test_mnemonic_names_every_submodule_it_has() -> None:
-    """The schemes, the entry point, and the two modules under all of them.
-
-    `entropy` and `mnemonic` were the two the list left out, so what those
-    hold and does not come out flat -- `WordLists` and `data_file` -- had no
-    named way in. The submodules are found rather than listed: one added to
-    the package is one this asks about.
-    """
-    submodules = sorted(name for _, name, _ in iter_modules(btclib.mnemonic.__path__))
-    assert submodules == [
-        "bip39",
-        "dispatch",
-        "electrum",
-        "entropy",
-        "mnemonic",
-        "slip39",
-    ]
-    for name in submodules:
-        assert name in btclib.mnemonic.__all__, f"{name} is not exported"
-        module = getattr(btclib.mnemonic, name)
-        assert module.__name__ == f"btclib.mnemonic.{name}"
-
-
-def test_psbt_exports_the_format_not_its_plumbing() -> None:
-    """The maps and the roles, not how one field of one map is written.
-
-    The list it replaces held more names from psbt_utils than names for the
-    psbt itself, `encode_dict_bytes_bytes` twice among them, so a caller
-    reading `btclib.psbt` was offered the plumbing of a file format ahead
-    of the format.
-    """
-    assert sorted(btclib.psbt.__all__) == [
-        "InputSolver",
-        "KeyManager",
-        "Psbt",
-        "PsbtIn",
-        "PsbtOut",
-        "PsbtView",
-        "SolutionSizer",
-        "assert_signatures_only",
-        "assert_signed",
-        "combine",
-        "ecdsa_sig_hash",
-        "estimated_input_sizes",
-        "extract_tx",
-        "finalize",
-        "frost",
-        "join",
-        "musig2",
-        "new_signers",
-        "prevouts",
-        "sign",
-        "silent_payments",
-        "taproot_sig_hash",
-    ]
-
-    # BIP373 is a role, so the module is the name, as btclib.ecc.dsa is
-    assert btclib.psbt.musig2.__name__ == "btclib.psbt.musig2"
-    # and the same for the roles over a BIP445 session, whose fields are
-    # btclib's own proprietary records rather than assigned type bytes
-    assert btclib.psbt.frost.__name__ == "btclib.psbt.frost"
-
-    # the plumbing is still there, in the module that defines it
-    for name in (
-        "assert_valid_unknown",
-        "decode_dict_bytes_bytes",
-        "deserialize_map",
-        "deserialize_tx",
-        "encode_dict_bytes_bytes",
-        "serialize_bytes",
-        "serialize_dict_bytes_bytes",
-        "serialize_hd_key_paths",
-    ):
-        assert hasattr(psbt_utils, name), f"psbt_utils.{name} went missing"
-        assert name not in btclib.psbt.__all__
-
-
 def test_every_exported_name_exists() -> None:
     """An `__all__` entry that names nothing is a broken `import *`.
 
@@ -710,14 +522,11 @@ def test_no_module_exports_a_name_it_imported() -> None:
     with this test, not around it.
 
     `REEXPORTED` is that conversation, one name-to-canonical mapping per
-    re-exporting module: every module aliasing an object the
-    `bitcoin-core-rpc` package canonically holds keeps the name a caller
-    already had, a transport having one bounded-read policy to keep;
-    `btclib.block.limits` names the two constants `btclib.consensus`
-    defines below the package, which is where a caller reading a block's
-    rules looks for them; and `btclib.psbt.psbt` names the two psbt
-    versions that `psbt_utils` defines below the maps taking one as an
-    argument.
+    re-exporting module: `btclib.p2p.magic` aliases the two functions the
+    `bitcoin-core-rpc` package canonically holds, a second copy of Core's
+    table being a second thing to keep true; `btclib.block.limits` names
+    the two constants `btclib.consensus` defines below the package, which
+    is where a caller reading a block's rules looks for them.
 
     Asserted both ways, because a skip list is only half a table: it says
     which names may be re-exported and nothing about whether they still are,
@@ -827,7 +636,7 @@ def test_every_child_module_is_a_group_or_deliberately_not() -> None:
     tables promise -- fails until somebody writes down which side it is on.
 
     The empty published sides are as deliberate as the rest: `curves`,
-    `tx`, `bip32`, `fetch` and `script.engine` offer a flat surface and no
+    `tx`, `p2p` and `script.engine` offer a flat surface and no
     group. Every package has to be in the table, so a new one is a decision
     rather than a silent pair of empty lists.
     """

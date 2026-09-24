@@ -289,7 +289,8 @@ class Sig:
         # the curve first: it is what 1..n-1 is measured in, and
         # check_validity=False is what makes a Sig holding an ec of no
         # curve type reachable at all -- built with the flag off, or the
-        # field assigned afterwards, as psbt.assert_valid's int fields are
+        # field assigned afterwards, as the int fields btclib_wallet's
+        # Psbt.assert_valid checks are
         _assert_valid_ec(self.ec)
 
         # r is a scalar, fail if r is not in [1, n-1]

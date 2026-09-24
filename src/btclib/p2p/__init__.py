@@ -7,7 +7,7 @@
 **The p2p wire format, and nothing that speaks it.** This package turns a
 message into bytes and bytes back into a message; it is handed the octets
 and hands octets back, and no line of it opens a socket, resolves a name
-or waits on one. `btclib.fetch` is the one place that goes and asks, and
+or waits on one. `btclib_wallet.fetch` is the one place that goes and asks, and
 its `transport` is where a socket already is: nothing here imports that
 package, and nothing there imports this one -- a fetcher asks a server a
 question, a peer is a party to a protocol, and the only thing the two

@@ -29,8 +29,8 @@ pip3 install .
 # this, `FileNotFoundError` on `curves/_data/ec_Brainpool.json` inside
 # a PyInstaller `_MEI` extraction directory. `--collect-data` walks the
 # whole of `btclib`'s own tree rather than naming `curves/_data` alone,
-# so `mnemonic/_data` -- outside this harness's own import chain today
-# -- is bundled too, ahead of the next harness that reaches it.
+# so a `_data/` directory the next harness reaches is bundled with no
+# edit here.
 #
 # The same loop also zips each target's own seed corpus, one
 # fuzz/corpus/<name>/ directory per fuzzer (google/fuzzing's glossary,

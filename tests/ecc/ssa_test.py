@@ -13,7 +13,8 @@ import pytest
 
 from btclib._libsecp256k1 import ssa as libsecp256k1_ssa
 from btclib.alias import INF, Octets, Point, String
-from btclib.bip32 import BIP32KeyData
+from btclib.base58 import decode as b58decode
+from btclib.base58 import encode as b58encode
 from btclib.curves import (
     PreparedPoint,
     bytes_from_point,
@@ -30,7 +31,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueEr
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv_var
 from btclib.utils import int_from_bits
-from tests import load_csv, needs_bindings, replace_unchecked, vector_id
+from tests import load_csv, needs_bindings, vector_id
 from tests.curves.curve_test import low_card_curves, no_bindings, secp256k1_bis
 
 
@@ -299,29 +300,24 @@ def test_point_from_bip340pub_key() -> None:
 
 
 def test_an_extended_key_is_no_longer_a_bip340_key() -> None:
-    """The three spellings of a public xpub, refused (issue #1188).
+    """The two text spellings of a public xpub, refused (issue #1188).
 
-    An extended key is bip32's object, and turning one into a public key
-    is bip32's call to make. `ssa` parses the spellings it takes with
-    `curves`, whose `PubKey` union names no extended key, so all three
-    are refused as octets rather than resolved.
+    An extended key is BIP32's object, and turning one into a public key
+    is `btclib_wallet.bip32`'s call to make. `ssa` parses the spellings it
+    takes with `curves`, whose `PubKey` union names no extended key, so
+    both are refused as octets rather than resolved.
 
-    The key field is replaced with a point of the curve, so what refuses
-    these is their being extended keys and not their contents. Only the
-    public half is here because only the public half ever arrived: an
-    xprv was refused as octets that would not parse, and a private
-    `BIP32KeyData` by name, both before this change.
+    The key field, the last 33 octets of the BIP32 serialization, is
+    replaced with a point of the curve, so what refuses these is their
+    being extended keys and not their contents.
     """
     q, _ = ssa.gen_keys()
     Q = mult(q)
-    xpub_data = BIP32KeyData.b58decode(
+    serialized = b58decode(
         "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
     )
-    xpub_data = replace_unchecked(xpub_data, key=bytes_from_point(Q))
-    xpub = xpub_data.b58encode()
+    xpub = b58encode(serialized[:-33] + bytes_from_point(Q)).decode("ascii")
 
-    with pytest.raises(BTClibTypeError, match="not a BIP340 public key"):
-        ssa.point_from_bip340pub_key(xpub_data)
     # the two text spellings are refused as the octets they are not, and
     # not by the same complaint: a `str` is read as hex and the Base58
     # alphabet is not hex, where the same characters as `bytes` are

@@ -69,15 +69,9 @@ A workflow needs an aggregate when every one of its jobs has to gate:
 would leave the rest outside the rule. Where a single job is what gates,
 that job *is* the context, which is why every check above ends in one
 job's `name:`.
-`integration-bitcoind.yml` holds only the regtest job: the HWI jobs — `HWI
-against a Trezor emulator` and `HWI against a Ledger emulator` — live in
-`integration-hwi.yml`, a workflow with no `pull_request` trigger at all, so a
-firmware release or a Ledger screen that changed wording produces no
-pull-request check to ignore, required or not — a job merely skipped on a pull
-request still lists there, a workflow that never triggers on one does not. What
-a job added back to `integration-bitcoind.yml` would still cost is a rename: a
-workflow whose *whole* answer becomes required needs an aggregate, and this
-table with it.
+`integration-bitcoind.yml` holds only the regtest job. What a job added to
+it would cost is a rename: a workflow whose *whole* answer becomes required
+needs an aggregate, and this table with it.
 
 `docs / Build the documentation` is named on its own on purpose: a rule
 naming `lint / Lint and type-check` alone would leave a red docs build

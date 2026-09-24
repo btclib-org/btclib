@@ -20,14 +20,12 @@ would trade a documented drift for a flaky one". What the transcription
 catches is this package's set changing; Core changing its own is what the
 pin is for, and the two together are the whole of the census.
 
-That division is `tests/hwi_test.py`'s, and for the same reason. What is
-pinned there is an interface rather than a file, upstream publishing no
-file to compare bytes with, and `.github/workflows/vendored-vectors.yml`
-re-checks the pin weekly and opens an issue where upstream's tip has
-moved past it. `src/protocol.h` is that shape too: the message types are
-declarations in C++ source, so a copy of the file would be a copy of a
-header this project cannot compile, and the pin buys the re-check
-instead.
+What is pinned is an interface rather than a file, and
+`.github/workflows/vendored-vectors.yml` re-checks the pin weekly and
+opens an issue where upstream's tip has moved past it. The message types
+of `src/protocol.h` are declarations in C++ source, so a copy of the file
+would be a copy of a header this project cannot compile, and the pin buys
+the re-check instead.
 
 Two alternatives were open, and each is refused for its own reason. A
 test reading a Core checkout behind an environment switch -- which is

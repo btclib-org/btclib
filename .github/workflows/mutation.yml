@@ -80,8 +80,6 @@ on:
           - shared
           - signatures
           - curves
-          - descriptors
-          - psbt
           - script
           - boundaries
           - frost
@@ -123,7 +121,7 @@ jobs:
       # and skipped (btclib-org/.github#1158) -- so there is no figure
       # here that would be a second copy. What that copy cost is still
       # on record: this file once stated "977 apiece" for bms.toml and
-      # bip322.toml, a count neither file's own header could produce,
+      # another scope, a count neither file's own header could produce,
       # and bms.toml is where that was caught (issue #987). What stays
       # below is the reasoning no single configuration can hold: which
       # scopes share a runner, how a ceiling is arrived at, and the wall
@@ -150,36 +148,27 @@ jobs:
       # as for the budget, this one leaving fifteen minutes of slack over
       # the other.
       #
-      # `keys`: bip32.toml finishes in about twenty minutes and
-      # codecs.toml is sampled at the thirty it is given, both measured
-      # on a machine already running the rest of this matrix, so a
-      # dedicated runner has room to spare rather than needing it.
+      # `keys`: codecs.toml is sampled at the thirty it is given,
+      # measured on a machine already running the rest of this matrix, so
+      # a dedicated runner has room to spare rather than needing it.
       #
-      # `signing`: the two message-signing scopes share a runner, a
-      # session each, and ten minutes apiece is headroom rather than a
-      # measurement -- bip322.toml's own header puts its session under
-      # ten minutes, which is the figure to re-measure before this budget
+      # `signing`: ten minutes for bms.toml is headroom rather than a
+      # measurement, which is the figure to re-measure before this budget
       # is leaned on.
       #
       # `block`: block.toml's session completes in under an hour on the
       # machine that measured it, and 75 minutes is that with a slower
       # runner's margin.
       #
-      # `shared`: five scopes, and the cell where the budgets argue with
-      # each other. utils.toml carries the largest of them and is sampled
+      # `shared`: two scopes, and the cell where the budgets argue with
+      # each other. utils.toml carries the larger of them and is sampled
       # rather than expected to finish, a weakened size bound turning
       # into a near-timeout mutant there the way numeric.toml's own does.
       # numeric.toml gets 25 rather than 15 because at the 30 s
       # per-mutant timeout its configuration argues for, 25 is what a
       # complete session costs, and a profile that finishes states a
       # survival rate where a sampled one can only be read for the
-      # verdicts that move in it. fetch_decorators.toml sits beside
-      # fetch.toml rather than taking a runner of its own, a session this
-      # short buying nothing from one: it completes in 200 s of wall
-      # clock at a load average of 24 on the machine that timed it, and
-      # 10 minutes is three times that. The budgets sum to 95 against a
-      # ceiling raised by those same 10, which leaves the others the
-      # slack they were measured with.
+      # verdicts that move in it.
       #
       # `signatures`: sampled rather than expected to finish, and
       # signatures.toml's header is what the ninety minutes below reached.
@@ -192,21 +181,8 @@ jobs:
       # triaging its survivors involves, are curve_group.toml's own
       # header too.
       #
-      # `descriptors`: the largest scope in this matrix, and its own job
-      # because it would otherwise spend every other scope's budget.
-      # Sampled the way the engine is and for the same reason: no budget
-      # this workflow is worth finishes it, and a sample of the same
-      # slice each week is worth having because a verdict that changes in
-      # it is a test that stopped checking what it used to.
-      #
-      # `psbt`: psbt.toml's own header measures its session with four
-      # other profiles sharing the machine, so a runner of its own is
-      # faster and 45 minutes there is most of the scope rather than the
-      # third that header records.
-      #
       # `script`: not folded into the consensus job, which spends 180 of
-      # its 200 minutes already, and not into the psbt one, which would
-      # then need 90 minutes of its own. 45 again, the 20 it was cut to
+      # its 200 minutes already. 45, the 20 it was cut to
       # having bought its answer: this profile twice took its host down
       # mid-session (issue #948), and a session cut ahead of the kill was
       # a floor under the loss while the mechanism was unknown. It is no
@@ -218,52 +194,40 @@ jobs:
       # the only thing holding it, and that is a mechanism still to find
       # rather than one this file should hide.
       #
-      # `boundaries`: the four small scopes, which is what makes them one
-      # job rather than four runners. Budgets in the order their own
-      # headers measure them -- signer.toml the fastest, then
-      # wallet.toml, then musig2.toml, which spends most of a session on
-      # the two `%` turned `**` its configuration names, and hwi.toml,
-      # whose tests start a subprocess apiece -- and the ceiling is their
-      # sum plus the environment.
+      # `boundaries`: musig2.toml, which spends most of a session on the
+      # two `%` turned `**` its configuration names, and the ceiling is
+      # its budget plus the environment.
       #
-      # `frost`: a runner of its own rather than a fifth session in
+      # `frost`: a runner of its own rather than a second session in
       # `boundaries`, where musig2.toml sits. The two are the same
       # protocol question one BIP apart, which is the argument for
       # putting them together; the arithmetic is the argument against.
       # The dispatch frost.toml's header cites, run 35443988434, spent the
-      # whole budget below -- more than any session in `boundaries` is
+      # whole budget below -- more than the session in `boundaries` is
       # given -- and left most of the scope's mutants unrun. It is a
-      # sample, for the reason descriptors.toml's cell gives, and the
-      # ceiling leaves the slack over the budget that the `psbt` cell's
-      # does.
+      # sample, for the reason the `consensus` cell gives engine.toml's,
+      # and the ceiling leaves fifteen minutes of slack over the budget.
       profiles: >-
         [{"profile": "the consensus code", "slug": "consensus", "ceiling": 200, "sessions":
         "sig_hash.toml 90m\nengine.toml 90m"},
         {"profile": "the wire-format parsers", "slug": "parsers", "ceiling": 45, "sessions":
         "parsers.toml 30m"},
-        {"profile": "extended keys and the checksummed codecs", "slug": "keys", "ceiling": 95,
-        "sessions": "bip32.toml 45m\ncodecs.toml 30m"},
-        {"profile": "message signing and BIP322", "slug": "signing", "ceiling": 35, "sessions":
-        "bms.toml 10m\nbip322.toml 10m"},
+        {"profile": "the checksummed codecs", "slug": "keys", "ceiling": 45, "sessions":
+        "codecs.toml 30m"},
+        {"profile": "message signing", "slug": "signing", "ceiling": 25, "sessions":
+        "bms.toml 10m"},
         {"profile": "the block chain", "slug": "block", "ceiling": 95, "sessions":
         "block.toml 75m"},
-        {"profile": "shared helpers, numeric bounds and fetch", "slug": "shared", "ceiling":
-        105, "sessions":
-        "utils.toml 30m\nnumeric.toml 25m\nfetch.toml 15m\nfetch_decorators.toml
-        10m\nmnemonic.toml 15m"},
+        {"profile": "shared helpers and numeric bounds", "slug": "shared", "ceiling": 65,
+        "sessions": "utils.toml 30m\nnumeric.toml 25m"},
         {"profile": "signature signing and verification", "slug": "signatures", "ceiling": 100,
         "sessions": "signatures.toml 90m"},
         {"profile": "the pure-Python curve arithmetic", "slug": "curves", "ceiling": 100,
         "sessions": "curve_group.toml 90m"},
-        {"profile": "output descriptors and miniscript", "slug": "descriptors", "ceiling": 100,
-        "sessions": "descriptors.toml 90m"},
-        {"profile": "the psbt format", "slug": "psbt", "ceiling": 60, "sessions":
-        "psbt.toml 45m"},
         {"profile": "the script encodings", "slug": "script", "ceiling": 60, "sessions":
         "script.toml 45m"},
-        {"profile": "wallets, the signer boundary, musig2 and HWI", "slug": "boundaries",
-        "ceiling": 90, "sessions":
-        "signer.toml 10m\nwallet.toml 20m\nmusig2.toml 20m\nhwi.toml 30m"},
+        {"profile": "musig2 signing", "slug": "boundaries", "ceiling": 30, "sessions":
+        "musig2.toml 20m"},
         {"profile": "FROST threshold signing", "slug": "frost", "ceiling": 75, "sessions":
         "frost.toml 60m"}]
       # the dropdown above, forwarded. A schedule has no `inputs` at all,

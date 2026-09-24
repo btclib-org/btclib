@@ -30,17 +30,9 @@ import socket
 import subprocess
 import time
 from collections.abc import Iterator
-from decimal import Decimal
-from typing import Any
 
 import pytest
 from bitcoin_core_rpc import BitcoinCoreRpcClient
-
-from btclib.amount import sats_from_btc
-from btclib.descriptors import Descriptor, add_checksum, parse
-from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
-from btclib.psbt.psbt import Psbt, extract_tx, finalize
-from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 # how long the node is given to answer its first rpc call: a regtest
 # bitcoind is up in well under a second on any machine that can run this
@@ -123,11 +115,6 @@ def node(
             "-discover=0",
             "-listenonion=0",
             "-fallbackfee=0.0002",
-            # so that `getrawtransaction` answers for a confirmed
-            # transaction of any wallet: what a psbt needs is the previous
-            # transaction whole, and a node without the index answers only
-            # for what is still in its mempool
-            "-txindex=1",
             # so that `gettxoutsetinfo` answers at a named height, which
             # is what makes it read the index's own incrementally
             # maintained numbers rather than scan the set: the two are
@@ -188,76 +175,3 @@ def wallets(
     # can only watch: it is the third parameter of createwallet
     node.call("createwallet", [watcher, True])
     return node.for_wallet(miner), node.for_wallet(watcher)
-
-
-def as_regtest(descriptor: Descriptor) -> Descriptor:
-    """Return the descriptor read again as a regtest one.
-
-    Version bytes cannot say which test chain a key is for -- btclib's
-    test networks share them, which `bip44` documents where it refuses to
-    guess -- so `account_descriptors` answers with the first,
-    testnet, and its addresses are `tb1`. The scripts are the same
-    scripts; what differs is the human encoding, and regtest spells it
-    `bcrt1`. Reading the text back with the network named is how a caller
-    gets the addresses this node prints.
-    """
-    return parse(add_checksum(str(descriptor)), "regtest")
-
-
-def fund(miner: BitcoinCoreRpcClient, address: str, amount: str = "1.5") -> str:
-    """Mine a spendable balance, pay an address, and confirm the payment.
-
-    101 blocks because a coinbase output is spendable after 100, and the
-    amount is a string because json carries no exact decimal -- the rpc
-    client refuses a `Decimal` rather than rounding one.
-    """
-    miner.call("generatetoaddress", [101, miner.call("getnewaddress")])
-    tx_id = miner.call("sendtoaddress", [address, amount])
-    miner.call("generatetoaddress", [1, miner.call("getnewaddress")])
-    return str(tx_id)
-
-
-def spending_psbt(
-    node: BitcoinCoreRpcClient,
-    utxo: dict[str, Any],
-    receive: Descriptor,
-    change: Descriptor,
-    pay_to: str,
-    fee: int = 1_000,
-) -> Psbt:
-    """Return the psbt spending one utxo: a payment out, and change back.
-
-    Built and updated by btclib alone -- the node is asked for the
-    previous transaction and for nothing else -- so what a signer sees is
-    a psbt no Core call composed.
-    """
-    amount = sats_from_btc(Decimal(str(utxo["amount"])))
-    prev_tx = Tx.parse(node.call("getrawtransaction", [utxo["txid"]]))
-    tx = Tx(
-        vin=[TxIn(OutPoint(bytes.fromhex(str(utxo["txid"])), int(utxo["vout"])))],
-        vout=[
-            TxOut(amount // 2, parse(f"addr({pay_to})", "regtest").script_pub_key()),
-            TxOut(amount - amount // 2 - fee, change.script_pub_key(0)),
-        ],
-    )
-    psbt = Psbt.from_tx(tx)
-    psbt.inputs[0].non_witness_utxo = prev_tx
-    psbt = receive.update_psbt_input(psbt, 0, 0)
-    return change.update_psbt_output(psbt, 1, 0)
-
-
-def broadcast(node: BitcoinCoreRpcClient, psbt: Psbt) -> str:
-    """Finalize a signed psbt and hand the transaction to the network.
-
-    Which is the oracle these tests are here for: a signature that does
-    not verify, a witness assembled wrong or a fee that is not there are
-    all this call failing. `BitcoinCoreFetcher.broadcast` is what makes
-    the call, `verify_network=True` and `regtest` its label -- the one
-    chain this suite's node ever serves -- so a fixture pointed at the
-    wrong node fails here rather than mining a transaction nobody meant
-    to send it.
-    """
-    final = extract_tx(finalize(psbt), check_validity=True)
-    tx_id = BitcoinCoreFetcher(node, "regtest").broadcast(final)
-    assert tx_id == final.id
-    return tx_id.hex()

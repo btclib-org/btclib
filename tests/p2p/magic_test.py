@@ -37,7 +37,7 @@ from btclib.p2p.magic import (
 
 
 def test_the_aliases_are_the_packages_own_objects() -> None:
-    """Aliases and not wrappers, as `btclib.fetch.transport` is.
+    """Aliases and not wrappers, as `btclib_wallet.fetch.transport` is.
 
     The identity is the point: a second copy of the table would be a
     second thing to keep in step with Core, which is the argument
@@ -89,7 +89,7 @@ def test_what_leaves_a_btclib_name_is_a_btclib_exception() -> None:
     `magic_from_network` is btclib's function, so its refusal is
     `btclib.exceptions`'. The two aliases beside it are the package's own
     functions under btclib's name, so theirs stay the package's -- the
-    same split `btclib.fetch.transport` documents for the transport it
+    same split `btclib_wallet.fetch.transport` documents for the transport it
     re-exports.
     """
     with pytest.raises(BTClibValueError, match="unknown network") as refusal:

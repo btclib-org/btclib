@@ -4,12 +4,12 @@ name: integration-bitcoind
 # The suite's one part that needs a program this repository does not ship:
 # a bitcoind to talk to. `tests/integration/` skips itself without
 # BTCLIB_INTEGRATION, so every other workflow reports those tests skipped
-# and nothing ever asks a real node whether btclib's psbt is one it will
-# relay, or whether Core still speaks the p2p octets this library emits
-# and parses. This is where both questions are asked: a disposable
-# regtest bitcoind, the account export, the funding, the spend and the
-# broadcast on one side, and a `Version` this library serialized dialled
-# straight at the node's p2p port on the other, against Core itself.
+# and nothing ever asks a real node whether its `gettxoutsetinfo` agrees
+# with what `btclib.coinstats` computes, or whether Core still speaks the
+# p2p octets this library emits and parses. This is where both questions
+# are asked, against a disposable regtest bitcoind: the chain state read
+# back on one side, and a `Version` this library serialized dialled
+# straight at the node's p2p port on the other.
 #
 # The checkout, the node install, the test run and the report upload are
 # btclib-org/.github's: reusable-integration-bitcoind.yml, called at
@@ -36,31 +36,6 @@ name: integration-bitcoind
 # REPOSITORY.md has the recipe and the reason it cannot be done in one
 # pull request.
 #
-# The HWI half of `tests/integration/` -- a pinned Trezor emulator and a
-# pinned Ledger under Speculos -- is `integration-hwi.yml`, a workflow of
-# its own rather than a second job here: those can go red on a firmware
-# release, on data.trezor.io, or on an app whose screens changed wording,
-# none of which is a claim this branch's review has anything to do with.
-# A job that is merely skipped on a pull request still lists there as a
-# check nobody asked about; a workflow with no `pull_request` trigger at
-# all produces no check on one, skipped or otherwise. What checks the HWI
-# command line on every commit stays tests/hwi_test.py, whose stand-in
-# device is a subprocess answering HWI's own json.
-#
-# `exclude-classname` below carries "hwi" for the reason the called
-# workflow's own header names as the ground on which this conversion
-# could be wrong: this tree's tests/integration mixes in HWI-classname
-# testcases that legitimately skip here (the paragraph above), so the
-# node-ran check has to be told to let those skips through before it
-# judges the rest. btclib is the only caller that will ever set it --
-# btclib-node has no such tests and filters nothing -- which is the
-# shape this organization otherwise refuses for an input; it is taken
-# here anyway because the difference is one filter inside one step of a
-# job that is otherwise identical end to end -- not a different script, a
-# different trigger set or a different job -- which is the same ground
-# reusable-os-suite.yml's own pre-suite-script already stands on for
-# btclib-secp256k1 alone.
-#
 # A schedule too, like every other unattended question here, and it is
 # not about the tree: the job below is a required check on every pull
 # request and on the commit a merge creates, so a weekly run asks the
@@ -77,8 +52,8 @@ name: integration-bitcoind
 
 on:
   schedule:
-    # An integration sentinel, the others being integration-hwi.yml and
-    # zkp-oracle.yml: what this run watches is the download rather than
+    # An integration sentinel, the other being zkp-oracle.yml: what this
+    # run watches is the download rather than
     # the tree, so it wants no particular day.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
@@ -183,8 +158,6 @@ jobs:
       # released rather than the day btclib changed, and the version
       # that answered is then unknowable from a green run. Raising it is
       # a commit, with the new sha read from the same place.
-      # integration-hwi.yml pins the same two values for its own signing
-      # test
       bitcoind-version: "31.1"
       bitcoind-sha256: >-
         b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
@@ -192,6 +165,3 @@ jobs:
       # a file here could write
       integration-env-var: BTCLIB_INTEGRATION
       bitcoind-path-env-var: BTCLIB_BITCOIND
-      # the header above has the reasoning; this is the one value that
-      # makes this caller differ from btclib-node's
-      exclude-classname: hwi

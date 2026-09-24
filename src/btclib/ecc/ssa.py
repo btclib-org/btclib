@@ -254,8 +254,8 @@ class Sig:
 # the integer itself; p-size octets or their hex, which is BIP340's own
 # encoding of it; the 33 or 65 octets of a SEC point, whose x it is; and
 # the point, prepared or not. An extended key is not among them -- it is
-# bip32's object, and turning one into a key is bip32's call to make
-# (issue #1188)
+# btclib_wallet.bip32's object, and turning one into a key is its call to
+# make (issue #1188)
 BIP340PubKey = int | Octets | Point | PreparedPoint
 
 

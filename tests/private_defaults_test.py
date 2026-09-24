@@ -9,8 +9,8 @@ leading underscore says there is none: every call site is in this tree and
 can be read. What the default buys is therefore nothing, and what it costs
 is the value the call is actually made with -- `_deserialize_scalar`'s
 `strict` decides whether BIP66's minimal encoding is enforced,
-`_decode_from_bip32_deriv`'s `check_validity` whether anything is
-validated at all, and defaulted, each reads as absent at the call site
+`ssa._checked_sign_`'s `verify` whether the signature is checked before
+it is returned, and defaulted, each reads as absent at the call site
 that most needs to state it. Spelled out, a flag added to a private
 function is also a question asked again at every one of its call sites,
 where a default answers it for all the ones nobody revisited.
@@ -50,12 +50,10 @@ from pathlib import Path
 _LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 
 # the shapes the walk has to be reaching for the gate to mean anything: a
-# module-level function, a method of a private class, and a name-mangled
+# module-level function, a private method of a public class, and a nested
 # function. A rename here is a failure worth reading rather than fixing
 # blind -- what it asks for is the new name of the same shape
-_SHAPES = frozenset(
-    {"_to_num", "_derive", "_Decoder._op_code", "__prv_key_path_derivation"}
-)
+_SHAPES = frozenset({"_to_num", "Block._assert_coinbase", "sign_._checked"})
 
 # every private function of a module, with the parameters it defaults:
 # what `_private_functions` answers, and what the checker test pins

@@ -101,7 +101,7 @@ point_from_octets parses. Both halves are here rather than in a converter
 above because a scalar in 1..n-1 and a point of the curve are facts about
 the curve, and nothing above knows more about either than this package
 does. A WIF and an extended key are not among the spellings of either,
-belonging to b58 and bip32, above here (issue #1188).
+belonging to b58 and to btclib_wallet.bip32, above here (issue #1188).
 """
 
 from btclib.curves.curve import (

@@ -18,12 +18,12 @@ every constructor and accessor, so no factor is the caller's to
 remember, and by default it refuses a rate it could not hold exactly
 rather than truncating one. `from_sats_per_vbyte` and
 `from_btc_per_kvbyte` take a `round_up` a caller passes to trade that
-refusal for rounding up instead -- never down, and never across zero,
-so a quote too fine to hold is rounded but one on the wrong side of
-zero is still refused. The rounding sits on these classmethods rather
-than in `fetch/`, since converting a backend's number into a `FeeRate`
-at all is already where the unit and the precision are read;
-`btclib.fetch.fee_estimator.FeeEstimator` asks one of them for a
+refusal for rounding up instead -- never down, and never across zero, so
+a quote too fine to hold is rounded but one on the wrong side of zero is
+still refused. The rounding sits on these classmethods rather than in
+`btclib_wallet.fetch`, since converting a backend's number into a
+`FeeRate` at all is already where the unit and the precision are read;
+`btclib_wallet.fetch.fee_estimator.FeeEstimator` asks one of them for a
 `FeeRate`, it does not repeat the arithmetic beside them.
 
 Explicitly not here, and the boundary is the point: forming an opinion
@@ -31,7 +31,7 @@ about what a transaction should pay. A mempool histogram, an ETA, a "how
 many blocks" slider are policy computed from live data, and belong to an
 application rather than to a library. A fee estimate for a confirmation
 target is a node's own opinion too, but carrying that opinion back typed
-is a different act from forming one -- `btclib.fetch.fee_estimator`'s
+is a different act from forming one -- `btclib_wallet.fetch.fee_estimator`'s
 `FeeEstimator` is where a caller asks a backend for one, and this module
 does not duplicate it. `package_fee` is on this side of the line and its
 inputs are on the other: which ancestors are unconfirmed and what each
@@ -198,7 +198,7 @@ class FeeRate:
         `getblockstats` is the exception worth knowing, quoting its
         `minfeerate` and `avgfeerate` in sat/vB, which is the
         constructor above. The Electrum protocol's `blockchain.estimatefee`
-        is read the same way, in `btclib.fetch.electrum.ElectrumFetcher`.
+        is read the same way, in `btclib_wallet.fetch.electrum.ElectrumFetcher`.
 
         A rate per kvB scales from BTC to satoshi by the factor an
         amount does, so `sats_from_btc` is the conversion and its

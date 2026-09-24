@@ -26,19 +26,13 @@ of a type the signature does not declare leaves as a `BTClibTypeError`,
 and a value of a declared type that no valid input carries as a
 `BTClibValueError`.
 
-The first half is the whole of the table below. The second half is
-answered in two places and not in the table, because **every curve is a
-valid ec** -- that is what the parameter is for, and the low-cardinality
-curves of `curve_test.py` are the proof that no value of the type is
-refused for being unusual. What can be wrong is a curve the *key* names:
-an xprv, an xpub or a WIF carries a network, and a network has a curve,
-so a mismatch there is a fact about the pair and a `BTClibValueError`.
-`test_the_curve_a_key_names_is_still_a_value` is that half, and it is in
-this file because the guard sits in front of those comparisons: an ec of
-no curve type compares unequal to every network's curve, which is the one
-place where the type rule taking over is the point rather than a side
-effect -- a caller's own mistake would otherwise be reported as a
-statement about the key.
+The first half is the whole of the table below. The second half has
+nothing to ask here, because **every curve is a valid ec** -- that is
+what the parameter is for, and the low-cardinality curves of
+`curve_test.py` are the proof that no value of the type is refused for
+being unusual. What can be wrong is a curve the *key* names, and the one
+key spelling that names a network, and through it a curve, is an xpub:
+`btclib_wallet.bip32` reads it, and the test of that mismatch is there.
 
 A `bool` answer is no exemption from the first half either:
 `borromean.verify` and `pedersen.verify` answer `False` about a
@@ -78,12 +72,6 @@ from typing import Any
 
 import pytest
 
-from btclib.bip32.bip32 import (
-    BIP32KeyData,
-    point_from_xpub,
-    rootxprv_from_seed,
-    xpub_from_xprv,
-)
 from btclib.consensus import CONSENSUS_PARAMS
 from btclib.curves import CurveGroup, secp256k1
 from btclib.curves.curve import (
@@ -111,9 +99,8 @@ from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.ecc.commit_nonce import commit_nonce_, commit_point_
 from btclib.ecc.dh import diffie_hellman
 from btclib.ecc.rfc6979_nonce import challenge_, rfc6979_nonce_
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibTypeError
 from btclib.network import NETWORKS, Network
-from tests.curves.curve_test import low_card_curves
 
 _LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 
@@ -124,7 +111,6 @@ _PRV_KEY = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
 _PRV_KEY_2, _PUB_KEY_2 = dsa.gen_keys(_PRV_KEY + 1)
 _PUB_KEY = mult(_PRV_KEY)
 _SEC = bytes_from_point(_PUB_KEY)
-_XPUB = xpub_from_xprv(rootxprv_from_seed("00" * 32))
 _MSG = b"Satoshi Nakamoto"
 _MSG_HASH = sha256(_MSG).digest()
 _DSA_SIG = dsa.sign(_MSG, _PRV_KEY)
@@ -432,9 +418,6 @@ _CASES = (
         ssa.anti_exfil_sign,
         {"msg": _MSG, "prv_key": _PRV_KEY, "rho": _MSG_HASH},
     ),
-    # the extended-key parse, which compares `ec` against the curve the
-    # version bytes name rather than computing in it
-    _Case("btclib.bip32.bip32.point_from_xpub", point_from_xpub, {"xpub": _XPUB}),
     # the one curve parameter that is a field rather than an argument to
     # compute with, and the one not called `ec`. `to_dict`'s keys are the
     # constructor's parameter names, so the valid call is mainnet rebuilt
@@ -573,24 +556,3 @@ def test_the_walk_reaches_what_it_claims() -> None:
     # a function of another name, and one with no ec at all
     assert "btclib.ecc.dsa.verify" not in found
     assert "btclib.hashes.sha256" not in found
-
-
-def test_the_curve_a_key_names_is_still_a_value() -> None:
-    """The second rule, which is the one the guard sits in front of.
-
-    An extended key names its network in its version bytes, so an ec that
-    is not that network's curve is a fact about the pair and a
-    `BTClibValueError`. It compares rather than parses, which is why the
-    type check comes first: an ec of no curve type compares unequal to
-    every network's curve, so without it a caller's own mistake leaves as
-    this same mismatch -- a statement about the key, about which nothing
-    was wrong.
-
-    An xpub is the only key spelling that names a network: a scalar and
-    a point carry none, and each is read on the curve the caller hands
-    (issue #1188).
-    """
-    ec = low_card_curves["ec23_31"]
-    xpub = BIP32KeyData.b58decode(xpub_from_xprv(rootxprv_from_seed("00" * 32)))
-    with pytest.raises(BTClibValueError, match="ec/xpub version"):
-        point_from_xpub(xpub, ec)
