@@ -19,21 +19,20 @@ crawl's own exclude says.
 
 This module reads pyproject.toml rather than importing mypy, which
 `CONTRIBUTING.md`'s own gate command runs from `lint`, a group
-`test`'s own environment does not carry.
+`test`'s own environment does not carry. It parses the file with
+`tomllib` rather than matching its text, as mypy itself does: the
+sdist's `pyproject.toml` is the build backend's normalized copy, with
+the comments gone and the arrays laid out anew, and a pattern written
+against the committed file's layout finds nothing there (issue #2252).
 """
 
 import re
+import tomllib
 from pathlib import Path
 
 _ROOT = Path(__file__).parents[1]
-_PYPROJECT = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+_PYPROJECT = tomllib.loads((_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 _CONTRIBUTING = (_ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
-
-# the section alone, so a `[tool.ruff.format]` or `[tool.typos.files]`
-# `exclude` sitting elsewhere in the file is never read as this one
-_MYPY_SECTION = re.compile(r"(?ms)^\[tool\.mypy\]\n(.*?)(?=\n\[|\Z)")
-_EXCLUDE_LIST = re.compile(r"(?ms)^exclude = \[\n(.*?)^\]")
-_LIST_ITEM = re.compile(r'^\s*"((?:[^"\\]|\\.)*)",?\s*$', re.MULTILINE)
 
 # the roots CONTRIBUTING.md's own gate command names, read out rather
 # than repeated: a root added or dropped there is a root this test
@@ -42,11 +41,11 @@ _GATE_ROOTS = re.compile(r"^uv run mypy (?P<roots>\S.*)$", re.MULTILINE)
 
 
 def _mypy_exclude_patterns() -> tuple[str, ...]:
-    section = _MYPY_SECTION.search(_PYPROJECT)
-    assert section is not None, "[tool.mypy] is not in pyproject.toml"
-    exclude_list = _EXCLUDE_LIST.search(section.group(1))
-    assert exclude_list is not None, "[tool.mypy] carries no exclude list"
-    return tuple(_LIST_ITEM.findall(exclude_list.group(1)))
+    section = _PYPROJECT.get("tool", {}).get("mypy")
+    assert isinstance(section, dict), "[tool.mypy] is not in pyproject.toml"
+    exclude_list = section.get("exclude")
+    assert isinstance(exclude_list, list), "[tool.mypy] carries no exclude list"
+    return tuple(exclude_list)
 
 
 def _gate_roots() -> tuple[str, ...]:

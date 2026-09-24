@@ -26,10 +26,14 @@ above and nothing else -- which is also how a direct reference to a url,
 an extra and an environment marker are refused, each of them a way to
 name a package that resolves to somebody else's code.
 
-`tomllib` for the two keys wanted out of `[build-system]`: stdlib from
-3.11, which requires-python's own floor now is too, so the module
-collects on every interpreter the matrix runs. `tests/copyright_test.py`
-reads pyproject.toml the same way, for the same reason.
+`tomllib` for every value read out of pyproject.toml: stdlib from 3.11,
+which requires-python's own floor now is too, so the module collects on
+every interpreter the matrix runs. Parsed rather than matched, because
+the file this module finds beside `tests/` in an unpacked sdist is the
+build backend's normalized copy -- its comments gone and its arrays laid
+out anew -- and a pattern written against the committed file's layout
+finds nothing there, or the wrong array (issue #2252).
+`tests/copyright_test.py` reads pyproject.toml with `tomllib` too.
 """
 
 from __future__ import annotations
@@ -41,30 +45,13 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-_PYPROJECT = Path(__file__).parents[1] / "pyproject.toml"
+_PYPROJECT = tomllib.loads(
+    (Path(__file__).parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+)
 
 # a name and two releases: no `@ <url>`, no `[extra]`, no `; marker`
 _RELEASE = r"[0-9]+(?:\.[0-9]+)*"
 _BOUNDS = re.compile(rf"uv_build>={_RELEASE},<{_RELEASE}")
-
-# any quoted string in a region -- an entry's own or a comment's mention
-# of one, the region not distinguishing the two. Safe only where the
-# region cannot hold a comment at all: a `key = [...]` array closed on
-# the one physical line it opens on, TOML allowing a comment inside a
-# flow array only where it spans more than one line (a `#` before the
-# closing bracket on the same line would swallow that bracket into the
-# comment instead). `bindings` below is written that way today, with its
-# own second guard -- an arity that raises rather than a membership that
-# passes -- named beside its call
-_QUOTED = re.compile(r'"(.*?)"')
-# an entry and not a comment: same reasoning and same pattern as
-# tests/sdist_dotted_names_test.py's `_ENTRY`, for a region that *can*
-# span several lines with its own `#` comments -- `source-exclude` and
-# the `secp256k1` extra below, both. A comment line opens with `#`, not
-# a quote, so `^\s*"` alone excludes it; a trailing comment on an
-# entry's own line is excluded the same way, `^` anchoring the entry at
-# the start of the line rather than after `#...`
-_ENTRY = re.compile(r'^\s*"([^"]*)",', re.MULTILINE)
 
 
 def _build_system() -> dict[str, Any]:
@@ -73,8 +60,7 @@ def _build_system() -> dict[str, Any]:
     Called at import: the file is the project's own and a test module
     that cannot read it has nothing to say.
     """
-    text = _PYPROJECT.read_text(encoding="utf-8")
-    table = tomllib.loads(text).get("build-system")
+    table = _PYPROJECT.get("build-system")
     assert isinstance(table, dict), "pyproject.toml has no [build-system] table"
     return table
 
@@ -110,24 +96,13 @@ def test_the_backend_is_the_one_the_tooling_reads() -> None:
 # for, `[dependency-groups]` what this repository resolves for itself.
 # uv has no default extra, so a group is what keeps `uv sync` and every
 # `--group` command of CONTRIBUTING.md on the delegated configuration
-_EXTRA = re.compile(r"^secp256k1 = \[(.*?)^\]", re.MULTILINE | re.DOTALL)
-_GROUP = re.compile(r"^bindings = \[(.*?)\]", re.MULTILINE | re.DOTALL)
-
-
-def _bindings_requirements() -> tuple[list[str], list[str]]:
+def _bindings_requirements() -> tuple[list[Any], list[Any]]:
     """Return the bindings requirement, as the extra and as the group."""
-    text = _PYPROJECT.read_text(encoding="utf-8")
-    extra = _EXTRA.search(text)
-    group = _GROUP.search(text)
-    assert extra is not None, "no secp256k1 extra in pyproject.toml"
+    extra = _PYPROJECT.get("project", {}).get("optional-dependencies", {})
+    group = _PYPROJECT.get("dependency-groups", {}).get("bindings")
+    assert "secp256k1" in extra, "no secp256k1 extra in pyproject.toml"
     assert group is not None, "no bindings dependency group in pyproject.toml"
-    # `_ENTRY` for the extra, which spans several lines of its own `#`
-    # reasoning about the floor and would count a quoted mention there
-    # as a second requirement; `_QUOTED` for the group, which is one
-    # physical line with no room for a comment, and where a stray match
-    # would fail the equality below by its length rather than pass
-    # unnoticed
-    return _ENTRY.findall(extra.group(1)), _QUOTED.findall(group.group(1))
+    return extra["secp256k1"], group
 
 
 def test_the_bindings_extra_and_group_ask_for_the_same_thing() -> None:
@@ -157,26 +132,20 @@ def test_the_bindings_extra_and_group_ask_for_the_same_thing() -> None:
 # neither directory being shipped. What no comment there can show is
 # that the list still names the tests of the shape below -- ISS 1509
 # found one it did not, and nothing failed
-_SOURCE_EXCLUDE = re.compile(
-    r"^source-exclude\s*=\s*\[(.*?)^\]", re.MULTILINE | re.DOTALL
-)
 _TESTS = Path(__file__).parent
 
 
 def _source_exclude() -> list[str]:
     """Return `[tool.uv.build-backend] source-exclude`'s own entries.
 
-    `_ENTRY`, not `_QUOTED`: the array spans many lines of `#` comments
-    that themselves quote a path or a shape -- `.github`, `fuzz`, `.*`
-    among them -- and `_QUOTED` cannot tell one of those from an entry
-    (ISS 2152). Reading only what sits at the start of a line and closes
-    with the entry's own comma is what `tests/sdist_dotted_names_test.py`'s
-    `_ENTRY` already does for the same array, with the same reason.
+    Parsed, so a `#` comment in the array quoting a path or a shape --
+    `.github`, `fuzz` and `.*` among them -- is never read as an entry
+    (ISS 2152).
     """
-    text = _PYPROJECT.read_text(encoding="utf-8")
-    match = _SOURCE_EXCLUDE.search(text)
-    assert match, "no source-exclude array in pyproject.toml"
-    return _ENTRY.findall(match.group(1))
+    backend = _PYPROJECT.get("tool", {}).get("uv", {}).get("build-backend", {})
+    entries = backend.get("source-exclude")
+    assert isinstance(entries, list), "no source-exclude array in pyproject.toml"
+    return entries
 
 
 def _reaches_outside_the_sdist(tree: ast.Module) -> bool:
@@ -279,34 +248,6 @@ def test_every_test_reaching_outside_the_sdist_is_source_excluded() -> None:
     assert not missing, f"reaches outside the sdist, not in source-exclude: {missing}"
 
 
-def test_a_comment_mentioning_a_path_does_not_excuse_it(tmp_path: Path) -> None:
-    """A comment's own quoted mention is not what excludes a path (ISS 2152).
-
-    Under `_QUOTED`, a `source-exclude` region carrying a comment that
-    merely quotes `/tests/sub/mentioned_only_test.py` satisfied the
-    assertion above for a module of that name reaching outside the
-    sdist, with nothing in the array actually excluding it -- `_QUOTED`
-    cannot tell the comment's mention from an entry. `_ENTRY`, what
-    `_source_exclude` calls now, reads only the array's own entries, so
-    the same module is reported missing rather than excused.
-    """
-    sub = tmp_path / "sub"
-    sub.mkdir()
-    (sub / "mentioned_only_test.py").write_text(
-        'URL = ".github/x.yml"\n', encoding="utf-8"
-    )
-    region = (
-        "\n    # named here for the shape only:"
-        ' "/tests/sub/mentioned_only_test.py"\n'
-        '    "/tests/real_test.py",\n'
-    )
-
-    assert _missing_source_excludes(tmp_path, _QUOTED.findall(region)) == []
-    assert _missing_source_excludes(tmp_path, _ENTRY.findall(region)) == [
-        "/tests/sub/mentioned_only_test.py"
-    ]
-
-
 def test_a_subdirectory_module_is_reached_and_named_by_its_relative_path(
     tmp_path: Path,
 ) -> None:
@@ -323,3 +264,19 @@ def test_a_subdirectory_module_is_reached_and_named_by_its_relative_path(
     (sub / "offender_test.py").write_text('URL = ".github/x.yml"\n', encoding="utf-8")
 
     assert _missing_source_excludes(tmp_path, []) == ["/tests/sub/offender_test.py"]
+
+
+def test_a_subprocess_call_to_git_is_reached(tmp_path: Path) -> None:
+    """The second shape is recognized on a module planted for it.
+
+    Every module of `tests/` carrying the shape is in `source-exclude`,
+    so an unpacked sdist holds none of them, and a reader tested only
+    against the real `tests/` would leave this arm unreached there
+    (issue #2252).
+    """
+    (tmp_path / "tagged_test.py").write_text(
+        'subprocess.run([_GIT, "show", "v1:CHANGELOG.md"], check=True)\n',
+        encoding="utf-8",
+    )
+
+    assert _missing_source_excludes(tmp_path, []) == ["/tests/tagged_test.py"]

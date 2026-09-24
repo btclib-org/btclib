@@ -847,11 +847,26 @@ A rehearsal (`workflow_dispatch`) runs one command ahead of the block
 above, which the tag path skips: `.github/actions/dev-version` rewrites
 `pyproject.toml`'s version with the `.dev<run*100+attempt>` suffix
 `release.yml`'s `version-check` job computed and re-locks, so that
-`uv build` above ships a version TestPyPI has not already seen. Neither
-of the two checks minds — what they judge is metadata syntax, README
+`uv build` above ships a version TestPyPI has not already seen. None
+of the three checks minds — what they judge is metadata syntax, README
 rendering, wheel layout and metadata quality, none of which a `.dev<N>`
 suffix changes — and both smoke tests do mind, installing the wheel that
 suffix names.
+
+Last, the `dist` job unpacks the sdist outside the checkout and runs the suite
+there, gated at 100% like the `coverage` job's run: a shipped test that
+reads a file the archive leaves out, or matches a pattern against the
+normalized `pyproject.toml` the archive carries in place of the
+committed one, fails there and nowhere else (issue #2252). From the
+checkout's root:
+
+```shell
+tmp=$(mktemp -d)
+tar -xzf dist/*.tar.gz -C "$tmp" --strip-components=1
+cd "$tmp"
+uv run --locked --no-default-groups --group test pytest
+cd "$OLDPWD"
+```
 
 The checks `release.yml`'s `version-check` job runs before anything is
 built, the first of them being where the tag came from rather than what
