@@ -84,6 +84,12 @@ excluded-modules = []
 # costing the whole test command where most kills cost a fraction of
 # one.
 #
+# That is the deferred-annotation class the other profiles point here
+# for: an annotation is not evaluated where it is written -- under
+# `from __future__ import annotations`, and under PEP 649 on the
+# interpreter `.python-version` pins in a module without that import --
+# so a mutant confined to one is never built and no call changes.
+#
 # Excluded by operator here rather than with `# pragma: no mutate`, and
 # the collateral of a pragma is not the argument: grouped by the line
 # `cr-filter-pragma` reads -- the one a mutation *ends* on -- most of

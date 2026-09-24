@@ -47,7 +47,7 @@ timeout = 30
 
 excluded-modules = []
 
-# The `BitOr` exclusion wallet.toml explains and parsers.toml argues.
+# The `BitOr` exclusion parsers.toml argues.
 # Measured rather than assumed, as script.toml's own comment on this
 # exclusion asks:
 #
@@ -76,7 +76,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # - the two `shared_info: bytes | None` annotations, on
 #   `ansi_x9_63_kdf`'s parameter and on `diffie_hellman`'s, eleven mutants
 #   apiece -- equivalent under Python 3.14's deferred annotation
-#   evaluation (PEP 649), the class fetch.toml documents at length.
+#   evaluation (PEP 649), the class parsers.toml documents.
 # - some lower `hf_size * (2**32 - 1)` without reaching the sizes a
 #   test asks for. Killing one needs a `size` between the two bounds,
 #   and for every hash function this ships with that is gigabytes of

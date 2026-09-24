@@ -29,7 +29,7 @@ excluded-modules = []
 # A sample, run to its budget in 1800 s and read off the
 # `codecs-survivors.txt` the workflow uploads, at run 34833390559. Most
 # of what it found equivalent is the deferred-annotation class
-# fetch.toml documents, or an `is` CPython's small-int cache makes
+# parsers.toml documents, or an `is` CPython's small-int cache makes
 # indistinguishable from `==`.
 #
 # A second pass on this same sample closed every other real candidate:
