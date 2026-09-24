@@ -66,11 +66,11 @@ dependencies = [
     "typing-extensions>=4.10",
 ]
 keywords = [
-    # The GitHub repository topics, in the same order, and the order is by
-    # relevance rather than alphabetical: PyPI shows keywords as they are
-    # given, and the first few are read as what the package is. GitHub
-    # sorts its own alphabetically and takes lowercase only, which is the
-    # spelling here too, so the two lists hold the same names.
+    # The GitHub repository topics, ordered by relevance rather than
+    # alphabetically: PyPI shows keywords as they are given, and the first
+    # few are read as what the package is. GitHub sorts its own
+    # alphabetically and takes lowercase only, which is the spelling here
+    # too, so the two lists hold the same names.
     "bitcoin",
     "cryptography",
     "elliptic-curves",
@@ -79,6 +79,7 @@ keywords = [
     "schnorr",
     "bip340",
     "musig2",
+    "frost",
     "electrum",
     "taproot",
     "segwit",
@@ -88,6 +89,8 @@ keywords = [
     "rfc-6979",
     "merkle-proof",
     "bitcoin-script",
+    "bip324",
+    "bip158",
 ]
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
