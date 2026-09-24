@@ -141,8 +141,8 @@ def test_the_codec_does_not_pay_for_the_rpc_package() -> None:
     `chains` module, which depends on nothing beyond the standard
     library; `urllib.request`, and `ssl` and `socket` under it, live in
     `client.py` and `transport.py`, which a message-start lookup never
-    reaches. README.md states the property this keeps: "No module loads
-    `urllib.request` on its way to anything else".
+    reaches. ARCHITECTURE.md states the property this keeps: "no module
+    loads `urllib.request` on its way to anything else".
 
     So `src/btclib/p2p/__init__.py` answers the three names through PEP 562,
     as `src/btclib/script/__init__.py` answers `sig_hash` and `engine`, and
@@ -373,7 +373,7 @@ def test_curves_stays_stdlib_light() -> None:
 def test_the_codecs_stay_stdlib_light() -> None:
     """`btclib.base58` and `btclib.bech32` stay in `btclib` under issue #2129.
 
-    Codecs with no bitcoin in them (CLAUDE.md's *Architecture*), and not a
+    Codecs with no bitcoin in them (ARCHITECTURE.md), and not a
     package of their own: their consumers spread over rows 4 and 5 of
     that issue's table, so no single package is short of them. One
     allowlist for the pair, the two being held to the same reach. `base58`

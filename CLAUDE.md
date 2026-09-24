@@ -16,61 +16,12 @@ is what the pull request will be answered against.
 
 ## Architecture
 
-Pure-Python bitcoin cryptography, with secp256k1 arithmetic delegated to
-the `btclib_secp256k1` cffi bindings — and delegated conditionally,
-which is the single most important thing to know before touching
-`src/btclib/curves/` or `src/btclib/ecc/`:
-
-- `curves.curve.mult`, `double_mult_var` and `multi_mult_var` call the bindings
-  for secp256k1 and any point of it, a zero scalar and the point at
-  infinity excepted: libsecp256k1 has no scalar for the one and no public
-  key for the other, so those two — and a sum landing on infinity — are
-  recognized before the call and answered by the Python arithmetic of
-  `curves/curve_group.py`, which is what every other curve runs
-- `ecc.dsa.sign` calls them for secp256k1 with sha256, lower-s, and no
-  caller-imposed nonce; `ecc.ssa.sign` for secp256k1 with sha256, a
-  message of **any** size, and no sign-to-contract commitment. The size
-  used to be a third condition, which was issue 169 and the four
-  arbitrary-size vectors BIP340 gained in 2023-04: the bindings'
-  `ssa.sign` takes a 32-byte message, but `ssa.sign_custom` beside it
-  takes any, and `ssa.verify` always did — it was the gate in front of
-  them that sent those four down the Python path
-- the Python path is not dead code and not constant-time: it serves every
-  other curve, other hash functions, and caller-supplied nonces, and the
-  test suite validates it *against* the bindings, which are the authority
-  on the answer. `SECURITY.md` publishes this as a known limitation
-
-Layers, roughly bottom-up: `curves/` (curve arithmetic) → `ecc/` (dsa,
-ssa, bms, borromean, pedersen, rfc6979/bip340 nonces). At the key
-boundary, `base58` and `bech32` are the low-level codecs; `b58` and `b32`
-depend on `key`, and `key` on `curves` and `network`. `key.PubKeyData` is
-the (SEC-bytes, network) pair an address builder takes, and
-`key.PrvKeyData` the (scalar, network, compressed) triple `ecc.bms` signs
-with: a caller states which half of a pair it holds rather than leaving a
-size or a format to decide it (issue #1188). What each spelling of a key
-resolves through is the module that defines it: a WIF is Base58Check with
-a prefix and a flag, so `b58.prv_key_data_from_wif` reads it and
-`b58.wif_from_prv_key` writes it; an extended key is BIP32's format, so
-its parse is `btclib_wallet.bip32`'s, and a caller holding one parses it
-there and passes the scalar or the point on (issue #1188). The scalar and
-the curve point in their octet spellings are facts about the curve, so
-`curves.scalar_from_prv_key` and `curves.point_from_pub_key` read them,
-and the network and the compression a record carries and a key does not
-are `key`'s. `script/`, `tx/`, `block/` and `p2p/` build on those layers.
-The wallet side -- BIP32, mnemonics, PSBTs, descriptors, the node clients
--- is the `btclib-wallet` distribution, imported as `btclib_wallet`: it
-imports `btclib` and nothing here imports it, which
-`tests/imports_test.py` asserts (issue #2129). `alias.py` holds the type
-aliases the public API accepts, and much of the surface takes "anything
-convertible" rather than one type.
-
-Each of those pairs is one idea split in two, and each split runs one
-way only: `curves/` is arithmetic and `ecc/` is what is built on it;
-`base58` and `bech32` are codecs with no bitcoin in them, `b58` and `b32`
-the bitcoin semantics on top. `ecc` imports `curves`, `b58` imports
-`base58`, `b32` imports `bech32`, and never the reverse. The README
-carries the same layout as a table, and each of these modules states its
-own direction in its docstring, wherever that direction changes.
+[ARCHITECTURE.md](./ARCHITECTURE.md) is the design: the two arithmetic
+paths, the layers, and the import edges the tests hold. Read it before
+touching `src/btclib/curves/` or `src/btclib/ecc/`, where secp256k1
+arithmetic is delegated to the bindings only where
+`curves.curve._libsecp256k1_serves` and the call site both admit it, so a
+change there has two paths to keep right.
 
 ## The primary checkout is the maintainer's
 
@@ -192,8 +143,8 @@ request is what moves `origin/main`.
 The default model for this repository is Sonnet. Switch to Opus only
 for architectural decisions with conflicting constraints -- design
 choices with non-obvious trade-offs, refactors that cross the layer
-boundaries above with unclear dependencies, diagnosis where the
-symptom does not point to the cause. Use `/model opus` for the
+boundaries ARCHITECTURE.md draws with unclear dependencies, diagnosis
+where the symptom does not point to the cause. Use `/model opus` for the
 session, then switch back to Sonnet.
 
 Do not use Fable unless explicitly instructed.

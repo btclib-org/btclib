@@ -220,50 +220,9 @@ pointer to it.
 
 ## Module layout
 
-Each pair of modules below is one idea split in two, and each split runs
-one way only:
-
-| the codec / the arithmetic | the bitcoin semantics on top |
-| --- | --- |
-| `btclib.curves` — `Curve`, `mult` | `btclib.ecc` — `dsa`, `ssa`, `bms` |
-| `btclib.base58` — the encoding | `btclib.b58` — WIF, p2pkh, p2sh |
-| `btclib.bech32` — the encoding | `btclib.b32` — p2wpkh, p2wsh, p2tr |
-
-The right column imports the left one; the left never imports the right.
-
-So `from btclib.ecc import dsa` for a signature,
-`from btclib.curves import mult` for a point multiplication, `btclib.b58`
-for an address, `btclib.base58` for the encoding on its own. Each of
-these modules says the same in its own docstring.
-
-The rest, roughly bottom-up. `alias` holds the types the public API
-accepts, much of it taking anything convertible rather than one type, and
-`exceptions` the errors it raises. The scalar and the curve point in
-their octet spellings are `curves`' own, read by
-`curves.scalar_from_prv_key` and `curves.point_from_pub_key`. The network
-and the compression a record carries and a key does not are `key`'s,
-which holds those records as objects:
-`key.PubKeyData` is what an address builder takes and `key.PrvKeyData`
-what `ecc.bms` signs with, so a caller states which half of a pair it
-holds. A spelling that carries either belongs to the module that defines
-it, so a WIF is `b58`'s. `script`, `tx` and `block` build and validate what
-goes on the chain, and `script.engine` runs a transaction against the
-consensus rules. `p2p` is the wire format peers speak — the message
-envelope, its framing, the message start each network begins with, and the
-payloads a connection opens with — and it opens no socket.
-
-Nothing in btclib imports `btclib_wallet`: the wallet side is built on
-this package, and `tests/imports_test.py` holds the edge to one direction.
-
-`btclib.p2p.magic` takes the message start of each network from
-[bitcoin-core-rpc](https://github.com/btclib-org/bitcoin-core-rpc), a
-package of its own that btclib depends on — zero dependencies of its
-own, standard library only, and usable by anyone who wants a node
-client and no bitcoin library. It is the one module here that imports
-that package, and what it reaches is the package's chain vocabulary,
-which depends on nothing beyond the standard library. No module loads
-`urllib.request` on its way to anything else, so a caller who parses
-messages pays nothing for a client it never uses.
+[ARCHITECTURE](./ARCHITECTURE.md) is the design: which module holds what,
+the import edges the tests hold, and the two arithmetic paths behind
+secp256k1.
 
 ---
 

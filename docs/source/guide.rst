@@ -584,8 +584,9 @@ reading before you use this for anything that matters.
 Where to go next
 ----------------
 
-- the `README <readme_link.html>`_ lists every feature, and its module
-  layout table is the fastest way to guess where something lives
+- the `README <readme_link.html>`_ lists every feature, and
+  `ARCHITECTURE <architecture_link.html>`_ is the fastest way to guess
+  where something lives
 - `SECURITY.md <security_link.html>`_ has the limitations in full; read
   it before trusting any of this with value
 - the API reference under :doc:`PYTHON PACKAGE <modules>` documents

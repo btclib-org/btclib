@@ -105,6 +105,9 @@ built and installed.
 
 ## Limitations, not vulnerabilities
 
+The [assurance case](./ASSURANCE_CASE.md) is the threat model these are
+written against, and the argument for what this file does promise.
+
 These are known and inherent. They are worth stating because btclib is
 used to teach and to prototype as much as to build:
 

@@ -7,10 +7,11 @@
 # 63-byte or trailing-data encoding, the same class of parse boundary
 # `dsa.Sig.parse`'s DER carries.
 #
-# CLAUDE.md's own warning about this pair applies to what a survivor here
-# can mean: `curves.curve.mult`/`double_mult_var`/`multi_mult_var` call the
-# libsecp256k1 bindings for secp256k1, so a mutant of the Python arithmetic
-# in `curves/curve_group.py` is invisible to a test running the default
+# ARCHITECTURE.md's *Two arithmetic paths* applies to what a survivor here
+# can mean, SECURITY.md stating the conditions: `curves.curve.mult`,
+# `double_mult_var` and `multi_mult_var` call the libsecp256k1 bindings
+# for secp256k1, so a mutant of the Python arithmetic in
+# `curves/curve_group.py` is invisible to a test running the default
 # curve -- it is not in this module-path and is not what this profile is
 # asking about. What this profile mutates is `dsa.py`/`ssa.py` themselves:
 # nonce derivation, the DER and BIP340 codecs, low-s and lower-x

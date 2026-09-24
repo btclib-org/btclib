@@ -89,6 +89,12 @@ keeps its name (closes #2246).
 `MnemonicLang` and `ValidSigHashType`, which btclib-wallet defines itself,
 and the unused `H160_Net` leave `btclib.alias` and `__all__` (closes #2244).
 
+### `ARCHITECTURE.md` and `ASSURANCE_CASE.md` join the root
+
+The architecture moves there from `CLAUDE.md` and `README.md`, which point
+at it; the assurance case cites the tree for every claim (issue
+btclib-org/.github#1321).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
