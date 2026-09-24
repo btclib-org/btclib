@@ -44,6 +44,12 @@ file per release is what keeps each of them under it.
 3.10 reaches end of life on 2026-10-31. The classifiers and every
 workflow matrix move with the floor.
 
+### The attestation's signer is `reusable-attest.yml` from v2026.9.24 on
+
+- **`RELEASING.md`, `SECURITY.md` and `sdist-rebuild.yml` name the
+  called workflow as the signer**, the path of `release.yml` kept for
+  v2026.9.13 and earlier, which it signed (issue btclib-org/.github#1301).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

@@ -62,19 +62,31 @@ a build provenance attestation of their own, signed in the run that built
 them:
 
 ```shell
-gh attestation verify --repo btclib-org/btclib \
-  --signer-workflow btclib-org/btclib/.github/workflows/release.yml \
+repo=btclib-org/btclib
+signer=btclib-org/.github/.github/workflows/reusable-attest.yml
+gh attestation verify --repo "$repo" --signer-workflow "$signer" \
   <a distribution file from the release>
 ```
 
-`--signer-workflow` is what makes that say which workflow signed, rather
-than accepting any attestation this repository has. The signed statement
-is attached to the release as well, as `<tag>.attestation.jsonl`, so
-`--bundle <tag>.attestation.jsonl` runs the same check reading it from
-disk instead of asking GitHub for it; one attestation covers every asset
-of the release. Either file can also be rebuilt from its tag and
-verified without being downloaded at all, the build being reproducible:
-RELEASING.md has that command and the bounds on it.
+`--signer-workflow` names the workflow that signed. From v2026.9.24 on
+that is the organization's `reusable-attest.yml`, which this repository's
+`release.yml` calls: an attestation made inside a called workflow names
+the callee as its signer, while `--repo` still names this repository as
+the source. For those releases the flag is required rather than a
+narrowing, the command refusing a genuine release without it. Through
+v2026.9.13 the signer is `release.yml` itself, so for those releases
+`signer` is `"$repo/.github/workflows/release.yml"`, and there the flag
+narrows what passes: without it an attestation from any workflow in this
+repository is accepted. Neither path verifies a release the other
+signed. The PEP 740 attestations on PyPI name `release.yml`, the job
+that uploads there being its own rather than a called workflow's. The
+signed statement for the GitHub release is attached to it as well, as
+`<tag>.attestation.jsonl`, so `--bundle <tag>.attestation.jsonl` runs the
+same check reading it from disk instead of asking GitHub for it; one
+attestation covers every asset of the release. Either file can also be
+rebuilt from its tag and verified without being downloaded at all, the
+build being reproducible: RELEASING.md has that command and the bounds on
+it.
 
 A CycloneDX 1.6 bill of materials is attached beside them,
 `btclib-<version>.cdx.json`: the two files with their SHA-256, the

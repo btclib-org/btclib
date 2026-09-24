@@ -4,7 +4,10 @@ name: sdist-rebuild
 # the sentinel on what the attestation vouches for: the tag of the
 # latest release, rebuilt the way RELEASING.md's *Rebuild a release from
 # its tag* rebuilds it, and `gh attestation verify` over the rebuilt
-# sdist, which passes only where its digest is one release.yml signed.
+# sdist, which passes only where its digest is one `reusable-attest.yml`
+# signed -- this tree's `release.yml` `attest` job calls it, and an
+# attestation made inside a called workflow names the callee as its
+# signer (issue btclib-org/.github#1301).
 # The release lookup, the checkout, the build, the normalizer and the
 # verification are btclib-org/.github's own: reusable-sdist-rebuild.yml,
 # called at @main so a fix there reaches this tree in one landing (issue
@@ -59,5 +62,12 @@ jobs:
     # sdist-builder, submodules and python-version all take their
     # defaults -- "uv", "" and "" -- which is exactly what this file
     # built before this conversion: `uv build --sdist`, no submodules and
-    # no setup-python step. No `with:` block is needed
+    # no setup-python step. attest-signer: reusable-attest, since the
+    # callee verifies the release GitHub marks latest, and release.yml's
+    # attest job signs through btclib-org/.github's reusable-attest.yml,
+    # v2026.9.24 being the first release signed that way. The callee's
+    # header says why the called workflow is the signer (issue
+    # btclib-org/.github#1301)
     uses: btclib-org/.github/.github/workflows/reusable-sdist-rebuild.yml@main
+    with:
+      attest-signer: reusable-attest
