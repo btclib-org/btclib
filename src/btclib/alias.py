@@ -28,20 +28,14 @@ from typing import Any, Literal, Protocol, Union
 __all__ = [
     "INF",
     "INFJ",
-    "BIP44ScriptType",
     "BinaryData",
-    "BlockCipherF",
     "CipherF",
     "Command",
-    "EmbeddedScriptType",
-    "H160_Net",
     "HashDigestF",
     "HashF",
     "HashObject",
     "Integer",
     "JacPoint",
-    "KeyOrder",
-    "MnemonicLang",
     "NetworkField",
     "NetworkName",
     "NetworkType",
@@ -53,7 +47,6 @@ __all__ = [
     "TaprootLeaf",
     "TaprootLeafPaths",
     "TaprootScriptTree",
-    "ValidSigHashType",
 ]
 
 # hex-strings are strings that can be converted to bytes using bytes.fromhex,
@@ -142,8 +135,7 @@ Integer = Octets | int
 # A Literal and not an Enum: network names are plain str throughout this
 # library, so a lone enum here would be an island, and mypy strict
 # already rejects the typo an Enum would guard against. That is the same
-# choice the four vocabularies below make, for the reasons written over
-# them
+# choice the vocabularies below make, for the reasons written over them
 NetworkType = Literal["main", "test"]
 
 # The closed vocabularies this library passes as plain str, one Literal
@@ -159,13 +151,13 @@ NetworkType = Literal["main", "test"]
 # the floor now covers, would still cost the last two.
 #
 # Which of them a *parameter* may take is the other half of the answer,
-# and it is not the same for all four: an argument annotated with a
-# Literal is a promise that the vocabulary is closed, so only the two
-# whose data is closed are spelled on parameters. The other two name
-# what btclib ships, for a caller who uses only that.
+# and it is not the same for all of them: an argument annotated with a
+# Literal is a promise that the vocabulary is closed, so ScriptType and
+# NetworkField are spelled on parameters. NetworkName is closed too and
+# still is not, for the reason written over it.
 
 # What a script_pub_key pays to, as script.script_pub_key.type_and_payload
-# names it. Closed, and checked to be: these nine are exactly what that
+# names it. Closed, and checked to be: these are exactly what that
 # function returns, mypy comparing each return against this alias. Note
 # that "unknown" is one of them -- the answer for bytes this library does
 # not classify, not the absence of an answer -- so there is no None here
@@ -187,7 +179,7 @@ ScriptType = Literal[
 # A field name of network.Network, which the three *_from_key_value
 # lookups take as a str and resolve with getattr. The most fragile of
 # these vocabularies, and so a parameter type: mypy holds a caller to
-# these seventeen, and `network._NETWORK_FIELDS` is the same vocabulary
+# the names below, and `network._NETWORK_FIELDS` is the same vocabulary
 # at run time, for the callers mypy never sees -- a name outside it is a
 # BTClibValueError there rather than the AttributeError getattr would
 # raise, and rather than the empty list that would read as a fact about
@@ -233,96 +225,6 @@ NetworkField = Literal[
 # network.py annotates with it the tuple of names it loads, which is what
 # keeps this list equal to the data
 NetworkName = Literal["mainnet", "testnet", "regtest", "signet", "testnet4"]
-
-# The word-lists btclib ships: BIP39's languages, and SLIP-0039's own list
-# under a key that is a scheme and not a language code -- the SLIP defines no
-# localization, so "slip39" is the whole of it. Every key of the WORDLISTS
-# registry is named here, which is what keeps this list equal to the data;
-# that they are not interchangeable is the schemes' business, and bip39
-# enforces its own half by refusing any list that is not 2048 words long.
-#
-# Open, as NetworkName is, and more plainly so:
-# WordLists.load_lang(lang, filename) adds a language, which is how a
-# word-list btclib does not ship is read -- electrum's 1626-word
-# Portuguese is one, on a registry of its own -- so the `lang: str`
-# parameters of btclib_wallet's mnemonic, bip39 and electrum stay str: a
-# Literal there would type check the library's own languages and reject the
-# file a caller has just loaded
-MnemonicLang = Literal[
-    "cs",
-    "en",
-    "es",
-    "fr",
-    "it",
-    "ja",
-    "ko",
-    "pt",
-    "ru",
-    "tr",
-    "zh",
-    "zh_tw",
-    "slip39",
-]
-
-# The seven hash types script.sig_hash.SIG_HASH_TYPES allows: the low
-# five bits' four values -- DEFAULT, ALL, NONE, SINGLE -- alone and each
-# ORed with ANYONECANPAY. Not an IntFlag over the whole byte: SINGLE ==
-# ALL | NONE, both being 3, so a flag decomposition would make SINGLE an
-# alias of ALL | NONE, a bit structure the protocol does not have (issue
-# #273). Not an IntEnum either: the wire is wider than these seven --
-# `legacy` and `segwit_v0` mask rather than validate, and a byte such as
-# 0x05 must still hash, being a value a mined signature can carry -- so
-# assert_valid_hash_type keeps `hash_type: int` and checks a plain int
-# against all 256 possible bytes (sig_hash_taproot_test.py's
-# test_valid_sighash_type), which a Literal-typed parameter could not be
-# called with. Narrowed only where the wire is already closed:
-# btclib_wallet's PsbtIn.sig_hash_type, checked against this same set
-# once truthy, and its psbt_in_test.py checks the two stay equal
-ValidSigHashType = Literal[0, 1, 2, 3, 129, 130, 131]
-
-
-# The four address encodings a purpose level can name: 44 is p2pkh, 49
-# p2wpkh-p2sh, 84 p2wpkh and 86 p2tr. It types both sides of btclib_wallet.bip44
-# -- the mapping read out of its _data/bip44_purposes.json and the script_type
-# argument that overrides it -- so the two cannot drift apart in silence.
-#
-# Qualified BIP44, and not named ScriptType, because it is not the
-# library's notion of one: script.type_and_payload answers p2pk, p2ms,
-# nulldata, p2sh and p2wsh besides these, b58.address_from_h160 takes
-# p2pkh or p2sh, and p2wpkh-p2sh belongs to neither list -- it is a
-# nesting of one script in another, not an output script type. The field
-# is called script_type because that is what electrum's
-# bip39_wallet_formats.json, the source of the mapping, calls it; the name
-# is kept and qualified rather than corrected, so that the data and the
-# code read the same.
-#
-# A Literal for the reasons NetworkType is one, and with the same limit:
-# it is a mypy fact and not a runtime one, so the json is still checked
-# where it is used
-BIP44ScriptType = Literal["p2pkh", "p2wpkh-p2sh", "p2wpkh", "p2tr"]
-
-# The three ways a script becomes an output, which is what a
-# btclib_wallet.wallet.ScriptWallet takes: the script is hashed into a p2sh,
-# into a p2wsh, or into a p2wsh that a p2sh wraps. Not ScriptType either,
-# and for BIP44ScriptType's reason -- `p2sh-p2wsh` is a nesting of one
-# script in another and not something type_and_payload answers -- while the
-# overlap with those four is only apparent: these three say what happens
-# to a *script*, where those four say what happens to a key.
-#
-# A parameter type: the vocabulary is closed by what a hash of a script
-# can be paid to, so a fourth entry would need a new output type rather
-# than a new line here
-EmbeddedScriptType = Literal["p2sh", "p2wsh", "p2sh-p2wsh"]
-
-# When a btclib_wallet.wallet.ScriptWallet orders the keys of a quorum,
-# which is the one thing about a pre-descriptor multisig wallet that cannot
-# be read off its script: "derived" sorts them at every index, which is
-# BIP67 on the derived keys and what sortedmulti() follows; "account" sorts
-# the account keys once and derives afterwards, which multi() states; "none"
-# keeps them as declared. The three are a strategy and not a constant
-# because deployed wallets disagree, and the sort_key beside them is what a
-# wallet ordering by something that is not a byte order needs
-KeyOrder = Literal["none", "account", "derived"]
 
 
 # What a HashF returns: as much of the hashlib object as this library uses,
@@ -430,16 +332,6 @@ HashDigestF = Callable[[Octets], bytes]
 # The three parameters are positional here and passed positionally, so a
 # caller's own names for them do not have to match
 CipherF = Callable[[bytes, bytes, bytes], bytes]
-
-# A single block under a key, with no mode and no padding: (key, block) to
-# the transformed block, both fixed-size. btclib_wallet.bip38 takes one of these
-# in each direction for the same reason CipherF exists -- it ships no
-# cipher of its own -- but BIP38 calls AES-256 directly on one or two
-# 16-byte blocks rather than chaining them, so there is no iv and nothing
-# for a mode parameter to name
-BlockCipherF = Callable[[bytes, bytes], bytes]
-
-H160_Net = tuple[bytes, str]
 
 # Elliptic curve point in affine coordinates.
 # Warning: to make Point a NamedTuple would slow down the code

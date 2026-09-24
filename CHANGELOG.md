@@ -83,6 +83,12 @@ filters are in btclib, and both lists name them (closes #2255).
 `CONTRIBUTING.md` says so beside the convention, and `_mult_sec_var`
 keeps its name (closes #2246).
 
+### `btclib.alias` drops the type aliases only `btclib_wallet` used
+
+`BIP44ScriptType`, `BlockCipherF`, `EmbeddedScriptType`, `KeyOrder`,
+`MnemonicLang` and `ValidSigHashType`, which btclib-wallet defines itself,
+and the unused `H160_Net` leave `btclib.alias` and `__all__` (closes #2244).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
