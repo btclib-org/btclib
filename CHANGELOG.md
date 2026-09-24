@@ -62,6 +62,11 @@ workflow matrix move with the floor.
 leave both lists, `mnemonic` and `bip44` leave `keywords`, and `rfc-6979`,
 `merkle-proof` and `bitcoin-script` become topics (closes #2243).
 
+### `sdist-rebuild.yml` stops passing `attest-signer`
+
+The called workflow verifies against `reusable-attest.yml` alone, so the
+input decides nothing (issue btclib-org/.github#1315).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
