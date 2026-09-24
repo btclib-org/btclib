@@ -120,6 +120,20 @@ full year, short month, short day (YYYY-M-D)
   `btclib-wallet` distribution, and `import btclib.wallet` raises
   `ModuleNotFoundError`. Act on it by installing `btclib-wallet` and
   importing `btclib_wallet.wallet` in its place.
+- **`BIP44ScriptType`, `BlockCipherF`, `EmbeddedScriptType`, `KeyOrder`,
+  `MnemonicLang`, `ValidSigHashType` and `H160_Net` leave
+  `btclib.alias`** (closes #2244), and `from btclib.alias import
+  BlockCipherF` raises `ImportError`. Of these, v2023.7.12's
+  `btclib.alias` has `H160_Net` alone. btclib-wallet defines its own copies
+  of the others: `BIP44ScriptType` in `btclib_wallet.bip44`,
+  `BlockCipherF` in `btclib_wallet.bip38`, `EmbeddedScriptType` and
+  `KeyOrder` in `btclib_wallet.wallet.script_wallet`, `MnemonicLang` in
+  `btclib_wallet.mnemonic.mnemonic` and `ValidSigHashType` in
+  `btclib_wallet.psbt.psbt_in`. `H160_Net` has no replacement: spell
+  it `tuple[bytes, str]`. btclib-wallet 2026.9.24 predates those
+  copies, and its modules import all of them but `MnemonicLang` from
+  `btclib.alias`, so upgrade btclib-wallet together with btclib, to a
+  release later than 2026.9.24.
 
 ## v2026.9.24
 
