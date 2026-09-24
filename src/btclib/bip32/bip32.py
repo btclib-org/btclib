@@ -886,14 +886,14 @@ class _PythonPubKeyTweakChain:
     path of any length pays one instead of one per level.
 
     `curves.curve` has the same arithmetic twice over -- `_tweak_add_var`
-    ends in `ec.add_var(P, mult(t, ec.G, ec))`, and `_TweakChain` is a
+    ends in `ec.add_var(P, mult(t, ec.G, ec))`, and `TweakChain` is a
     point with many tweaks of it and the bindings' chain where they serve
     -- and this is not written here for want of noticing. Three things
-    differ, and each is the whole of a step: `_TweakChain`'s tweaks are
+    differ, and each is the whole of a step: `TweakChain`'s tweaks are
     absolute, measured from the point it was built on, where BIP32's are
     successive; `_tweak_add_var` pays a `require_on_curve` per step, on a
     point this one has just computed itself; and a refused tweak drops
-    `_TweakChain` to the one-shot pair and it answers the next one, where
+    `TweakChain` to the one-shot pair and it answers the next one, where
     BIP32 has to end the path instead.
 
     The contract is theirs, so that `_pub_key_tweak_chain` below can

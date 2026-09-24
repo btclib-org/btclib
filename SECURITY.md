@@ -197,7 +197,7 @@ used to teach and to prototype as much as to build:
     whether it can: `curve._libsecp256k1_serves` asks for the switch
     above, then for secp256k1 as the curve, then for a hash function
     that is sha256 or absent — `hf is None or hf is sha256`
-    (`src/btclib/curves/curve.py:526`) — with whatever further
+    (`src/btclib/curves/curve.py:533`) — with whatever further
     conditions the call site ands onto it. The hash function is matched
     by identity rather than by what it computes, so
     `functools.partial(sha256)`, or any other wrapper a caller writes to
@@ -344,7 +344,7 @@ used to teach and to prototype as much as to build:
     different call inside that arm and infinity is not delegated at
     all — `curve._mult_checked` at
     `return _libsecp256k1_multi_mult([m], [Q])`
-    (`src/btclib/curves/curve.py:823`). `dh.diffie_hellman` at
+    (`src/btclib/curves/curve.py:844`). `dh.diffie_hellman` at
     `sec = libsecp256k1_keys.pubkey_tweak_mul(`
     (`src/btclib/ecc/dh.py:107`) is the one this bullet was written
     from, and is an example rather than the population: key agreement,

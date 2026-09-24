@@ -315,7 +315,7 @@ def test_a_verifying_fetcher_without_assert_network_is_refused() -> None:
 def test_a_network_name_is_taken_as_the_rest_of_the_library_takes_one() -> None:
     """`Fetcher` normalizes the name it is given, and refuses before fetching.
 
-    `__init__` puts the name through `network._validated_network_name`,
+    `__init__` puts the name through `network.validated_network_name`,
     so the spellings issue #216 decided to keep reach a backend, and
     `Fetcher.network` is the name `network_from_name` answers to.
     """

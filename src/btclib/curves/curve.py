@@ -13,7 +13,10 @@ What this module exports is the class, the three multiplications,
 its own will come back, so that the tables built for it are kept -- the
 catalogue, the standards it is the union of, and the `*_params2` each of
 those is built from, which is what test_catalogued_curves rebuilds every
-curve out of with both expensive checks on. The standards are SEC2v1,
+curve out of with both expensive checks on. Beside the multiplications
+are `sum_var`, `tweak_add_var` and `is_x_coordinate_var`, each checking
+its arguments for a private twin the library composes internally, and
+`TweakChain`, which checks its own. The standards are SEC2v1,
 SEC2v2, NIST and Brainpool, and this module is where btclib.curves keeps
 them: a standard is a question about a curve, not a way of finding one.
 
@@ -70,9 +73,9 @@ from btclib.curves.curve_group_2 import (
     _double_mult_w_NAF_var,
     _mult_endomorphism_secp256k1,
 )
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import legendre_symbol_var
-from btclib.utils import assert_type, hex_string, int_from_integer
+from btclib.utils import assert_type, hex_string, int_from_integer, is_integer
 
 __all__ = [
     "CURVES",
@@ -86,12 +89,16 @@ __all__ = [
     "SEC2v1_params2",
     "SEC2v2",
     "SEC2v2_params2",
+    "TweakChain",
     "double_mult_var",
     "is_libsecp256k1_serving",
+    "is_x_coordinate_var",
     "mult",
     "multi_mult_var",
     "secp256k1",
     "set_libsecp256k1_serving",
+    "sum_var",
+    "tweak_add_var",
 ]
 
 
@@ -578,6 +585,20 @@ def _is_x_coordinate_var(x: int, ec: Curve) -> bool:
     # its root is zero and it is on the curve, so -1 is the whole of what
     # says otherwise
     return legendre_symbol_var(ec._y2(x), ec.p) != -1
+
+
+def is_x_coordinate_var(x: int, ec: Curve = secp256k1) -> bool:
+    """Return True if x is the x-coordinate of a point of the curve.
+
+    `_is_x_coordinate_var` behind a check of its arguments: a caller that
+    reads a compressed key and has no use for its y -- an xpub's key is
+    one, parsed at every level of a derivation -- asks this rather than
+    lifting the point. An integer that is no field element is False.
+    """
+    _assert_valid_ec(ec)
+    if not is_integer(x):
+        raise BTClibTypeError(f"non-integer x-coordinate: {x}")
+    return _is_x_coordinate_var(x, ec)
 
 
 def _y_even_var(x: int, ec: Curve) -> int:
@@ -1131,6 +1152,17 @@ def _sum_var(points: Sequence[Point], ec: Curve) -> Point:
     return total_point
 
 
+def sum_var(points: Sequence[Point], ec: Curve = secp256k1) -> Point:
+    """Return the sum of points, delegated as one call where it can be.
+
+    `_sum_var` behind a check of its arguments: the curve, the sequence,
+    and every point on the curve, the last of which the twin asks itself.
+    """
+    _assert_valid_ec(ec)
+    assert_type(points, Sequence, "points")
+    return _sum_var(points, ec)
+
+
 def _tweak_add_var(P: Point, t: int, ec: Curve) -> Point:
     """Return P + t*G, a point plus a multiple of the generator.
 
@@ -1176,7 +1208,18 @@ def _tweak_add_var(P: Point, t: int, ec: Curve) -> Point:
     return ec.add_var(P, mult(t, ec.G, ec))
 
 
-class _TweakChain:
+def tweak_add_var(P: Point, t: Integer, ec: Curve = secp256k1) -> Point:
+    """Return P + t*G, a point plus a multiple of the generator.
+
+    `_tweak_add_var` behind a check of its arguments: the curve, the
+    tweak as an integer, reduced mod n, and the point on the curve, which
+    the twin asks itself.
+    """
+    _assert_valid_ec(ec)
+    return _tweak_add_var(P, int_from_integer(t), ec)
+
+
+class TweakChain:
     """One point, many tweaks of it, and one parse on the far side.
 
     `_tweak_add_var` above crosses the boundary once per tweak: the point
@@ -1227,8 +1270,11 @@ class _TweakChain:
         # be refused first
         _assert_valid_ec(ec)
         ec.require_on_curve(base)
-        self.base = base
-        self.ec = ec
+        # read-only below: the chain holds the parsed base on the far side,
+        # so a base reassigned afterwards would leave the two arms of
+        # `point` answering for different points
+        self._base = base
+        self._ec = ec
         # the tweak the chain's point currently stands at, from which the
         # next step is measured; zero is the base itself
         self._tweak = 0
@@ -1242,9 +1288,19 @@ class _TweakChain:
             else None
         )
 
-    def point(self, t: int) -> Point:
+    @property
+    def base(self) -> Point:
+        """The point every tweak is added to."""
+        return self._base
+
+    @property
+    def ec(self) -> Curve:
+        """The curve the base belongs to."""
+        return self._ec
+
+    def point(self, t: Integer) -> Point:
         """Return base + t*G, taking the step from the last tweak asked for."""
-        t %= self.ec.n
+        t = int_from_integer(t) % self.ec.n
         if self._chain is not None:
             try:
                 sec = self._chain.tweak_add((t - self._tweak) % self.ec.n, False)

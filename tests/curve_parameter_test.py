@@ -89,15 +89,19 @@ from btclib.curves import CurveGroup, secp256k1
 from btclib.curves.curve import (
     Curve,
     PreparedPoint,
-    _TweakChain,
+    TweakChain,
     double_mult_var,
+    is_x_coordinate_var,
     mult,
     multi_mult_var,
+    sum_var,
+    tweak_add_var,
 )
 from btclib.curves.curve_group_f import find_all_points, find_subgroup_points
 from btclib.curves.sec_point import (
     bytes_from_point,
     bytes_from_prv_key_int,
+    mult_pub_key,
     point_from_octets,
     point_from_pub_key,
     scalar_from_prv_key,
@@ -189,12 +193,10 @@ _CASES = (
         PreparedPoint,
         {"point": _PUB_KEY},
     ),
-    # the other constructor holding a point across calls, private and
-    # driven here all the same: the walk finds it, its `__init__` being a
-    # dunder, and a function the walk finds is one this table drives
+    # the other constructor holding a point across calls
     _Case(
-        "btclib.curves.curve._TweakChain.__init__",
-        _TweakChain,
+        "btclib.curves.curve.TweakChain.__init__",
+        TweakChain,
         {"base": _PUB_KEY},
     ),
     _Case(
@@ -206,6 +208,21 @@ _CASES = (
         "btclib.curves.curve.multi_mult_var",
         multi_mult_var,
         {"scalars": [_PRV_KEY, _PRV_KEY_2], "points": [_PUB_KEY, _PUB_KEY_2]},
+    ),
+    _Case(
+        "btclib.curves.curve.is_x_coordinate_var",
+        is_x_coordinate_var,
+        {"x": _PUB_KEY[0]},
+    ),
+    _Case(
+        "btclib.curves.curve.sum_var",
+        sum_var,
+        {"points": [_PUB_KEY, _PUB_KEY_2]},
+    ),
+    _Case(
+        "btclib.curves.curve.tweak_add_var",
+        tweak_add_var,
+        {"P": _PUB_KEY, "t": _PRV_KEY},
     ),
     _Case("btclib.curves.curve_group_f.find_all_points", find_all_points, ec=_GROUP),
     _Case(
@@ -228,6 +245,11 @@ _CASES = (
         "btclib.curves.sec_point.scalar_from_prv_key",
         scalar_from_prv_key,
         {"prv_key": _PRV_KEY},
+    ),
+    _Case(
+        "btclib.curves.sec_point.mult_pub_key",
+        mult_pub_key,
+        {"m": _PRV_KEY, "pub_key": _SEC},
     ),
     _Case(
         "btclib.curves.sec_point.point_from_pub_key",

@@ -81,6 +81,8 @@ __all__ = [
     "network_type_from_xkeyversion",
     "networks_from_key_value",
     "networks_from_xkeyversion",
+    "normalized_network_name",
+    "validated_network_name",
     "xprvversions_from_network",
     "xpubversion_from_xprvversion",
     "xpubversions_from_network",
@@ -555,7 +557,7 @@ def network_type_from_key_value(
     return NETWORKS[networks[0]].network_type if networks else None
 
 
-def _normalized_network_name(network: Any) -> Any:
+def normalized_network_name(network: Any) -> Any:
     """Return a network name in the one spelling its variants share.
 
     A normalization and not a check, which is why it refuses nothing and
@@ -563,9 +565,9 @@ def _normalized_network_name(network: Any) -> Any:
     means the validity checks do not run still has to build the invalid
     object a caller means to exercise, and a coercion that raised would
     take that away. Whether the name is a network at all -- and whether
-    it is a string -- is `_validated_network_name`'s question.
+    it is a string -- is `validated_network_name`'s question.
 
-    `_validated_network_name` below applies it between its type check and
+    `validated_network_name` below applies it between its type check and
     its membership test, so every name that function returns or refuses has
     been through here. A frozen class that keeps a `network` field reaches
     for it directly, in whichever of `__init__` or `__post_init__` builds
@@ -585,20 +587,28 @@ def _normalized_network_name(network: Any) -> Any:
     `check_validity=False` -- where nothing refuses an unnormalized name --
     an uncoerced field leaves `to_invoice` a bare `KeyError` rather than an
     encoded string.
+
+    Public for a class built on btclib that keeps a `network` field on
+    the same terms. It is total over `Any`, so there is no argument for
+    it to refuse: the refusal belongs to `validated_network_name`, and a
+    caller wanting one calls that.
     """
     return network.strip().lower() if isinstance(network, str) else network
 
 
-def _validated_network_name(network: str) -> str:
+def validated_network_name(network: str) -> str:
     """Return the name of a network, normalized, or refuse it.
 
     `strip().lower()` is the tolerance issue #216 decided to keep, and the
     reason `alias.NetworkName` is not the annotation of a `network`
     parameter: the set accepted is wider than the spellings it names.
+
+    What a caller keeping the name rather than the `Network` reaches
+    for; `network_from_name` is this function and the lookup after it.
     """
     if not isinstance(network, str):
         raise BTClibTypeError(f"not a network name: {network!r}")
-    name: str = _normalized_network_name(network)
+    name: str = normalized_network_name(network)
     if name not in NETWORKS:
         err_msg = f"unknown network: '{network}'"
         err_msg += f"; it must be one of {sorted(NETWORKS)}"
@@ -621,7 +631,7 @@ def network_from_name(network: str = "mainnet") -> Network:
     `NETWORKS` stays exported for a caller iterating the catalogue, which
     is a different question from resolving one name.
     """
-    return NETWORKS[_validated_network_name(network)]
+    return NETWORKS[validated_network_name(network)]
 
 
 def network_type_from_network(network: str = "mainnet") -> NetworkType:
@@ -636,12 +646,12 @@ def xpubversions_from_network(network: str = "mainnet") -> list[bytes]:
     or trimming the answer is not editing the table every other lookup
     reads.
     """
-    return list(_XPUB_VERSIONS[_validated_network_name(network)])
+    return list(_XPUB_VERSIONS[validated_network_name(network)])
 
 
 def xprvversions_from_network(network: str = "mainnet") -> list[bytes]:
     """Return every xprv version of the network, BIP32 and SLIP132."""
-    return list(_XPRV_VERSIONS[_validated_network_name(network)])
+    return list(_XPRV_VERSIONS[validated_network_name(network)])
 
 
 def xpubversion_from_xprvversion(xprvversion: bytes) -> bytes:

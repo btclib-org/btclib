@@ -80,7 +80,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   refusal of -1 that no vector places. An id below zero would reach
 #   `_serialize_ids` and fail there in an `OverflowError`, which is not
 #   the exception a caller is told to expect.
-# - `validate_threshold_info`'s `n > _MAX_PARTICIPANTS` weakened to `>=`,
+# - `validate_threshold_info`'s `n > MAX_PARTICIPANTS` weakened to `>=`,
 #   and its copy in `_validate_session_params`: 129 was refused and no
 #   test offered 128, which `test_validate_threshold_info_accepts_128_
 #   participants` and `test_session_values_accepts_128_participants` do.
@@ -134,7 +134,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   what it was built from, and as `is not`, because both lengths are
 #   small ints and Python keeps one object per value of those:
 #   `_validate_session_params` calls it after refusing an `n` above
-#   `_MAX_PARTICIPANTS` and more identifiers than `n`. So is
+#   `MAX_PARTICIPANTS` and more identifiers than `n`. So is
 #   `assert_valid_records`'s `len(key_data) != _INFO_KEY_SIZE` as
 #   `is not`. `_derive_interpolating_value`'s `curr_id == my_id` as `is`
 #   is the same class for an `int` `my_id`, the identifiers having been
@@ -155,8 +155,8 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # - `SessionContext`'s `@dataclass(frozen=True, init=False)` as
 #   `init=True`: a dataclass never replaces an `__init__` the class
 #   defines, and this one does.
-# - `_INFO_KEY_SIZE` and `_PAIR_SIZE`, `_ID_SIZE + _PK_SIZE`, as `|`: the
-#   two widths share no set bit, so `_ID_SIZE & _PK_SIZE` is 0 and `|`
+# - `_INFO_KEY_SIZE` and `_PAIR_SIZE`, `ID_SIZE + PK_SIZE`, as `|`: the
+#   two widths share no set bit, so `ID_SIZE & PK_SIZE` is 0 and `|`
 #   is `+`.
 
 # one mutant at a time, in this working tree: see sig_hash.toml

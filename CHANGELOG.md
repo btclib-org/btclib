@@ -1334,6 +1334,12 @@ file per release is what keeps each of them under it.
   bare `^`** (issue btclib-org/.github#1294): only a `#!` line may
   precede the notice, for a script run by path.
 
+### The btclib names `btclib-wallet` imports are public
+
+- **`curves` exports `sum_var`, `tweak_add_var`, `TweakChain`,
+  `is_x_coordinate_var` and `mult_pub_key`** (closes #2242); names of
+  `bech32`, `ecc.frost`, `network`, `script_pub_key` and `tx.tx` become public.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

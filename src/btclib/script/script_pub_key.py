@@ -29,9 +29,9 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.key import PubKeyData
 from btclib.network import (
-    _normalized_network_name,
-    _validated_network_name,
     network_type_from_network,
+    normalized_network_name,
+    validated_network_name,
 )
 from btclib.script.script import Script, op_int, serialize
 from btclib.script.taproot import output_pubkey
@@ -60,6 +60,7 @@ __all__ = [
     "is_p2wsh",
     "is_segwit",
     "p2ms_m_and_keys",
+    "script_from_script_pub_key",
     "type_and_payload",
 ]
 
@@ -624,14 +625,14 @@ class ScriptPubKey(Script):
     ) -> None:
         # normalized here and refused in assert_valid below, which is the
         # split `key.PubKeyData` takes for the same field:
-        # `_normalized_network_name` refuses nothing, so
+        # `normalized_network_name` refuses nothing, so
         # `check_validity=False` still builds the invalid object a caller
         # means to exercise, and asking `assert_valid()` afterwards gets
         # the answer the constructor would have given. The coercion is not
         # deferred with the refusal, because it is not a check: the field
         # is read as it stands -- `TxOut.to_dict` reports it verbatim --
         # so its spelling is settled even where no check runs
-        object.__setattr__(self, "network", _normalized_network_name(network))
+        object.__setattr__(self, "network", normalized_network_name(network))
         # network first, then super(): Script.__init__ calls
         # self.assert_valid(), which dispatches to the override below and
         # so needs the field set. That call is also the whole validation,
@@ -644,14 +645,14 @@ class ScriptPubKey(Script):
     def assert_valid(self) -> None:
         """Run Script's checks, then refuse a name no network answers to."""
         super().assert_valid()
-        # `_validated_network_name` and not a `NETWORKS` membership test:
+        # `validated_network_name` and not a `NETWORKS` membership test:
         # membership hashes its operand, which leaves a name of an
         # unhashable type a builtin `TypeError` that `btclib.exceptions`
         # does not declare, where this raises `BTClibTypeError`. It also
         # quotes the name it refuses, beside the names there are. Its
         # return value is not read: `__init__` above applies the same
         # normalization to the field
-        _validated_network_name(self.network)
+        validated_network_name(self.network)
 
     @classmethod
     def from_address(cls, addr: String, *, check_validity: bool = True) -> ScriptPubKey:
@@ -846,9 +847,9 @@ def _script_from(script_pub_key: Octets | ScriptPubKey) -> bytes:
     only, of even length, and carrying a valid checksum is not a string
     anybody has.
 
-    Private, and imported by the two questions that ask "is this output
-    mine": `Descriptor.index_of` and `wallet.RangedWallet.position_of`.
-    Here rather than in either, because it is about this module's own
+    Private, and reached through `script_from_script_pub_key` by the questions
+    that ask "is this output mine" -- `Descriptor.index_of` among them.
+    Here rather than in any of them, because it is about this module's own
     class and this module's own `from_address`, and because a second copy
     of the rule is a second answer to give.
 
@@ -892,8 +893,13 @@ def _script_from(script_pub_key: Octets | ScriptPubKey) -> bytes:
         raise BTClibValueError(err_msg) from e
 
 
-def _validated_script_from(script_pub_key: Octets | ScriptPubKey) -> bytes:
-    """`_script_from`, having first asked the object whether it is one.
+def script_from_script_pub_key(script_pub_key: Octets | ScriptPubKey) -> bytes:
+    """Return the script bytes of whatever names one output, checked.
+
+    A `ScriptPubKey`, octets, the hex of a script or an address, as
+    `_script_from` reads them, with a `ScriptPubKey` first asked whether
+    it is one. Named for what it returns and from what, as
+    `script.script_from_dict` is.
 
     What the public questions "is this output mine" owe their caller.
     Answering `None` -- or "not what this branch derives" -- for a

@@ -69,8 +69,8 @@ def test_eq() -> None:
 def test_a_network_name_is_taken_as_the_rest_of_the_library_takes_one() -> None:
     """`ScriptPubKey` normalizes the name it is given, and refuses the rest.
 
-    `__init__` coerces through `network._normalized_network_name` and
-    `assert_valid` refuses through `network._validated_network_name`, so
+    `__init__` coerces through `network.normalized_network_name` and
+    `assert_valid` refuses through `network.validated_network_name`, so
     the spellings issue #216 decided to keep reach a script, and
     `ScriptPubKey.network` is the name `network_from_name` answers to.
     """

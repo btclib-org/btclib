@@ -92,7 +92,7 @@ from btclib.curves import bytes_from_point, secp256k1
 from btclib.ecc.dsa import Sig, gen_keys, recover_pub_key_, sign_recoverable_, verify_
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import sha256
-from btclib.network import _normalized_network_name
+from btclib.network import normalized_network_name
 from btclib.utils import assert_type, bytes_from_octets, int_from_integer, is_integer
 
 __all__ = [
@@ -388,11 +388,11 @@ class Bolt11Invoice:
         # normalized here and refused in assert_valid below, the split
         # `ScriptPubKey.__init__` takes for the same field: the set this
         # class accepts is `_CURRENCY_FROM_NETWORK`, a strict subset of
-        # `network.NETWORKS`, so `_validated_network_name` is not the
+        # `network.NETWORKS`, so `validated_network_name` is not the
         # substitution -- it would let "testnet4" through. Without the
         # coercion, " MainNet " and "mainnet" build invoices that are
         # neither equal nor hashed alike
-        object.__setattr__(self, "network", _normalized_network_name(network))
+        object.__setattr__(self, "network", normalized_network_name(network))
         object.__setattr__(self, "timestamp", int_from_integer(timestamp))
         object.__setattr__(
             self,
@@ -753,7 +753,7 @@ class Bolt11Invoice:
         # runs, where `Bolt11Invoice.__init__` can build an object
         # `check_validity=False` leaves unchecked
         assert_type(network, str, "network")
-        network = _normalized_network_name(network)
+        network = normalized_network_name(network)
         if network not in _CURRENCY_FROM_NETWORK:
             raise BTClibValueError(f"not a lightning network: {network!r}")
 

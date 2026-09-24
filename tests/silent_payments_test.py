@@ -31,7 +31,7 @@ import pytest
 from btclib import silent_payments
 from btclib._libsecp256k1 import silentpayments as libsecp256k1_silentpayments
 from btclib.b32 import power_of_2_base_conversion
-from btclib.bech32 import _BECH32_M_CONST, encode
+from btclib.bech32 import BECH32_M_CONST, encode
 from btclib.curves import bytes_from_point, mult, secp256k1
 from btclib.ecc import ssa
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -270,7 +270,7 @@ def _address(m: int | None = None, network: str = "mainnet") -> str:
 def _reencoded(version: int, payload: bytes, hrp: str = "sp") -> str:
     """Compose an address out of a version and a payload, valid or not."""
     data = [version, *power_of_2_base_conversion(payload, 8, 5)]
-    return encode(hrp, data, _BECH32_M_CONST).decode("ascii")
+    return encode(hrp, data, BECH32_M_CONST).decode("ascii")
 
 
 def test_the_address_round_trip_on_every_network() -> None:
@@ -390,7 +390,7 @@ def test_an_address_with_no_data_part_is_refused() -> None:
     BIP352's whatever the version, so nothing else asks.
     """
     with pytest.raises(BTClibValueError, match="empty data"):
-        silent_payments.keys_from_address(encode("sp", [], _BECH32_M_CONST))
+        silent_payments.keys_from_address(encode("sp", [], BECH32_M_CONST))
 
 
 def test_version_31_is_refused_and_the_others_are_read() -> None:

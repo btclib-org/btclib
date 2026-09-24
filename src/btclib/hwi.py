@@ -41,7 +41,7 @@ device of this type enumerated", so two devices of one vendor make which
 one signs a question of enumeration order.
 
 Both take a `network: str`, and both put it through
-`network._validated_network_name`, which normalizes it with the
+`network.validated_network_name`, which normalizes it with the
 `strip().lower()` tolerance issue #216 decided to keep: a name the rest of
 the library resolves is resolved here, and one no network answers to is
 refused in the same words whichever of the two took it.
@@ -126,7 +126,7 @@ from btclib.alias import Octets
 from btclib.bip32.der_path import DerPath, str_from_der_path
 from btclib.descriptors import Descriptor, add_checksum, at_index
 from btclib.exceptions import BTClibValueError, SignerError, SignerNotFoundError
-from btclib.network import _validated_network_name
+from btclib.network import validated_network_name
 from btclib.psbt.psbt import Psbt
 from btclib.psbt_signer import SignerCapabilities
 from btclib.utils import assert_type, bytes_from_octets, is_integer
@@ -456,7 +456,7 @@ def enumerate_devices(
     without being asked would make a test fixture look like a signer.
     """
     assert_type(emulators, bool, "emulators")
-    network = _validated_network_name(network)
+    network = validated_network_name(network)
     argv = [*_executable(executable), *_chain_args(network), "enumerate"]
     if emulators:
         argv.insert(-1, "--emulators")
@@ -469,7 +469,7 @@ def enumerate_devices(
 def _chain_args(network: str) -> list[str]:
     """Return HWI's `--chain` flag for a btclib network name.
 
-    The name is one `_validated_network_name` has already returned, so it
+    The name is one `validated_network_name` has already returned, so it
     is a key of `NETWORKS` and of `_HWI_CHAIN` with it: refusing belongs
     to the entry point that took the caller's spelling, and what is left
     here is the translation. A `HwiSigner.network` assigned after
@@ -516,7 +516,7 @@ class HwiSigner:
     ) -> None:
         assert_type(emulators, bool, "emulators")
         self.executable = _executable(executable)
-        self.network = _validated_network_name(network)
+        self.network = validated_network_name(network)
         self.timeout = timeout
         self.max_output = max_output
         self.emulators = emulators

@@ -53,7 +53,7 @@ from hashlib import shake_256
 from btclib.alias import Octets
 from btclib.b32 import power_of_2_base_conversion
 from btclib.b58 import wif_from_prv_key
-from btclib.bech32 import _BECH32_1_CONST, encode
+from btclib.bech32 import BECH32_1_CONST, encode
 from btclib.bip32.bip32 import (
     BIP32Key,
     BIP32KeyData,
@@ -364,7 +364,7 @@ def nsec_from_root_key(root_key: BIP32Key, identity: int, account_index: int) ->
     # bech32 encoding rather than after it
     scalar_from_prv_key(entropy[:32])
     data = power_of_2_base_conversion(entropy[:32], 8, 5)
-    return encode(_NSEC_HRP, data, _BECH32_1_CONST).decode("ascii")
+    return encode(_NSEC_HRP, data, BECH32_1_CONST).decode("ascii")
 
 
 def bytes_entropy_from_root_key(

@@ -190,9 +190,9 @@ from btclib.hashes import hash160
 from btclib.key import PubKeyData
 from btclib.network import (
     NETWORKS,
-    _normalized_network_name,
-    _validated_network_name,
     network_from_xkeyversion,
+    normalized_network_name,
+    validated_network_name,
 )
 from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_in import PsbtIn
@@ -200,7 +200,7 @@ from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_size import SIG_SIZE, SolutionSizer, _assert_input_types
 from btclib.script.script import op_int, serialize
 from btclib.script.script import parse as _parse_script
-from btclib.script.script_pub_key import ScriptPubKey, _validated_script_from
+from btclib.script.script_pub_key import ScriptPubKey, script_from_script_pub_key
 from btclib.script.taproot import (
     MAX_TREE_DEPTH,
     input_script_sig,
@@ -740,13 +740,13 @@ class Descriptor(ABC):
     def __post_init__(self) -> None:
         # every fragment's generated `__init__` calls this, none of them
         # defining its own: the parse path already refuses a name no
-        # network answers to (`_validated_network_name`, above), so what
+        # network answers to (`validated_network_name`, above), so what
         # is left to the direct constructor is the same tolerance rule
         # issue #216 kept for everything else, not a new refusal. Without
         # it, two spellings of one network build descriptors that are
         # neither equal nor hashed alike, `network` comparing and hashing
         # as the plain field it is
-        object.__setattr__(self, "network", _normalized_network_name(self.network))
+        object.__setattr__(self, "network", normalized_network_name(self.network))
 
     @property
     @abstractmethod
@@ -961,7 +961,7 @@ class Descriptor(ABC):
         to look is a policy this module has no view on. A descriptor that
         is not ranged has one script and answers 0 or None.
         """
-        script = _validated_script_from(script_pub_key)
+        script = script_from_script_pub_key(script_pub_key)
         last = last_index if self.is_ranged else 0
         for index in range(last + 1):
             if any(
@@ -2383,7 +2383,7 @@ def parse(
     the two spellings of "a declared type" in one place.
     """
     assert_type(descriptor, str, "descriptor")
-    network = _validated_network_name(network)
+    network = validated_network_name(network)
     assert_type(prv_keys, (Mapping, type(None)), "prv_keys")
 
     if prv_keys is None:
