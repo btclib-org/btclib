@@ -21,6 +21,8 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.10 (work in progress, not released yet)
 
+## v2026.9.24
+
 ### Breaking changes
 
 - **An address is built from a `btclib.key.PubKeyData`, not from any
@@ -55,6 +57,10 @@ full year, short month, short day (YYYY-M-D)
   choice. A private key no longer reaches an address builder
   unannounced, which is the point: `SECURITY.md` publishes that the
   Python scalar multiplication is not constant-time.
+
+  `ScriptPubKey.p2ms` takes `lexicographic_sorting` third now, where
+  `network` stood, so a network passed there by position reaches the
+  sorting flag instead: pass the flag by keyword.
 - **`btclib.to_prv_key` and `btclib.to_pub_key` are gone** (closes
   #1188). At `v2023.7.12` the first declared `PrvKey = Union[int, bytes,
   str, BIP32KeyData]`, `PrvkeyInfo = Tuple[int, str, bool]` and
@@ -166,6 +172,9 @@ full year, short month, short day (YYYY-M-D)
   for a caller that wants to keep filtering on a bool: that caller
   catches both classes, either being what an unreadable signature
   answers.
+
+CHANGELOG.md has why each of these changed, and the rest of what this
+cycle changed.
 
 ## v2026.9.13
 
