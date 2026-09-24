@@ -58,7 +58,7 @@ from btclib.curves import (
 from btclib.curves.curve import (
     _assert_valid_ec,
     _is_x_coordinate_var,
-    _jac_double_mult,
+    _jac_double_mult_var,
     _libsecp256k1_serves,
     _y_even_var,
 )
@@ -1533,7 +1533,7 @@ def _assert_as_valid_(
     v = r * w % ec.n  # 4
     # Let K = u*G + v*Q.
     # the dispatching double_mult_var of curves.curve, not the Python
-    # arithmetic under it: `_jac_double_mult` decides that again on the
+    # arithmetic under it: `_jac_double_mult_var` decides that again on the
     # dispatch switch and the curve alone, so a caller declined here for
     # its hash function still multiplies in C on secp256k1, some
     # thirty-five times under the Python arithmetic -- the whole of the
@@ -1545,7 +1545,7 @@ def _assert_as_valid_(
     # and a commitment, `Signer` nothing, its arm settled at
     # construction -- and `_recover_pub_key_` reaches step 1.6.2 only on
     # a curve of cofactor above 1, which the predicate declines outright
-    KJ = _jac_double_mult(v, QJ, u, ec.GJ, ec, fixed)  # 5
+    KJ = _jac_double_mult_var(v, QJ, u, ec.GJ, ec, fixed)  # 5
 
     # Fail if infinite(K).
     # K = w*(c + r*q)*G is INF whenever c == -r*q (mod n)
@@ -2233,7 +2233,7 @@ def _recover_pub_key_(
     # back is _jac_from_aff, i.e. z == 1, where the wNAF answered whatever
     # representative its ladder reached. Every caller converts with
     # aff_from_jac_var, which is what a Jacobian coordinate is for
-    QJ = _jac_double_mult(r1s, KJ, r1e, ec.GJ, ec, ec._fixed_points)  # 1.6.1
+    QJ = _jac_double_mult_var(r1s, KJ, r1e, ec.GJ, ec, ec._fixed_points)  # 1.6.1
 
     # INF is no public key, and step 1.6.2 does not refuse it: with Q at
     # infinity the K' that verification recomputes is the lift itself, so

@@ -49,7 +49,7 @@ from btclib.curves.curve import (
     SEC2v2_params2,
     TweakChain,
     _is_x_coordinate_var,
-    _libsecp256k1_multi_mult_,
+    _libsecp256k1_multi_mult_var_,
     _libsecp256k1_serves,
     _sec_from_point,
     _sum_var,
@@ -1402,7 +1402,7 @@ def test_multiplications_the_bindings_decline(
 
 
 @needs_bindings
-def test_libsecp256k1_multi_mult_bytes() -> None:
+def test_libsecp256k1_multi_mult_var_bytes() -> None:
     """The bytes boundary the dispatch is built on.
 
     `_sec_from_point` is `bytes_from_point` without the checks that the
@@ -1415,9 +1415,11 @@ def test_libsecp256k1_multi_mult_bytes() -> None:
     assert sec == bytes_from_point(H, compressed=False)
     assert len(sec) == 2 * secp256k1.p_size + 1
 
-    assert _libsecp256k1_multi_mult_([5], [sec]) == _sec_from_point(mult(5, H))
-    assert _libsecp256k1_multi_mult_([5, 3], [sec, sec]) == _sec_from_point(mult(8, H))
-    assert _libsecp256k1_multi_mult_([5, secp256k1.n - 5], [sec, sec]) is None
+    assert _libsecp256k1_multi_mult_var_([5], [sec]) == _sec_from_point(mult(5, H))
+    assert _libsecp256k1_multi_mult_var_([5, 3], [sec, sec]) == _sec_from_point(
+        mult(8, H)
+    )
+    assert _libsecp256k1_multi_mult_var_([5, secp256k1.n - 5], [sec, sec]) is None
 
 
 @pytest.mark.parametrize(

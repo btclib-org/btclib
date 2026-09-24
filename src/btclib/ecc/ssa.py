@@ -78,7 +78,7 @@ from btclib.curves import (
 from btclib.curves.curve import (
     _assert_valid_ec,
     _is_x_coordinate_var,
-    _jac_double_mult,
+    _jac_double_mult_var,
     _libsecp256k1_serves,
     _multi_mult_x_only_var,
     _y_even_var,
@@ -906,13 +906,13 @@ def _assert_as_valid_(
     # `_libsecp256k1_serves` and nothing else, where `sign_` asks it
     # beside a commitment of its own and reaches this function anyway,
     # to check the signature it has just written. Whichever guard it was
-    # settles nothing about the multiplication, `_jac_double_mult`
+    # settles nothing about the multiplication, `_jac_double_mult_var`
     # asking the predicate again below: on secp256k1 with the dispatch
     # on the multiplication is still theirs, some thirty-five times
     # under the Python arithmetic. The whole verification follows it,
     # the two lifts around it -- the r of the signature and the x-only
     # key -- being theirs as well
-    KJ = _jac_double_mult(ec.n - c, QJ, s, ec.GJ, ec, fixed)
+    KJ = _jac_double_mult_var(ec.n - c, QJ, s, ec.GJ, ec, fixed)
 
     # The following check is prescribed by BIP340 but it is useless:
     # if moved after 'Fail if x_K ≠ r' it would never be executed
@@ -1340,7 +1340,7 @@ def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
     # this stays private, with no public spelling above it: BIP340 has
     # no recovery flag to carry the
     # candidate, x-only keys leaving nothing for one to disambiguate
-    QJ = _jac_double_mult(ec.n - e1, KJ, e1 * s, ec.GJ, ec, ec._fixed_points)
+    QJ = _jac_double_mult_var(ec.n - e1, KJ, e1 * s, ec.GJ, ec, ec._fixed_points)
     # QJ = e1*(s*G - K) is INF whenever r is the x of s*G, y even, and
     # that answer comes back from the bindings too: a libsecp256k1 pubkey
     # is never the identity, so the sum is recognized from the coordinates

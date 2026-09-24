@@ -148,7 +148,7 @@ def test_a_normal_dU_reaches_the_bindings(monkeypatch: pytest.MonkeyPatch) -> No
     zero for every `dU` below `n`, which is every caller, and the guard
     then falls through to `mult(dU, QV, ec)` instead. That call still
     reaches libsecp256k1: it reduces `dU` on its own and dispatches
-    through `_libsecp256k1_multi_mult`/`pubkey_tweak_mul_sum`, which is
+    through `_libsecp256k1_multi_mult_var`/`pubkey_tweak_mul_sum`, which is
     a `secp256k1_ec_pubkey_tweak_mul` per term and so the same C
     multiplication one wrapper further out, rather than the Python
     endomorphism arithmetic -- so the mutant costs this line's direct

@@ -41,7 +41,7 @@ from btclib.curves.curve_group import (
     _multiples,
     _odd_multiples,
     _signed_odd_multiples_aff,
-    _wNAF_of_m,
+    _wNAF_of_m_var,
     signed_odd_digits,
 )
 from btclib.ecc import second_generator
@@ -1055,7 +1055,7 @@ def test_the_interleaved_loop_makes_the_operations_its_wnafs_name(
     # alone -- and `_odd_multiples` doubles too, so building the tables under
     # the recorder would put its own operations in the log
     tables = [ec.aff_from_jac_batch_var(_odd_multiples(PJ, ec, w)) for PJ in points]
-    nafs = [_wNAF_of_m(n, w) for n in scalars]
+    nafs = [_wNAF_of_m_var(n, w) for n in scalars]
     expected: list[tuple[str, Point | None]] = []
     for j in reversed(range(max(len(naf) for naf in nafs))):
         expected.append(("double", None))
