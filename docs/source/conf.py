@@ -9,10 +9,10 @@ documentation: https://www.sphinx-doc.org/en/master/usage/configuration.html
 """
 
 import re
+import tomllib
 from pathlib import Path
 from typing import Any
 
-import tomllib
 from docutils import nodes
 from sphinx.addnodes import pending_xref
 from sphinx.application import Sphinx

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import IntEnum
 from typing import Any
 
@@ -83,7 +83,7 @@ _SSA_SIG = ssa_sign(b"msg", 1)
 # the key is 1 as well, and key_id 1 is the candidate that recovers it
 _DSA_MSG_HASH = hashlib.sha256(b"msg").digest()
 _DSA_SIG = dsa_sign(b"msg", 1)
-_NOW = datetime(2026, 8, 4, tzinfo=timezone.utc)
+_NOW = datetime(2026, 8, 4, tzinfo=UTC)
 # a one-leaf tree and the prevout of the one input `_tx` builds: what the
 # two index parameters below have to be handed something valid to index
 _SCRIPT_TREE: TaprootScriptTree = [(0xC0, ["OP_1"])]
@@ -125,7 +125,7 @@ def _header(version: Any = 1, nonce: Any = 1) -> BlockHeader:
         version,
         "00" * 32,
         "11" * 32,
-        datetime(2009, 1, 9, tzinfo=timezone.utc),
+        datetime(2009, 1, 9, tzinfo=UTC),
         "1d00ffff",
         nonce,
     )

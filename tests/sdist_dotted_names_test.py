@@ -42,9 +42,6 @@ _PYPROJECT = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
 # is: a bare "git" in a subprocess list is a partial executable path
 _GIT = shutil.which("git") or "git"
 
-# regex rather than `tomllib`, which is stdlib from 3.11 where this
-# tree's floor is 3.10 -- the reason `build_system_test.py` gives for
-# reading the same file the same way
 _SOURCE_EXCLUDE = re.compile(
     r"^source-exclude\s*=\s*\[(.*?)^\]", re.MULTILINE | re.DOTALL
 )

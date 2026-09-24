@@ -54,16 +54,12 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 
 import pytest
 
 _ROOT = Path(__file__).parents[1]
-
-# regex rather than `tomllib`, which is stdlib only from 3.11 where this
-# package supports 3.10: `tests/copyright_test.py` reads `authors` out of
-# the same file the same way and its docstring carries the reason
-_VERSION = re.compile(r'(?m)^version = "([^"]+)"$')
 
 # the two shapes RELEASING.md's *Which version string is which* gives
 # pyproject.toml's own version over one cycle: the month alone between
@@ -91,9 +87,8 @@ def _git(*args: str) -> subprocess.CompletedProcess[str]:
 def _declared_version() -> str:
     """Return pyproject.toml's own `version`, the one place it is declared."""
     text = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    match = _VERSION.search(text)
-    assert match, "pyproject.toml has no 'version = ...' line"
-    return match.group(1)
+    version: str = tomllib.loads(text)["project"]["version"]
+    return version
 
 
 def _commit(rev: str) -> str | None:
@@ -254,16 +249,6 @@ def test_a_version_of_neither_shape_fails() -> None:
             " scheme"
         ),
     )
-
-
-def test_the_declared_version_is_the_one_line_pyproject_carries() -> None:
-    """One `version = ` line at the left margin, and this reads it.
-
-    `re.search` answers with the first match, so what makes it the
-    `[project]` table's own is that the file opens no second one.
-    """
-    text = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert _VERSION.findall(text) == [_declared_version()]
 
 
 def test_a_ref_that_does_not_resolve_answers_none() -> None:

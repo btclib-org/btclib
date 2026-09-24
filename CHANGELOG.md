@@ -39,6 +39,11 @@ file per release is what keeps each of them under it.
 
 ## v2026.10 (work in progress, not released yet)
 
+### `requires-python` moves to `>=3.11`
+
+3.10 reaches end of life on 2026-10-31. The classifiers and every
+workflow matrix move with the floor.
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

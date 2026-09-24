@@ -32,8 +32,9 @@ what to do with octets that do not decode, and this package holds none.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Self
 
-from typing_extensions import Self, override
+from typing_extensions import override
 
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibTypeError, BTClibValueError

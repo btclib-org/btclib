@@ -12,7 +12,7 @@ name: deps-oldest
 # README.md). What stays here is the trigger, the concurrency group, the
 # workflow-level permissions, and the two facts the called workflow asks
 # a caller for rather than states itself: the interpreter, which is
-# requires-python's own floor of 3.10 and not the newest
+# requires-python's own floor of 3.11 and not the newest
 # `.python-version` pin, and `pre-suite-script`, this tree's own
 # assertion that the bindings still serve at that floor --
 # `.github/scripts/assert_bindings_serving.py` has the reason it is a
@@ -48,5 +48,5 @@ jobs:
   suite-oldest:
     uses: btclib-org/.github/.github/workflows/reusable-deps-oldest.yml@main
     with:
-      python-version: "3.10"
+      python-version: "3.11"
       pre-suite-script: .github/scripts/assert_bindings_serving.py

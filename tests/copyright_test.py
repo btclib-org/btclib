@@ -20,12 +20,10 @@ the years are written, and there is no second copy of them for this to
 hold in step -- what a year assertion here would compare it against is
 itself.
 
-Regex rather than `tomllib` for the one line wanted out of
-pyproject.toml: the floor here is 3.10, and `tomllib` is 3.11 -- the same
-reason `release.yml` gives for reaching for it only from a `python -` a
-workflow can pin to a newer interpreter, which a module in this package
-cannot. Once 3.10 is dropped, `_pyproject_author` can read the file the
-way `release.yml` already does.
+`tomllib` for the one value wanted out of pyproject.toml: stdlib from
+3.11, which requires-python's own floor now is too, so the module
+collects on every interpreter the matrix runs -- `tests/build_system_test.py`
+reads the same file the same way, for the same reason.
 
 Issue #1507: `btclib.__author__`, `__author_email__` and `__license__`
 each duplicated `pyproject.toml`'s `authors` table or `license` field
@@ -51,21 +49,23 @@ nowhere it needs to diverge from the source it names.
 
 Issue #1538: the test below used to load `conf.py` by path and execute
 it, the way it is not a package to import, and check the resulting
-`author` attribute. Executing the module also runs its unconditional
+`author` attribute. Executing the module also ran its unconditional
 top-of-file imports -- `tomllib`, stdlib only from 3.11, and
 `docutils`/`sphinx`, installed only by the `docs` dependency group --
 which neither the coverage jobs' `test`/`harness` groups nor
-os-macos's 3.10 cells carry, so the test failed everywhere but a
+os-macos's then-3.10 cells carried, so the test failed everywhere but a
 contributor's own `uv sync`, which installs every group including
-`docs` and so never reproduces this locally. `_conf_author_expr`
-below reads the `author = ...` line's source text instead, the same
-idiom `_pyproject_author` above already uses on `pyproject.toml` and
-for the same reason: it checks that `author` derives from `PYPROJECT`
-rather than repeating it, without importing anything `conf.py`
-imports.
+`docs` and so never reproduced this locally. `docutils`/`sphinx` are
+still absent from the coverage jobs' groups, so executing `conf.py`
+there still fails today. `_conf_author_expr` below reads the
+`author = ...` line's source text instead, for the same reason
+`_pyproject_author` above parses rather than executes `pyproject.toml`:
+it checks that `author` derives from `PYPROJECT` rather than repeating
+it, without importing anything `conf.py` imports.
 """
 
 import re
+import tomllib
 from pathlib import Path
 
 import btclib
@@ -73,7 +73,6 @@ import btclib
 _ROOT = Path(__file__).parents[1]
 _LICENSE_RE = r"Copyright \([Cc]\) (.+)"
 _COPYRIGHT_RE = r"Copyright \([Cc]\) \d{4}-\d{4} (.+)"
-_AUTHOR_RE = r'authors\s*=\s*\[\{\s*name\s*=\s*"([^"]+)"'
 _CONF_AUTHOR_RE = r"(?m)^author = (.+)$"
 _CONF_AUTHOR_EXPECTED = 'PYPROJECT["project"]["authors"][0]["name"]'
 
@@ -95,9 +94,10 @@ def _copyright_holder() -> str:
 
 def _pyproject_author() -> str:
     text = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    match = re.search(_AUTHOR_RE, text)
-    assert match, "pyproject.toml has no 'authors = [{ name = ... }]' line"
-    return match.group(1)
+    authors = tomllib.loads(text)["project"]["authors"]
+    assert authors, "pyproject.toml has no 'authors' entry"
+    name: str = authors[0]["name"]
+    return name
 
 
 def _conf_author_expr() -> str:

@@ -88,5 +88,5 @@ jobs:
     uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@main
     with:
       runners: '["windows-latest", "windows-11-arm"]'
-      python-versions: '["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "pypy3.11"]'
+      python-versions: '["3.11", "3.12", "3.13", "3.14", "3.14t", "pypy3.11"]'
       fetch-tags: true

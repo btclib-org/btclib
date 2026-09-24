@@ -98,11 +98,11 @@ worth naming rather than inferring:
 - **an f-string is not read from Python 3.12 on.** PEP 701 tokenizes
   one as `FSTRING_START`, `FSTRING_MIDDLE` and `FSTRING_END` where
   `tokenize.STRING` is what this reads, so a credit inside one is
-  invisible there and swept on 3.10 and 3.11, which tokenize an
-  f-string as a single `STRING` and which `os-ubuntu.yml`,
-  `os-macos.yml` and `os-windows.yml` all run. The input set therefore
-  differs by interpreter, and a credit belongs in a plain literal or a
-  comment for that reason;
+  invisible there and swept on 3.11, which tokenizes an f-string as a
+  single `STRING` and which `os-ubuntu.yml`, `os-macos.yml` and
+  `os-windows.yml` all run. The input set therefore differs by
+  interpreter, and a credit belongs in a plain literal or a comment for
+  that reason;
 - **markdown is not read.** `CHANGELOG.md` is appended to and its
   released sections are sealed by `tests/changelog_immutability_test.py`,
   so a credit that landed in one cannot be corrected and a gate over it

@@ -129,7 +129,7 @@ def test_dsa_sig_is_still_a_dataclass() -> None:
     that takes the flag, not only these three -- so what the dataclass
     generates around them is all that is left to check, and it must not
     go too. field(kw_only=True) would express the same thing in fewer
-    lines and is available now that 3.10 is the floor; it is not used,
+    lines and is available now that 3.11 is the floor; it is not used,
     because using it in three of the many is the inconsistency the
     written-out constructors removed.
     """

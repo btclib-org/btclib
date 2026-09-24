@@ -100,9 +100,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import TypeVar
+from typing import Self, TypeVar
 
-from typing_extensions import Self, override
+from typing_extensions import override
 
 from btclib import var_int
 from btclib.alias import BinaryData, Octets

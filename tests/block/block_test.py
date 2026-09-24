@@ -14,7 +14,7 @@ files verify themselves. tests/_data/README.md lists the heights, hashes
 and sizes.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -67,7 +67,7 @@ def test_block_1() -> None:
     assert header.previous_block_hash == NETWORKS["mainnet"].genesis_block
     merkle_root = "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098"
     assert header.merkle_root.hex() == merkle_root
-    timestamp = datetime(2009, 1, 9, 2, 54, 25, tzinfo=timezone.utc)
+    timestamp = datetime(2009, 1, 9, 2, 54, 25, tzinfo=UTC)
     assert header.time == timestamp
     assert header.bits.hex() == "1d00ffff"
     assert header.nonce == 0x9962E301
@@ -151,14 +151,14 @@ def test_exceptions() -> None:
 
     header = BlockHeader.parse(header_bytes)
     # one second before genesis
-    header.time = datetime(2009, 1, 3, 18, 15, 4, tzinfo=timezone.utc)
+    header.time = datetime(2009, 1, 3, 18, 15, 4, tzinfo=UTC)
     err_msg = "invalid timestamp \\(before genesis\\): "
     with pytest.raises(BTClibValueError, match=err_msg):
         header.assert_valid()
 
     header = BlockHeader.parse(header_bytes)
     # one second past the last instant four unsigned bytes can hold
-    header.time = datetime(2106, 2, 7, 6, 28, 16, tzinfo=timezone.utc)
+    header.time = datetime(2106, 2, 7, 6, 28, 16, tzinfo=UTC)
     err_msg = "invalid timestamp \\(after the last 4-bytes instant\\): "
     with pytest.raises(BTClibValueError, match=err_msg):
         header.assert_valid()
@@ -166,12 +166,12 @@ def test_exceptions() -> None:
     # bound is about: without the bound, serialize would raise
     # OverflowError one second later, for a header assert_valid had just
     # accepted
-    header.time = datetime(2106, 2, 7, 6, 28, 15, tzinfo=timezone.utc)
+    header.time = datetime(2106, 2, 7, 6, 28, 15, tzinfo=UTC)
     assert header.serialize()[68:72] == b"\xff" * 4
     # the far end of the range datetime itself can hold: its timestamp()
     # is a float that rounds up to year 10000, so rendering it through
     # fromtimestamp would raise ValueError out of assert_valid
-    header.time = datetime.max.replace(tzinfo=timezone.utc)
+    header.time = datetime.max.replace(tzinfo=UTC)
     with pytest.raises(BTClibValueError, match=err_msg):
         header.assert_valid()
 
@@ -235,7 +235,7 @@ def test_block_header_defaults() -> None:
     assert header.nonce == 0
     # the epoch itself, not one second either side of it: aware, because
     # a naive one would compare differently depending on the machine
-    assert header.time == datetime(1970, 1, 1, tzinfo=timezone.utc)
+    assert header.time == datetime(1970, 1, 1, tzinfo=UTC)
 
 
 def test_parse_reads_the_timestamp_field_unsigned() -> None:
@@ -246,7 +246,7 @@ def test_parse_reads_the_timestamp_field_unsigned() -> None:
     would still accept the result, silently, rather than raising or even
     landing in the right century.
     """
-    time = datetime(2040, 1, 1, tzinfo=timezone.utc)
+    time = datetime(2040, 1, 1, tzinfo=UTC)
     header = BlockHeader(
         1,
         bytes(32),
@@ -276,7 +276,7 @@ def test_check_validity_defaults_to_true_everywhere_it_appears() -> None:
         -1,
         bytes(32),
         bytes(32),
-        datetime(2009, 1, 9, 2, 54, 25, tzinfo=timezone.utc),
+        datetime(2009, 1, 9, 2, 54, 25, tzinfo=UTC),
         bytes.fromhex("1d00ffff"),
         0,
         check_validity=False,
@@ -287,7 +287,7 @@ def test_check_validity_defaults_to_true_everywhere_it_appears() -> None:
             -1,
             bytes(32),
             bytes(32),
-            datetime(2009, 1, 9, 2, 54, 25, tzinfo=timezone.utc),
+            datetime(2009, 1, 9, 2, 54, 25, tzinfo=UTC),
             bytes.fromhex("1d00ffff"),
             0,
         )
@@ -353,7 +353,7 @@ def test_block_check_validity_defaults_to_true_everywhere_it_appears() -> None:
         # cannot pass by accident
         bytes(32),
         bytes(32),
-        datetime(2009, 1, 9, 2, 54, 25, tzinfo=timezone.utc),
+        datetime(2009, 1, 9, 2, 54, 25, tzinfo=UTC),
         bytes.fromhex("1d00ffff"),
         0,
         check_validity=False,
@@ -456,7 +456,7 @@ def test_block_170() -> None:
     assert header.previous_block_hash.hex() == prev_block
     merkle_root = "7dac2c5666815c17a3b36427de37bb9d2e2c5ccec3f8633eb91a4205cb4c10ff"
     assert header.merkle_root.hex() == merkle_root
-    timestamp = datetime(2009, 1, 12, 3, 30, 25, tzinfo=timezone.utc)
+    timestamp = datetime(2009, 1, 12, 3, 30, 25, tzinfo=UTC)
     assert header.time == timestamp
     assert header.bits.hex() == "1d00ffff"
     assert header.nonce == 0x709E3E28
@@ -503,7 +503,7 @@ def test_block_200000() -> None:
     assert header.previous_block_hash.hex() == prev_block
     merkle_root = "a08f8101f50fd9c9b3e5252aff4c1c1bd668f878fffaf3d0dbddeb029c307e88"
     assert header.merkle_root.hex() == merkle_root
-    assert header.time == datetime(2012, 9, 22, 10, 45, 59, tzinfo=timezone.utc)
+    assert header.time == datetime(2012, 9, 22, 10, 45, 59, tzinfo=UTC)
     assert header.bits.hex() == "1a05db8b"
     assert header.nonce == 0xF7D8D840
 
@@ -569,7 +569,7 @@ def test_block_481824() -> None:
         assert header.version == 0x20000002
         assert header.previous_block_hash.hex() == prev_block
         assert header.merkle_root.hex() == merkle_root
-        timestamp = datetime(2017, 8, 24, 1, 57, 37, tzinfo=timezone.utc)
+        timestamp = datetime(2017, 8, 24, 1, 57, 37, tzinfo=UTC)
         assert header.time == timestamp
         assert header.bits.hex() == "18013ce9"
         assert header.nonce == 0x2254FF22

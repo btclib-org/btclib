@@ -58,9 +58,8 @@ except PackageNotFoundError:
     # a source tree with no metadata beside it: git clone and import, or
     # read the docs, which builds without installing this package. Any
     # number here would be a guess, and reading pyproject.toml back is not
-    # the way to stop guessing: tomllib is standard library from 3.11 only,
-    # this package supports 3.10, and the file is not in the wheel anyway.
-    # Importing has to keep working, so the version says it does not know
+    # the way to stop guessing: the file is not in the wheel. Importing has
+    # to keep working, so the version says it does not know
     __version__ = "unknown"
 # the one place the years are written. The notice at the head of every
 # source file carries none, by design: it comes from the COPYRIGHT file,

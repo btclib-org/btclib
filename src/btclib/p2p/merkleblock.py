@@ -49,8 +49,9 @@ out of asking.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Self
 
-from typing_extensions import Self, override
+from typing_extensions import override
 
 from btclib.alias import BinaryData
 from btclib.block.block_header import BlockHeader

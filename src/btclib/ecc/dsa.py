@@ -39,9 +39,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
 from types import TracebackType
-from typing import Any, TypeVar, overload
-
-from typing_extensions import Self
+from typing import Any, Self, TypeVar, overload
 
 from btclib import var_bytes
 from btclib._libsecp256k1 import dsa as libsecp256k1_dsa

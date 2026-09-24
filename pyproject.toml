@@ -46,7 +46,7 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 # Required, where the bindings below are an extra, and that asymmetry was
 # weighed rather than inherited: a `fetch` extra was considered and
 # refused (issue #1126). CONTRIBUTING.md's dependency paragraph carries
@@ -65,7 +65,7 @@ dependencies = [
     # its facade and the first release the `chains` module exists in
     "bitcoin-core-rpc>=2026.9.3",
     # `typing.override` is 3.12's, `typing.TypeIs` is 3.13's, and the
-    # floor is 3.10, so both come from the backport; 4.4 is the release
+    # floor is 3.11, so both come from the backport; 4.4 is the release
     # that adds `override`, 4.10 the one that adds `TypeIs`, and the
     # later of the two is the floor
     "typing-extensions>=4.10",
@@ -108,7 +108,6 @@ keywords = [
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -611,7 +610,7 @@ markers = [
 # where a test provokes it deliberately, and silenced by category alone
 # where tests/script_engine provokes it incidentally.
 # A blanket simplefilter("ignore") would defeat this table, which is why
-# there is none: checked on 3.10, 3.14, 3.14t and pypy3.11. An ignore added
+# there is none: checked on 3.11, 3.14, 3.14t and pypy3.11. An ignore added
 # here should name the warning, not a module, and say what would let it be
 # dropped
 filterwarnings = ["error"]
@@ -964,33 +963,33 @@ enable_error_code = [
     "unused-awaitable",
 ]
 warn_unreachable = true
-# the oldest interpreter this package supports, and also the oldest mypy
-# can be aimed at -- "Python 3.9 is not supported (must be 3.10 or
-# higher)" is its answer to anything lower. The two agree, so this key
-# says exactly what requires-python says.
+# the oldest interpreter this package supports. mypy's own floor is one
+# below it -- "Python 3.9 is not supported (must be 3.10 or higher)" is
+# its answer to anything lower -- so this key names our own floor rather
+# than mypy's.
 #
 # Keep the key. Without it mypy targets whatever runs it, i.e. the
 # interpreter .python-version pins, and a typing construct missing from the
-# floor is then invisible. Ruff needs no equivalent, inferring py310 from
+# floor is then invisible. Ruff needs no equivalent, inferring py311 from
 # requires-python.
 #
-# What the agreement buys is a whole class of bug moving from the matrix to
-# the type checker. An annotation is not evaluated under "from __future__
-# import annotations", but a type *alias* is an ordinary assignment, so
-# "ScriptList | None" at module level was a TypeError on 3.9 that no static
-# check could see: d284d0b7 was found by a 3.9 runner dying at collection,
-# nothing else. Aimed at the floor rather than above it, mypy reports
-# that itself. When mypy drops 3.10 in turn this pin will fail with the same
-# clear message, and the answer will be to raise the floor -- not to
-# reopen the gap.
+# What aiming at the floor buys is a whole class of bug moving from the
+# matrix to the type checker. An annotation is not evaluated under "from
+# __future__ import annotations", but a type *alias* is an ordinary
+# assignment, so "ScriptList | None" at module level was a TypeError on 3.9
+# that no static check could see: d284d0b7 was found by a 3.9 runner dying
+# at collection, nothing else. Aimed at the floor rather than above it,
+# mypy reports that itself. When mypy raises its own floor past 3.11 this
+# pin will fail with the same clear message, and the answer will be to
+# raise the floor -- not to reopen the gap.
 #
 # One run, not two. A second pass at the interpreter .python-version pins
 # would check the same code: there is no sys.version_info branch anywhere
 # in btclib or tests, so no source is conditional on the interpreter, and
 # what differs between the two targets is only stdlib stub semantics. An
-# stdlib API removed after 3.10 is a runtime failure the matrix reports, at
+# stdlib API removed after 3.11 is a runtime failure the matrix reports, at
 # 100% statement coverage
-python_version = "3.10"
+python_version = "3.11"
 # a regular expression, `re.search`'d against each discovered path
 # (mypy/modulefinder.py's matches_exclude) rather than a glob -- so an
 # unanchored "build" matches the substring anywhere in a path, not only

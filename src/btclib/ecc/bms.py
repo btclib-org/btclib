@@ -240,11 +240,10 @@ class Sig:
         # which would make a signature reachable from unboundedly many
         # strings. validate=True rejects that junk, but it is not enough
         # on its own: what it makes of padding depends on the
-        # interpreter, and not in one direction -- 3.11 takes the excess
-        # pad of "AAAA===" that 3.10 and 3.14 refuse, while 3.14 refuses
-        # the pad after a complete group in "QUJD=" that both of them
-        # take -- and every version discards the bits a non-final group
-        # leaves over. What settles it everywhere is requiring the
+        # interpreter -- 3.11 takes the excess pad of "AAAA===" and the
+        # pad after a complete group in "QUJD=" that 3.12 and later
+        # refuse -- and every version discards the bits a non-final
+        # group leaves over. What settles it everywhere is requiring the
         # canonical encoding, the one b64encode gives back.
         # the coercion before the strip, which is str's and bytes': what
         # is neither reached it untouched, so `bms.verify` handed a type

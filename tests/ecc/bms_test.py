@@ -8,7 +8,7 @@
 # the floor when this was written -- had no `|` on types: the module failed
 # to import there, so the whole file was 10 collection errors on the oldest
 # supported interpreter and passed on every other.
-# The floor is 3.10 now, where `|` on types is the language, so this line no
+# The floor is 3.11 now, where `|` on types is the language, so this line no
 # longer carries the file. It stays because every module in btclib and its
 # tests opens with it, and because the annotations it defers are still not
 # evaluated at def time -- which is what keeps a forward reference cheap
@@ -1172,10 +1172,10 @@ def test_b64decode_requires_the_canonical_encoding() -> None:
     65 bytes take 88 base64 characters, the last data one carrying 4
     significant bits and 2 that are discarded: four distinct strings
     decode to the very same signature. validate=True does not
-    see that, and what it makes of padding varies with the interpreter
-    in both directions -- 3.11 takes an excess pad that 3.10 and 3.14
-    refuse, 3.14 refuses one that they take -- so what settles it
-    everywhere is requiring the encoding b64encode gives back.
+    see that, and what it makes of padding varies with the interpreter:
+    3.11 takes an excess pad and a pad after a complete group that 3.12
+    and later refuse -- so what settles it everywhere is requiring the
+    encoding b64encode gives back.
     """
     alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
     wif, _ = bms.gen_keys()

@@ -20,10 +20,9 @@ and a test that hard-coded a date would be one more thing to move. What
 it holds is the weaker and checkable claim: whatever the three say, they
 say the same thing.
 
-Read with a regex rather than parsed. `tomllib` arrives in 3.11 and the
-floor here is 3.10, which is the reason `copyright_test.py` reads
-pyproject.toml the same way; the workflows are yaml and no group here
-carries a parser for that either.
+Read with a regex rather than parsed: the workflows are yaml and no
+group here carries a parser for that, so pyproject.toml is read the
+same way, for one style throughout.
 """
 
 import re
@@ -38,7 +37,7 @@ _ROOT = Path(__file__).parents[1]
 _PYPROJECT = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
 _WORKFLOWS = workflow_files(_ROOT / ".github/workflows")
 
-# "3.10" out of `requires-python = ">=3.10"`, the floor and nothing else:
+# "3.11" out of `requires-python = ">=3.11"`, the floor and nothing else:
 # an upper bound is not declared here and would be a different claim
 _FLOOR = re.compile(r'^requires-python = ">=(?P<version>3\.\d+)"', re.MULTILINE)
 # the per-version classifiers, not `:: 3` or `:: 3 :: Only`, which say
@@ -65,9 +64,9 @@ _PYTHONS = re.compile(
 # carries: `os-macos.yml`, `os-ubuntu.yml` and `os-windows.yml` are that
 # caller now (btclib-org/.github#35). reusable-deps-oldest.yml's own
 # five callers already establish the `with:` indent and the quoting for
-# one interpreter, `python-version: "3.10"`, and a `workflow_call` input
+# one interpreter, `python-version: "3.11"`, and a `workflow_call` input
 # can only be a string, so the list a caller passes arrives JSON-encoded
-# inside one -- `python-versions: '["3.10", "3.11"]'`. Read alongside
+# inside one -- `python-versions: '["3.11", "3.14"]'`. Read alongside
 # `_PYTHONS` rather than instead of it: no workflow here still declares
 # the block sequence, so that pattern matches nothing in this tree now,
 # and costs nothing kept beside one that does (btclib-org/.github#1119)
@@ -647,7 +646,7 @@ def test_a_caller_shaped_with_reads_the_same_interpreters_as_a_block() -> None:
     now (btclib-org/.github#35), and none of the three, or any other
     workflow here, still declares `_PYTHONS`'s own block sequence. This
     constructs the shape `reusable-deps-oldest.yml`'s own five callers
-    already establish for one interpreter -- `python-version: "3.10"` --
+    already establish for one interpreter -- `python-version: "3.11"` --
     widened the only way a `workflow_call` input can carry a list,
     JSON-encoded inside a quoted string, and checks that `_interpreters`
     reads it the same as the block sequence it stands beside

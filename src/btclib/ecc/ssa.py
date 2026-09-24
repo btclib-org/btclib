@@ -64,9 +64,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from hashlib import sha256
 from types import TracebackType
-from typing import overload
-
-from typing_extensions import Self
+from typing import Self, overload
 
 from btclib._libsecp256k1 import ssa as libsecp256k1_ssa
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point

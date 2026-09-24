@@ -15,7 +15,7 @@ comes from one of two places, named per test:
   so the `bits` taken from them are bits that satisfied real work.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -41,7 +41,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 def _time(timestamp: int) -> datetime:
     """Return the UTC datetime of a unix timestamp."""
-    return datetime.fromtimestamp(timestamp, timezone.utc)
+    return datetime.fromtimestamp(timestamp, UTC)
 
 
 def _bits_of(fname: str) -> bytes:

@@ -26,7 +26,7 @@ ISS 1602 is where the rest of that decision lives.
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -43,7 +43,7 @@ from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 _DATA = Path(__file__).parent / "_data"
 _PREVIOUS = "00000000000000000024fb37364cbf81fd49cc2d51c09c75c35433c3a1945d04"
-_TIME = datetime(2024, 5, 1, 12, 0, 0, tzinfo=timezone.utc)
+_TIME = datetime(2024, 5, 1, 12, 0, 0, tzinfo=UTC)
 # 0xffff * 2^232, satisfied by one nonce in 256 -- mining_test.py's own
 _EASY_BITS = "2000ffff"
 
@@ -242,7 +242,7 @@ def test_build_block_reproduces_mainnet_s_genesis() -> None:
         vout=[TxOut(subsidy(0), script_pub_key)],
     )
 
-    time = datetime.fromtimestamp(1231006505, timezone.utc)
+    time = datetime.fromtimestamp(1231006505, UTC)
     built = build_block(b"\x00" * 32, [genesis_tx], time, "1d00ffff", version=1)
     solved = replace(built.header, nonce=2083236893)
 
