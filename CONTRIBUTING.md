@@ -1463,7 +1463,9 @@ libsecp256k1's convention and it is used there for the same two halves:
 `secp256k1_scalar_inverse_var` sits beside `secp256k1_scalar_inverse`,
 `secp256k1_gej_add_var` beside `secp256k1_gej_add_ge`. The point of it is
 that the question is answered at the call site rather than in the
-docstring of the thing being called.
+docstring of the thing being called. A leading underscore changes none of
+this: the suffix states the implementation's timing, for a private
+function as for a public one.
 
 What "the work" is depends on the function, and each of these was
 measured rather than assumed — on secp256k1's order or its `p`, over

@@ -78,6 +78,11 @@ failed parse it with `tomllib` (closes #2252).
 FROST threshold signatures, BIP324's ElligatorSwift and BIP158 compact block
 filters are in btclib, and both lists name them (closes #2255).
 
+### A private function's `_var` suffix states its timing, as a public one's does
+
+`CONTRIBUTING.md` says so beside the convention, and `_mult_sec_var`
+keeps its name (closes #2246).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
