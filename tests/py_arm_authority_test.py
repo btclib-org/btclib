@@ -150,7 +150,7 @@ _THIRD_PARTY_VECTORS: dict[str, tuple[str, ...]] = {
 # docstring says what would
 _AUTHORITY: dict[str, tuple[str, ...]] = {
     "curves.curve.__init__": ("curves/curve_test.py",),
-    "curves.curve._jac_double_mult": (
+    "curves.curve._jac_double_mult_var": (
         "ecc/bms_test.py",
         "ecc/musig2_test.py",
         "ecc/rfc6979_test.py",

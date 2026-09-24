@@ -115,16 +115,16 @@ from math import ceil
 from btclib.alias import INFJ, JacPoint
 
 # the wNAF recoding and the table of odd multiples it indexes live in
-# curve_group, next to _convert_number_to_base and for the same reason:
+# curve_group, next to _convert_number_to_base_var and for the same reason:
 # its interleaved _multi_mult_w_NAF_var needs them, and the dependency runs
 # one way, this module importing that one
 from btclib.curves.curve_group import (
     CurveGroup,
-    _convert_number_to_base,
+    _convert_number_to_base_var,
     _jac_from_aff,
     _multi_mult_w_NAF_var,
     _signed_odd_multiples_aff,
-    _wNAF_of_m,
+    _wNAF_of_m_var,
     signed_odd_digits,
 )
 from btclib.exceptions import BTClibValueError
@@ -154,7 +154,7 @@ def _sliding_window_table(Q: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]
     return T
 
 
-def _double_and_add(
+def _double_and_add_var(
     R: JacPoint, Q: JacPoint, digits: list[int], ec: CurveGroup
 ) -> JacPoint:
     """Fold digits into R by the plain binary method, one bit at a time."""
@@ -187,7 +187,7 @@ def _mult_sliding_window_var(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> Jac
     T = _sliding_window_table(Q, ec, w)
     p = pow(2, w - 1)
 
-    digits = _convert_number_to_base(m, 2)
+    digits = _convert_number_to_base_var(m, 2)
 
     R = INFJ
     i = 0
@@ -200,7 +200,7 @@ def _mult_sliding_window_var(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> Jac
         # with fewer than w digits left the remainder is folded in bit by
         # bit instead, which is where the multiplication ends
         if len(digits) - i < w:
-            return _double_and_add(R, Q, digits[i:], ec)
+            return _double_and_add_var(R, Q, digits[i:], ec)
         # the w digits as a binary number; its top digit being 1, it is at
         # least 2^(w-1) and below 2^w, so entry t - 2^(w-1) of the table is
         # the multiple t*Q to be added
@@ -235,7 +235,7 @@ def _mult_w_NAF_var(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
     if w <= 0:
         raise BTClibValueError(f"non positive w: {w}")
 
-    M = _wNAF_of_m(m, w)
+    M = _wNAF_of_m_var(m, w)
 
     p = len(M)
 
@@ -284,7 +284,7 @@ def _double_mult_w_NAF_var(
     This is the one the library calls on every curve without the GLV
     endomorphism: `curves.double_mult_var`, `dsa` and `ssa` verification and
     public key recovery all reach it through `curve`'s
-    _double_mult_python, which sends secp256k1 to
+    _double_mult_python_var, which sends secp256k1 to
     _double_mult_endomorphism_secp256k1_var instead -- four half-length
     coefficients where this takes two full-length ones, and costs a fifth
     less doing it. Measured over random 256-bit coefficients, best of

@@ -327,8 +327,8 @@ used to teach and to prototype as much as to build:
     curve are the whole of what the predicate asks; the generator is a
     different call inside that arm and infinity is not delegated at
     all — `curve._mult_checked` at
-    `return _libsecp256k1_multi_mult([m], [Q])`
-    (`src/btclib/curves/curve.py:845`). `dh.diffie_hellman` at
+    `return _libsecp256k1_multi_mult_var([m], [Q])`
+    (`src/btclib/curves/curve.py:847`). `dh.diffie_hellman` at
     `sec = libsecp256k1_keys.pubkey_tweak_mul(`
     (`src/btclib/ecc/dh.py:108`) is the one this bullet was written
     from, and is an example rather than the population: key agreement

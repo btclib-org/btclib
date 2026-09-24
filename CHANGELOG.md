@@ -95,6 +95,12 @@ The architecture moves there from `CLAUDE.md` and `README.md`, which point
 at it; the assurance case cites the tree for every claim (issue
 btclib-org/.github#1321).
 
+### More private helpers whose duration follows an operand gain `_var`
+
+Private helpers in `curves.curve`, `curve_group`, `curve_group_2` and
+`ecc.ellswift` that loop on a scalar's bits, call `pubkey_tweak_mul_sum`, or
+wrap a `_var` function gain the suffix (closes #2259).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

@@ -15,7 +15,7 @@ half. Those are what a correct signer produces; these are what an
 attacker sends: DER that was malleated rather than computed, r and s
 placed on and just over the boundaries of 1..n-1, a hash chosen for its
 long runs of equal bits, an r that makes the Strauss-Shamir sum inside
-`_jac_double_mult` land on infinity, and public keys off the curve, on
+`_jac_double_mult_var` land on infinity, and public keys off the curve, on
 another curve, or on no curve at all.
 
 `result` is the verdict, and it has three values rather than two:

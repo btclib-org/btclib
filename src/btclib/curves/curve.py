@@ -651,7 +651,7 @@ def _sec_from_point(Q: Point) -> bytes:
     return b"\x04" + Q[0].to_bytes(p_size, "big") + Q[1].to_bytes(p_size, "big")
 
 
-def _libsecp256k1_multi_mult_(
+def _libsecp256k1_multi_mult_var_(
     scalars: Sequence[int], secs: Sequence[bytes]
 ) -> bytes | None:
     """Return sum(scalars[i]*points[i]) as octets, None for infinity.
@@ -722,7 +722,7 @@ def _multi_mult_x_only_var(
     to hand them to instead. It is the same rule `_x_octets` above serves,
     reached through the one door that exists for it.
 
-    `_libsecp256k1_multi_mult_` and not the public `multi_mult_var`, that
+    `_libsecp256k1_multi_mult_var_` and not the public `multi_mult_var`, that
     one taking points -- which is the form the lift would have to build
     and the multiplication would then write straight back out. The
     thirty-two terms of sixteen signatures cost a fifth less than they do
@@ -741,7 +741,7 @@ def _multi_mult_x_only_var(
     if _libsecp256k1_serves(ec, None):
         secs = [b"\x02" + x.to_bytes(ec.p_size, "big") for x in x_coords]
         try:
-            total = _libsecp256k1_multi_mult_(scalars, secs)
+            total = _libsecp256k1_multi_mult_var_(scalars, secs)
         except ValueError:
             for x in x_coords:
                 _y_even_var(x, ec)
@@ -772,13 +772,15 @@ def _point_from_sec(sec: bytes) -> Point:
     )
 
 
-def _libsecp256k1_multi_mult(scalars: Sequence[int], points: Sequence[Point]) -> Point:
+def _libsecp256k1_multi_mult_var(
+    scalars: Sequence[int], points: Sequence[Point]
+) -> Point:
     """Return sum(scalars[i]*points[i]), through the bindings.
 
     The Point signature the callers keep; the arithmetic is the bytes
     layer above, whose None is this function's INF.
     """
-    sec = _libsecp256k1_multi_mult_(scalars, [_sec_from_point(Q) for Q in points])
+    sec = _libsecp256k1_multi_mult_var_(scalars, [_sec_from_point(Q) for Q in points])
     return INF if sec is None else _point_from_sec(sec)
 
 
@@ -842,7 +844,7 @@ def _mult_checked(m: int, Q: Point | None, ec: Curve, *, prepared: bool) -> Poin
         # any other point, infinity excepted: that one is not a pubkey,
         # and m*INF == INF is what the Python path below answers anyway
         if Q[1]:
-            return _libsecp256k1_multi_mult([m], [Q])
+            return _libsecp256k1_multi_mult_var([m], [Q])
 
     if Q is None or Q == ec.G:
         # the fixed-base case, and the whole of what makes it one: the
@@ -930,7 +932,7 @@ class PreparedPoint:
     onto it, `mult` taking this arm for a zero scalar besides,
     libsecp256k1 having no scalar for one. Neither call passes a hash
     function: a verification's is spent on its own module's guard, and
-    `_jac_double_mult` under that guard asks the predicate again with
+    `_jac_double_mult_var` under that guard asks the predicate again with
     none, so a hash function the bindings do not serve leaves the
     multiplication delegated and the tables handed to it unused. Where a
     call's whole guard holds there is nothing here to reach --
@@ -1021,14 +1023,14 @@ class PreparedPoint:
         return _mult_checked(m, self.point, self.ec, prepared=True)
 
 
-def _double_mult_python(
+def _double_mult_python_var(
     u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve, fixed: frozenset[JacPoint]
 ) -> JacPoint:
     """Return u*HJ + v*QJ in Python, through the endomorphism if there is one.
 
-    The arm `double_mult_var` and `_jac_double_mult` share, so that one place
-    decides which double multiplication a curve gets and both reach the
-    same one. On secp256k1 that is the GLV split of both coefficients,
+    The arm `double_mult_var` and `_jac_double_mult_var` share, so that
+    one place decides which double multiplication a curve gets and both
+    reach the same one. On secp256k1 that is the GLV split of both coefficients,
     which is to `_double_mult_w_NAF_var` what `_mult_endomorphism_secp256k1`
     is to `_mult`: the same answer for ~128 doublings instead of ~256.
 
@@ -1082,14 +1084,14 @@ def double_mult_var(
     # sum -- infinity -- to answer for as well, which the Python path
     # below answers already, so the whole call goes there instead
     if u and v and H[1] and Q[1] and _libsecp256k1_serves(ec, None):
-        return _libsecp256k1_multi_mult([u, v], [H, Q])
+        return _libsecp256k1_multi_mult_var([u, v], [H, Q])
 
     HJ = _jac_from_aff(H)
     QJ = _jac_from_aff(Q)
     # nothing prepared: this entry point takes two bare points, and a
     # caller with a point that repeats says so through `PreparedPoint`,
     # which the verifications take
-    R = _double_mult_python(u, HJ, v, QJ, ec, ec._fixed_points)
+    R = _double_mult_python_var(u, HJ, v, QJ, ec, ec._fixed_points)
     return ec.aff_from_jac_var(R)
 
 
@@ -1320,7 +1322,7 @@ class TweakChain:
         return _tweak_add_var(self.base, t, self.ec)
 
 
-def _jac_double_mult(
+def _jac_double_mult_var(
     u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve, fixed: frozenset[JacPoint]
 ) -> JacPoint:
     """Return u*HJ + v*QJ in Jacobian coordinates, delegated where it can be.
@@ -1357,7 +1359,7 @@ def _jac_double_mult(
     cheapest operand it has.
     """
     if not _libsecp256k1_serves(ec, None):
-        return _double_mult_python(u, HJ, v, QJ, ec, fixed)
+        return _double_mult_python_var(u, HJ, v, QJ, ec, fixed)
 
     # `fixed` is dropped on this arm and nothing is lost: libsecp256k1
     # holds its own tables, and what a caller prepared here is a table of
@@ -1378,7 +1380,7 @@ def multi_mult_var(
     ssa's batch verification is what hands many scalars over at once,
     libsecp256k1 exposing no batch verification of its own, and it is the
     Python arm of that sum which arrives here: the delegated arm reaches
-    `_libsecp256k1_multi_mult_` below with its terms as octets, this
+    `_libsecp256k1_multi_mult_var_` below with its terms as octets, this
     signature taking points and a point being what its terms would have
     to be lifted into for the multiplication to write them straight back
     out.
@@ -1400,7 +1402,7 @@ def multi_mult_var(
         and _libsecp256k1_serves(ec, None)
         and all(m and Q[1] for m, Q in zip(ints, points, strict=True))
     ):
-        return _libsecp256k1_multi_mult(ints, points)
+        return _libsecp256k1_multi_mult_var(ints, points)
 
     jac_points = [_jac_from_aff(Q) for Q in points]
     R = _multi_mult_var(ints, jac_points, ec)

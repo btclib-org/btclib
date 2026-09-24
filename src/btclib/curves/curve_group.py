@@ -907,7 +907,7 @@ def _cached_multiples_fixwind(
     return T
 
 
-def _convert_number_to_base(i: int, base: int) -> list[int]:
+def _convert_number_to_base_var(i: int, base: int) -> list[int]:
     """Return the digits of an integer in the requested base."""
     digits: list[int] = []
     while i or not digits:
@@ -923,7 +923,7 @@ def _mods(m: int, w: int) -> int:
     return M - w2 if (w2 // 2) <= M else M
 
 
-def _wNAF_of_m(m: int, w: int) -> list[int]:
+def _wNAF_of_m_var(m: int, w: int) -> list[int]:
     """WNAF (width-w Non-adjacent form) of number m.
 
     Given an integer m, wNAF is a method of representation
@@ -935,7 +935,7 @@ def _wNAF_of_m(m: int, w: int) -> list[int]:
     representation of k.
     -The average density of nonzero digits is approximately 1/(w + 1).
 
-    This recoding sits here next to _convert_number_to_base, the same kind
+    This recoding sits here next to _convert_number_to_base_var, the same kind
     of integer-only helper, rather than with the wNAF multiplications of
     curve_group_2: the interleaved _multi_mult_w_NAF_var below needs it, and
     curve_group cannot import the module that imports it.
@@ -968,7 +968,7 @@ def signed_odd_digits(m: int, w: int, size: int) -> list[int]:
 
     Regular recoding, Joye-Tunstall: m = sum(digits[i] * 2^(w*i)) with
     every digit odd and in {±1, ±3, ..., ±(2^w - 1)}, least significant
-    first, as _wNAF_of_m returns its own. Two properties are what it is
+    first, as _wNAF_of_m_var returns its own. Two properties are what it is
     for, and neither is the wNAF's:
 
     - no digit is zero, so the multiplication that indexes them makes one
@@ -1251,7 +1251,7 @@ def _mult_base_3_var(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     # at each step one of the points in T will be added
     T = [INFJ, Q, ec.double_jac(Q)]
 
-    digits = _convert_number_to_base(m, 3)
+    digits = _convert_number_to_base_var(m, 3)
 
     R = T[digits[0]]
     for i in digits[1:]:
@@ -1287,7 +1287,7 @@ def _mult_fixed_window_var(
     # at each step one of the points in T will be added
     T = _cached_multiples(Q, ec) if cached else _multiples(Q, 2**w, ec)
 
-    digits = _convert_number_to_base(m, 2**w)
+    digits = _convert_number_to_base_var(m, 2**w)
 
     R = T[digits[0]]
     for i in digits[1:]:
@@ -1323,7 +1323,7 @@ def _mult_fixed_window_cached_var(
 
     T = _cached_multiples_fixwind(Q, ec, w)
 
-    digits = _convert_number_to_base(m, 2**w)
+    digits = _convert_number_to_base_var(m, 2**w)
 
     k = len(digits) - 1
 
@@ -1656,7 +1656,7 @@ def _multi_mult_w_NAF_var(
     pending: list[tuple[int, list[JacPoint]]] = []
     for i, (n, PJ) in enumerate(pairs):
         width = fixed_w if PJ in fixed else w
-        nafs.append(_wNAF_of_m(n, width))
+        nafs.append(_wNAF_of_m_var(n, width))
         if PJ in fixed:
             tables.append(_cached_odd_multiples_aff(PJ, ec, width))
         else:

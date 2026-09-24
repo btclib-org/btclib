@@ -223,7 +223,7 @@ def _xswiftec_inv_var(x: int, u: int, case: int, ec: Curve) -> int | None:  # no
     return -w * (u * ((1 + minus_3_sqrt) % p) % p * inv2 + v) % p
 
 
-def _x_t_from_ell(ell: bytes, ec: Curve) -> tuple[int, int]:
+def _x_t_from_ell_var(ell: bytes, ec: Curve) -> tuple[int, int]:
     """Return the decoded x-coordinate and the reduced t beside it."""
     size = ec.p_size
     u = int.from_bytes(ell[:size], byteorder="big", signed=False) % ec.p
@@ -233,7 +233,7 @@ def _x_t_from_ell(ell: bytes, ec: Curve) -> tuple[int, int]:
 
 def _point_from_ell_var(ell: bytes, ec: Curve) -> Point:
     """Return the point the encoding decodes to, in Python."""
-    x, t = _x_t_from_ell(ell, ec)
+    x, t = _x_t_from_ell_var(ell, ec)
     # the parity of t is the y the pair names, which is the half of the
     # encoding BIP324's own reference implementation leaves out: it maps
     # to an x-coordinate and stops, where libsecp256k1's decode lifts the
@@ -242,7 +242,7 @@ def _point_from_ell_var(ell: bytes, ec: Curve) -> Point:
     return x, (ec.p - y if t % 2 else y)
 
 
-def _ell_from_point(Q: Point, ec: Curve) -> bytes:
+def _ell_from_point_var(Q: Point, ec: Curve) -> bytes:
     """Return a random encoding of the point, in Python."""
     p = ec.p
     size = ec.p_size
@@ -297,7 +297,7 @@ def create_var(prv_key: Integer, ec: Curve = secp256k1) -> bytes:
         return libsecp256k1_ellswift.create(q)
 
     _constants(ec)  # the curve is refused here rather than after a mult
-    return _ell_from_point(mult(q, ec.G, ec), ec)
+    return _ell_from_point_var(mult(q, ec.G, ec), ec)
 
 
 def encode_var(pub_key: PubKey, ec: Curve = secp256k1) -> bytes:
@@ -317,7 +317,7 @@ def encode_var(pub_key: PubKey, ec: Curve = secp256k1) -> bytes:
         return libsecp256k1_ellswift.encode(bytes_from_point(Q, ec, compressed=False))
 
     _constants(ec)
-    return _ell_from_point(Q, ec)
+    return _ell_from_point_var(Q, ec)
 
 
 def decode_var(ell: Octets, ec: Curve = secp256k1) -> Point:
@@ -367,7 +367,7 @@ def xdh(
     # the shared x-coordinate is the same for either y of the decoded
     # point, q*P and q*(-P) differing by their own y alone, so the t
     # parity the decoding would apply does not reach the secret
-    x_theirs, _ = _x_t_from_ell(ell_b if party == 0 else ell_a, ec)
+    x_theirs, _ = _x_t_from_ell_var(ell_b if party == 0 else ell_a, ec)
     x = mult(q, (x_theirs, _y_even_var(x_theirs, ec)), ec)[0]
     preimage = ell_a + ell_b + x.to_bytes(ec.p_size, byteorder="big", signed=False)
     return tagged_hash(XDH_TAG, preimage)
