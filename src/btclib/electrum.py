@@ -221,8 +221,8 @@ class MerkleProof:
     block explorer all already use. `block_height` is the server's own
     claim of which block, unchecked here: it is what a caller passes to
     `btclib_wallet.fetch.Fetcher.get_block_header` to fetch the header
-    this proof is checked against, so a wrong claim there is a wrong header fetched, and the
-    branch check below is what refuses it.
+    this proof is checked against, so a wrong claim there is a wrong
+    header fetched, and the branch check below is what refuses it.
     """
 
     block_height: int

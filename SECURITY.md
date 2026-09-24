@@ -170,7 +170,7 @@ used to teach and to prototype as much as to build:
     the bullet above already gives: no Python object holding a secret
     is zeroized, on either path, and this one is no exception to it.
     `dsa.Signer.__init__` at `self._q.to_bytes(32, "big")`
-    (`src/btclib/ecc/dsa.py:1387`) crosses the same boundary the other
+    (`src/btclib/ecc/dsa.py:1388`) crosses the same boundary the other
     way, once, at construction: the plain `int` `scalar_from_prv_key`
     already produced becomes a transient `bytes` on the way into the
     owned buffer `wipe` overwrites afterwards. That `bytes` is dropped
