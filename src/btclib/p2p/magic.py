@@ -44,7 +44,7 @@ BIP network names -- "mainnet", "testnet" -- where Core says "main" and
 on the way in, client_errors on the way out".
 
 On the way out there is nothing to translate, and that is by
-construction rather than by luck. `network._validated_network_name` is
+construction rather than by luck. `network.validated_network_name` is
 what the name goes through first -- the `strip().lower()` tolerance
 issue #216 decided every `network: str` parameter keeps -- so what
 reaches `chain_from_network` is a key of `NETWORKS`, and every one of
@@ -62,7 +62,7 @@ from bitcoin_core_rpc import (
     magic_from_signet_challenge,
 )
 
-from btclib.network import _validated_network_name
+from btclib.network import validated_network_name
 
 __all__ = [
     "magic_from_chain",
@@ -86,4 +86,4 @@ def magic_from_network(network: str = "mainnet") -> bytes:
     this shares with the rest of the library rather than from the package
     the table is in.
     """
-    return magic_from_chain(chain_from_network(_validated_network_name(network)))
+    return magic_from_chain(chain_from_network(validated_network_name(network)))

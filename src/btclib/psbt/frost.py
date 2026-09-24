@@ -143,12 +143,12 @@ from btclib.alias import Octets
 from btclib.ecc import frost, ssa
 
 # the widths this module writes are the ones `btclib.ecc.frost` reads:
-# an identifier is `_ID_SIZE` bytes big-endian there (`_serialize_ids`),
+# an identifier is `ID_SIZE` bytes big-endian there (`_serialize_ids`),
 # a public share and a threshold public key are compressed points, and
-# `_MAX_PARTICIPANTS` is the security bound that module states. Imported
+# `MAX_PARTICIPANTS` is the security bound that module states. Imported
 # rather than restated, as `ecc.frost` itself imports `curves.curve`'s
 # `_sum_var`: a second copy of a width is a second thing to keep true
-from btclib.ecc.frost import _ID_SIZE, _MAX_PARTICIPANTS, _PK_SIZE
+from btclib.ecc.frost import ID_SIZE, MAX_PARTICIPANTS, PK_SIZE
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.psbt.psbt import (
@@ -198,7 +198,7 @@ FROST_PARTIAL_SIG = 2
 
 # what a record about one group is keyed by: the writer's identifier
 # and the threshold public key
-_INFO_KEY_SIZE = _ID_SIZE + _PK_SIZE
+_INFO_KEY_SIZE = ID_SIZE + PK_SIZE
 
 # and what one contribution to one session is keyed by: the signer's own
 # identifier, that same threshold public key, and the tapleaf hash of
@@ -217,8 +217,8 @@ _PARTIAL_SIG_SIZE = 32
 # an `(id, pubshare)` pair of the threshold info record, and the two
 # counts in front of the pairs -- `t` and `n`, written at an
 # identifier's own width so that the record holds one integer width
-_PAIR_SIZE = _ID_SIZE + _PK_SIZE
-_COUNTS_SIZE = 2 * _ID_SIZE
+_PAIR_SIZE = ID_SIZE + PK_SIZE
+_COUNTS_SIZE = 2 * ID_SIZE
 
 
 def _subtype_key(subtype: int) -> bytes:
@@ -248,7 +248,7 @@ def _record_key(subtype: int, my_id: int, tail: bytes) -> bytes:
     and what the record is about: a threshold public key, or one with a
     tapleaf hash after it.
     """
-    return _subtype_key(subtype) + my_id.to_bytes(_ID_SIZE, "big") + tail
+    return _subtype_key(subtype) + my_id.to_bytes(ID_SIZE, "big") + tail
 
 
 def _by_participant(
@@ -263,9 +263,9 @@ def _by_participant(
     changes the aggregate nonce the others signed against.
     """
     return {
-        int.from_bytes(key_data[:_ID_SIZE], "big"): value
+        int.from_bytes(key_data[:ID_SIZE], "big"): value
         for key_data, value in _records(psbt_map, subtype).items()
-        if key_data[_ID_SIZE:] == tail
+        if key_data[ID_SIZE:] == tail
     }
 
 
@@ -279,12 +279,12 @@ def _serialize_threshold_info(info: frost.ThresholdInfo) -> bytes:
     """
     n = len(info.pub_shares)
     pairs = [
-        i.to_bytes(_ID_SIZE, "big") + pub_share
+        i.to_bytes(ID_SIZE, "big") + pub_share
         for i, pub_share in enumerate(info.pub_shares)
         if pub_share is not None
     ]
     return b"".join(
-        [info.t.to_bytes(_ID_SIZE, "big"), n.to_bytes(_ID_SIZE, "big"), *pairs]
+        [info.t.to_bytes(ID_SIZE, "big"), n.to_bytes(ID_SIZE, "big"), *pairs]
     )
 
 
@@ -304,19 +304,19 @@ def _parse_threshold_info(value: bytes) -> tuple[int, int, dict[int, bytes]]:
     if len(value) < _COUNTS_SIZE or (len(value) - _COUNTS_SIZE) % _PAIR_SIZE:
         err_msg = f"invalid frost threshold info length: {len(value)} bytes"
         raise BTClibValueError(err_msg)
-    t = int.from_bytes(value[:_ID_SIZE], "big")
-    n = int.from_bytes(value[_ID_SIZE:_COUNTS_SIZE], "big")
-    if n > _MAX_PARTICIPANTS:
+    t = int.from_bytes(value[:ID_SIZE], "big")
+    n = int.from_bytes(value[ID_SIZE:_COUNTS_SIZE], "big")
+    if n > MAX_PARTICIPANTS:
         err_msg = f"invalid frost participant count: {n}"
         raise BTClibValueError(err_msg)
     pub_shares: dict[int, bytes] = {}
     for start in range(_COUNTS_SIZE, len(value), _PAIR_SIZE):
         pair = value[start : start + _PAIR_SIZE]
-        i = int.from_bytes(pair[:_ID_SIZE], "big")
+        i = int.from_bytes(pair[:ID_SIZE], "big")
         if i >= n or i in pub_shares:
             err_msg = f"invalid frost participant identifier: {i}"
             raise BTClibValueError(err_msg)
-        pub_shares[i] = pair[_ID_SIZE:]
+        pub_shares[i] = pair[ID_SIZE:]
     return t, n, pub_shares
 
 
@@ -375,7 +375,7 @@ def threshold_info(
     where these are bytes inside `unknown` and this is the only way to
     read them back.
     """
-    thresh_pk = bytes_from_octets(thresh_pk, _PK_SIZE)
+    thresh_pk = bytes_from_octets(thresh_pk, PK_SIZE)
     records = _by_participant(psbt_map, FROST_THRESHOLD_INFO, thresh_pk)
     if not records:
         err_msg = f"no frost threshold info for threshold public key {thresh_pk.hex()}"
@@ -530,7 +530,7 @@ def session_context(
     there is no second object to carry, and the tweaked key is
     `btclib.ecc.frost.session_values`, memoized on the context.
     """
-    thresh_pk = bytes_from_octets(thresh_pk, _PK_SIZE)
+    thresh_pk = bytes_from_octets(thresh_pk, PK_SIZE)
     leaf_hash = bytes_from_octets(leaf_hash)
     parts = _session_parts(psbt, vin_i, thresh_pk, leaf_hash)
     pub_nonces = _by_participant(
@@ -580,7 +580,7 @@ def nonce_gen(
     secret share's identifier is what `btclib.ecc.frost.sign` checks in
     round 2 against the public share this one names.
     """
-    thresh_pk = bytes_from_octets(thresh_pk, _PK_SIZE)
+    thresh_pk = bytes_from_octets(thresh_pk, PK_SIZE)
     leaf_hash = bytes_from_octets(leaf_hash)
     parts = _session_parts(psbt, vin_i, thresh_pk, leaf_hash)
     sec_nonce, pub_nonce = frost.nonce_gen(
@@ -616,7 +616,7 @@ def partial_sign(
     session it got wrong has published a number the others cannot use
     and cannot make it un-published.
     """
-    thresh_pk = bytes_from_octets(thresh_pk, _PK_SIZE)
+    thresh_pk = bytes_from_octets(thresh_pk, PK_SIZE)
     leaf_hash = bytes_from_octets(leaf_hash)
     psbt_in = psbt.inputs[vin_i]
     pub_nonces = _by_participant(psbt_in, FROST_PUB_NONCE, thresh_pk + leaf_hash)
@@ -655,7 +655,7 @@ def partial_sig_verify(
     aggregation time, where the only news is that the total does not
     verify.
     """
-    thresh_pk = bytes_from_octets(thresh_pk, _PK_SIZE)
+    thresh_pk = bytes_from_octets(thresh_pk, PK_SIZE)
     leaf_hash = bytes_from_octets(leaf_hash)
     psbt_in = psbt.inputs[vin_i]
     tail = thresh_pk + leaf_hash
@@ -694,7 +694,7 @@ def partial_sigs_agg(
     second session with the same nonce, which is the one thing that
     hands out a secret share.
     """
-    thresh_pk = bytes_from_octets(thresh_pk, _PK_SIZE)
+    thresh_pk = bytes_from_octets(thresh_pk, PK_SIZE)
     leaf_hash = bytes_from_octets(leaf_hash)
     psbt_in = psbt.inputs[vin_i]
     session = session_context(psbt, vin_i, thresh_pk, leaf_hash=leaf_hash)
@@ -781,7 +781,7 @@ def assert_valid_records(psbt_map: PsbtIn | PsbtOut) -> None:
     # -- the merge, its refusal of two writers that disagree, and
     # `validate_threshold_info` over the result
     for thresh_pk in {
-        key_data[_ID_SIZE:] for key_data in _records(psbt_map, FROST_THRESHOLD_INFO)
+        key_data[ID_SIZE:] for key_data in _records(psbt_map, FROST_THRESHOLD_INFO)
     }:
         threshold_info(psbt_map, thresh_pk)
     _assert_valid_session_records(

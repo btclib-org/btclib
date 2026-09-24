@@ -25,7 +25,7 @@ from btclib.curves import (
     secp256k1,
 )
 from btclib.curves.curve import CURVES
-from btclib.curves.sec_point import _mult_sec_var
+from btclib.curves.sec_point import _mult_sec_var, mult_pub_key
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from tests import needs_bindings
 
@@ -262,6 +262,53 @@ def test_mult_sec_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     x_Q = 0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34
     with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
         _mult_sec_var(b"\x02" + x_Q.to_bytes(ec.p_size, "big"), 2, ec)
+
+
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
+def test_mult_pub_key(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    """m*P for a public key of any spelling, the scalar checked and reduced.
+
+    The two twins it composes are asserted above; what is left is the
+    public spelling's own part: every form of `PubKey`, a scalar as any
+    `Integer` and reduced mod n, and a key that is no point refused as a
+    `BTClibValueError` whichever form it arrived in.
+    """
+    if not bindings:
+        monkeypatch.setattr(curve, "_libsecp256k1_available", False)
+
+    ec = CURVES["secp256k1"]
+    Q = mult(3)
+    for pub_key in (
+        Q,
+        PreparedPoint(Q),
+        bytes_from_point(Q),
+        bytes_from_point(Q, compressed=False),
+        bytes_from_point(Q).hex(),
+    ):
+        assert mult_pub_key(5, pub_key) == mult(5, Q)
+        assert mult_pub_key(ec.n + 5, pub_key, ec) == mult(5, Q)
+        assert mult_pub_key("05", pub_key) == mult(5, Q)
+        assert mult_pub_key(0, pub_key) == INF
+
+    x_Q = 0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34
+    for not_a_point in (
+        b"\x02" + x_Q.to_bytes(ec.p_size, "big"),
+        (ec.G[0], ec.G[1] + 1),
+        INF,
+    ):
+        with pytest.raises(BTClibValueError):
+            mult_pub_key(5, not_a_point)
+
+    with pytest.raises(BTClibTypeError):
+        mult_pub_key(1.5, Q)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError):
+        mult_pub_key(5, 7)  # type: ignore[arg-type]
 
 
 def test_a_scalar_is_an_int_or_its_octets_and_nothing_else() -> None:

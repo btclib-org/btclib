@@ -71,7 +71,7 @@ from dataclasses import dataclass
 from btclib._libsecp256k1 import silentpayments as libsecp256k1_silentpayments
 from btclib.alias import Integer, NetworkType, Octets, Point, String
 from btclib.b32 import power_of_2_base_conversion
-from btclib.bech32 import _BECH32_M_CONST, decode, encode
+from btclib.bech32 import BECH32_M_CONST, decode, encode
 from btclib.curves import (
     PubKey,
     bytes_from_point,
@@ -82,10 +82,10 @@ from btclib.curves import (
     secp256k1,
 )
 from btclib.curves.curve import (
+    TweakChain,
     _libsecp256k1_serves,
     _sum_var,
     _tweak_add_var,
-    _TweakChain,
 )
 from btclib.curves.sec_point import _mult_sec_var, _sec_from_pub_key
 from btclib.ecc.ssa import point_from_bip340pub_key
@@ -251,7 +251,7 @@ def address_from_keys(B_scan: PubKey, B_m: PubKey, network: str = "mainnet") -> 
     # between bech32 and bech32m, and here data[0] is a silent payment
     # version -- 0, which would pick the bech32 constant and produce a
     # string no BIP352 implementation accepts
-    return encode(_hrp_from_network(network), data, _BECH32_M_CONST).decode("ascii")
+    return encode(_hrp_from_network(network), data, BECH32_M_CONST).decode("ascii")
 
 
 def keys_from_address(address: String) -> tuple[Point, Point, NetworkType]:
@@ -274,7 +274,7 @@ def keys_from_address(address: String) -> tuple[Point, Point, NetworkType]:
         err_msg = f"invalid address length: {len(addr)} > {_MAX_ADDRESS_SIZE}"
         raise BTClibValueError(err_msg)
 
-    hrp, data = decode(addr, _BECH32_M_CONST)
+    hrp, data = decode(addr, BECH32_M_CONST)
     if hrp == _MAINNET_HRP:
         network_type: NetworkType = "main"
     elif hrp == _TESTNET_HRP:
@@ -812,7 +812,7 @@ def scan_outputs(
     # every k tweaks the one spend key, and `_tweak_add_var` would cross
     # the boundary with it at each of them: the chain crosses with it once
     label_map = {} if labels is None else labels
-    chain = _TweakChain(point_from_pub_key(B_spend), secp256k1)
+    chain = TweakChain(point_from_pub_key(B_spend), secp256k1)
     remaining = [
         bytes_from_octets(output, secp256k1.p_size) for output in outputs_to_check
     ]

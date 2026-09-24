@@ -80,7 +80,7 @@ from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_size import SolutionSizer
 from btclib.psbt.psbt_utils import PSBT_V0
 from btclib.tx import TxOut
-from btclib.tx.tx import _SEGWIT_MARKER
+from btclib.tx.tx import SEGWIT_MARKER
 from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
@@ -161,7 +161,7 @@ def _target_overhead_vsize(outputs: Sequence[TxOut], candidate_count: int) -> in
     placeholder = Psbt(
         2, [], psbt_outputs, PSBT_V0, {}, fallback_lock_time=0, check_validity=False
     )
-    marker_pad = ceil(len(_SEGWIT_MARKER) / WITNESS_SCALE_FACTOR)
+    marker_pad = ceil(len(SEGWIT_MARKER) / WITNESS_SCALE_FACTOR)
     # the placeholder above already prices a zero-input var_int, one byte;
     # this is only the extra width a pool of 253 or more candidates can add
     input_count_pad = var_int._size(candidate_count) - var_int._size(0)

@@ -62,13 +62,20 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import is_integer, str_from_string
 
 __all__ = [
+    "BECH32_1_CONST",
+    "BECH32_M_CONST",
     "decode",
     "encode",
 ]
 
 _ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
-_BECH32_1_CONST = 1
-_BECH32_M_CONST = 0x2BC830A3
+# the `m` that `encode` and `decode` take: BIP173's bech32 and BIP350's
+# bech32m, which differ in this constant alone. Exported for a caller
+# whose first 5-bit digit is not a witness version -- a silent payment
+# address, a BIP85 nsec -- and which has to say which of the two it means,
+# `None` reading the choice off that digit
+BECH32_1_CONST = 1
+BECH32_M_CONST = 0x2BC830A3
 
 # BIP173's five generator constants, and the XOR of the ones each 5-bit
 # selection picks. What a step of _polymod applies depends on nothing but
@@ -115,7 +122,7 @@ def _m_from_wit_ver(data: list[int]) -> int:
     if not data:
         raise BTClibValueError("empty data in bech32 address")
     wit_ver = data[0]
-    return _BECH32_1_CONST if wit_ver == 0 else _BECH32_M_CONST
+    return BECH32_1_CONST if wit_ver == 0 else BECH32_M_CONST
 
 
 def _verify_checksum(hrp: str, data: list[int], m: int) -> bool:

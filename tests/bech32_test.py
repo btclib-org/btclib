@@ -40,10 +40,10 @@ from hypothesis import strategies as st
 
 from btclib.bech32 import (
     _ALPHABET,
-    _BECH32_1_CONST,
-    _BECH32_M_CONST,
     _GENERATOR,
     _TAPS,
+    BECH32_1_CONST,
+    BECH32_M_CONST,
     decode,
     encode,
 )
@@ -82,13 +82,13 @@ def test_bech32() -> None:
     ]
 
     for test in valid_checksum:
-        decoded = decode(test, _BECH32_1_CONST)
-        assert decoded == decode(test.encode("ascii"), _BECH32_1_CONST)
-        assert encode(*decoded, _BECH32_1_CONST).decode() == test.lower()
+        decoded = decode(test, BECH32_1_CONST)
+        assert decoded == decode(test.encode("ascii"), BECH32_1_CONST)
+        assert encode(*decoded, BECH32_1_CONST).decode() == test.lower()
         pos = test.rfind("1")
         test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]  # noqa: PLW2901
         with pytest.raises(BTClibValueError):  # assorted error messages
-            decode(test, _BECH32_1_CONST)
+            decode(test, BECH32_1_CONST)
 
     # a byte outside ascii is not a str decode() ever receives from the
     # loop above, which only ever encodes an already-valid bech32 string:
@@ -132,7 +132,7 @@ def test_bech32() -> None:
 
     for addr, err_msg in invalid_checksum:
         with pytest.raises(BTClibValueError, match=err_msg):
-            decode(addr, _BECH32_1_CONST)
+            decode(addr, BECH32_1_CONST)
 
 
 def test_bech32_insertion_issue() -> None:
@@ -147,7 +147,7 @@ def test_bech32_insertion_issue() -> None:
     """
     strings = ("ii2134hk2xmat79tp", "eyg5bsz1l2mrq5ypl40hp")
     for string, i in itertools.product(strings, range(20)):
-        decode(string[:-1] + i * "q" + string[-1:], _BECH32_1_CONST)
+        decode(string[:-1] + i * "q" + string[-1:], BECH32_1_CONST)
 
 
 def test_bech32m() -> None:
@@ -164,13 +164,13 @@ def test_bech32m() -> None:
         "an84characterslonghumanreadablepartthatcontainsthetheexcludedcharactersbioandnumber11d6pts4",
     ]
     for test in valid_checksum:
-        decoded = decode(test, _BECH32_M_CONST)
-        assert decoded == decode(test.encode("ascii"), _BECH32_M_CONST)
-        assert encode(*decoded, _BECH32_M_CONST).decode() == test.lower()
+        decoded = decode(test, BECH32_M_CONST)
+        assert decoded == decode(test.encode("ascii"), BECH32_M_CONST)
+        assert encode(*decoded, BECH32_M_CONST).decode() == test.lower()
         pos = test.rfind("1")
         test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]  # noqa: PLW2901
         with pytest.raises(BTClibValueError):
-            decode(test, _BECH32_M_CONST)
+            decode(test, BECH32_M_CONST)
 
     invalid_checksum = [
         ["\x20" + "1xj0phk", r"HRP character out of range: *"],
@@ -190,7 +190,7 @@ def test_bech32m() -> None:
 
     for addr, err_msg in invalid_checksum:
         with pytest.raises(BTClibValueError, match=err_msg):
-            decode(addr, _BECH32_M_CONST)
+            decode(addr, BECH32_M_CONST)
 
 
 # lowercase only: encode writes the data part in lowercase, and a

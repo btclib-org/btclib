@@ -28,6 +28,7 @@ __all__ = [
     "PubKey",
     "bytes_from_point",
     "bytes_from_prv_key_int",
+    "mult_pub_key",
     "point_from_octets",
     "point_from_pub_key",
     "scalar_from_prv_key",
@@ -357,3 +358,28 @@ def _mult_sec_var(sec: bytes, m: int, ec: Curve) -> Point:
             return _point_from_sec(libsecp256k1_pubkey_tweak_mul(sec, m, False))
 
     return mult(m, point_from_octets(sec, ec), ec)
+
+
+def mult_pub_key(m: Integer, pub_key: PubKey, ec: Curve = secp256k1) -> Point:
+    """Return m*P, for a public key P however it is spelled.
+
+    `mult(m, point_from_pub_key(pub_key, ec), ec)` is the same answer,
+    and where the bindings serve it lifts a compressed key's x to a point
+    only for them to parse it again: this is `_sec_from_pub_key` and
+    `_mult_sec_var` composed, which leave the proof that the key is a
+    point of the curve to the multiplication's own parse. What it is for
+    is an ECDH-shaped computation, whose key is the other party's and
+    arrives as octets: a shared secret of BIP352 is one, and
+    `ecc.ecies.derive_keys` composes the same two twins for another.
+
+    The scalar is reduced mod n, and a key that is no point of the curve
+    is refused.
+
+    The name is plain, as `mult`'s is, because the scalar is a secret: a
+    private key, or BIP352's input_hash*a. The Python arm is `mult`'s own,
+    and the arm the bindings serve is the delegated multiplication
+    SECURITY.md lists as variable time in its scalar.
+    """
+    _assert_valid_ec(ec)
+    scalar = int_from_integer(m) % ec.n
+    return _mult_sec_var(_sec_from_pub_key(pub_key, ec), scalar, ec)

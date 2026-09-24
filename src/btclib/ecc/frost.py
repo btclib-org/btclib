@@ -117,6 +117,9 @@ from btclib.hashes import tagged_hash
 from btclib.utils import assert_type, bytes_from_octets, is_octets
 
 __all__ = [
+    "ID_SIZE",
+    "MAX_PARTICIPANTS",
+    "PK_SIZE",
     "SessionContext",
     "SessionValues",
     "ThresholdInfo",
@@ -144,20 +147,22 @@ _NONCE_COEFF_TAG = b"BIP0445/noncecoef"
 _DET_NONCE_TAG = b"BIP0445/deterministic/nonce"
 
 # a compressed point, a scalar, a public nonce (two compressed points),
-# a participant identifier
-_PK_SIZE = 33
+# a participant identifier. The first and the last are exported with the
+# bound below, being the widths a psbt carrying this key material is
+# written in
+PK_SIZE = 33
 _SCALAR_SIZE = 32
 _NONCE_SIZE = 66
-_ID_SIZE = 4
+ID_SIZE = 4
 
 # the infinity point as 33 zero bytes, BIP445's own placeholder for the
 # same reason BIP327's is: an aggregate nonce is always 66 bytes on the
 # wire even where one half sums to infinity
-_INF_BYTES = bytes(_PK_SIZE)
+_INF_BYTES = bytes(PK_SIZE)
 
 # the security bound of the footnote in the module docstring: n <= 128
 # keeps the LDVR search problem's hardness inside the range BIP445 cites
-_MAX_PARTICIPANTS = 128
+MAX_PARTICIPANTS = 128
 
 # BIP445's own verbatim strings, compared byte for byte by the vectors
 # that name a "value" error (`assert_error` in `tests/ecc/frost_test.py`,
@@ -167,7 +172,7 @@ _MAX_PARTICIPANTS = 128
 # one reworded. Both are copied from BIP445's own reference rather than
 # from `musig2.py`, per the module docstring
 _THRESHOLD_RANGE_ERR = "The threshold must be 1 <= t <= n."
-_MAX_PARTICIPANTS_ERR = f"The number of participants must be n <= {_MAX_PARTICIPANTS}."
+_MAX_PARTICIPANTS_ERR = f"The number of participants must be n <= {MAX_PARTICIPANTS}."
 _TWEAK_SIZE_ERR = "The tweak must be a 32-byte array."
 _TWEAK_RANGE_ERR = "The tweak value is out of range."
 _TWEAK_INF_ERR = "The result of tweaking cannot be infinity."
@@ -194,12 +199,12 @@ def _cbytes_ext(P: Point) -> bytes:
 
 def _cpoint(octets: Octets) -> Point:
     """Deserialize a compressed point, refusing anything else."""
-    return point_from_octets(bytes_from_octets(octets, _PK_SIZE), secp256k1)
+    return point_from_octets(bytes_from_octets(octets, PK_SIZE), secp256k1)
 
 
 def _cpoint_ext(octets: Octets) -> Point:
     """Deserialize a point that may be the infinity one."""
-    data = bytes_from_octets(octets, _PK_SIZE)
+    data = bytes_from_octets(octets, PK_SIZE)
     return INF if data == _INF_BYTES else _cpoint(data)
 
 
@@ -219,7 +224,7 @@ def _assert_octets_sequence(value: object, what: str) -> None:
 
 
 def _pub_shares(pub_shares: Sequence[Octets]) -> tuple[bytes, ...]:
-    return tuple(bytes_from_octets(ps, _PK_SIZE) for ps in pub_shares)
+    return tuple(bytes_from_octets(ps, PK_SIZE) for ps in pub_shares)
 
 
 def _tweaks(tweaks: Sequence[Octets]) -> tuple[bytes, ...]:
@@ -251,7 +256,7 @@ def _has_duplicates(ids: Sequence[int]) -> bool:
 
 def _serialize_ids(ids: Sequence[int]) -> bytes:
     """Serialize identifiers sorted, so the nonce coefficient is order-free."""
-    return b"".join(i.to_bytes(_ID_SIZE, "big") for i in sorted(ids))
+    return b"".join(i.to_bytes(ID_SIZE, "big") for i in sorted(ids))
 
 
 def _derive_interpolating_value(ids: Sequence[int], my_id: int) -> int:
@@ -335,12 +340,12 @@ class ThresholdInfo:
     ) -> None:
         _assert_octets_sequence(pub_shares, "pub_shares")
         object.__setattr__(self, "t", int(t))
-        object.__setattr__(self, "thresh_pk", bytes_from_octets(thresh_pk, _PK_SIZE))
+        object.__setattr__(self, "thresh_pk", bytes_from_octets(thresh_pk, PK_SIZE))
         object.__setattr__(
             self,
             "pub_shares",
             tuple(
-                None if ps is None else bytes_from_octets(ps, _PK_SIZE)
+                None if ps is None else bytes_from_octets(ps, PK_SIZE)
                 for ps in pub_shares
             ),
         )
@@ -386,7 +391,7 @@ def validate_threshold_info(info: ThresholdInfo) -> None:
     n = len(pub_shares)
     if not 1 <= t <= n:
         raise BTClibValueError(_THRESHOLD_RANGE_ERR)
-    if n > _MAX_PARTICIPANTS:
+    if n > MAX_PARTICIPANTS:
         raise BTClibValueError(_MAX_PARTICIPANTS_ERR)
     try:
         _cpoint(thresh_pk)
@@ -533,7 +538,7 @@ def nonce_gen_(
             bytes_from_octets(sec_share, _SCALAR_SIZE), tagged_hash(_AUX_TAG, rand_)
         )
     pub_share_bytes = (
-        b"" if pub_share is None else bytes_from_octets(pub_share, _PK_SIZE)
+        b"" if pub_share is None else bytes_from_octets(pub_share, PK_SIZE)
     )
     thresh_pk_xonly_bytes = (
         b""
@@ -604,7 +609,7 @@ def nonce_agg(pub_nonces: Sequence[Octets]) -> bytes:
         R_j: list[Point] = []
         for i, pub_nonce in enumerate(nonces):
             try:
-                R_j.append(_cpoint(pub_nonce[j * _PK_SIZE : (j + 1) * _PK_SIZE]))
+                R_j.append(_cpoint(pub_nonce[j * PK_SIZE : (j + 1) * PK_SIZE]))
             except BTClibValueError as e:
                 raise InvalidContributionError(i, "pubnonce") from e
         agg_nonce += _cbytes_ext(_sum_var(R_j, secp256k1))
@@ -640,7 +645,7 @@ def _validate_session_params(
 ) -> None:
     if not 1 <= t <= n:
         raise BTClibValueError(_THRESHOLD_RANGE_ERR)
-    if n > _MAX_PARTICIPANTS:
+    if n > MAX_PARTICIPANTS:
         raise BTClibValueError(_MAX_PARTICIPANTS_ERR)
     if not t <= len(ids) <= n:
         raise BTClibValueError("The number of signers must be between t and n.")
@@ -710,7 +715,7 @@ class SessionContext:
         object.__setattr__(
             self, "pub_shares", None if pub_shares is None else _pub_shares(pub_shares)
         )
-        object.__setattr__(self, "thresh_pk", bytes_from_octets(thresh_pk, _PK_SIZE))
+        object.__setattr__(self, "thresh_pk", bytes_from_octets(thresh_pk, PK_SIZE))
         object.__setattr__(self, "agg_nonce", bytes_from_octets(agg_nonce, _NONCE_SIZE))
         object.__setattr__(self, "tweaks", _tweaks(tweaks))
         object.__setattr__(self, "is_xonly", _flags(is_xonly))
@@ -774,8 +779,8 @@ def session_values(session_ctx: SessionContext) -> SessionValues:
     )
     b = int.from_bytes(coeff_hash, "big") % secp256k1.n
     try:
-        R_1 = _cpoint_ext(session_ctx.agg_nonce[:_PK_SIZE])
-        R_2 = _cpoint_ext(session_ctx.agg_nonce[_PK_SIZE:])
+        R_1 = _cpoint_ext(session_ctx.agg_nonce[:PK_SIZE])
+        R_2 = _cpoint_ext(session_ctx.agg_nonce[PK_SIZE:])
     except BTClibValueError as err:
         raise InvalidContributionError(None, "aggnonce") from err
     R = secp256k1.add_var(R_1, mult(b, R_2, secp256k1))
@@ -849,8 +854,8 @@ def _det_nonce_hash(
     buf = b"".join(
         [
             sec_share_,
-            my_id.to_bytes(_ID_SIZE, "big"),
-            len(ids).to_bytes(_ID_SIZE, "big"),
+            my_id.to_bytes(ID_SIZE, "big"),
+            len(ids).to_bytes(ID_SIZE, "big"),
             _serialize_ids(ids),
             agg_other_nonce,
             tweaked_thresh_pk_xonly,
@@ -894,7 +899,7 @@ def deterministic_sign(
     catches a session it does not assemble into.
     """
     _pub_shares_ = None if pub_shares is None else _pub_shares(pub_shares)
-    thresh_pk_bytes = bytes_from_octets(thresh_pk, _PK_SIZE)
+    thresh_pk_bytes = bytes_from_octets(thresh_pk, PK_SIZE)
     _validate_session_params(n, t, ids, _pub_shares_, thresh_pk_bytes)
 
     sec_share_bytes = bytes_from_octets(sec_share, _SCALAR_SIZE)
@@ -980,8 +985,8 @@ def partial_sig_verify_(
         return False
     pub_nonce = bytes_from_octets(pub_nonce, _NONCE_SIZE)
     try:
-        R_s1 = _cpoint(pub_nonce[:_PK_SIZE])
-        R_s2 = _cpoint(pub_nonce[_PK_SIZE:])
+        R_s1 = _cpoint(pub_nonce[:PK_SIZE])
+        R_s2 = _cpoint(pub_nonce[PK_SIZE:])
     except BTClibValueError:
         return False
     R_s = secp256k1.add_var(R_s1, mult(values.b, R_s2, secp256k1))

@@ -34,7 +34,7 @@ from btclib.exceptions import (
     HttpError,
     RpcError,
 )
-from btclib.network import NETWORKS, _validated_network_name, network_from_name
+from btclib.network import NETWORKS, network_from_name, validated_network_name
 from btclib.script import ScriptPubKey
 from btclib.tx import OutPoint, Tx, TxOut
 from btclib.utils import bytes_from_octets, is_integer, is_octets
@@ -186,13 +186,13 @@ class Fetcher(ABC):
     def __init__(self, network: str = "mainnet") -> None:
         """Bind the fetcher to a network, by the name btclib resolves.
 
-        `_validated_network_name` is the converter `descriptors.parse`
+        `validated_network_name` is the converter `descriptors.parse`
         and `p2p.magic.magic_from_network` reach for across modules, so
         the `strip().lower()` tolerance issue #216 decided to keep
         reaches a backend too. `self.network` is a key of `NETWORKS`, and
         it is what `tx_from_raw` labels a transaction with.
         """
-        self.network = _validated_network_name(network)
+        self.network = validated_network_name(network)
 
     @abstractmethod
     def get_tx(self, tx_id: Octets) -> Tx:

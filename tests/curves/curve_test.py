@@ -47,14 +47,17 @@ from btclib.curves.curve import (
     SEC2v1_params2,
     SEC2v2,
     SEC2v2_params2,
+    TweakChain,
     _is_x_coordinate_var,
     _libsecp256k1_multi_mult_,
     _libsecp256k1_serves,
     _sec_from_point,
     _sum_var,
     _tweak_add_var,
-    _TweakChain,
     _y_even_var,
+    is_x_coordinate_var,
+    sum_var,
+    tweak_add_var,
 )
 
 # _cached_multiples and _jac_from_aff are implementation helpers of
@@ -1132,7 +1135,7 @@ def test_tweak_add_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
 def test_tweak_chain(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     """A chain of steps answers what a tweak of the base answers.
 
-    `_TweakChain` walks from each tweak to the next by their difference,
+    `TweakChain` walks from each tweak to the next by their difference,
     where `_tweak_add_var` adds every tweak to the base itself, so the
     two have to agree at every step -- over tweaks that climb, that fall
     back, that repeat (a zero step), and that are the base's own
@@ -1152,13 +1155,13 @@ def test_tweak_chain(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     tweaks = (0, 1, 7, 3, 3, ec.n // 2, 2, ec.n - 1, 0)
     for k in (1, 2, 7, ec.n - 1):
         base = mult(k)
-        chain = _TweakChain(base, ec)
+        chain = TweakChain(base, ec)
         for t in tweaks:
             assert chain.point(t) == _tweak_add_var(base, t, ec)
 
     # a base at infinity: every tweak is the tweak's own multiple, and
     # the chain never holds a point
-    chain = _TweakChain(INF, ec)
+    chain = TweakChain(INF, ec)
     for t in tweaks:
         assert chain.point(t) == mult(t)
 
@@ -1166,7 +1169,7 @@ def test_tweak_chain(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     # base, and the two tweaks around it -- the one before is the last
     # the chain itself answers, the one after is answered without it
     base = mult(7)
-    chain = _TweakChain(base, ec)
+    chain = TweakChain(base, ec)
     assert chain.point(5) == _tweak_add_var(base, 5, ec)
     assert chain.point(ec.n - 7) == INF
     assert chain.point(5) == _tweak_add_var(base, 5, ec)
@@ -1174,14 +1177,14 @@ def test_tweak_chain(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     # a point that is not on the curve is refused where it is handed
     # over, rather than at the first tweak of it
     with pytest.raises(BTClibValueError, match="point not on curve"):
-        _TweakChain((ec.G[0], ec.G[1] + 1), ec)
+        TweakChain((ec.G[0], ec.G[1] + 1), ec)
 
     # and a curve the bindings do not serve is the same answer again,
     # every step of it on the Python arithmetic
     for other in low_card_curves.values():
         for k in range(1, 4):
             base = mult(k, other.G, other)
-            chain = _TweakChain(base, other)
+            chain = TweakChain(base, other)
             for t in range(other.n):
                 assert chain.point(t) == _tweak_add_var(base, t, other)
 
@@ -1230,6 +1233,68 @@ def test_sum_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     for other in low_card_curves.values():
         run = [mult(k, other.G, other) for k in range(1, min(5, other.n))]
         assert _sum_var(run, other) == functools.reduce(other.add_var, run, INF)
+
+
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
+def test_public_spellings_check_what_their_twins_trust(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each public spelling is its twin's answer, behind a check of its own.
+
+    The twins take what the library has already validated: an int, a
+    Curve, a sequence. What the public name adds is the refusal of
+    anything else as a `BTClibTypeError`, and the reduction of a tweak
+    handed over as any `Integer`. `TweakChain` checks its own arguments,
+    and its base and curve are read-only: the chain holds the base on
+    the far side, so a reassigned one would split its two arms.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    ec = secp256k1
+    P, Q = mult(7), mult(11)
+
+    assert is_x_coordinate_var(ec.G[0])
+    assert is_x_coordinate_var(ec.G[0], ec) == _is_x_coordinate_var(ec.G[0], ec)
+    # no field element, no x-coordinate: an answer and not a refusal
+    assert not is_x_coordinate_var(-1)
+    assert not is_x_coordinate_var(ec.p)
+    for x in (1.5, "01", True):
+        with pytest.raises(BTClibTypeError, match="non-integer x-coordinate"):
+            is_x_coordinate_var(x)  # type: ignore[arg-type]
+
+    assert sum_var([P, Q]) == _sum_var([P, Q], ec)
+    assert sum_var([]) == INF
+    with pytest.raises(BTClibTypeError, match="invalid points type"):
+        sum_var(None)  # type: ignore[arg-type]
+    with pytest.raises(BTClibValueError, match="point not on curve"):
+        sum_var([P, (ec.G[0], ec.G[1] + 1)])
+
+    assert tweak_add_var(P, 5) == _tweak_add_var(P, 5, ec)
+    assert tweak_add_var(P, ec.n + 5) == tweak_add_var(P, 5)
+    assert tweak_add_var(P, "05") == tweak_add_var(P, 5)
+    with pytest.raises(BTClibTypeError):
+        tweak_add_var(P, 1.5)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid ec type"):
+        tweak_add_var(P, 5, None)  # type: ignore[arg-type]
+
+    chain = TweakChain(P)
+    assert chain.point(ec.n + 5) == _tweak_add_var(P, 5, ec)
+    assert chain.point("05") == _tweak_add_var(P, 5, ec)
+    with pytest.raises(BTClibTypeError):
+        chain.point(1.5)  # type: ignore[arg-type]
+    for attribute, value in (("base", Q), ("ec", CURVES["secp256r1"])):
+        with pytest.raises(AttributeError):
+            setattr(chain, attribute, value)
+    assert chain.base == P
+    assert chain.ec is ec
+    assert chain.point(5) == _tweak_add_var(P, 5, ec)
 
 
 def test_libsecp256k1_arbitrary_point() -> None:

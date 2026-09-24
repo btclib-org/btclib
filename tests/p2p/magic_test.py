@@ -75,7 +75,7 @@ def test_a_network_name_is_not_a_chain_name() -> None:
 def test_a_network_name_is_taken_as_every_other_one_is() -> None:
     """The `strip().lower()` tolerance issue #216 decided to keep.
 
-    `network._validated_network_name` is the one converter, so a name
+    `network.validated_network_name` is the one converter, so a name
     that works anywhere else in the library works here; the default is
     mainnet, as it is for `network_from_name`.
     """

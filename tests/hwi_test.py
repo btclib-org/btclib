@@ -348,7 +348,7 @@ def test_a_network_name_is_taken_as_the_rest_of_the_library_takes_one(
     """Both normalize the name they are given, and refuse alike.
 
     The two entry points that accept a `network: str` put it through
-    `network._validated_network_name`, so the spellings issue #216
+    `network.validated_network_name`, so the spellings issue #216
     decided to keep reach the chain HWI is told, and the name a signer
     stores is the one `network_from_name` would answer to.
     """

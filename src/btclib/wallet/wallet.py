@@ -69,8 +69,8 @@ from dataclasses import dataclass
 from btclib import b32
 from btclib.alias import Octets, String
 from btclib.exceptions import BTClibValueError
-from btclib.network import _validated_network_name
-from btclib.script.script_pub_key import ScriptPubKey, _validated_script_from
+from btclib.network import validated_network_name
+from btclib.script.script_pub_key import ScriptPubKey, script_from_script_pub_key
 from btclib.utils import str_from_string
 
 __all__ = [
@@ -149,13 +149,13 @@ class Wallet(ABC):
     def __init__(self, network: str = "mainnet") -> None:
         """Bind the wallet to a network, by the name btclib resolves.
 
-        `_validated_network_name` is the converter `descriptors.parse`
+        `validated_network_name` is the converter `descriptors.parse`
         and `p2p.magic.magic_from_network` reach for across modules, so
         the `strip().lower()` tolerance issue #216 decided to keep
         reaches a wallet too. `self.network` is a key of `NETWORKS`,
         which is what a subclass reads to derive an address.
         """
-        self.network = _validated_network_name(network)
+        self.network = validated_network_name(network)
         # insertion ordered, which is the order the addresses were handed
         # out in: `addresses` is that order and nothing else records it
         self._handed_out: dict[str, AddressInfo] = {}
@@ -373,7 +373,7 @@ class RangedWallet(Wallet, ABC):
         paying to one script is a wallet whose source repeats itself, not
         something this has to choose between.
         """
-        script = _validated_script_from(script_pub_key)
+        script = script_from_script_pub_key(script_pub_key)
         for branch in self.branches:
             for index in range(last_index + 1):
                 if self._script_pub_key(branch, index).script == script:
@@ -427,7 +427,7 @@ class RangedWallet(Wallet, ABC):
             err_msg += f" between {first_index} and {last_index}"
             raise BTClibValueError(err_msg)
         for offset, address in enumerate(addresses):
-            script = _validated_script_from(address)
+            script = script_from_script_pub_key(address)
             if script != scripts[offset]:
                 index = first_index + offset
                 err_msg = f"not what {branch}/{index} derives: {script.hex()}"

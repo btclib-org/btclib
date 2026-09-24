@@ -36,11 +36,15 @@ from btclib.utils import (
 )
 
 __all__ = [
+    "SEGWIT_MARKER",
     "Tx",
     "join",
 ]
 
-_SEGWIT_MARKER = b"\x00\x01"
+# BIP144's marker and flag, the two octets a segwit serialization carries
+# after the version: exported for a caller sizing a transaction it has
+# not built yet, which pays for them in its weight
+SEGWIT_MARKER = b"\x00\x01"
 
 # Core v31.1's policy.h, TX_MIN_STANDARD_VERSION through
 # TX_MAX_STANDARD_VERSION: 1 and 2 are what v27.2 and v31.1 agree on, 3
@@ -164,7 +168,7 @@ class Tx:  # noqa: PLW1641
 
         size = 4 + 4  # version and lock_time
         if segwit:
-            size += len(_SEGWIT_MARKER)
+            size += len(SEGWIT_MARKER)
         size += var_int._size(len(self.vin))
         size += sum(tx_in._serialized_size() for tx_in in self.vin)
         size += var_int._size(len(self.vout))
@@ -416,7 +420,7 @@ class Tx:  # noqa: PLW1641
         return b"".join(
             [
                 self.version.to_bytes(4, byteorder="little", signed=False),
-                _SEGWIT_MARKER if segwit else b"",
+                SEGWIT_MARKER if segwit else b"",
                 var_int.serialize(len(self.vin)),
                 b"".join(
                     tx_in.serialize(check_validity=check_validity) for tx_in in self.vin
@@ -480,7 +484,7 @@ class Tx:  # noqa: PLW1641
         # the stream a byte before where it started, and the var_int below
         # would count the inputs from the wrong byte
         marker = stream.read(2)
-        segwit = marker == _SEGWIT_MARKER
+        segwit = marker == SEGWIT_MARKER
         if not segwit:
             # Change stream position: seek to byte offset relative to position
             stream.seek(-len(marker), SEEK_CUR)  # current position

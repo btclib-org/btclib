@@ -18,11 +18,13 @@ curves -- so the anchor is worth stating: `from btclib.curves import mult`,
 `from btclib.ecc import dsa`.
 
 What this package exports is the curve API: a Curve, the catalogue they
-are looked up in, the three scalar multiplications, the SEC point codec,
-and PreparedPoint, which is a point plus a caller's word that it will be
+are looked up in, the scalar multiplications, the SEC point codec, and
+PreparedPoint, which is a point plus a caller's word that it will be
 multiplied again -- the one thing the memoized tables below cannot infer
 and the whole of what stands between a repeated point and the treatment
-the generator gets.
+the generator gets. Beside them are a sum of points, a point plus a
+multiple of the generator -- once, or along a chain of tweaks of one
+point -- and the test of whether an x is a coordinate of the curve.
 
 `CURVES` is what makes the catalogue reachable -- `secp256k1` is
 exported by name because nearly every caller wants that one, and every
@@ -106,12 +108,16 @@ from btclib.curves.curve import (
     CURVES,
     Curve,
     PreparedPoint,
+    TweakChain,
     double_mult_var,
     is_libsecp256k1_serving,
+    is_x_coordinate_var,
     mult,
     multi_mult_var,
     secp256k1,
     set_libsecp256k1_serving,
+    sum_var,
+    tweak_add_var,
 )
 from btclib.curves.curve_group import CurveGroup
 from btclib.curves.curve_group_f import find_all_points, find_subgroup_points
@@ -119,6 +125,7 @@ from btclib.curves.sec_point import (
     PubKey,
     bytes_from_point,
     bytes_from_prv_key_int,
+    mult_pub_key,
     point_from_octets,
     point_from_pub_key,
     scalar_from_prv_key,
@@ -130,17 +137,22 @@ __all__ = [
     "CurveGroup",
     "PreparedPoint",
     "PubKey",
+    "TweakChain",
     "bytes_from_point",
     "bytes_from_prv_key_int",
     "double_mult_var",
     "find_all_points",
     "find_subgroup_points",
     "is_libsecp256k1_serving",
+    "is_x_coordinate_var",
     "mult",
+    "mult_pub_key",
     "multi_mult_var",
     "point_from_octets",
     "point_from_pub_key",
     "scalar_from_prv_key",
     "secp256k1",
     "set_libsecp256k1_serving",
+    "sum_var",
+    "tweak_add_var",
 ]

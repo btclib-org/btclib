@@ -1060,7 +1060,7 @@ def test_descriptor_coerces_the_network_name() -> None:
     """A direct constructor takes the spellings the parse path already did.
 
     `descriptors.py:2346`'s `parse` already normalizes through
-    `_validated_network_name`; `Descriptor.__post_init__` is what does the
+    `validated_network_name`; `Descriptor.__post_init__` is what does the
     same for `RawDescriptor(...)` and every other fragment class built
     directly rather than parsed.
     """
@@ -3482,7 +3482,7 @@ def test_an_invalid_output_is_refused_and_not_answered_about() -> None:
     a perfectly good output belonging to somebody else, with nothing in the
     answer to say the question was malformed. `_script_from` stays the
     private twin that converts and does not validate;
-    `_validated_script_from` beside it is what the public questions call.
+    `script_from_script_pub_key` beside it is what the public questions call.
     """
     descriptor = parse(f"wpkh({KEY_A})")
     assert descriptor.index_of(descriptor.script_pub_key()) == 0
