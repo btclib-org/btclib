@@ -45,10 +45,10 @@ from btclib.script import script as script_module
 from btclib.script.script import ERROR_COMMAND
 from btclib.script.script_pub_key import (
     _script_from,
-    _validated_script_from,
     assert_nulldata,
     assert_segwit,
     is_segwit,
+    script_from_script_pub_key,
 )
 from tests import load, vector_id
 
@@ -1193,7 +1193,7 @@ def test_script_from_takes_an_output_however_the_caller_holds_it() -> None:
         script_pub_key.address,
     ):
         assert _script_from(spelling) == script
-        assert _validated_script_from(spelling) == script
+        assert script_from_script_pub_key(spelling) == script
 
 
 @pytest.mark.parametrize(
@@ -1212,10 +1212,10 @@ def test_script_from_refuses_what_names_no_output(
         _script_from(script_pub_key)
 
 
-def test_validated_script_from_asks_the_object_first() -> None:
+def test_script_from_script_pub_key_asks_the_object_first() -> None:
     """A `ScriptPubKey` its own `assert_valid` refuses is refused here."""
     script = ScriptPubKey.from_address(b32.p2wpkh(PrvKeyData(1).pub)).script
     unchecked = ScriptPubKey(script, "no such network", check_validity=False)
     assert _script_from(unchecked) == script
     with pytest.raises(BTClibValueError, match="unknown network"):
-        _validated_script_from(unchecked)
+        script_from_script_pub_key(unchecked)
