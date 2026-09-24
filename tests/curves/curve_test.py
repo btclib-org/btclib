@@ -1042,9 +1042,9 @@ def no_bindings_anywhere(monkeypatch: pytest.MonkeyPatch) -> None:
     class beside them, which is what every arm gated on the curve and the
     hash function alone reaches through. An arm gated on availability
     alone can hold a binding of its own a module further out --
-    `ecc.dh` imports `keys`, `script.taproot` imports `xonly`,
-    `ecc.bms` imports `dsa`, whose own `_libsecp256k1_recover_sec_` binds
-    `recovery` -- and `from ... import x as y` copies the object rather
+    `script.engine.script` imports `dsa_verify`, `script.taproot` imports
+    `xonly`, `ecc.bms` imports `dsa`, whose own
+    `_libsecp256k1_recover_sec_` binds `recovery` -- and `from ... import x as y` copies the object rather
     than looking it up again, so a patch on the module the bindings live
     in does not reach a name already copied out of it.
 

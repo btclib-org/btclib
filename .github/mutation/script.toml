@@ -36,10 +36,14 @@ module-path = [
 #
 # The command does not cover every module here, and a mutant on a line it
 # leaves unreached is reported as a survivor. The test command with
-# coverage asked for lists those lines:
+# coverage asked for lists those lines, `-o addopts=` clearing
+# pyproject.toml's bare `--cov`, which would otherwise widen
+# `--cov=btclib.script` back to the whole package; the `engine/` and
+# `sig_hash.py` rows it prints are the other two profiles':
 #
-#   python -m pytest -x -q -n0 -p no:randomly --cov=btclib.script \
-#     --cov-branch --cov-report=term-missing --cov-fail-under=0 \
+#   python -m pytest -o addopts= -x -q -p no:randomly \
+#     --cov=btclib.script --cov-branch --cov-report=term-missing \
+#     --cov-fail-under=0 \
 #     tests/script tests/all_test.py tests/tx/tx_out_test.py
 #
 # Not tests/script_engine, which sig_hash.toml pairs with tests/script:
