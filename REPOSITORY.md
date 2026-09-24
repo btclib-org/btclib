@@ -903,24 +903,22 @@ gh api repos/btclib-org/btclib --jq '.topics'
 ```
 
 ```json
-["base58","bech32","bip32","bip340","bip39","bitcoin","cryptography",
- "ecdsa","electrum","elliptic-curves","hardware-wallet",
- "message-signing","musig2","output-descriptors","psbt","schnorr",
- "secp256k1","segwit","slip39","taproot"]
+["base58","bech32","bip340","bitcoin","bitcoin-script","cryptography",
+ "ecdsa","electrum","elliptic-curves","merkle-proof","message-signing",
+ "musig2","rfc-6979","schnorr","secp256k1","segwit","taproot"]
 ```
 
-Twenty, GitHub's own ceiling on the field. `pyproject.toml`'s `keywords`
-carries the same twenty plus five more past that ceiling — `rfc-6979`,
-`mnemonic`, `merkle-proof`, `bip44`, `bitcoin-script` — which are
-keywords for PyPI and not topics, a comment beside the list saying so.
-Nothing in the tree holds the two lists together, so this is the command
-that does: it prints the difference and exits nonzero on one, GitHub
-returning its own alphabetical order rather than the relevance order
-`pyproject.toml` declares:
+`pyproject.toml`'s `keywords` carries the same names. GitHub caps the
+field at twenty topics, so a keyword past that ceiling has no topic
+beside it and the command below names it. Nothing in the tree holds the
+two lists together, so this is the command that does: it prints the
+difference and exits nonzero on one, GitHub returning its own
+alphabetical order rather than the relevance order `pyproject.toml`
+declares:
 
 ```shell
 diff <(gh api repos/btclib-org/btclib --jq '.topics[]' | sort) \
-     <(awk '/^keywords = \[/,/Past the twenty topics/' pyproject.toml \
+     <(awk '/^keywords = \[/,/^\]/' pyproject.toml \
        | grep -oE '"[a-z0-9-]+"' | tr -d '"' | sort)
 ```
 
