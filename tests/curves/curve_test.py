@@ -1044,9 +1044,10 @@ def no_bindings_anywhere(monkeypatch: pytest.MonkeyPatch) -> None:
     alone can hold a binding of its own a module further out --
     `script.engine.script` imports `dsa_verify`, `script.taproot` imports
     `xonly`, `ecc.bms` imports `dsa`, whose own
-    `_libsecp256k1_recover_sec_` binds `recovery` -- and `from ... import x as y` copies the object rather
-    than looking it up again, so a patch on the module the bindings live
-    in does not reach a name already copied out of it.
+    `_libsecp256k1_recover_sec_` binds `recovery` -- and `from ... import
+    x as y` copies the object rather than looking it up again, so a patch
+    on the module the bindings live in does not reach a name already
+    copied out of it.
 
     So this walks every module already loaded under `btclib` or
     `btclib_secp256k1` and replaces every callable there whose
