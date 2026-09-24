@@ -56,6 +56,12 @@ workflow matrix move with the floor.
   same names** (issue #2129): RELEASE_NOTES.md lists each, and the
   exception classes they raise stay in `btclib.exceptions`.
 
+### `keywords` and the GitHub topics name what btclib still holds
+
+`bip32`, `bip39`, `slip39`, `psbt`, `output-descriptors` and `hardware-wallet`
+leave both lists, `mnemonic` and `bip44` leave `keywords`, and `rfc-6979`,
+`merkle-proof` and `bitcoin-script` become topics (closes #2243).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

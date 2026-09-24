@@ -70,7 +70,7 @@ keywords = [
     # relevance rather than alphabetical: PyPI shows keywords as they are
     # given, and the first few are read as what the package is. GitHub
     # sorts its own alphabetically and takes lowercase only, which is the
-    # spelling here too, so the two lists differ in nothing but length.
+    # spelling here too, so the two lists hold the same names.
     "bitcoin",
     "cryptography",
     "elliptic-curves",
@@ -79,25 +79,14 @@ keywords = [
     "schnorr",
     "bip340",
     "musig2",
-    "bip32",
-    "bip39",
-    "slip39",
     "electrum",
-    "psbt",
     "taproot",
     "segwit",
     "base58",
     "bech32",
-    "output-descriptors",
-    "hardware-wallet",
     "message-signing",
-    # Past the twenty topics GitHub allows, so these are keywords and not
-    # topics. Nothing caps this list, and a keyword for a feature the
-    # library has costs nothing.
     "rfc-6979",
-    "mnemonic",
     "merkle-proof",
-    "bip44",
     "bitcoin-script",
 ]
 classifiers = [
