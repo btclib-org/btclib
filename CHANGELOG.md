@@ -67,6 +67,12 @@ leave both lists, `mnemonic` and `bip44` leave `keywords`, and `rfc-6979`,
 The called workflow verifies against `reusable-attest.yml` alone, so the
 input decides nothing (issue btclib-org/.github#1315).
 
+### The suite the sdist ships runs from the unpacked sdist
+
+`test.yml`'s `dist` job runs the suite from the sdist it built, unpacked,
+where `pyproject.toml` is uv_build's normalized copy: the tests that copy
+failed parse it with `tomllib` (closes #2252).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

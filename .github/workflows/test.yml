@@ -811,6 +811,23 @@ jobs:
                 'the secp256k1 extra resolved, the bindings do not serve'; \
               assert dsa.verify(b'btclib', PrvKeyData(1).pub.sec, \
                 dsa.sign(b'btclib', 1))"
+      # the suite as the sdist ships it, unpacked outside the checkout and
+      # gated at 100% like the `coverage` job's run. A shipped test reading
+      # a file the archive leaves out fails here, and so does one matching
+      # a pattern against pyproject.toml, which in the sdist is the build
+      # backend's normalized copy; a helper whose only callers
+      # source-exclude takes out fails the floor, its lines left unreached
+      # (issue #2252). tests/build_system_test.py sees only a test that
+      # names .github, fuzz or a git call. The interpreter is the one the
+      # sdist's own .python-version pins, and --locked holds the run to the
+      # uv.lock the sdist carries. Last, after the uploads, for the reason
+      # the twine step gives: this installs the `test` group
+      - name: Run the suite from the unpacked sdist
+        run: |
+          mkdir "$RUNNER_TEMP/sdist"
+          tar -xzf dist/*.tar.gz -C "$RUNNER_TEMP/sdist" --strip-components=1
+          cd "$RUNNER_TEMP/sdist"
+          uv run --locked --no-default-groups --group test pytest
 
   # the single check main's branch protection requires from this
   # workflow, and it exists because that rule names its checks as literal

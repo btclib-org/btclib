@@ -30,40 +30,32 @@ backreferences -- so the correction is in the files this reads, once,
 rather than in that pattern.
 """
 
-import re
+import tomllib
 from pathlib import Path
 
 _ROOT = Path(__file__).parents[1]
-_PYPROJECT = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-
-# scoped to the section rather than matched anywhere in the file, so a
-# later `extend-glob` under a different `[tool.typos...]` table --
-# `[tool.typos.type.mixed-case-vectors]` already has one -- is not read
-# as this one's list
-_SECTION = re.compile(
-    r"^\[tool\.typos\.type\.verbatim\]\n"
-    r"(?:^(?:#.*)?\n)*"
-    r'^extend-glob = \[(?P<files>(?:"[^"]*", ?)*"[^"]*")\]$',
-    re.MULTILINE,
-)
+# parsed rather than matched, so that the sdist's `pyproject.toml` -- the
+# build backend's normalized copy, its comments gone and its arrays laid
+# out anew -- names the same files the committed one does (issue #2252)
+_PYPROJECT = tomllib.loads((_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
 
 def _verbatim_files() -> tuple[Path, ...]:
     """Return the paths `[tool.typos.type.verbatim]`'s `extend-glob` names."""
-    section = _SECTION.search(_PYPROJECT)
-    assert section, (
+    table = _PYPROJECT.get("tool", {}).get("typos", {}).get("type", {})
+    names = table.get("verbatim", {}).get("extend-glob")
+    assert isinstance(names, list), (
         "pyproject.toml's [tool.typos.type.verbatim] table or its"
-        " extend-glob key was not found where this test expects it"
+        " extend-glob key was not found"
     )
-    names = re.findall(r'"([^"]*)"', section["files"])
     return tuple(_ROOT / name for name in names)
 
 
 def test_the_section_was_found() -> None:
-    """The regex above found a non-empty list, so the check below runs.
+    """The table names at least one file, so the check below runs.
 
-    A renamed key or a reindented table would leave `_verbatim_files()`
-    empty and the check below vacuously true.
+    A renamed key fails the assertion in `_verbatim_files()`; an emptied
+    list would pass it and leave the check below vacuously true.
     """
     assert _verbatim_files(), "[tool.typos.type.verbatim]'s extend-glob names no file"
 

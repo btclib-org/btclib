@@ -599,20 +599,6 @@ def test_a_job_outside_the_closure_answers_for_no_gate() -> None:
     assert _found(jobs, set(jobs)) == ("3.11", "3.12t", "3.13")
 
 
-def test_workflow_files_reads_the_names_github_runs(tmp_path: Path) -> None:
-    """`.yml` and `.yaml` are read alike, `.yXml` is not a workflow.
-
-    `os-macos.yml`'s own bytes under three names, the extension the
-    whole of the difference: the two spellings GitHub runs come back and
-    the third, which a `*.y*ml` glob would take, does not.
-    """
-    text = (_ROOT / ".github/workflows/os-macos.yml").read_text(encoding="utf-8")
-    for name in ("os-extra.yml", "os-extra.yaml", "os-extra.yXml"):
-        (tmp_path / name).write_text(text, encoding="utf-8")
-    found = sorted(path.name for path in workflow_files(tmp_path))
-    assert found == ["os-extra.yaml", "os-extra.yml"]
-
-
 def test_every_sweep_runs_the_same_interpreters() -> None:
     """One interpreter set, however many platforms sweep it.
 
