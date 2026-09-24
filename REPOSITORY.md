@@ -903,9 +903,10 @@ gh api repos/btclib-org/btclib --jq '.topics'
 ```
 
 ```json
-["base58","bech32","bip340","bitcoin","bitcoin-script","cryptography",
- "ecdsa","electrum","elliptic-curves","merkle-proof","message-signing",
- "musig2","rfc-6979","schnorr","secp256k1","segwit","taproot"]
+["base58","bech32","bip158","bip324","bip340","bitcoin","bitcoin-script",
+ "cryptography","ecdsa","electrum","elliptic-curves","frost","merkle-proof",
+ "message-signing","musig2","rfc-6979","schnorr","secp256k1","segwit",
+ "taproot"]
 ```
 
 `pyproject.toml`'s `keywords` carries the same names. GitHub caps the

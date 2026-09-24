@@ -73,6 +73,11 @@ input decides nothing (issue btclib-org/.github#1315).
 where `pyproject.toml` is uv_build's normalized copy: the tests that copy
 failed parse it with `tomllib` (closes #2252).
 
+### `keywords` and the GitHub topics take `frost`, `bip324` and `bip158`
+
+FROST threshold signatures, BIP324's ElligatorSwift and BIP158 compact block
+filters are in btclib, and both lists name them (closes #2255).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
