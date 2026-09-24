@@ -178,12 +178,15 @@ jobs:
     # always() either: a run superseded by the concurrency group above is
     # one the newer run already speaks for, and reaching this job would
     # turn that cancellation into a red check with no defect behind it.
-    # The draft and closed halves are the analysis job's own condition,
-    # so a draft skips uniformly rather than reporting a failure for an
-    # analysis this workflow declined to run
+    # The draft flag is not part of this condition: a skipped required
+    # check reads as passing, and this job's own check run does not exist
+    # until analyze has settled, so declining it here while draft would
+    # leave the draft's skip as the only check of this name on the sha
+    # until a later run's own aggregate exists. The closed condition
+    # stays: a closed pull request has nothing left to become ready
+    # (btclib-org/.github#1327)
     if: >-
       ${{ !cancelled()
-      && !github.event.pull_request.draft
       && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -222,6 +225,15 @@ jobs:
       # one is then this job going red with no defect under it and
       # nothing in the tree pointing here. btclib-org/.github#990 is
       # where the aggregates that narrow are swept
+      # a skipped required check reads as passing, so the draft flag
+      # moves from the job's own `if:` above into this first step: the
+      # job still runs while draft, and reports a failure instead of a
+      # skip (btclib-org/.github#1327)
+      - name: Fail while this pull request is a draft
+        if: github.event.pull_request.draft
+        run: |
+          echo "::error::this pull request is a draft"
+          exit 1
       - name: Fail unless every other job of this run succeeded
         env:
           GH_TOKEN: ${{ github.token }}
