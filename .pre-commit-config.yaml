@@ -230,7 +230,7 @@ repos:
         exclude: ^fuzz/corpus/
       # this one *adds* "# -*- coding: utf-8 -*-" to every Python file.
       # UTF-8 has been the default source encoding since Python 3 and the
-      # floor here is 3.10, so every line it would add is dead on arrival
+      # floor here is 3.11, so every line it would add is dead on arrival
       # - id: fix-encoding-pragma
       - id: check-yaml
       - id: check-json

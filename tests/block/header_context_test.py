@@ -23,7 +23,7 @@ against a real one.
 import dataclasses
 import secrets
 from collections.abc import Sequence
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -51,11 +51,11 @@ REGTEST_POW_LIMIT = REGTEST.pow_limit_bits
 # it as well, so any retarget answer is read straight off the exponent
 HARD = b"\x1c\x01\x00\x00"
 
-EPOCH = datetime.fromtimestamp(1231006505, timezone.utc)  # the mainnet genesis time
+EPOCH = datetime.fromtimestamp(1231006505, UTC)  # the mainnet genesis time
 
 
 def _time(timestamp: int) -> datetime:
-    return datetime.fromtimestamp(timestamp, timezone.utc)
+    return datetime.fromtimestamp(timestamp, UTC)
 
 
 def _small_interval(

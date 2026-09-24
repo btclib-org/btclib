@@ -25,7 +25,7 @@ no HWI at all.
 
 An optional extra importing `hwilib` beside this was weighed and refused
 (#469), and the reason is that Python range: HWI declares `^3.9,<3.13`,
-where this library's `requires-python` is `>=3.10`, so an extra nobody
+where this library's `requires-python` is `>=3.11`, so an extra nobody
 can install on 3.13 or later is a second and narrower support matrix
 rather than an option. A subprocess has no such problem, the executable
 living in an environment of its own. What a caller who does hold

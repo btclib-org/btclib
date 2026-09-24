@@ -22,7 +22,7 @@ limit, which these targets are far above, so each call names
 would be one that let a regtest block pass for a mainnet one.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -38,7 +38,7 @@ from btclib.utils import encode_num
 # 0xffff * 2^232, i.e. one chance in 256 that a given nonce solves it
 _EASY_BITS = "2000ffff"
 _PREVIOUS = "00000000000000000024fb37364cbf81fd49cc2d51c09c75c35433c3a1945d04"
-_TIME = datetime(2024, 5, 1, 12, 0, 0, tzinfo=timezone.utc)
+_TIME = datetime(2024, 5, 1, 12, 0, 0, tzinfo=UTC)
 
 
 def _coinbase(height: int, extranonce: int = 0) -> Tx:

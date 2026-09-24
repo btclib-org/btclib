@@ -329,8 +329,8 @@ class SignerDecorator:
     this is usually written and is wrong in a way nothing reports: since
     3.12 a runtime-checkable protocol is checked with
     `inspect.getattr_static`, which does not call `__getattr__`, so a
-    wrapper delegating that way satisfies `isinstance` on 3.10 and 3.11
-    and stops satisfying it on 3.12 and after -- the same wrapper, the
+    wrapper delegating that way satisfies `isinstance` on 3.11 and
+    stops satisfying it on 3.12 and after -- the same wrapper, the
     same signer, a different answer per interpreter.
 
     Nothing else is forwarded. What this is is the contract, not the

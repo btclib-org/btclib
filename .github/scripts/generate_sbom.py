@@ -272,7 +272,7 @@ def timestamp(epoch: int) -> str:
     # `isoformat` spells the zone "+00:00" and the schema's own examples
     # end in "Z"; both are valid ISO 8601 and one of them is what every
     # other tool writes
-    when = datetime.datetime.fromtimestamp(epoch, datetime.timezone.utc)
+    when = datetime.datetime.fromtimestamp(epoch, datetime.UTC)
     return when.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 

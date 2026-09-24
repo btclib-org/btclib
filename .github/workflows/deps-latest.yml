@@ -121,7 +121,7 @@ jobs:
     uses: btclib-org/.github/.github/workflows/reusable-deps-latest.yml@main
     with:
       runners: '["ubuntu-latest", "macos-latest", "windows-latest"]'
-      python-versions: '["3.10", "3.14"]'
+      python-versions: '["3.11", "3.14"]'
       fetch-tags: true
       measure-coverage: true
 
@@ -144,7 +144,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.10", "3.14"]
+        python: ["3.11", "3.14"]
     timeout-minutes: 20
     steps:
       - name: Checkout code

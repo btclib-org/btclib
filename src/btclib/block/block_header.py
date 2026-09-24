@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from btclib.alias import BinaryData, Octets
@@ -49,7 +49,7 @@ _REQUIRED_LENGTH = 4 + _HF_LEN + 32 + 4 + 4 + 4
 # is immutable, so sharing it is harmless, but keeping the call out of
 # the signature is what lets ruff's B008 stay enabled to catch the
 # mutable defaults that are not.
-_EPOCH = datetime.fromtimestamp(0, timezone.utc)
+_EPOCH = datetime.fromtimestamp(0, UTC)
 
 
 def _time_from_isoformat(time: Any) -> datetime:
@@ -379,7 +379,7 @@ class BlockHeader:
 
         if timestamp < 1231006505:
             err_msg = "invalid timestamp (before genesis)"
-            date = datetime.fromtimestamp(timestamp, timezone.utc)
+            date = datetime.fromtimestamp(timestamp, UTC)
             err_msg += f": {date}"
             raise BTClibValueError(err_msg)
 
@@ -482,7 +482,7 @@ class BlockHeader:
         merkle_root = header_bin[4 + _HF_LEN : 4 + 2 * _HF_LEN][::-1]
         rest = header_bin[4 + 2 * _HF_LEN :]
         t = int.from_bytes(rest[:4], byteorder="little", signed=False)
-        time = datetime.fromtimestamp(t, timezone.utc)
+        time = datetime.fromtimestamp(t, UTC)
         bits = rest[4:8][::-1]
         nonce = int.from_bytes(rest[8:12], byteorder="little", signed=False)
 

@@ -21,7 +21,7 @@ not fixtures: block 481,824 is a mainnet block above BIP34's activation
 height, so its coinbase commitment is one the whole network agreed on.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -52,7 +52,7 @@ def test_the_activation_height_is_cores() -> None:
     only imported, so that the number is asserted and not merely reused.
     """
     assert BIP34_HEIGHT == _MAINNET_BIP34_HEIGHT
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     assert BlockContext(height=0, now=now).bip34_height == _MAINNET_BIP34_HEIGHT
 
     # the gate is a comparison, and the activation height is the first
@@ -72,7 +72,7 @@ def test_the_activation_height_is_cores() -> None:
 
 def test_a_context_is_a_height_and_an_instant() -> None:
     """What BlockContext refuses, and why each refusal is there."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # a naive datetime has no instant attached to it: timestamp() reads it
     # as local time, so the same block would be too far in the future on
@@ -116,7 +116,7 @@ def test_median_time_past_and_required_bits_default_to_none_and_are_skipped() ->
     -- which is every context built above, none of them naming either --
     and it is not a value the type or range checks below ever see.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     context = BlockContext(height=0, now=now)
     assert context.median_time_past is None
     assert context.required_bits is None

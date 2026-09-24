@@ -277,7 +277,7 @@ of a ceiling is a decision. Which releases those floors name is
 `pyproject.toml`, next to the reason each one is where it is: a floor
 moves whenever this tree starts calling something newer, so a copy of the
 number here would be a second place to remember and the first to go
-stale. `typing-extensions` is the backport of what the 3.10 floor does
+stale. `typing-extensions` is the backport of what the 3.11 floor does
 not have, and its floor is the release adding the latest name this tree
 imports from it. The other two are btclib-org projects developed by the
 same people, and the bindings' whole purpose is to be the bindings this
@@ -360,8 +360,8 @@ one `uv run` uses. To reproduce a failure that only one cell of the
 matrix shows, name the interpreter instead of editing that file:
 
 ```shell
-uv sync --python 3.10
-uv run --python 3.10 pytest
+uv sync --python 3.11
+uv run --python 3.11 pytest
 ```
 
 **`--python` rebuilds `.venv`, and that has a consequence worth knowing
@@ -380,8 +380,8 @@ To leave `.venv` alone in the first place, put the other interpreter's
 environment somewhere else:
 
 ```shell
-UV_PROJECT_ENVIRONMENT=.venv-3.10 \
-    uv run --locked --no-default-groups --group test --python 3.10 pytest \
+UV_PROJECT_ENVIRONMENT=.venv-3.11 \
+    uv run --locked --no-default-groups --group test --python 3.11 pytest \
     --no-cov
 ```
 
@@ -579,7 +579,7 @@ these same workflow files for an injected expression on every pull
 request, which is a different question from what `codeql` asks.
 
 The trade, stated here rather than discovered later: the gate does not
-refuse a regression on `3.10`, on arm, on PyPy or on a platform. It sits
+refuse a regression on `3.11`, on arm, on PyPy or on a platform. It sits
 on `main` until the sentinel for it runs, at most six days.
 
 **What a sentinel varies, it varies whole.** `os-ubuntu` runs the images and
@@ -627,7 +627,7 @@ which accepts any of the ones those workflows list, `3.14t` and
 `pypy3.11` included, and downloads it if the machine has none:
 
 ```shell
-uv run --locked --no-default-groups --group test --python 3.10 pytest --no-cov
+uv run --locked --no-default-groups --group test --python 3.11 pytest --no-cov
 ```
 
 That one rebuilds `.venv` with the test group alone, which is what leaves

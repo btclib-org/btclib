@@ -216,7 +216,7 @@ def test_whitespace_is_collapsed() -> None:
     """Verify extra whitespace decodes to the same share."""
     mnemonic = _VECTORS[0][1][0]
     # not an f-string with the escapes inside the braces: a backslash in
-    # a replacement field is python 3.12, and this package supports 3.10
+    # a replacement field is python 3.12, and this package supports 3.11
     noisy = "  " + mnemonic.replace(" ", "  \n\t") + "  "
     assert slip39.share_from_mnemonic(noisy) == slip39.share_from_mnemonic(mnemonic)
 

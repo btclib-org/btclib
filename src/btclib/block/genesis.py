@@ -42,7 +42,7 @@ ships for it.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from btclib.block.block import Block
 from btclib.block.build import build_block
@@ -151,7 +151,7 @@ def genesis_block(network: str = "mainnet") -> Block:
         vout=[TxOut(subsidy(0), params.script_pub_key)],
     )
 
-    time = datetime.fromtimestamp(params.time, tz=timezone.utc)
+    time = datetime.fromtimestamp(params.time, tz=UTC)
     block = build_block(b"\x00" * 32, [genesis_tx], time, params.bits, version=1)
     block.header = replace(block.header, nonce=params.nonce)
     block.assert_valid(pow_limit_bits=net.consensus.pow_limit_bits)

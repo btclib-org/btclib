@@ -60,8 +60,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-
-from typing_extensions import Self
+from typing import Self
 
 from btclib import var_int
 from btclib.alias import BinaryData, Octets

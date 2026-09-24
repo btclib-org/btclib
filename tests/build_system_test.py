@@ -26,23 +26,20 @@ above and nothing else -- which is also how a direct reference to a url,
 an extra and an environment marker are refused, each of them a way to
 name a package that resolves to somebody else's code.
 
-Regex rather than `tomllib` for the two keys wanted out of
-pyproject.toml: the floor here is 3.10, and `tomllib` is 3.11, so a test
-module importing it fails to collect on the oldest interpreter the
-matrix runs, with every other cell green. `tests/copyright_test.py` reads
-the same file the same way and for the same reason; once 3.10 is dropped,
-both can parse it. What the regex costs is that it reads text and not a
-table, so it is anchored on the `[build-system]` header and stops at the
-next one: a `requires` belonging to some `[tool.*]` below is a different
-key, and a second build requirement is what has to be seen.
+`tomllib` for the two keys wanted out of `[build-system]`: stdlib from
+3.11, which requires-python's own floor now is too, so the module
+collects on every interpreter the matrix runs. `tests/copyright_test.py`
+reads pyproject.toml the same way, for the same reason.
 """
 
 from __future__ import annotations
 
 import ast
 import re
+import tomllib
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
 _PYPROJECT = Path(__file__).parents[1] / "pyproject.toml"
 
@@ -50,19 +47,15 @@ _PYPROJECT = Path(__file__).parents[1] / "pyproject.toml"
 _RELEASE = r"[0-9]+(?:\.[0-9]+)*"
 _BOUNDS = re.compile(rf"uv_build>={_RELEASE},<{_RELEASE}")
 
-# the table pip and uv build with, up to whichever table follows it
-_TABLE = re.compile(r"^\[build-system\]$(.*?)(?=^\[)", re.MULTILINE | re.DOTALL)
-_REQUIRES = re.compile(r"^requires\s*=\s*\[(.*?)\]", re.MULTILINE | re.DOTALL)
-_BACKEND = re.compile(r'^build-backend\s*=\s*"(.*?)"', re.MULTILINE)
 # any quoted string in a region -- an entry's own or a comment's mention
 # of one, the region not distinguishing the two. Safe only where the
 # region cannot hold a comment at all: a `key = [...]` array closed on
 # the one physical line it opens on, TOML allowing a comment inside a
 # flow array only where it spans more than one line (a `#` before the
 # closing bracket on the same line would swallow that bracket into the
-# comment instead). `requires` and `bindings` below are both written
-# that way today, and each has its own second guard -- an arity that
-# raises rather than a membership that passes -- named beside its call
+# comment instead). `bindings` below is written that way today, with its
+# own second guard -- an arity that raises rather than a membership that
+# passes -- named beside its call
 _QUOTED = re.compile(r'"(.*?)"')
 # an entry and not a comment: same reasoning and same pattern as
 # tests/sdist_dotted_names_test.py's `_ENTRY`, for a region that *can*
@@ -74,16 +67,16 @@ _QUOTED = re.compile(r'"(.*?)"')
 _ENTRY = re.compile(r'^\s*"([^"]*)",', re.MULTILINE)
 
 
-def _build_system() -> str:
-    """Return the text of pyproject.toml's `[build-system]` table.
+def _build_system() -> dict[str, Any]:
+    """Return pyproject.toml's `[build-system]` table, parsed.
 
     Called at import: the file is the project's own and a test module
     that cannot read it has nothing to say.
     """
     text = _PYPROJECT.read_text(encoding="utf-8")
-    match = _TABLE.search(text)
-    assert match, "pyproject.toml has no [build-system] table"
-    return match.group(1)
+    table = tomllib.loads(text).get("build-system")
+    assert isinstance(table, dict), "pyproject.toml has no [build-system] table"
+    return table
 
 
 _BUILD_SYSTEM = _build_system()
@@ -91,13 +84,11 @@ _BUILD_SYSTEM = _build_system()
 
 def test_the_build_requires_the_uv_backend_and_nothing_else() -> None:
     """One requirement, and a pair of bounds is the whole of what it says."""
-    match = _REQUIRES.search(_BUILD_SYSTEM)
-    assert match, "[build-system] declares no requires"
-    # `_QUOTED`, not `_ENTRY`: the array is one physical line, so no
-    # comment can sit inside it (see `_QUOTED`'s own comment above), and
-    # the one-element unpack turns a second, unexpected match into a
-    # raise rather than a silent pass -- the second risk this reader has
-    (requirement,) = _QUOTED.findall(match.group(1))
+    requires = _BUILD_SYSTEM.get("requires")
+    assert isinstance(requires, list), "[build-system] declares no requires"
+    # the one-element unpack turns a second, unexpected entry into a raise
+    # rather than a silent pass -- the second risk this reader has
+    (requirement,) = requires
 
     assert _BOUNDS.fullmatch(requirement)
 
@@ -111,10 +102,7 @@ def test_the_backend_is_the_one_the_tooling_reads() -> None:
     Either would fall back to a default that is neither, and the fall
     back is silent.
     """
-    match = _BACKEND.search(_BUILD_SYSTEM)
-    assert match, "[build-system] declares no build-backend"
-
-    assert match.group(1) == "uv_build"
+    assert _BUILD_SYSTEM.get("build-backend") == "uv_build"
 
 
 # the same requirement declared twice on purpose, and the two spellings:
@@ -135,10 +123,10 @@ def _bindings_requirements() -> tuple[list[str], list[str]]:
     assert group is not None, "no bindings dependency group in pyproject.toml"
     # `_ENTRY` for the extra, which spans several lines of its own `#`
     # reasoning about the floor and would count a quoted mention there
-    # as a second requirement; `_QUOTED` for the group, which -- like
-    # `requires` above -- is one physical line with no room for a
-    # comment, and where a stray match would fail the equality below by
-    # its length rather than pass unnoticed
+    # as a second requirement; `_QUOTED` for the group, which is one
+    # physical line with no room for a comment, and where a stray match
+    # would fail the equality below by its length rather than pass
+    # unnoticed
     return _ENTRY.findall(extra.group(1)), _QUOTED.findall(group.group(1))
 
 

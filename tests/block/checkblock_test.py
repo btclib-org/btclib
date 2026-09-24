@@ -21,7 +21,7 @@ proof-of-work instead.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -109,7 +109,7 @@ def context_at(cur_time: int) -> BlockContext:
     it answers -- which is what these vectors were written for. A height
     of zero says so rather than claiming a height the files do not carry.
     """
-    return BlockContext(height=0, now=datetime.fromtimestamp(cur_time, timezone.utc))
+    return BlockContext(height=0, now=datetime.fromtimestamp(cur_time, UTC))
 
 
 @pytest.mark.parametrize(

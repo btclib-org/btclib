@@ -152,15 +152,11 @@ NetworkType = Literal["main", "test"]
 # the string is computed at run time -- that is the whole of what a
 # Literal buys and the whole of what it does not.
 #
-# Literal and not Enum, and the issue measures why: `class Net(str,
-# Enum)` formats a member as `mainnet` on 3.10 and as `Net.MAINNET` on
-# 3.11 and later, so a mixin enum would make the six error messages
-# that interpolate a network name -- text some tests match verbatim --
-# read differently on different interpreters, while enum.StrEnum, which
-# formats as the value everywhere, is 3.11+ against a 3.10 floor. A
-# Literal has no runtime existence at all: nothing to format, nothing
-# new for to_dict to serialize, and no signature that stops accepting a
-# str.
+# Literal and not Enum, and the issue measures why: a Literal has no
+# runtime existence at all -- nothing to format, nothing new for
+# to_dict to serialize, and no signature that stops accepting a str --
+# where even enum.StrEnum, formatting as the value at every interpreter
+# the floor now covers, would still cost the last two.
 #
 # Which of them a *parameter* may take is the other half of the answer,
 # and it is not the same for all four: an argument annotated with a
@@ -376,7 +372,7 @@ class HashObject(Protocol):
     # Any, alone in this Protocol, and not for want of trying: hmac.new
     # takes a digestmod whose update() accepts typeshed's ReadableBuffer,
     # a union this library cannot spell before 3.12, collections.abc.Buffer
-    # being 3.12 and the floor 3.10, and a narrower parameter here makes
+    # being 3.12 and the floor 3.11, and a narrower parameter here makes
     # the whole Protocol unassignable to hmac's -- rfc6979 hands hf to
     # hmac.new. The two members that are actually read, digest() and
     # digest_size, stay exact, which is the point of the Protocol
