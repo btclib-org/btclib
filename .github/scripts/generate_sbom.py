@@ -49,7 +49,7 @@ no-op here and exists for a repository that does
 Run it on a freshly built dist directory, after `uv build` and after the
 sdist normalizer, whose rewrite changes the digest this records:
 
-    uv run --no-project --python 3.14 \
+    uv run --no-project --python 3.15 \
         .github/scripts/generate_sbom.py dist/ sbom/
 
 The output is named `<distribution>-<version>.cdx.json` after the wheel,

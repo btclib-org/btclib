@@ -9,6 +9,7 @@ deterministic nonce this library derives.
 """
 
 import hashlib
+import hmac
 from collections import Counter
 from typing import Any
 
@@ -260,6 +261,20 @@ class CountingSha256:
         return hashlib.sha256()
 
 
+def _hash_objects_per_hmac() -> int:
+    """Return how many hash objects one HMAC asks `hf` for.
+
+    The interpreter's to say rather than RFC6979's: CPython 3.15's `hmac`
+    asks for one more than the inner and the outer, to refuse a SHAKE
+    constructor (`_is_shake_constructor` in its `hmac.py`), where 3.14's
+    asks for those two alone. The key is one hash output long, as every
+    key `_HmacDrbg` passes is, so no key hashing adds to the count.
+    """
+    hf = CountingSha256()
+    hmac.new(bytes(32), b"", hf).digest()
+    return hf.calls
+
+
 def test_the_two_nonce_derivations_disagree() -> None:
     """They must: they are different schemes, not two spellings of one.
 
@@ -338,10 +353,13 @@ def test_neither_nonce_derivation_reduces_modulo_n() -> None:
             assert 0 < nonce < _EC.n
             rfc_rounds[hf.calls] += 1
 
-    # one round is 11 hash objects and every retry is another 6
-    assert min(rfc_rounds) == 11
-    assert all((calls - 11) % 6 == 0 for calls in rfc_rounds)
-    retried = sum(n for calls, n in rfc_rounds.items() if calls > 11)
+    # one round is five HMACs and the hf() `_HmacDrbg` makes to read
+    # digest_size, and every retry is another three HMACs
+    per_hmac = _hash_objects_per_hmac()
+    one_round = 5 * per_hmac + 1
+    assert min(rfc_rounds) == one_round
+    assert all((calls - one_round) % (3 * per_hmac) == 0 for calls in rfc_rounds)
+    retried = sum(n for calls, n in rfc_rounds.items() if calls > one_round)
     assert 0.30 < retried / 342 < 0.50  # 14/32 = 0.4375 expected
 
     # exhaustive, so this is every nonce the curve can produce: all of
@@ -369,13 +387,14 @@ def test_neither_nonce_derivation_reduces_modulo_n() -> None:
 
 
 def test_what_each_nonce_derivation_costs() -> None:
-    """BIP340's nonce is half the hashing of RFC6979's.
+    """BIP340's nonce is at most half the hashing of RFC6979's.
 
     On secp256k1 the rejection loop never fires -- it would take about
     2^-128 of inputs -- so both are one round, and the round is the whole
-    cost: HMAC-DRBG's four setup HMACs and one output HMAC, two hash
-    objects apiece, against BIP340's two tagged hashes. The counts below
-    include the one `hf()` each public wrapper makes to read digest_size.
+    cost: HMAC-DRBG's four setup HMACs and one output HMAC, at least two
+    hash objects apiece, against BIP340's two tagged hashes. The counts
+    below include the one `hf()` each public wrapper makes to read
+    digest_size, and `_HmacDrbg`'s own.
 
     Not a stopwatch: hashing is what either does, the counts are exact,
     and neither goes anywhere near the point-multiplication that follows
@@ -383,7 +402,7 @@ def test_what_each_nonce_derivation_costs() -> None:
     """
     hf = CountingSha256()
     rfc6979_nonce_(bytes(32), 7, hf=hf)
-    assert hf.calls == 12
+    assert hf.calls == 5 * _hash_objects_per_hmac() + 2
 
     hf = CountingSha256()
     bip340_nonce_(b"btclib", 7, AUX, hf=hf)

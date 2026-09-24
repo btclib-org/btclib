@@ -36,7 +36,7 @@ runs:
       env:
         SUFFIX: ${{ inputs.suffix }}
       run: |
-        uv run --no-project --python 3.14 python - <<'PY'
+        uv run --no-project --python 3.15 python - <<'PY'
         import os
         import re
         import tomllib

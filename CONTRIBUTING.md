@@ -805,11 +805,11 @@ import finds the source tree instead of the wheel:
 ```shell
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
 uv build
-uv run --no-project --python 3.14 .github/scripts/normalize_sdist.py dist/
+uv run --no-project --python 3.15 .github/scripts/normalize_sdist.py dist/
 sha256sum dist/*
-uv run --no-project --python 3.14 \
+uv run --no-project --python 3.15 \
     .github/scripts/verify_dist_contents.py dist/
-uv run --no-project --python 3.14 .github/scripts/generate_sbom.py dist/ sbom/
+uv run --no-project --python 3.15 .github/scripts/generate_sbom.py dist/ sbom/
 uv run --locked --only-group check twine check --strict dist/*
 uv run --locked --only-group check check-wheel-contents dist/*.whl
 uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz

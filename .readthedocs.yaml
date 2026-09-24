@@ -34,13 +34,16 @@
 # Required
 version: 2
 
-# the interpreter is declared rather than left to whatever read the docs
-# defaults to: conf.py reads the version out of pyproject.toml with
-# tomllib, which is standard library from 3.11 on. Which version above that
-# floor is `.python-version`'s to say -- these docs are built twice, here
-# and by docs.yml, and one interpreter is what keeps the build read on the
-# website and the build that gates a merge from being two different
-# questions
+# the interpreter below runs `pip install uv` and nothing else. The build
+# runs on the one `.python-version` names: `uv sync` reads that file and
+# downloads the interpreter when the image has none -- these docs are
+# built twice, here and by docs.yml, and one interpreter is what keeps
+# the build read on the website and the build that gates a merge from
+# being two different questions. The value is not `.python-version`'s
+# where read the docs offers no such version: the `build.tools.python`
+# enum of
+# https://github.com/readthedocs/readthedocs.org/blob/main/readthedocs/rtd_tests/fixtures/spec/v2/schema.json
+# lists what it offers, and it is the newest of those
 build:
   os: ubuntu-24.04
   tools:

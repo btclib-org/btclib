@@ -10,5 +10,5 @@
 #
 # A whole-line comment only: uv skips one of these, but a trailing comment
 # on the version line makes it ignore the file with "Ignoring unsupported
-# Python request `3.14  # newest`" and fall back to a default interpreter.
-3.14
+# Python request `3.15  # newest`" and fall back to a default interpreter.
+3.15
