@@ -169,7 +169,7 @@ they are **not** findings against this pull request.
       rather than asserted as a defect
 
 Labelling every comment is
-[conventional comments](https://conventionalcomments.org/)' idea and its
+[conventional comments](https://conventionalcomments.gitlab.io/)' idea and its
 whole value: an unlabelled remark makes the author guess whether it
 holds the merge, and they guess conservatively, which turns a nit into a
 round of review.

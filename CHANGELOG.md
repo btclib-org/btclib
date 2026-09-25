@@ -136,6 +136,12 @@ the floor moving to the release adding it (closes #2257).
 Its image lacks the interpreter `.python-version` names, and the `lint`
 workflow still runs the hook (issue btclib-org/.github#1348).
 
+### `REVIEWING.md` links Conventional Comments at its GitLab Pages address
+
+`REVIEWING.md` links `https://conventionalcomments.gitlab.io/`, a name the
+`*.gitlab.io` certificate covers, which `conventionalcomments.org` can present
+and fail the TLS check (issue btclib-org/.github#1341).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
