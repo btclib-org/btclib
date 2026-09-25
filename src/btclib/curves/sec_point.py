@@ -9,7 +9,7 @@ import contextlib
 from btclib._libsecp256k1 import (
     pubkey_from_prvkey as libsecp256k1_pubkey_from_prvkey,
 )
-from btclib._libsecp256k1 import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
+from btclib._libsecp256k1 import shared_point as libsecp256k1_shared_point
 from btclib.alias import Integer, Octets, Point
 from btclib.curves.curve import (
     Curve,
@@ -305,7 +305,7 @@ def _sec_from_pub_key(pub_key: PubKey, ec: Curve) -> bytes:
     multiply them by a scalar for a shared point, hands them to a call
     whose own parse is that same proof: the two together lift one x
     twice, which is issue 887. `ecc.dsa.verify_` is one such caller and
-    `ecc.ecies.derive_keys` another, the second through `_mult_sec_var`
+    `ecc.ecies.derive_keys` another, the second through `_mult_sec`
     below rather than directly.
 
     So this is that conversion with the proof left out, and it is private
@@ -338,14 +338,16 @@ def _sec_from_pub_key(pub_key: PubKey, ec: Curve) -> bytes:
         raise BTClibValueError("not a public key") from e
 
 
-def _mult_sec_var(sec: bytes, m: int, ec: Curve) -> Point:
+def _mult_sec(sec: bytes, m: int, ec: Curve) -> Point:
     """Return m*P, for a point given as the SEC octets that name it.
 
     `mult(m, point_from_octets(sec, ec), ec)` is the same answer, and pays
     a round trip this does not: the octets are lifted to a point on the
     way in, and `mult` writes that point back out as octets for
-    secp256k1_ec_pubkey_tweak_mul, which is the call libsecp256k1 would
-    have made on the bytes it was handed.
+    `ecdh.shared_point`, which is the call libsecp256k1 would have made
+    on the bytes it was handed. That call is `secp256k1_ecdh`, constant
+    time in m, and the Python arm is `mult`'s own, regular and blinded:
+    the name is plain because neither arm's work follows m.
 
     The octets need not be proved a point first -- `_sec_from_pub_key`
     hands them in unproven, the same trade `ecc.dsa` makes for its own
@@ -356,7 +358,7 @@ def _mult_sec_var(sec: bytes, m: int, ec: Curve) -> Point:
     """
     if m and _libsecp256k1_serves(ec, None):
         with contextlib.suppress(ValueError):
-            return _point_from_sec(libsecp256k1_pubkey_tweak_mul(sec, m, False))
+            return _point_from_sec(libsecp256k1_shared_point(sec, m, False))
 
     return mult(m, point_from_octets(sec, ec), ec)
 
@@ -367,7 +369,7 @@ def mult_pub_key(m: Integer, pub_key: PubKey, ec: Curve = secp256k1) -> Point:
     `mult(m, point_from_pub_key(pub_key, ec), ec)` is the same answer,
     and where the bindings serve it lifts a compressed key's x to a point
     only for them to parse it again: this is `_sec_from_pub_key` and
-    `_mult_sec_var` composed, which leave the proof that the key is a
+    `_mult_sec` composed, which leave the proof that the key is a
     point of the curve to the multiplication's own parse. What it is for
     is an ECDH-shaped computation, whose key is the other party's and
     arrives as octets: a shared secret of BIP352 is one, and
@@ -378,9 +380,9 @@ def mult_pub_key(m: Integer, pub_key: PubKey, ec: Curve = secp256k1) -> Point:
 
     The name is plain, as `mult`'s is, because the scalar is a secret: a
     private key, or BIP352's input_hash*a. The Python arm is `mult`'s own,
-    and the arm the bindings serve is the delegated multiplication
-    SECURITY.md lists as variable time in its scalar.
+    and the arm the bindings serve is `secp256k1_ecdh`, constant time in
+    the scalar.
     """
     _assert_valid_ec(ec)
     scalar = int_from_integer(m) % ec.n
-    return _mult_sec_var(_sec_from_pub_key(pub_key, ec), scalar, ec)
+    return _mult_sec(_sec_from_pub_key(pub_key, ec), scalar, ec)

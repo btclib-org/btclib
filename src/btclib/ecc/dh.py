@@ -18,13 +18,10 @@ and hashes in one call, and the hash is SHA256 of the compressed shared
 point with no way to change it: libsecp256k1 takes it as a C callback, so
 exposing it would mean calling back into python from the middle of the
 computation. Every ECDH-shaped computation here derives differently, so
-what is delegated is the multiplication -- `keys.pubkey_tweak_mul`, and
-not the `secp256k1_ecmult_const` that `ecdh.shared_secret` multiplies
-with: that one is constant time in the scalar, where the
-`secp256k1_ec_pubkey_tweak_mul` under `keys.pubkey_tweak_mul` runs
-`secp256k1_ecmult` and is not. The point is the same either way, and
-what the difference costs is in `diffie_hellman`'s docstring below and
-in SECURITY.md. The derivation stays in python:
+what is delegated is the multiplication -- `ecdh.shared_point`, the same
+`secp256k1_ecdh` call answering the point instead of its hash, and so
+the same `secp256k1_ecmult_const`, constant time in the scalar. The
+derivation stays in python:
 
 - `diffie_hellman` below runs SEC 1's ANSI-X9.63-KDF over the
   x-coordinate, under the hash function the caller passed;
@@ -53,7 +50,7 @@ from hashlib import sha256
 # module no longer defines, and `btclib.kdf` the only place it is
 # defined is the whole of what moving it was for
 from btclib import kdf
-from btclib._libsecp256k1 import keys as libsecp256k1_keys
+from btclib._libsecp256k1 import shared_point as libsecp256k1_shared_point
 from btclib.alias import HashF, Point
 from btclib.curves import Curve, bytes_from_point, mult, secp256k1
 from btclib.curves.curve import _assert_valid_ec, _libsecp256k1_serves
@@ -77,16 +74,10 @@ def diffie_hellman(
     http://www.secg.org/sec1-v2.pdf, section 6.1
 
     The shared point is a point that is not the generator multiplied by
-    a secret, and on secp256k1 `secp256k1_ec_pubkey_tweak_mul` computes
-    it here, at a fraction of what the Python endomorphism path costs.
-    Speed and libsecp256k1's own answer are what that buys, and not a
-    timing property in dU: the call runs `secp256k1_ecmult`, whose
-    windowed NAF holds at most one more digit than the scalar has bits,
-    so the work follows the scalar. `secp256k1_ecmult_const` is the
-    multiplication that is constant time in its scalar, and
-    `secp256k1_ecdh` is what reaches it; SECURITY.md publishes the
-    limitation, and the module docstring above says why nothing here
-    calls that function.
+    a secret, and on secp256k1 `ecdh.shared_point` of the bindings
+    computes it here: `secp256k1_ecdh`, whose `secp256k1_ecmult_const` is
+    constant time in dU, at a fraction of what the Python endomorphism
+    path costs.
 
     `ecdh.shared_secret` of the bindings is a different function and not
     a substitute: it hashes the compressed shared point with SHA256,
@@ -104,10 +95,9 @@ def diffie_hellman(
         # uncompressed, which is the cheap form to hand over: parsing 65
         # octets reads both coordinates where 33 are a field square root,
         # and the point is here to be written either way, so the
-        # multiplication that follows is spared the lift
-        sec = libsecp256k1_keys.pubkey_tweak_mul(
-            bytes_from_point(QV, ec, compressed=False), d
-        )
+        # multiplication that follows is spared the lift. The answer is
+        # compressed, whose octets past the tag are the x-coordinate
+        sec = libsecp256k1_shared_point(bytes_from_point(QV, ec, compressed=False), d)
         return kdf.ansi_x9_63_kdf(sec[1:], size, hf, shared_info)
 
     shared_secret_point = mult(dU, QV, ec)

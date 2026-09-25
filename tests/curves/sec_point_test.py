@@ -24,7 +24,7 @@ from btclib.curves import (
     secp256k1,
 )
 from btclib.curves.curve import CURVES
-from btclib.curves.sec_point import _mult_sec_var, mult_pub_key
+from btclib.curves.sec_point import _mult_sec, mult_pub_key
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from tests import needs_bindings
 
@@ -231,10 +231,10 @@ def test_infinity_point_from_octets() -> None:
         pytest.param(False, id="python"),
     ],
 )
-def test_mult_sec_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_mult_sec(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     """m*P from the octets is m*P from the point, on every curve.
 
-    `_mult_sec_var` skips the round trip `mult(m, point_from_octets(sec))`
+    `_mult_sec` skips the round trip `mult(m, point_from_octets(sec))`
     makes -- the lift on the way in and the serialization back out, of a
     point neither side reads a coordinate of -- so what has to be asserted
     is that identity, for both forms of the octets and for the scalars the
@@ -253,14 +253,25 @@ def test_mult_sec_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
             for compressed in (True, False):
                 sec = bytes_from_point(Q, ec, compressed)
                 for m in (0, 1, 2, ec.n - 1):
-                    assert _mult_sec_var(sec, m, ec) == mult(m, Q, ec)
+                    assert _mult_sec(sec, m, ec) == mult(m, Q, ec)
+
+    # every width of a secp256k1 scalar, where the bindings arm is
+    # `secp256k1_ecdh`; and a scalar at or above n, which it refuses and
+    # the fallthrough reduces
+    ec = CURVES["secp256k1"]
+    Q = mult(7, ec.G, ec)
+    sec = bytes_from_point(Q, ec)
+    for w in (256, 128, 64, 32, 1):
+        m = (1 << (w - 1)) | (0x5A5A5A5A5A5A5A5A % (1 << (w - 1)))
+        assert _mult_sec(sec, m % ec.n, ec) == mult(m, Q, ec)
+    assert _mult_sec(sec, ec.n + 2, ec) == mult(2, Q, ec)
 
     # and octets that are no point at all are the lift's refusal, which is
     # what the fallthrough exists to keep saying
     ec = CURVES["secp256k1"]
     x_Q = 0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34
     with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
-        _mult_sec_var(b"\x02" + x_Q.to_bytes(ec.p_size, "big"), 2, ec)
+        _mult_sec(b"\x02" + x_Q.to_bytes(ec.p_size, "big"), 2, ec)
 
 
 @pytest.mark.parametrize(

@@ -53,6 +53,7 @@ from btclib._libsecp256k1 import pubkey_tweak_add as libsecp256k1_pubkey_tweak_a
 from btclib._libsecp256k1 import (
     pubkey_tweak_mul_sum as libsecp256k1_pubkey_tweak_mul_sum,
 )
+from btclib._libsecp256k1 import shared_point as libsecp256k1_shared_point
 from btclib._libsecp256k1 import (
     xonly_pubkey_verify as libsecp256k1_xonly_pubkey_verify,
 )
@@ -696,8 +697,14 @@ def _libsecp256k1_multi_mult_var_(
     At least one term, the sum refusing an empty sequence as
     `pubkey_combine` does, and as many scalars as points, which is what
     the entry point raises for itself. Neither narrows what the callers
-    below reach: fewer than two terms is not a multi_mult_var, and the two
-    other entry points hand over one and two, each with its scalar.
+    below reach: fewer than two terms is not a multi_mult_var,
+    `double_mult_var` hands over two, and a batch verification two per
+    signature.
+
+    Variable time in the scalars: each term is a `secp256k1_ecmult`, whose
+    windowed NAF adds once per nonzero digit, which is the `_var` every
+    entry point reaching this carries. A secret times a point is
+    `_libsecp256k1_mult` below instead.
     """
     return libsecp256k1_pubkey_tweak_mul_sum(secs, scalars, False)
 
@@ -772,6 +779,24 @@ def _point_from_sec(sec: bytes) -> Point:
     )
 
 
+def _libsecp256k1_mult(m: int, Q: Point) -> Point:
+    """Return m*Q through the bindings, in constant time in m.
+
+    `ecdh.shared_point`, which is `secp256k1_ecdh` answering the point:
+    its multiplication is `secp256k1_ecmult_const`, where the
+    `pubkey_tweak_mul_sum` of `_libsecp256k1_multi_mult_var_` runs
+    `secp256k1_ecmult` and its work follows the scalar. `mult` is the
+    multiplication a secret is handed to, so this is the call its
+    bindings arm makes for a point other than the generator.
+
+    m is required to be in [1, n-1] and Q to be a point of secp256k1 that
+    is not infinity, which is what `_mult_checked` gates on: the bindings
+    refuse the others, and the product of two such is never infinity, n
+    being prime.
+    """
+    return _point_from_sec(libsecp256k1_shared_point(_sec_from_point(Q), m, False))
+
+
 def _libsecp256k1_multi_mult_var(
     scalars: Sequence[int], points: Sequence[Point]
 ) -> Point:
@@ -844,7 +869,7 @@ def _mult_checked(m: int, Q: Point | None, ec: Curve, *, prepared: bool) -> Poin
         # any other point, infinity excepted: that one is not a pubkey,
         # and m*INF == INF is what the Python path below answers anyway
         if Q[1]:
-            return _libsecp256k1_multi_mult_var([m], [Q])
+            return _libsecp256k1_mult(m, Q)
 
     if Q is None or Q == ec.G:
         # the fixed-base case, and the whole of what makes it one: the

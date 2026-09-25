@@ -125,6 +125,12 @@ The comment above `uses:` named `python-version`, an input the called
 workflow does not declare; it names `setup-python` and its `false` default
 instead (issue btclib-org/.github#1346).
 
+### `mult` of a point other than G is constant time on the bindings arm
+
+So are `mult_pub_key`, `ecies.derive_keys` and `dh.diffie_hellman`, and
+`_mult_sec_var` is `_mult_sec`: each calls the bindings' `ecdh.shared_point`,
+the floor moving to the release adding it (closes #2257).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
