@@ -248,6 +248,11 @@ PowerShell, `source venv_btclib/Scripts/activate` in Git bash.
 [REVIEWING](./REVIEWING.md) for what a pull request is answered against,
 [SECURITY](./SECURITY.md) for reporting a vulnerability.
 
+How the organization decides, and who holds which role, is its
+[GOVERNANCE.md](https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md);
+what it intends to do, and what it deliberately does not, is its
+[ROADMAP.md](https://github.com/btclib-org/.github/blob/main/ROADMAP.md).
+
 ---
 
 The btclib organization and its projects are actively supported by
