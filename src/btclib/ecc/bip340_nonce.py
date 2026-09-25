@@ -34,9 +34,9 @@ from __future__ import annotations
 import secrets
 from hashlib import sha256
 
+from btclib._ecc_hashes import tagged_hash
 from btclib.alias import HashF, Integer, Octets
 from btclib.curves import Curve, mult, scalar_from_prv_key, secp256k1
-from btclib.hashes import tagged_hash
 from btclib.utils import bytes_from_octets, int_from_bits
 
 __all__ = [

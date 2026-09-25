@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import secrets
 
+from btclib._ecc_hashes import tagged_hash
 from btclib.alias import Integer, Octets, Point
 from btclib.curves import (
     PubKey,
@@ -54,7 +55,6 @@ from btclib.curves import (
     secp256k1,
 )
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.hashes import tagged_hash
 from btclib.utils import bytes_from_octets
 
 __all__ = [

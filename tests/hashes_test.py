@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 
 from btclib import hashes
+from btclib._ecc_hashes import _assert_valid_hf
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import (
     hash160,
@@ -215,10 +216,10 @@ def test_a_hash_function_that_is_not_one_is_refused(hf: Any) -> None:
     made the mistake.
     """
     with pytest.raises(BTClibTypeError, match="not a hash function"):
-        hashes._assert_valid_hf(hf)
+        _assert_valid_hf(hf)
 
 
 def test_a_hash_function_that_is_one_passes() -> None:
     """The control, over the three shapes a caller can legitimately pass."""
     for hf in (sha256, hashlib.sha512, lambda: hashlib.sha256()):  # noqa: PLW0108
-        hashes._assert_valid_hf(hf)
+        _assert_valid_hf(hf)

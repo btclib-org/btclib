@@ -41,7 +41,7 @@ from io import BytesIO
 from types import TracebackType
 from typing import Any, Self, TypeVar, overload
 
-from btclib import var_bytes
+from btclib._ecc_hashes import _assert_valid_hf, reduce_to_hlen
 from btclib._libsecp256k1 import dsa as libsecp256k1_dsa
 from btclib._libsecp256k1 import ffi as libsecp256k1_ffi
 from btclib._libsecp256k1 import recovery as libsecp256k1_recovery
@@ -66,7 +66,6 @@ from btclib.curves.sec_point import _sec_from_pub_key
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
-from btclib.hashes import _assert_valid_hf, reduce_to_hlen
 from btclib.number_theory import mod_inv, mod_inv_var
 from btclib.utils import (
     assert_type,
@@ -137,18 +136,63 @@ def _serialize_scalar(scalar: int) -> bytes:
     return _DER_SCALAR_MARKER + _der_length(len(scalar_bytes)) + scalar_bytes
 
 
+# CompactSize's three wide prefixes: how many little-endian octets of
+# size follow each, and the smallest size each may carry, a smaller one
+# having a shorter encoding
+_WIDE_SIZE_PREFIXES = {
+    0xFD: (2, 0xFD),
+    0xFE: (4, 0x0001_0000),
+    0xFF: (8, 0x0001_0000_0000),
+}
+# the cap Bitcoin Core's ReadCompactSize applies by default, MAX_SIZE of
+# serialize.h: nine octets could otherwise announce 2**64 - 1 of them
+_MAX_SIZE = 0x02000000
+
+
+def _parse_der_size(stream: BytesIO) -> int:
+    """Return the size in front of a DER element, read as CompactSize.
+
+    CompactSize and X.690 8.1.3 agree below 0x80, which is every size a
+    secp256k1 signature under BIP66 carries. At 0x80 and above they part:
+    CompactSize takes the octet as the size, up to 0xfc, and 0xfd, 0xfe
+    and 0xff as the prefix of a wider one, where X.690 takes it as the
+    count of the size octets that follow (issue #2283). `_der_length` is
+    the X.690 side, and writes; this is the side `parse` reads with.
+    """
+    prefix = stream.read(1)
+    if not prefix:
+        raise BTClibValueError("not enough binary data for var_int")
+    size = prefix[0]
+    if size in _WIDE_SIZE_PREFIXES:
+        width, minimum = _WIDE_SIZE_PREFIXES[size]
+        data = stream.read(width)
+        if len(data) != width:
+            raise BTClibValueError("not enough binary data for var_int")
+        size = int.from_bytes(data, byteorder="little", signed=False)
+        if size < minimum:
+            err_msg = f"non-canonical var_int: {size} encoded in {width + 1} bytes"
+            raise BTClibValueError(err_msg)
+    if size > _MAX_SIZE:
+        err_msg = f"var_int too big: {hex_string(size)}, max is {hex_string(_MAX_SIZE)}"
+        raise BTClibValueError(err_msg)
+    return size
+
+
 def _parse_der_value(stream: BytesIO) -> bytes:
     """Return the [size][value] octets a DER element announced.
 
-    var_bytes reports a size that overruns the buffer, or a zero one, as
-    a BTClibRuntimeError; here both mean the DER is malformed, and the
-    callers that filter parse failures -- psbt_in._assert_valid_partial_sigs
-    among them -- catch BTClibValueError alone.
+    A size that overruns the buffer, or a zero one, means the DER is
+    malformed, so each is a BTClibValueError: the callers that filter
+    parse failures -- psbt_in._assert_valid_partial_sigs among them --
+    catch BTClibValueError alone.
     """
-    try:
-        return var_bytes.parse(stream, forbid_zero_size=True)
-    except BTClibRuntimeError as e:
-        raise BTClibValueError(f"invalid DER length: {e}") from e
+    size = _parse_der_size(stream)
+    if size == 0:
+        raise BTClibValueError("invalid DER length: zero size")
+    value = stream.read(size)
+    if len(value) != size:
+        raise BTClibValueError("invalid DER length: not enough binary data")
+    return value
 
 
 def _deserialize_scalar(sig_data_stream: BytesIO, strict: bool) -> int:
@@ -1622,7 +1666,7 @@ def assert_as_valid_(
     # ahead of everything, and the one input whose refusal has to be a
     # TypeError: verify_ below turns a ValueError into False, so an hf
     # checked any later than this would be reported as a signature that
-    # does not verify. hashes._assert_valid_hf has the rest
+    # does not verify. _ecc_hashes._assert_valid_hf has the rest
     _assert_valid_hf(hf)
 
     # key is a PubKey, not a Key: verification is where a private key

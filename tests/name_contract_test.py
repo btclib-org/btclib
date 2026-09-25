@@ -337,7 +337,7 @@ def test_the_walk_reaches_what_it_claims() -> None:
     assert "btclib.script.engine.script_op_codes.op_verify" not in _NAMED
     assert "btclib.script.engine.script_op_codes.op_equalverify" not in _NAMED
     # a private name, and a name that promises nothing
-    assert "btclib.hashes._assert_valid_hf" not in _NAMED
+    assert "btclib._ecc_hashes._assert_valid_hf" not in _NAMED
     assert "btclib.utils.bytes_from_octets" not in _NAMED
 
 

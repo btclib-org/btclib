@@ -69,14 +69,14 @@ def _read_der_length(data: bytes, offset: int) -> tuple[int, int]:
 
 
 def _independent_parse(der: bytes) -> tuple[int, int]:
-    """Return (r, s), read by X.690 alone rather than by var_int/var_bytes.
+    """Return (r, s), read by X.690 alone rather than as CompactSize.
 
-    `Sig.parse` reads a length back with the same CompactSize codec
-    `Sig.serialize` used to write it, which is blind by construction to
-    a divergence between the two (issue 2130). This re-derives every
-    length octet with `_der_length` and refuses trailing data instead --
-    a self-consistency check on `serialize`'s output, not a check that
-    the rule it and `_der_length` share is the right one.
+    `Sig.parse` reads a length as CompactSize, which is X.690 only below
+    0x80, so it cannot read back what `Sig.serialize` writes at and above
+    it (issue 2130). This re-derives every length octet with
+    `_der_length` and refuses trailing data instead -- a self-consistency
+    check on `serialize`'s output, not a check that the rule it and
+    `_der_length` share is the right one.
     """
     assert der[0] == 0x30
     seq_len, offset = _read_der_length(der, 1)

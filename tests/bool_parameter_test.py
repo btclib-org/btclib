@@ -802,4 +802,4 @@ def test_the_walk_reaches_what_it_claims() -> None:
     assert not [pair for pair in found if pair[1] == "check_validity"]
     # a private function, and a parameter of another type
     assert ("btclib.ecc.musig2._flag", "is_xonly") not in found
-    assert ("btclib.hashes.reduce_to_hlen", "hf") not in found
+    assert ("btclib._ecc_hashes.reduce_to_hlen", "hf") not in found

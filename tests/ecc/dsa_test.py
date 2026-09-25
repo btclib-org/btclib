@@ -1626,7 +1626,7 @@ def test_a_bad_hf_raises_rather_than_answering_about_the_signature() -> None:
     The distinction `verify_` claims to draw and did not: its `except
     (ValueError, BTClibRuntimeError)` reports anything it catches as a
     signature that does not verify, so the refusal has to be the
-    BTClibTypeError `hashes._assert_valid_hf` raises and has to happen
+    BTClibTypeError `_ecc_hashes._assert_valid_hf` raises and has to happen
     before the try. `sha256()` for `sha256` is the mistake it is written
     for (issue #745).
     """

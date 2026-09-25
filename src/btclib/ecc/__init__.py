@@ -47,13 +47,15 @@ rfc6979_nonce both define `challenge_`, and a package-level export of
 any of the four would collide -- as one of `sign` would, which five of
 these modules define, or of `gen_keys`, which three do.
 
-bms does `from btclib.ecc import dsa`, i.e. it imports a name from the
-package that is importing it, and the order of the line below does not
-have to work around it: a `from package import name` whose name is not
-yet an attribute falls back to importing package.name as a submodule,
-which is what happens here. tests/imports_test.py imports every module of
-the library with nothing else in sys.modules, which is the order that
-would find it if it did not.
+**bms is imported on demand, and it is the one scheme that is.** It
+names its signer by an address, so it reaches `b32`, `b58`, `key` and
+`network`, where every other module here imports only what sits at the
+curve's layer and below it (issue #2282). Importing it eagerly below
+would put those modules behind `import btclib.ecc`; `__getattr__` at the
+bottom answers `btclib.ecc.bms` instead, the first time it is asked for.
+`from btclib.ecc import bms` is answered there too, a from-import asking
+for the attribute before it imports a submodule. tests/imports_test.py
+holds the rest of the package to that layer, and leaves this module out.
 
 **Secrets.** This is the package a private key is handed to, and what
 holds around it is conditional. What decides whether an operation here
@@ -67,9 +69,11 @@ section states each condition, argument by argument, and README.md
 carries the short form.
 """
 
+from importlib import import_module
+from types import ModuleType
+
 from btclib.ecc import (
     bip340_nonce,
-    bms,
     borromean,
     commit_nonce,
     dh,
@@ -106,3 +110,24 @@ __all__ = [
     "second_generator",
     "ssa",
 ]
+
+
+def __getattr__(published: str) -> ModuleType:
+    """Import `bms` the first time it is asked for.
+
+    PEP 562, as `btclib/__init__.py` does it: this answers `btclib.ecc.bms`
+    on a package that has not imported it, which is how a walker reading
+    `__all__` descends and how `from btclib.ecc import *` binds.
+    """
+    if published == "bms":
+        return import_module(f"{__name__}.bms")
+    raise AttributeError(f"module {__name__!r} has no attribute {published!r}")
+
+
+def __dir__() -> list[str]:
+    """Answer with `bms` beside what the package already has.
+
+    `dir()` reads the namespace, so without this `bms` is missing from it
+    until first touched, as `btclib/script/__init__.py` says of its own.
+    """
+    return sorted({*__all__, *globals()})

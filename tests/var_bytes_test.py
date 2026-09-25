@@ -4,6 +4,7 @@
 
 """Tests for the `btclib.var_bytes` module."""
 
+from collections.abc import Callable
 from io import BytesIO
 
 import pytest
@@ -11,7 +12,8 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from btclib import var_bytes
-from btclib.exceptions import BTClibRuntimeError
+from btclib.ecc import dsa
+from btclib.exceptions import BTClibException, BTClibRuntimeError, BTClibValueError
 
 
 @given(octets=st.binary(max_size=512))
@@ -67,3 +69,49 @@ def test_the_size_and_the_serialization_agree() -> None:
     """
     for octets in (b"", b"\x00", b"\xff" * 0xFC, b"\xff" * 0xFD, "deadbeef"):
         assert var_bytes._size(octets) == len(var_bytes.serialize(octets))
+
+
+def _outcome(read: Callable[[BytesIO], bytes], data: bytes) -> tuple[str, bytes | str]:
+    """Return what one reader answers, or the class and message it raises."""
+    try:
+        return "value", read(BytesIO(data))
+    except BTClibException as e:
+        return type(e).__name__, str(e)
+
+
+def _var_bytes_as_dsa_reports_it(stream: BytesIO) -> bytes:
+    """Return what `var_bytes` reads, erring in the words `Sig.parse` uses."""
+    try:
+        return var_bytes.parse(stream, forbid_zero_size=True)
+    except BTClibRuntimeError as e:
+        raise BTClibValueError(f"invalid DER length: {e}") from e
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        pytest.param(b"", id="nothing"),
+        pytest.param(b"\x00", id="zero size"),
+        pytest.param(b"\x02ab", id="one octet"),
+        pytest.param(b"\x03ab", id="overrun"),
+        pytest.param(b"\x80" + bytes(0x80), id="0x80 as a size"),
+        pytest.param(b"\xfc" + bytes(0xFC), id="0xfc as a size"),
+        pytest.param(b"\xfd\xfd\x00" + bytes(0xFD), id="two octets"),
+        pytest.param(b"\xfd\xfd", id="two octets cut short"),
+        pytest.param(b"\xfd\xfc\x00", id="two octets non-canonical"),
+        pytest.param(b"\xfe\x00\x00\x01\x00", id="four octets non-canonical"),
+        pytest.param(b"\xfe\x01\x00\x00\x02", id="four octets past the cap"),
+        pytest.param(b"\xff" + bytes(8), id="eight octets non-canonical"),
+    ],
+)
+def test_dsa_reads_a_der_size_as_var_bytes_does(data: bytes) -> None:
+    """`ecc.dsa` carries its own reader, and it answers as `var_bytes` does.
+
+    `btclib.ecc` imports nothing above the substrate (issue #2282), so
+    `Sig.parse` cannot call `var_bytes` and reads a DER element's size
+    itself. This is the one place both are in reach, and every branch of
+    either reader is a row here: the value, or the exception class and
+    its message.
+    """
+    expected = _outcome(_var_bytes_as_dsa_reports_it, data)
+    assert _outcome(dsa._parse_der_value, data) == expected

@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import secrets
 
+from btclib._ecc_hashes import tagged_hash
 from btclib._libsecp256k1 import ellswift as libsecp256k1_ellswift
 from btclib.alias import Integer, Octets, Point
 from btclib.curves import (
@@ -73,7 +74,6 @@ from btclib.curves.curve import (
     _y_even_var,
 )
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.hashes import tagged_hash
 from btclib.number_theory import mod_inv_var, mod_sqrt_var
 from btclib.utils import bytes_from_octets
 
