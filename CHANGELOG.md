@@ -148,6 +148,12 @@ way (closes #2267).
 full shas, in its output and in the tracking issue, so two commits alike in
 their first twelve characters print as two (issue btclib-org/.github#1343).
 
+### The rebuild of a release builds under the release's own uv
+
+`RELEASING.md`'s *Rebuild a release from its tag* builds under the uv
+the published wheel names and verifies the sdist first: a wheel that
+disagrees stops the chain after it (issue btclib-org/btclib-node#1063).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
