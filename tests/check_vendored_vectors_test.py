@@ -600,6 +600,62 @@ def test_main_says_gone_rather_than_behind_for_a_vanished_path(
     assert "BEHIND" not in out
 
 
+# a pin and a tip alike in a short prefix and apart past it, the pair
+# btclib-org/.github#1343 was filed on
+_PINNED = "9b37d42b23be07ee3a37eae4bcbd52c8ba36ee40"
+_TIP = "9b37d42b23be096cc4cfb457f1022e443102b650"
+
+
+def test_main_prints_a_pin_and_a_tip_alike_in_a_prefix_as_two_shas(
+    checker: ModuleType,
+    fake_gh: FakeGh,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A drift line names both commits whole, so it never reads as a tie."""
+    assert _PINNED[:12] == _TIP[:12]
+    path = _write_readme(
+        tmp_path,
+        entry(
+            "`signet.py`",
+            repo="r",
+            path="signet.py",
+            commit=f"{_PINNED}  2026-09-11",
+            behind="0",
+        ),
+    )
+    fake_gh.commits["r", "signet.py"] = (_TIP, "2026-09-11")
+    monkeypatch.setattr(sys, "argv", ["prog", str(path), "A title", "--dry-run"])
+
+    assert checker.main() == 0
+
+    out = capsys.readouterr().out
+    assert f"pinned to {_PINNED}, tip is {_TIP} (2026-09-11)" in out
+
+
+def test_main_prints_the_pin_of_a_vanished_path_whole(
+    checker: ModuleType,
+    fake_gh: FakeGh,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A GONE line names the pinned commit whole, as a BEHIND line does."""
+    path = _write_readme(
+        tmp_path,
+        entry("`gone.py`", repo="r", path="gone.py", commit=_PINNED, behind="0"),
+    )
+    fake_gh.commits["r", "gone.py"] = None
+    monkeypatch.setattr(sys, "argv", ["prog", str(path), "A title", "--dry-run"])
+
+    assert checker.main() == 0
+
+    assert f"GONE: `gone.py` pinned to {_PINNED}," in capsys.readouterr().out
+    drift = checker.Drift(_entry(checker, "`gone.py`", _PINNED), "", "")
+    assert f"`{_PINNED}`" in checker._issue_body(Path("README.md"), [drift], [])
+
+
 def test_find_drift_tells_moved_pins_from_still_current_ones(
     checker: ModuleType, fake_gh: FakeGh, tmp_path: Path
 ) -> None:
@@ -694,6 +750,16 @@ def test_the_issue_body_omits_the_skip_section_when_nothing_was_skipped(
     drift = checker.Drift(_entry(checker, "`p.json`"), "new0000", "2026-01-01")
     body = checker._issue_body(Path("README.md"), [drift], [])
     assert "Not checked by this run" not in body
+
+
+def test_the_issue_body_prints_a_pin_and_a_tip_alike_in_a_prefix_whole(
+    checker: ModuleType,
+) -> None:
+    """The body names both commits whole, as the drift line does."""
+    drift = checker.Drift(_entry(checker, "`p.json`", _PINNED), _TIP, "2026-09-11")
+    body = checker._issue_body(Path("README.md"), [drift], [])
+    assert f"`{_PINNED}`" in body
+    assert f"`{_TIP}` (2026-09-11)" in body
 
 
 def test_open_issue_number_reads_the_first_match(
