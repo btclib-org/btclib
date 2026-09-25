@@ -70,9 +70,9 @@ __all__ = [
     "pubkey_from_prvkey",
     "pubkey_sum",
     "pubkey_tweak_add",
-    "pubkey_tweak_mul",
     "pubkey_tweak_mul_sum",
     "recovery",
+    "shared_point",
     "silentpayments",
     "ssa",
     "ssa_verify",
@@ -101,12 +101,12 @@ try:
         xonly,
     )
     from btclib_secp256k1.dsa import verify as dsa_verify
+    from btclib_secp256k1.ecdh import shared_point
     from btclib_secp256k1.keys import (
         PubkeyTweakChain,
         pubkey_from_prvkey,
         pubkey_sum,
         pubkey_tweak_add,
-        pubkey_tweak_mul,
         pubkey_tweak_mul_sum,
     )
     from btclib_secp256k1.ssa import verify as ssa_verify
@@ -133,12 +133,12 @@ except ImportError:  # pragma: no cover -- only the no-bindings job reaches this
     # ignore is on the assignment and not on the module: every other
     # name here keeps the type the try branch gave it
     dsa = ellswift = ffi = keys = musig = recovery = ssa = xonly = None  # type: ignore[assignment]
-    silentpayments = None  # type: ignore[assignment]
+    shared_point = silentpayments = None  # type: ignore[assignment]
     # a class rather than a function, so mypy calls it an assignment to
     # a type and wants the second code as well
     PubkeyTweakChain = None  # type: ignore[misc, assignment]
     dsa_verify = pubkey_from_prvkey = None  # type: ignore[assignment]
-    pubkey_sum = pubkey_tweak_add = pubkey_tweak_mul = None  # type: ignore[assignment]
+    pubkey_sum = pubkey_tweak_add = None  # type: ignore[assignment]
     pubkey_tweak_mul_sum = ssa_verify = None  # type: ignore[assignment]
     xonly_pubkey_verify = xonly_to_pubkey = None  # type: ignore[assignment]
 

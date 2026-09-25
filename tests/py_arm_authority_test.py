@@ -212,7 +212,7 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
         "ecc/musig2_test.py",
         "ecc/ssa_test.py",
     ),
-    "curves.sec_point._mult_sec_var": ("curves/sec_point_test.py",),
+    "curves.sec_point._mult_sec": ("curves/sec_point_test.py",),
     "curves.sec_point.bytes_from_prv_key_int": (
         "curves/curve_test.py",
         "curves/sec_point_test.py",

@@ -185,12 +185,13 @@ timing should stay on the delegated paths, or keep the key out of the
 process altogether: `btclib_wallet.hwi` drives a hardware wallet through
 HWI, behind the same `PsbtSigner` contract a software signer answers.
 
-Crossing that call is not the same as constant time. Where that
-conjunction delegates a `mult` of a point that is not the generator, its
-work follows the scalar, so a secret multiplied by a point you supplied —
-the shared point of a key agreement, among others — carries no timing
-guarantee on the delegated path either; `SECURITY.md` has the accounting,
-and which call a multiplication takes is part of it.
+Crossing that call is not the same as constant time. A `mult` of a
+point you supplied, the shared point of a key agreement among them,
+crosses into libsecp256k1's constant-time multiplication;
+`double_mult_var` and `multi_mult_var` cross into the variable-time one
+their suffix names, so a secret handed to them carries no timing
+guarantee on the delegated path either. `SECURITY.md` has the
+accounting, and which call a multiplication takes is part of it.
 
 What that path does about it is in the names, and it is worth knowing
 before calling one. **A function whose duration follows the value it is

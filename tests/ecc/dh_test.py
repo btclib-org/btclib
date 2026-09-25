@@ -8,8 +8,8 @@ from hashlib import sha1, sha256
 
 import pytest
 
-from btclib._libsecp256k1 import keys as libsecp256k1_keys
-from btclib.curves import bytes_from_point, mult
+from btclib._libsecp256k1 import shared_point as libsecp256k1_shared_point
+from btclib.curves import bytes_from_point, curve, mult
 from btclib.curves.curve import CURVES
 from btclib.ecc import dh, diffie_hellman, dsa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
@@ -138,34 +138,50 @@ def test_the_python_shared_point_is_the_bindings_one(
 
 
 @needs_bindings
+def test_every_width_of_dU_is_one_shared_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The bindings arm and the Python one agree at every width of the key.
+
+    `shared_point` is constant time in dU, where the call it replaced
+    followed the scalar's length: a width is the one thing that could
+    tell the two apart, so each is asserted against the Python arithmetic.
+    """
+    ec = CURVES["secp256k1"]
+    QV = mult(0xC0FFEE)
+    widths = (256, 128, 64, 32, 1)
+    keys = [(1 << (w - 1)) | (0x5A5A5A5A5A5A5A5A % (1 << (w - 1))) for w in widths]
+    shared = [diffie_hellman(dU % ec.n, QV, 32) for dU in keys]
+    # the whole dispatch and not `dh`'s alone, whose fallthrough is `mult`
+    monkeypatch.setattr(curve, "_libsecp256k1_available", False)
+    assert [diffie_hellman(dU % ec.n, QV, 32) for dU in keys] == shared
+
+
+@needs_bindings
 def test_a_normal_dU_reaches_the_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
     """An ordinary key takes the direct multiplication into libsecp256k1.
 
     `diffie_hellman` reduces the key with `d = dU % ec.n` before the guard
-    that gates the direct `pubkey_tweak_mul` call on `d` being nonzero: a
+    that gates the direct `shared_point` call on `d` being nonzero: a
     mutant of that one line -- `ReplaceBinaryOperator_Mod_FloorDiv`
     turning it to `dU // ec.n`, `_Mod_RShift` to `dU >> ec.n` -- makes `d`
     zero for every `dU` below `n`, which is every caller, and the guard
     then falls through to `mult(dU, QV, ec)` instead. That call still
     reaches libsecp256k1: it reduces `dU` on its own and dispatches
-    through `_libsecp256k1_multi_mult_var`/`pubkey_tweak_mul_sum`, which is
-    a `secp256k1_ec_pubkey_tweak_mul` per term and so the same C
-    multiplication one wrapper further out, rather than the Python
-    endomorphism arithmetic -- so the mutant costs this line's direct
-    entry point and not the delegation. `ansi_x9_63_kdf` derives the same
-    bytes off either binding's point, so no assertion on the shared key
-    tells the two apart (issue 975); this records the call into
-    `pubkey_tweak_mul` instead of the answer it returns, so a mutant that
+    through `curve._libsecp256k1_mult`, which is `shared_point` too and so
+    the same C multiplication one wrapper further out, rather than the
+    Python endomorphism arithmetic -- so the mutant costs this line's
+    direct entry point and not the delegation. `ansi_x9_63_kdf` derives
+    the same bytes off either binding's point, so no assertion on the
+    shared key tells the two apart (issue 975); this records the call
+    `dh` makes itself instead of the answer it returns, so a mutant that
     skips the direct delegation fails here rather than matching it.
     """
     calls: list[int] = []
-    real_tweak_mul = libsecp256k1_keys.pubkey_tweak_mul
 
-    def record(pubkey_bytes: bytes, tweak: int, compressed: bool = True) -> bytes:
-        calls.append(tweak)
-        return real_tweak_mul(pubkey_bytes, tweak, compressed)
+    def record(pubkey_bytes: bytes, prvkey: int) -> bytes:
+        calls.append(prvkey)
+        return libsecp256k1_shared_point(pubkey_bytes, prvkey)
 
-    monkeypatch.setattr(libsecp256k1_keys, "pubkey_tweak_mul", record)
+    monkeypatch.setattr("btclib.ecc.dh.libsecp256k1_shared_point", record)
 
     a, _A = dsa.gen_keys()  # Alice
     _b, B = dsa.gen_keys()  # Bob

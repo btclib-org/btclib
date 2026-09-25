@@ -49,6 +49,8 @@ from btclib.curves.curve import (
     SEC2v2_params2,
     TweakChain,
     _is_x_coordinate_var,
+    _libsecp256k1_mult,
+    _libsecp256k1_multi_mult_var,
     _libsecp256k1_multi_mult_var_,
     _libsecp256k1_serves,
     _sec_from_point,
@@ -1028,6 +1030,7 @@ def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_tweak_add", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_tweak_mul_sum", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_sum", refuse)
+    monkeypatch.setattr(curve, "libsecp256k1_shared_point", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_xonly_pubkey_verify", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_xonly_to_pubkey", refuse)
     # a class rather than a function, which is the one dispatch that
@@ -1038,7 +1041,7 @@ def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
 def no_bindings_anywhere(monkeypatch: pytest.MonkeyPatch) -> None:
     """Put every already-bound btclib_secp256k1 callable out of reach.
 
-    `no_bindings` above answers for `curve.py`'s own six names and the one
+    `no_bindings` above answers for `curve.py`'s own names and the one
     class beside them, which is what every arm gated on the curve and the
     hash function alone reaches through. An arm gated on availability
     alone can hold a binding of its own a module further out --
@@ -1312,7 +1315,7 @@ def test_libsecp256k1_arbitrary_point() -> None:
     A spread of scalars and points rather than a random draw, so that a
     failure is the same failure tomorrow. G is among the points on
     purpose: it takes the ec_pubkey_create branch of `mult`, where every
-    other point takes the ec_pubkey_tweak_mul one.
+    other point takes the `secp256k1_ecdh` one.
     """
     n = secp256k1.n
     scalars = (1, 2, 3, 7, 10**6, n // 2, n - 2, n - 1)
@@ -1420,6 +1423,68 @@ def test_libsecp256k1_multi_mult_var_bytes() -> None:
         mult(8, H)
     )
     assert _libsecp256k1_multi_mult_var_([5, secp256k1.n - 5], [sec, sec]) is None
+
+
+def _scalars_of_every_width(n: int) -> list[int]:
+    """Return scalars whose top bit is set at widths from 256 down to 1.
+
+    Derived rather than drawn, so that a failure is the same failure
+    tomorrow, and the low end of the range and the high one beside them.
+    """
+    widths = (256, 192, 128, 64, 32, 8, 1)
+    top_bits = [1 << (w - 1) for w in widths]
+    scalars = [
+        (top | int.from_bytes(sha256(top.to_bytes(32)).digest()) % top) % n
+        for top in top_bits
+    ]
+    return [*scalars, 2, n - 2, n - 1]
+
+
+@needs_bindings
+def test_libsecp256k1_mult_is_the_variable_time_answer() -> None:
+    """`secp256k1_ecdh` and `secp256k1_ec_pubkey_tweak_mul` are one product.
+
+    `_libsecp256k1_mult` is the constant-time multiplication `mult` hands
+    a point other than the generator to, and `_libsecp256k1_multi_mult_var`
+    of one term the variable-time one the sums still take: two calls into
+    libsecp256k1 that have to answer the same point at every width of the
+    scalar, and the Python arithmetic, reached with the dispatch off, a
+    third that has to agree with both.
+    """
+    n = secp256k1.n
+    H = second_generator(secp256k1)
+    points = [H, mult(7, H), mult(n - 1), mult(3)]
+    for m, Q in itertools.product(_scalars_of_every_width(n), points):
+        answer = _libsecp256k1_mult(m, Q)
+        assert answer == _libsecp256k1_multi_mult_var([m], [Q])
+        assert mult(m, Q) == answer
+        with pytest.MonkeyPatch.context() as patch:
+            no_bindings(patch)
+            assert mult(m, Q) == answer
+
+
+@needs_bindings
+def test_libsecp256k1_mult_refuses_what_mult_gates_out() -> None:
+    """The scalars and the point `_mult_checked` never hands it.
+
+    libsecp256k1 has no scalar for zero or for n and above, and no public
+    key for a pair that is not a point of the curve: `shared_point` raises
+    for each, which is why `mult` reduces the scalar, answers zero itself
+    and proves the point before the call.
+    """
+    n = secp256k1.n
+    H = second_generator(secp256k1)
+    for m in (0, n, n + 1):
+        with pytest.raises(ValueError, match="invalid private key"):
+            _libsecp256k1_mult(m, H)
+    with pytest.raises(ValueError, match="invalid public key"):
+        _libsecp256k1_mult(2, (H[0], H[1] + 1))
+
+    # and through `mult`, each of them answered rather than raised
+    assert mult(0, H) == INF
+    assert mult(n + 1, H) == H
+    with pytest.raises(BTClibValueError, match="point not on curve"):
+        mult(2, (H[0], H[1] + 1))
 
 
 @pytest.mark.parametrize(

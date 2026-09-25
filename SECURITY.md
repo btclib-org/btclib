@@ -202,7 +202,7 @@ used to teach and to prototype as much as to build:
     whether it can: `curve._libsecp256k1_serves` asks for the switch
     above, then for secp256k1 as the curve, then for a hash function
     that is sha256 or absent — `hf is None or hf is sha256`
-    (`src/btclib/curves/curve.py:533`) — with whatever further
+    (`src/btclib/curves/curve.py:534`) — with whatever further
     conditions the call site ands onto it. The hash function is matched
     by identity rather than by what it computes, so
     `functools.partial(sha256)`, or any other wrapper a caller writes to
@@ -307,41 +307,47 @@ used to teach and to prototype as much as to build:
     Using it on key material that matters is a choice, and this is the
     notice of it
 - **the delegated multiplication of a point that is not the generator is
-    variable time in its scalar**, and that scalar is a private key.
-    `secp256k1_ec_pubkey_tweak_mul` is the call, and it runs
-    `secp256k1_ecmult`, whose windowed NAF holds at most one more digit
-    than the scalar has bits — so the work follows the scalar rather
-    than the order of the curve. The multiplication libsecp256k1
-    documents as constant time in its scalar is `secp256k1_ecmult_const`;
-    `secp256k1_ecdh` is what reaches it, and nothing here calls that for
-    the reason `btclib.ecc.dh`'s module docstring gives. `ellswift.xdh`
-    is not an exception to that: it is delegated to
-    `secp256k1_ellswift_xdh`, which multiplies with
-    `secp256k1_ecmult_const_xonly` — constant time in its scalar, and a
-    different function from `secp256k1_ecmult_const`. Which call a
-    multiplication takes is decided by its shape and not by the module
-    that writes it: any point a caller supplied, multiplied by a secret
-    scalar, arrives here. The arm `curves.curve.mult` shares with
+    constant time in its scalar where the multiplication is `mult`'s, and
+    variable time where it is a `_var` one's.** `mult` reaches
+    libsecp256k1 through `secp256k1_ecdh`, whose multiplication is
+    `secp256k1_ecmult_const`, constant time in its scalar;
+    `ecdh.shared_point` of the bindings is that call answering the point
+    rather than a hash of it. The arm `curves.curve.mult` shares with
     `PreparedPoint.mult` asks for a non-zero reduced scalar and then for
     the predicate above, with no hash function, so the switch and the
     curve are the whole of what the predicate asks; the generator is a
     different call inside that arm and infinity is not delegated at
-    all — `curve._mult_checked` at
-    `return _libsecp256k1_multi_mult_var([m], [Q])`
-    (`src/btclib/curves/curve.py:847`). `dh.diffie_hellman` at
-    `sec = libsecp256k1_keys.pubkey_tweak_mul(`
-    (`src/btclib/ecc/dh.py:108`) is the one this bullet was written
-    from, and is an example rather than the population: key agreement
-    and a BIP374 discrete-log equality proof both reach the same
-    multiplication.
+    all — `curve._libsecp256k1_mult` at
+    `libsecp256k1_shared_point(_sec_from_point(Q), m, False)`
+    (`src/btclib/curves/curve.py:797`). `dh.diffie_hellman` at
+    `sec = libsecp256k1_shared_point(`
+    (`src/btclib/ecc/dh.py:100`) and `sec_point._mult_sec` at
+    `libsecp256k1_shared_point(sec, m, False)`
+    (`src/btclib/curves/sec_point.py:361`), under `sec_point.mult_pub_key`
+    and `ecies.derive_keys`, make the same call on the octets they
+    already hold.
+    `double_mult_var` and `multi_mult_var`, and `ssa.batch_verify`, are
+    the other call: `keys.pubkey_tweak_mul_sum`, one
+    `secp256k1_ec_pubkey_tweak_mul` per term, which runs
+    `secp256k1_ecmult`, whose windowed NAF holds at most one more digit
+    than the scalar has bits — so the work follows the scalar rather than
+    the order of the curve, which is what their suffix says. A
+    verification's scalars are public; a secret handed to them is timed
+    by them all the same, and `pedersen.commit` hands that call a value
+    and a blinding factor, `rangeproof.rewind` the ones it recovered
+    (issue #2267).
+    `ellswift.xdh` is delegated to
+    `secp256k1_ellswift_xdh`, which multiplies with
+    `secp256k1_ecmult_const_xonly` — constant time in its scalar, and a
+    different function from `secp256k1_ecmult_const`.
     The other delegations the bullet above names are different calls:
     a multiple of the generator is `secp256k1_ec_pubkey_create`, which
     runs `secp256k1_ecmult_gen`, and the tweaking of a key is
     `secp256k1_ec_seckey_tweak_add` or
     `secp256k1_keypair_xonly_tweak_add`, which add scalars. Those three
-    are among the entry points libsecp256k1's own `src/ctime_tests.c`
-    declassifies a secret for, and `secp256k1_ec_pubkey_tweak_mul` is
-    named nowhere in that file
+    and `secp256k1_ecdh` are among the entry points libsecp256k1's own
+    `src/ctime_tests.c` declassifies a secret for, and
+    `secp256k1_ec_pubkey_tweak_mul` is named nowhere in that file
 - a sign-to-contract commitment is the signer's to open, and opening it
     twice over one message is safe only because the committed value
     reaches the nonce derivation: that is what keeps two such signatures

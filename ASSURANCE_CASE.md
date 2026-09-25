@@ -104,8 +104,8 @@ vulnerabilities*:
   serves every call the dispatch declines, every call in an install
   without the bindings, and every call with the dispatch turned off
 - memory disclosure: a secret in a Python object is not zeroized
-- the delegated multiplication of a point other than the generator,
-  which is variable time in its scalar
+- a secret handed to a delegated `_var` multiplication, which is
+  variable time in its scalar
 - the block cipher `ecc.ecies` takes from its caller, whose resistance to
   side channels is the caller's
 - the operating system's random number generator, which btclib uses
@@ -113,14 +113,6 @@ vulnerabilities*:
 
 Nor is the interpreter or the operating system btclib runs on: a library
 shares its caller's process and has no defence against it.
-
-**The current state of one question.** `sec_point.mult_pub_key` and
-`ecc.ecies.derive_keys` hand a secret scalar to `sec_point._mult_sec_var`
-in `src/btclib/curves/sec_point.py`. On the delegated arm that call is
-`secp256k1_ec_pubkey_tweak_mul`, the multiplication SECURITY.md's
-limitations list as variable time in its scalar; on the Python arm it is
-`mult`. Measuring that call and deciding what the two callers take
-instead is issue #2257.
 
 ## Trust boundaries
 
