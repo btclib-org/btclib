@@ -14,6 +14,11 @@ its last section.** What is true of one tree only — the commands that
 build its environment, the gates it runs, which of its workflows decide
 a merge — is under that heading, and the comparison stops there.
 
+How the organization decides, and who holds which role, is
+[`GOVERNANCE.md`][governance]; what it intends to do, and what it
+deliberately does not, is [`ROADMAP.md`][roadmap]. Both are the
+organization's, one copy each beside the standard.
+
 ## The issue tracker
 
 Where an issue is filed, and what an alignment finding has to name, is
@@ -240,6 +245,8 @@ settings and why they are what they are.
 [s-rev]: https://github.com/btclib-org/.github#review
 [s-sigs]: https://github.com/btclib-org/.github#signatures
 [gh-merge]: https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request
+[governance]: https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md
+[roadmap]: https://github.com/btclib-org/.github/blob/main/ROADMAP.md
 
 ## This repository in particular
 
