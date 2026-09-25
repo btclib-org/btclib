@@ -136,6 +136,12 @@ the floor moving to the release adding it (closes #2257).
 Its image lacks the interpreter `.python-version` names, and the `lint`
 workflow still runs the hook (issue btclib-org/.github#1348).
 
+### `pedersen.commit` hands neither secret to `double_mult_var`
+
+It sums a `mult` of each, where `double_mult_var`'s work followed the width
+of both, and `rangeproof.rewind` rebuilds the commitment it checks the same
+way (closes #2267).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

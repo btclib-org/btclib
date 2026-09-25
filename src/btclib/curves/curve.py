@@ -1120,6 +1120,32 @@ def double_mult_var(
     return ec.aff_from_jac_var(R)
 
 
+def _libsecp256k1_sum(points: Sequence[Point]) -> Point:
+    """Return the sum of points of secp256k1, through the bindings.
+
+    The bindings arm `_sum_var` and `_add` share: one `keys.pubkey_sum`,
+    which is `secp256k1_ec_pubkey_combine`. Every point is required to
+    be a point of secp256k1, which both callers establish before this.
+    """
+    # infinity is the identity and libsecp256k1 has no public key for
+    # it, so a term at infinity is dropped rather than handed over.
+    # y == 0 is infinity and nothing else *here*: the one real point
+    # with a zero y is the two-torsion one, and a group of prime
+    # order has none -- which this is, secp256k1 being the only curve
+    # it is called for. The Python arms of the callers cannot make that
+    # assumption and do not: `add_aff_var` tests the same y and says why
+    # in its own comment
+    secs = [_sec_from_point(Q) for Q in points if Q[1]]
+    # and a run with no addition left in it is answered without
+    # crossing: one term is that term, and none is infinity, which
+    # spares BIP352's one-input sum a crossing made to be told what
+    # was handed over
+    if len(secs) < 2:
+        return _point_from_sec(secs[0]) if secs else INF
+    total = libsecp256k1_pubkey_sum(secs, False)
+    return INF if total is None else _point_from_sec(total)
+
+
 def _sum_var(points: Sequence[Point], ec: Curve) -> Point:
     """Return the sum of points, no scalar in it.
 
@@ -1154,23 +1180,7 @@ def _sum_var(points: Sequence[Point], ec: Curve) -> Point:
         ec.require_on_curve(Q)
 
     if _libsecp256k1_serves(ec, None):
-        # infinity is the identity and libsecp256k1 has no public key for
-        # it, so a term at infinity is dropped rather than handed over.
-        # y == 0 is infinity and nothing else *here*: the one real point
-        # with a zero y is the two-torsion one, and a group of prime
-        # order has none -- which this arm is, secp256k1 being what
-        # `_libsecp256k1_serves` above has just agreed to. The Python arm
-        # below cannot make that assumption and does not: `add_aff_var`
-        # tests the same y and says why in its own comment
-        secs = [_sec_from_point(Q) for Q in points if Q[1]]
-        # and a run with no addition left in it is answered without
-        # crossing: one term is that term, and none is infinity, which
-        # spares BIP352's one-input sum a crossing made to be told what
-        # was handed over
-        if len(secs) < 2:
-            return _point_from_sec(secs[0]) if secs else INF
-        total = libsecp256k1_pubkey_sum(secs, False)
-        return INF if total is None else _point_from_sec(total)
+        return _libsecp256k1_sum(points)
 
     # already on the curve, so add_aff_var rather than add_var, which
     # would ask it again of every partial sum as well
@@ -1189,6 +1199,33 @@ def sum_var(points: Sequence[Point], ec: Curve = secp256k1) -> Point:
     _assert_valid_ec(ec)
     assert_type(points, Sequence, "points")
     return _sum_var(points, ec)
+
+
+def _add(P: Point, Q: Point, ec: Curve) -> Point:
+    """Return P + Q, for two points that are as secret as a scalar.
+
+    `_sum_var` adds points that are public, and its Python arm is
+    `add_aff_var`, whose extended Euclid follows the difference of the
+    two x-coordinates. This adds products of secret scalars, a Pedersen
+    commitment's r*G and v*gen: the commitment less either product is the
+    other one, and an amount is small enough to be searched for in v*gen,
+    so each point is as secret as the scalar behind it.
+
+    On the bindings arm it is the same `keys.pubkey_sum`,
+    `secp256k1_ec_pubkey_combine`, whose group law is
+    `secp256k1_gej_add_ge` and whose conversion back to affine inverts
+    with `secp256k1_fe_inv`, both constant time. On the Python arm it is
+    `add_jac`, on the two points each rescaled by `_blinded_jac`, so that
+    the one inverse `aff_from_jac_var` then makes is of a Z nobody can
+    predict, as the one `mult` makes is. Both points are required to be
+    points of the curve, as a product `mult` returns is.
+    """
+    if _libsecp256k1_serves(ec, None):
+        return _libsecp256k1_sum((P, Q))
+
+    PJ = _blinded_jac(_jac_from_aff(P), ec)
+    QJ = _blinded_jac(_jac_from_aff(Q), ec)
+    return ec.aff_from_jac_var(ec.add_jac(PJ, QJ))
 
 
 def _tweak_add_var(P: Point, t: int, ec: Curve) -> Point:

@@ -333,9 +333,19 @@ used to teach and to prototype as much as to build:
     than the scalar has bits — so the work follows the scalar rather than
     the order of the curve, which is what their suffix says. A
     verification's scalars are public; a secret handed to them is timed
-    by them all the same, and `pedersen.commit` hands that call a value
-    and a blinding factor, `rangeproof.rewind` the ones it recovered
-    (issue #2267).
+    by them all the same, so a Pedersen commitment rG+v*gen, whose two
+    scalars are secrets, is a `mult` of each and their sum instead —
+    `pedersen._commit` at
+    `return _add(mult(r, ec.G, ec), mult(v, gen, ec), ec)`
+    (`src/btclib/ecc/pedersen.py:334`), under `pedersen.commit`,
+    `rangeproof.sign` and `rangeproof.rewind`. The sum is
+    `curve._add` at `return _libsecp256k1_sum((P, Q))`
+    (`src/btclib/curves/curve.py:1224`): `secp256k1_ec_pubkey_combine`,
+    whose group law `secp256k1_gej_add_ge` and whose inversion
+    `secp256k1_fe_inv` are constant time. `mult` does not delegate a
+    zero scalar, so a commitment to a zero value takes the Python
+    arithmetic for its v*gen, and far longer than a commitment to any
+    other value.
     `ellswift.xdh` is delegated to
     `secp256k1_ellswift_xdh`, which multiplies with
     `secp256k1_ecmult_const_xonly` — constant time in its scalar, and a
