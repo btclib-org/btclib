@@ -165,6 +165,11 @@ stays allowed (issue btclib-org/.github#1355).
 Both point a contributor at the organization's one copy of each, in
 `btclib-org/.github` (issue btclib-org/.github#1359).
 
+### The `_var` census names `ssa._assert_as_valid_` beside its `dsa` twin
+
+`CONTRIBUTING.md` lists it among the functions that measure at the
+floor and keep their plain name, at 1.07x (closes #2279).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
