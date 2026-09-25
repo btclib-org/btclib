@@ -91,4 +91,4 @@ jobs:
       # the standard library, so this is not a claim about what btclib
       # itself requires, only this tree's own choice to pin one rather
       # than run against the runner's own python3
-      python-version: "3.14"
+      python-version: "3.15"

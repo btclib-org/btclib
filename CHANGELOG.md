@@ -107,6 +107,12 @@ A skipped required check reads as passing, so both aggregates now fail
 a first step on `github.event.pull_request.draft` instead of skipping
 on it (issue btclib-org/.github#1327).
 
+### `.python-version` moves to 3.15, on its release candidate
+
+The classifiers name 3.15, the platform sweeps and `pypi-install.yml` gain
+`3.15` and `3.15t`, and `deps-latest.yml`'s upper end is 3.15 (issue
+btclib-org/.github#1324).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

@@ -5,11 +5,12 @@ name: os-windows
 # os-ubuntu.yml's header gives for all three, measured on this repository
 # rather than assumed. REPOSITORY.md holds the concurrency ceiling and
 # what a wider gate cost against it; what is measured here is Windows's
-# share. The fourteen cells below are 2357 of the 3556 seconds of matrix
-# work a full platform sweep spends -- windows-11-arm alone 1250, the
-# slowest row and the one with the longest queue -- and they also carry
-# the largest fixed cost per cell, some 50 to 75 seconds of checkout, uv
-# and wheel build against 17 on ubuntu. Holding them off the gate is what
+# share. In test.yml's per-commit matrix, before 3f7873db moved them off
+# the gate, the Windows cells were 2357 of the 3556 seconds of matrix
+# work -- windows-11-arm alone 1250, the slowest row and the one with
+# the longest queue -- and they also carry the largest fixed cost per
+# cell, some 50 to 75 seconds of checkout, uv and wheel build against 17
+# on ubuntu. Holding them off the gate is what
 # makes a commit cost 25 runner-minutes rather than 66. What a run of
 # this workflow costs is the same query, asked of this workflow:
 #
@@ -88,5 +89,5 @@ jobs:
     uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@main
     with:
       runners: '["windows-latest", "windows-11-arm"]'
-      python-versions: '["3.11", "3.12", "3.13", "3.14", "3.14t", "pypy3.11"]'
+      python-versions: '["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t", "pypy3.11"]'
       fetch-tags: true

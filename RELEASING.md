@@ -716,9 +716,9 @@ git worktree add --detach /tmp/btclib-rebuild "v${version:?}" &&
 cd /tmp/btclib-rebuild &&
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) &&
 uv build &&
-uv run --no-project --python 3.14 \
+uv run --no-project --python 3.15 \
   .github/scripts/normalize_sdist.py dist/ &&
-uv run --no-project --python 3.14 \
+uv run --no-project --python 3.15 \
   .github/scripts/generate_sbom.py dist/ sbom/ &&
 repo=btclib-org/btclib &&
 signer=btclib-org/.github/.github/workflows/reusable-attest.yml &&

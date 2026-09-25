@@ -57,7 +57,7 @@ is usually a class of files, and a build is hundreds of members.
 
 Run it on a freshly built dist directory, after `uv build`:
 
-    uv run --no-project --python 3.14 \
+    uv run --no-project --python 3.15 \
         .github/scripts/verify_dist_contents.py dist/
 
 The `dist` job of test.yml runs it on every pull request, and the same

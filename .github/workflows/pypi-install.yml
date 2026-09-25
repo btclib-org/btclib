@@ -146,11 +146,11 @@ jobs:
           - macos-latest
           - windows-latest
           - windows-11-arm
-        # the two ends of the supported range, plus the free-threaded
-        # interpreter: btclib itself ships one universal wheel, so what
-        # varies across the base matrix is entirely which wheel of
-        # btclib_secp256k1 each cell resolves to
-        python: ["3.11", "3.14", "3.14t"]
+        # the floor, and the two newest CPythons in both of their builds,
+        # default and free-threaded: btclib itself ships one universal
+        # wheel, so what varies across the base matrix is entirely which
+        # wheel of btclib_secp256k1 each cell resolves to
+        python: ["3.11", "3.14", "3.14t", "3.15", "3.15t"]
         include:
           # the one cell where the sdist is what gets built, not merely
           # what a missing wheel would silently fall back to: btclib ships
@@ -271,7 +271,7 @@ jobs:
           - macos-latest
           - windows-latest
           - windows-11-arm
-        # one interpreter, where install-published samples three: the
+        # one interpreter, where install-published samples several: the
         # bindings publish a wheel per (platform, interpreter) pair, so a
         # broken pair can in principle hide behind either axis, but the
         # two are not equally likely to hide one. Measured against
@@ -287,11 +287,11 @@ jobs:
         # bindings' own release workflow -- which is why the platform axis
         # stays install-published's own instead of shrinking to one, the
         # thing issue #1143 asks to be argued rather than assumed.
-        # 3.14, the newest: with 3.10 dropped, every interpreter this
+        # 3.15, the newest: with 3.10 dropped, every interpreter this
         # job could pick has a native win_arm64 wheel from cp311 up (the
         # paragraph above), so this platform no longer decides between
         # them either
-        python: ["3.14"]
+        python: ["3.15"]
     timeout-minutes: 20
     steps:
       - name: Setup uv with Python ${{ matrix.python }}
