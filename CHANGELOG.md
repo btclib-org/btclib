@@ -119,6 +119,12 @@ btclib-org/.github#1324).
 `.python-version`, not `main`'s (closes #2262). The workflow
 `sdist-rebuild.yml` calls names one of its own (issue btclib-org/.github#1345).
 
+### `sdist-rebuild.yml`'s comment names `setup-python`, not `python-version`
+
+The comment above `uses:` named `python-version`, an input the called
+workflow does not declare; it names `setup-python` and its `false` default
+instead (issue btclib-org/.github#1346).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
