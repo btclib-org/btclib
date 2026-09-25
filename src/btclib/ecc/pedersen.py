@@ -55,8 +55,8 @@ from functools import lru_cache
 from hashlib import sha256
 
 from btclib.alias import HashF, Integer, Octets, Point
-from btclib.curves import Curve, bytes_from_point, double_mult_var, mult, secp256k1
-from btclib.curves.curve import _assert_valid_ec, _is_x_coordinate_var
+from btclib.curves import Curve, bytes_from_point, mult, secp256k1
+from btclib.curves.curve import _add, _assert_valid_ec, _is_x_coordinate_var
 from btclib.curves.curve_group import HEX_THRESHOLD
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.number_theory import legendre_symbol_var, mod_sqrt_var
@@ -305,13 +305,33 @@ def commit(r: Integer, v: Integer, gen: Point, ec: Curve = secp256k1) -> Point:
     already turns the `BTClibValueError` this raises into `False`, the
     same way it does for every other invalid (r, v).
     """
-    # ahead of the check below, which reads ec.n: `double_mult_var`
-    # asks the same of the same ec, and only after that read
+    # ahead of the check below, which reads ec.n: `mult` asks the same
+    # of the same ec, and only after that read
     _assert_valid_ec(ec)
-    if int_from_integer(r) % ec.n == 0:
+    r_int = int_from_integer(r)
+    if r_int % ec.n == 0:
         err_msg = "invalid (unblinded) commitment: r is 0 mod n"
         raise BTClibValueError(err_msg)
-    return double_mult_var(v, gen, r, ec.G, ec)
+    return _commit(r_int, v, gen, ec)
+
+
+def _commit(r: int, v: Integer, gen: Point, ec: Curve) -> Point:
+    """Return rG+v*gen, an r of 0 mod n included.
+
+    Both scalars are secrets, so each is its own `mult` and the two
+    products are summed by `curves.curve._add`: `double_mult_var` is the
+    same point in one call, and its work follows its scalars on both
+    arms, one `secp256k1_ec_pubkey_tweak_mul` per term on the bindings
+    and an interleaved wNAF in Python. `commit` refuses an r of 0 mod n
+    ahead of this; `ecc.rangeproof.rewind` does not, putting what it
+    recovered back against the commitment as
+    `secp256k1_rangeproof_verify_impl` does, which rebuilds it from the
+    two and compares with nothing refused first.
+    """
+    # `mult` reads a None point as the generator, so a gen of no type
+    # would commit under G: it is refused here instead
+    ec.require_on_curve(gen)
+    return _add(mult(r, ec.G, ec), mult(v, gen, ec), ec)
 
 
 def assert_as_valid(

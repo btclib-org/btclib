@@ -48,6 +48,7 @@ from btclib.curves.curve import (
     SEC2v2,
     SEC2v2_params2,
     TweakChain,
+    _add,
     _is_x_coordinate_var,
     _libsecp256k1_mult,
     _libsecp256k1_multi_mult_var,
@@ -1237,6 +1238,39 @@ def test_sum_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     for other in low_card_curves.values():
         run = [mult(k, other.G, other) for k in range(1, min(5, other.n))]
         assert _sum_var(run, other) == functools.reduce(other.add_var, run, INF)
+
+
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
+def test_add_is_add_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The sum of two secret points is the affine sum, on either arm.
+
+    `_add` is `secp256k1_ec_pubkey_combine` where the bindings serve and
+    `add_jac` on two blinded points everywhere else: both have to answer
+    what `add_var` does, for products at every width of the scalar, for
+    either term at infinity, and for the two points that coincide or are
+    opposite, which `add_jac` branches on. The low-cardinality curves
+    hold every pair of their points, those cases included.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    ec = secp256k1
+    H = second_generator(ec)
+    points = [INF, *(mult(m, H) for m in _scalars_of_every_width(ec.n))]
+    points += [mult(3), ec.negate(mult(3))]
+    for P, Q in itertools.product(points, repeat=2):
+        assert _add(P, Q, ec) == ec.add_var(P, Q)
+
+    for other in low_card_curves.values():
+        every = [INF, *(mult(k, other.G, other) for k in range(1, other.n))]
+        for P, Q in itertools.product(every, repeat=2):
+            assert _add(P, Q, other) == other.add_var(P, Q)
 
 
 @pytest.mark.parametrize(

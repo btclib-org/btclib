@@ -36,6 +36,7 @@ add is that library answering now rather than in a recording:
 factors, and `zkp.generator.h()`.
 """
 
+import itertools
 import secrets
 from collections.abc import Callable
 from hashlib import sha256, sha384
@@ -44,11 +45,19 @@ from typing import Any
 import pytest
 
 from btclib.alias import INF, Point
-from btclib.curves import mult, point_from_octets, secp256k1
+from btclib.curves import (
+    # the module, not only the names in it: `_libsecp256k1_available` is a
+    # module attribute, and clearing it is the whole package's dispatch
+    curve,
+    double_mult_var,
+    mult,
+    point_from_octets,
+    secp256k1,
+)
 from btclib.curves.curve import CURVES
 from btclib.ecc import pedersen
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from tests import load, needs_zkp, vector_id
+from tests import load, needs_bindings, needs_zkp, vector_id
 
 # guarded module scope, the same shape `btclib._libsecp256k1` uses: this
 # file is collected in every job, including the no-bindings one where
@@ -360,6 +369,49 @@ def test_commit_blinding_factor_sum() -> None:
     err_msg = r"invalid \(unblinded\) commitment"
     with pytest.raises(BTClibValueError, match=err_msg):
         pedersen.commit(r_1 + 3, 9, _H, ec)  # r_1 + 3 == ec.n
+
+
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
+def test_commit_is_the_double_multiplication_at_every_width(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two multiplications and their sum are the double multiplication.
+
+    `commit` hands neither secret to `double_mult_var`, whose work
+    follows the width of its scalars: so each pair of widths is asserted
+    against it, 0, 1 and n-1 among them, on each arm. A zero value makes
+    a product at infinity, and a zero blinding factor reaches `_commit`
+    alone, `commit` refusing it. The generator itself as `gen` makes the
+    two products coincide or cancel, which the sum branches on.
+    """
+    if not bindings:
+        monkeypatch.setattr(curve, "_libsecp256k1_available", False)
+
+    ec = secp256k1
+    widths = (256, 128, 64, 32, 1)
+    scalars = [(1 << (w - 1)) | (0x5A5A5A5A5A5A5A5A % (1 << (w - 1))) for w in widths]
+    scalars += [0, 2, ec.n - 1]
+    for r, v in itertools.product(scalars, repeat=2):
+        expected = double_mult_var(v, _H, r, ec.G, ec)
+        assert pedersen._commit(r, v, _H, ec) == expected
+        if r:
+            assert pedersen.commit(r, v, _H, ec) == expected
+
+    for r in scalars[:-3]:
+        assert pedersen.commit(r, r, ec.G, ec) == mult(2 * r, ec.G, ec)
+        assert pedersen.commit(r, ec.n - r, ec.G, ec) == INF
+
+    # and a curve the bindings never serve, whose products are `_mult`'s
+    H = pedersen.second_generator(secp256r1)
+    for r, v in ((1, 0), (secp256r1.n - 1, 1), (0xDEADBEEF, 0xBAADCAFE)):
+        expected = double_mult_var(v, H, r, secp256r1.G, secp256r1)
+        assert pedersen.commit(r, v, H, secp256r1) == expected
 
 
 def test_the_upstream_fixed_vectors_name_one_point_at_two_tags() -> None:

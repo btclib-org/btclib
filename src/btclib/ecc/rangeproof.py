@@ -139,6 +139,7 @@ from btclib.ecc.borromean import BorromeanSig, PubkeyRing, _hash
 from btclib.ecc.pedersen import (
     _RANGEPROOF_TAG,
     _bytes_from_point,
+    _commit,
     _point_from_x,
     commit,
 )
@@ -1610,6 +1611,6 @@ def rewind(
             if i != last or j not in (skip1, skip2)
         )
 
-    if double_mult_var(value, gen, blind, secp256k1.G, secp256k1) != commitment:
+    if _commit(blind, value, gen, secp256k1) != commitment:
         raise BTClibRuntimeError("rangeproof rewind does not open the commitment")
     return Rewound(blind, value, message)
