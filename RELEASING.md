@@ -90,20 +90,22 @@ Already done for btclib-org/btclib; kept here for the record.
    publisher, with environment `testpypi`.
 
 1. In the GitHub repository settings, create the `pypi` and `testpypi`
-   environments. Both require a review from `fametrano`, so neither
-   index is uploaded to without a human approving that run; every job
-   holding `id-token: write` either runs under one of those two
-   environments directly, or — `attest` — only after one of them has
-   already succeeded, so nothing exchanges for an OIDC token ahead of
-   the review. `pypi` is additionally restricted to
+   environments. Both require a review from `fametrano`, `giacomocaironi`
+   or `pmazzocchi`, so neither index is uploaded to without one of the
+   organization's owners approving that run; every job holding
+   `id-token: write` either runs under one of those two environments
+   directly, or — `attest` — only after one of them has already
+   succeeded, so nothing exchanges for an OIDC token ahead of the
+   review. `pypi` is additionally restricted to
    `v*` tags, which is the only ref its job runs on anyway — the
    restriction is what makes that true of the environment and not just
    of an `if:` in a file a pull request could change.
 
-   Self-review stays allowed on purpose: the maintainer who pushes the
-   tag is the reviewer, and forbidding it would deadlock a one-maintainer
-   release. The approval is a confirmation step, not a second pair of
-   eyes; it becomes one as soon as there is a second reviewer to add.
+   Self-review stays allowed on purpose: whichever owner pushes the tag
+   may also approve its deployment, so a release does not wait on
+   another owner's availability. The approval is a confirmation from
+   whichever of them reviews it, and becomes a second pair of eyes
+   wherever the reviewer and the tag-pusher differ.
 
 ## Rehearse on TestPyPI
 
