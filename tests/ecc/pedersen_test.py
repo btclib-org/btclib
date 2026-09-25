@@ -208,6 +208,68 @@ def test_the_map_refuses_what_is_no_field_element() -> None:
         pedersen._shallue_van_de_woestijne(-1)
 
 
+def test_the_map_picks_the_candidate_the_cascade_names() -> None:
+    """Every root formed and one kept is the first candidate that exists.
+
+    The reference asks `is_x_coordinate_var` of each candidate in turn
+    and lifts the one it stops at, which is the cascade stated in the
+    paper; the map forms all three roots and selects. Each candidate is
+    asserted to be the one taken for some t, so that no arm of the
+    selection goes unasked.
+    """
+    p = secp256k1.p
+    taken = set()
+    for i in range(64):
+        t = int.from_bytes(sha256(i.to_bytes(1, "big")).digest(), "big")
+        t_2 = t * t % p
+        wd = (t_2 + secp256k1._b + 1) % p
+        x3d = -3 * t_2 % p
+        j_inv = pow(wd * x3d % p, -1, p)
+        x_1 = (
+            pedersen._HALF_SQRT_MINUS_3_LESS_1
+            - pedersen._SQRT_MINUS_3 * t_2 * x3d * j_inv
+        ) % p
+        x_2 = -(x_1 + 1) % p
+        x_3 = (1 + pow(wd, 3, p) * j_inv) % p
+        index, x = next(
+            (k, x)
+            for k, x in enumerate((x_1, x_2, x_3))
+            if curve.is_x_coordinate_var(x, secp256k1)
+        )
+        taken.add(index)
+        y = secp256k1.y_quadratic_residue_var(x)
+        expected = (x, p - y if t % 2 else y)
+        assert pedersen._shallue_van_de_woestijne(t) == expected
+    assert taken == {0, 1, 2}
+
+
+@needs_bindings
+def test_a_commitment_to_zero_stays_on_the_bindings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A value of zero takes the arm every other value takes.
+
+    The value is the secret a commitment hides, so a zero that took the
+    Python arithmetic would be told apart by the time alone. The Python
+    multiplication is made to fail here, so that a zero reaching it
+    fails the test rather than passing slower.
+    """
+
+    def refuse(*_: object, **__: object) -> None:
+        raise AssertionError(  # pragma: no cover -- the bindings arm answers first
+            "a commitment reached the Python arithmetic"
+        )
+
+    monkeypatch.setattr(curve, "_mult_endomorphism_secp256k1", refuse)
+    monkeypatch.setattr(curve, "_mult_fixed_base", refuse)
+
+    r = 0xDEADBEEF
+    assert pedersen.commit(r, 0, _H) == mult(r)
+    assert pedersen.commit(r, secp256k1.n, _H) == mult(r)
+    seed = sha256(b"asset").digest()
+    assert pedersen.generator_from_seed(seed, 0) == pedersen.generator_from_seed(seed)
+
+
 @pytest.mark.parametrize("vector", _GENERATE_VECTORS, ids=_GENERATE_IDS)
 def test_a_generator_from_a_seed_is_the_published_one(
     vector: dict[str, str],

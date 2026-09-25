@@ -520,7 +520,7 @@ def _libsecp256k1_serves(ec: Curve, hf: HashF | None) -> bool:
     Every dispatch to the bindings asks here, so that the predicates
     cannot drift apart the way hand-written copies would; a caller
     with a further condition of its own -- mult, whose bindings take
-    neither a zero scalar nor the point at infinity -- ands it on top.
+    no point at infinity -- ands it on top.
 
     hf is compared by identity, deliberately: nothing short of running
     the two functions tells sha256 from a look-alike, so a wrapper such
@@ -855,8 +855,14 @@ def _mult_checked(m: int, Q: Point | None, ec: Curve, *, prepared: bool) -> Poin
     still faster delegated, and the tables are only reached where the
     bindings decline.
     """
-    # m == 0 is the infinity point, which the bindings reject as a scalar
-    if m and _libsecp256k1_serves(ec, None):
+    if _libsecp256k1_serves(ec, None):
+        # m == 0 is the infinity point, which the bindings reject as a
+        # scalar: one is multiplied in its place and the product dropped,
+        # the substitution `secp256k1_ec_pubkey_create` and `secp256k1_ecdh`
+        # make for a key they refuse, so that a zero costs what every
+        # other scalar costs -- a Pedersen commitment's value is a secret,
+        # and zero is one of its values
+        stand_in = m or 1
         # the generator is ec_pubkey_create, with no point to parse first
         if Q is None or Q == ec.G:
             # uncompressed and read by `_point_from_sec`, which is what
@@ -864,12 +870,14 @@ def _mult_checked(m: int, Q: Point | None, ec: Curve, *, prepared: bool) -> Poin
             # back to a `Point` were one function each until the bindings
             # folded their `mult` module into `keys`, that module's last
             # call having been this one with the flag fixed
-            sec = libsecp256k1_pubkey_from_prvkey(m, compressed=False)
-            return _point_from_sec(sec)
+            sec = libsecp256k1_pubkey_from_prvkey(stand_in, compressed=False)
+            product = _point_from_sec(sec)
+            return product if m else INF
         # any other point, infinity excepted: that one is not a pubkey,
         # and m*INF == INF is what the Python path below answers anyway
         if Q[1]:
-            return _libsecp256k1_mult(m, Q)
+            product = _libsecp256k1_mult(stand_in, Q)
+            return product if m else INF
 
     if Q is None or Q == ec.G:
         # the fixed-base case, and the whole of what makes it one: the
@@ -889,8 +897,8 @@ def _mult_checked(m: int, Q: Point | None, ec: Curve, *, prepared: bool) -> Poin
         # therefore canonical
         return ec.aff_from_jac_var(_mult_fixed_base(m, QJ, ec, _FIXED_BASE_W))
 
-    # what reaches here on secp256k1 is the arguments the bindings decline
-    # -- a zero scalar, or infinity -- and, with the dispatch
+    # what reaches here on secp256k1 is the point the bindings decline
+    # -- infinity -- and, with the dispatch
     # above switched off, every multiplication of the curve: that is the
     # reference implementation the test suite holds the bindings against,
     # and the GLV endomorphism is its fastest form, a little over a
@@ -954,8 +962,7 @@ class PreparedPoint:
     which an installation without the bindings leaves off and which
     `set_libsecp256k1_serving` and `BTCLIB_NO_LIBSECP256K1` turn off in a
     process that has them, and the curve -- with whatever that call ands
-    onto it, `mult` taking this arm for a zero scalar besides,
-    libsecp256k1 having no scalar for one. Neither call passes a hash
+    onto it. Neither call passes a hash
     function: a verification's is spent on its own module's guard, and
     `_jac_double_mult_var` under that guard asks the predicate again with
     none, so a hash function the bindings do not serve leaves the
@@ -1219,9 +1226,27 @@ def _add(P: Point, Q: Point, ec: Curve) -> Point:
     the one inverse `aff_from_jac_var` then makes is of a Z nobody can
     predict, as the one `mult` makes is. Both points are required to be
     points of the curve, as a product `mult` returns is.
+
+    A blinded asset generator is the same shape: `pedersen.generator_from_seed`
+    adds the two points a secret seed maps to, and then blind*G for a
+    secret blinding factor, which is what libsecp256k1-zkp adds with
+    `secp256k1_gej_add_ge` too.
+
+    Infinity is what a zero scalar's product is, and libsecp256k1 has no
+    public key for it: `_libsecp256k1_sum` drops such a term and answers
+    the other one without crossing, so the duration would say what
+    `mult`'s does not, that a scalar was zero. The other term is summed
+    with itself instead and the answer dropped, so that the crossing is
+    made either way.
     """
     if _libsecp256k1_serves(ec, None):
-        return _libsecp256k1_sum((P, Q))
+        if P[1] and Q[1]:
+            return _libsecp256k1_sum((P, Q))
+        R = P if P[1] else Q
+        # the generator where both are infinity, which has no key either
+        stand_in = R if R[1] else ec.G
+        _libsecp256k1_sum((stand_in, stand_in))
+        return R
 
     PJ = _blinded_jac(_jac_from_aff(P), ec)
     QJ = _blinded_jac(_jac_from_aff(Q), ec)
@@ -1257,10 +1282,9 @@ def _tweak_add_var(P: Point, t: int, ec: Curve) -> Point:
     A zero tweak is not in that list: libsecp256k1 takes a tweak "valid
     according to secp256k1_ec_seckey_verify *or 32 zero bytes*", which
     its own header says of `secp256k1_ec_pubkey_tweak_add`, and answers
-    P directly, at a fraction of what routing it to the Python pair
-    instead would cost -- there `mult` has the scalar libsecp256k1
-    declines and takes the fixed-base ladder for an answer
-    that is the point already in hand.
+    P directly, for less than routing it to the Python pair instead
+    would cost -- there `mult` multiplies by one in place of the zero,
+    for an answer that is the point already in hand.
     """
     ec.require_on_curve(P)
     t %= ec.n
