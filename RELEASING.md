@@ -706,19 +706,20 @@ version=<the released version>
 The placeholder stands in a fence with nothing under it to reach, and the
 fence below carries the guard pair the tagging step of *Release to PyPI*
 describes: `version` is what it consumes from outside itself and is
-written `${version:?}`, where `repo` and `signer` are assigned inside it,
-and its lines are chained. The chain does a second job at release time,
-stopping the rebuild where a build or a verification fails rather than
-carrying on against a tree that is not the one the tag names.
+written `${version:?}`, where `python`, `repo` and `signer` are assigned
+inside it, and its lines are chained. The chain does a second job at
+release time, stopping the rebuild where a build or a verification fails
+rather than carrying on against a tree that is not the one the tag names.
 
 ```shell
 git worktree add --detach /tmp/btclib-rebuild "v${version:?}" &&
 cd /tmp/btclib-rebuild &&
+python=$(grep -Ev '^[[:space:]]*(#|$)' .python-version) &&
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) &&
 uv build &&
-uv run --no-project --python 3.15 \
+uv run --no-project --python "$python" \
   .github/scripts/normalize_sdist.py dist/ &&
-uv run --no-project --python 3.15 \
+uv run --no-project --python "$python" \
   .github/scripts/generate_sbom.py dist/ sbom/ &&
 repo=btclib-org/btclib &&
 signer=btclib-org/.github/.github/workflows/reusable-attest.yml &&
@@ -737,6 +738,14 @@ release. A tag through v2026.9.13 was signed by `release.yml` itself, and
 for one of those `signer` is `"$repo/.github/workflows/release.yml"`, the
 flag there only narrowing what passes. Each path verifies only the
 releases its own workflow signed.
+
+`python` is the interpreter the tag's own `.python-version` pins, its
+comment lines dropped, and not the one `main` pins: `normalize_sdist.py`
+writes the sdist again through the running interpreter's `gzip`, so a
+rebuild under a later pin is the published bytes only where the two
+interpreters' zlib compress alike (issue #2262). A tag older than
+`.python-version` stops the chain at that line, and is older than
+`normalize_sdist.py` too.
 
 The bill of materials is rebuilt with them and verified like them: its
 timestamp is `SOURCE_DATE_EPOCH` and its serial number is derived from the
