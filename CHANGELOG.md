@@ -154,6 +154,12 @@ their first twelve characters print as two (issue btclib-org/.github#1343).
 the published wheel names and verifies the sdist first: a wheel that
 disagrees stops the chain after it (issue btclib-org/btclib-node#1063).
 
+### `RELEASING.md`'s environment reviewers are the organization's owners
+
+`fametrano`, `giacomocaironi` and `pmazzocchi` are each a required
+reviewer of the `pypi` and `testpypi` environments, and self-review
+stays allowed (issue btclib-org/.github#1355).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
