@@ -138,8 +138,8 @@ what was already wrong and this diff makes materially worse.
 
 Look for the issue already open before filing another, and write the
 issue for somebody who never sees this pull request — what is wrong,
-where, how it is known, why it matters; no fix, and no reference to the
-pull request as a blocker:
+where, how it is known, why it matters, and the fix where one is known;
+no reference to the pull request as a blocker:
 
 ```shell
 gh issue list --state open --search <the thing, in a word or two>
@@ -147,7 +147,7 @@ gh issue list --state open --search <the thing, in a word or two>
 
 ```shell
 gh issue create --title <the finding, as a claim> \
-  --body <what was noticed and where, how it is known, why it matters>
+  --body <what was noticed and where, how it is known, why it matters, any fix>
 ```
 
 Name the issues filed at the foot of the summary, under a line saying
