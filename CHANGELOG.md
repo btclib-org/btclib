@@ -188,6 +188,11 @@ the cost of the roots it does not keep (closes #2273).
 which names them still, and `ecc.bms` is imported on demand, so every
 public import path resolves as before; a test holds it (issue #2282).
 
+### `REVIEWING.md` lets a filed issue carry its fix
+
+An issue filed from a review may now say the fix where one is known;
+the filing bar stands as it was (issue btclib-org/.github#1378).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
