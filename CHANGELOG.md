@@ -113,6 +113,12 @@ The classifiers name 3.15, the platform sweeps and `pypi-install.yml` gain
 `3.15` and `3.15t`, and `deps-latest.yml`'s upper end is 3.15 (issue
 btclib-org/.github#1324).
 
+### The rebuild of a release names the interpreter its tag pinned
+
+`RELEASING.md`'s *Rebuild a release from its tag* reads it from the tag's
+`.python-version`, not `main`'s (closes #2262). The workflow
+`sdist-rebuild.yml` calls names one of its own (issue btclib-org/.github#1345).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
