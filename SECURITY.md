@@ -211,9 +211,11 @@ used to teach and to prototype as much as to build:
     arithmetic, silent for the caller. The condition each operation below
     states as sha256 is that identity.
     `mult`, `double_mult_var` and
-    `multi_mult_var` reach the bindings for secp256k1 and any point of it, a
-    zero scalar and the point at infinity excepted — libsecp256k1 has no
-    scalar for the one and no public key for the other; `dsa.sign` for
+    `multi_mult_var` reach the bindings for secp256k1 and any point of it,
+    the point at infinity excepted — libsecp256k1 has no public key for
+    it; a zero scalar, which it has no scalar for, is excepted by the two
+    `_var` ones and multiplied as one by `mult`, whose answer is then
+    infinity; `dsa.sign` for
     secp256k1 with sha256, the lower-s form, no caller-imposed nonce and
     no commitment; `ssa.sign` for secp256k1 with sha256, a message of
     any size and no commitment; `taproot.output_prvkey`,
@@ -313,11 +315,14 @@ used to teach and to prototype as much as to build:
     `secp256k1_ecmult_const`, constant time in its scalar;
     `ecdh.shared_point` of the bindings is that call answering the point
     rather than a hash of it. The arm `curves.curve.mult` shares with
-    `PreparedPoint.mult` asks for a non-zero reduced scalar and then for
-    the predicate above, with no hash function, so the switch and the
-    curve are the whole of what the predicate asks; the generator is a
-    different call inside that arm and infinity is not delegated at
-    all — `curve._libsecp256k1_mult` at
+    `PreparedPoint.mult` asks for the predicate above, with no hash
+    function, so the switch and the curve are the whole of what the
+    predicate asks; a zero reduced scalar is multiplied as one and the
+    product dropped, the substitution `secp256k1_ec_pubkey_create` and
+    `secp256k1_ecdh` make for a key they refuse, so a zero is not told
+    apart by the arm it takes; the generator is a different call inside
+    that arm and infinity is not delegated at all —
+    `curve._libsecp256k1_mult` at
     `libsecp256k1_shared_point(_sec_from_point(Q), m, False)`
     (`src/btclib/curves/curve.py:797`). `dh.diffie_hellman` at
     `sec = libsecp256k1_shared_point(`
@@ -337,15 +342,19 @@ used to teach and to prototype as much as to build:
     scalars are secrets, is a `mult` of each and their sum instead —
     `pedersen._commit` at
     `return _add(mult(r, ec.G, ec), mult(v, gen, ec), ec)`
-    (`src/btclib/ecc/pedersen.py:334`), under `pedersen.commit`,
+    (`src/btclib/ecc/pedersen.py:354`), under `pedersen.commit`,
     `rangeproof.sign` and `rangeproof.rewind`. The sum is
     `curve._add` at `return _libsecp256k1_sum((P, Q))`
-    (`src/btclib/curves/curve.py:1224`): `secp256k1_ec_pubkey_combine`,
+    (`src/btclib/curves/curve.py:1244`): `secp256k1_ec_pubkey_combine`,
     whose group law `secp256k1_gej_add_ge` and whose inversion
-    `secp256k1_fe_inv` are constant time. `mult` does not delegate a
-    zero scalar, so a commitment to a zero value takes the Python
-    arithmetic for its v*gen, and far longer than a commitment to any
-    other value.
+    `secp256k1_fe_inv` are constant time. A commitment to a zero value
+    has a product at infinity, which `_add` does not hand over: it sums
+    the other term with itself and drops the answer, so the crossing is
+    made for a zero as for any other value.
+    `pedersen.generator_from_seed` treats its seed and its blinding
+    factor as secrets, as libsecp256k1-zkp does: its blind*G is `mult`
+    and its sums are `_add`, and the map its seed goes through is Python
+    on either arm, forming the same roots for every seed.
     `ellswift.xdh` is delegated to
     `secp256k1_ellswift_xdh`, which multiplies with
     `secp256k1_ecmult_const_xonly` — constant time in its scalar, and a

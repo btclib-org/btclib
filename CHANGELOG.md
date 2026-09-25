@@ -170,6 +170,18 @@ Both point a contributor at the organization's one copy of each, in
 `CONTRIBUTING.md` lists it among the functions that measure at the
 floor and keep their plain name, at 1.07x (closes #2279).
 
+### A zero scalar takes `mult`'s bindings arm like any other
+
+The bindings multiply one in its place, and a Pedersen commitment's sum
+crosses to them with a term at infinity too, so neither a commitment to
+zero nor a range proof's zero digit takes the Python arithmetic (closes #2272).
+
+### `pedersen.generator_from_seed` treats its seed and blinding factor as secrets
+
+Its sums are the ones a Pedersen commitment makes, and the map forms
+every candidate root before choosing one, as libsecp256k1-zkp does, at
+the cost of the roots it does not keep (closes #2273).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

@@ -56,10 +56,10 @@ from hashlib import sha256
 
 from btclib.alias import HashF, Integer, Octets, Point
 from btclib.curves import Curve, bytes_from_point, mult, secp256k1
-from btclib.curves.curve import _add, _assert_valid_ec, _is_x_coordinate_var
+from btclib.curves.curve import _add, _assert_valid_ec
 from btclib.curves.curve_group import HEX_THRESHOLD
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.number_theory import legendre_symbol_var, mod_sqrt_var
+from btclib.number_theory import legendre_symbol_var, mod_inv, mod_sqrt_var
 from btclib.utils import (
     assert_type,
     bytes_from_octets,
@@ -162,6 +162,10 @@ _SECOND_GENERATION = b"2nd generation: "
 # the same way, SwiftEC being written around it too.
 _SQRT_MINUS_3 = mod_sqrt_var(-3 % secp256k1.p, secp256k1.p)
 _HALF_SQRT_MINUS_3_LESS_1 = (_SQRT_MINUS_3 - 1) * pow(2, -1, secp256k1.p) % secp256k1.p
+# the exponent `secp256k1_fe_sqrt` raises to: a root of a wherever a has
+# one, on a p of 3 mod 4, and a square itself, (p + 1) // 4 being even on
+# secp256k1's p
+_ROOT_EXPONENT = (secp256k1.p + 1) // 4
 
 
 def _shallue_van_de_woestijne(t: int) -> Point:
@@ -188,13 +192,16 @@ def _shallue_van_de_woestijne(t: int) -> Point:
     sign of t answers a point of the same pair, and the parity is
     cheaper than the symbol.
 
-    zkp forms all three roots and selects among them with
-    `secp256k1_fe_cmov`, which is what makes its walk constant-time;
-    this asks `curves.curve._is_x_coordinate_var` for existence instead
-    and forms the one root it needs. What is walked here is a digest of
-    the seed alone: `generator_from_seed` adds the blinding factor as
-    `blind*G` to the sum of the points, so no secret of a caller's
-    reaches this function.
+    What is walked here is a digest of the seed, which is a secret
+    (`generator_from_seed` says why). zkp forms all three roots and
+    selects among them with `secp256k1_fe_cmov`; this forms all three too, each
+    root an exponentiation by a fixed exponent and squared back to tell
+    whether it is one; the inverse is `number_theory.mod_inv`, timed on a
+    random factor rather than on `j`. So every seed costs the same
+    operations, whichever candidate names the point. That is the regular
+    tier and not constant time: the operations are Python integers, whose
+    cost follows their operands, which `SECURITY.md` says of the whole
+    Python arithmetic.
 
     An integer outside 0..p-1 is no field element and is refused, which
     is `secp256k1_fe_set_b32_limit`'s own refusal of the digest
@@ -210,20 +217,23 @@ def _shallue_van_de_woestijne(t: int) -> Point:
     wd = (t_2 + secp256k1._b + 1) % p
     x3d = -3 * t_2 % p
     j = wd * x3d % p
-    j_inv = pow(j, -1, p) if j else 0
+    j_inv = mod_inv(j, p) if j else 0
     x_1 = (_HALF_SQRT_MINUS_3_LESS_1 - _SQRT_MINUS_3 * t_2 % p * x3d % p * j_inv) % p
     x_2 = -(x_1 + 1) % p
     x_3 = (1 + pow(wd, 3, p) * j_inv) % p
 
+    # every candidate's root and its verdict, before any is chosen
+    candidates = []
+    for x in (x_1, x_2, x_3):
+        y_squared = secp256k1._y2(x)
+        y = pow(y_squared, _ROOT_EXPONENT, p)
+        candidates.append((x, y, y * y % p == y_squared))
+
     # the cascade `secp256k1_fe_cmov` writes: the second candidate where
-    # the first is no x-coordinate, and the third where neither is
-    if _is_x_coordinate_var(x_1, secp256k1):
-        x = x_1
-    elif _is_x_coordinate_var(x_2, secp256k1):
-        x = x_2
-    else:
-        x = x_3
-    y = secp256k1.y_quadratic_residue_var(x)
+    # the first is no x-coordinate, and the third where neither is, which
+    # the map guarantees is one -- so the third's verdict is not read
+    first, second, third = candidates
+    x, y, _ = first if first[2] else second if second[2] else third
     return x, p - y if t % 2 else y
 
 
@@ -245,8 +255,17 @@ def generator_from_seed(seed: Octets, blind: Integer | None = None) -> Point:
     at a blinding factor of zero is `secp256k1_generator_generate`, which
     is what `test_generator_generate` asserts of each of its own vectors.
     A factor at or past n is refused, `secp256k1_scalar_set_b32`'s
-    overflow being what refuses it there; zero is not, a generator being
-    public where `commit`'s own blinding factor is secret.
+    overflow being what refuses it there; zero is not, the C answering
+    `secp256k1_generator_generate`'s generator for it.
+
+    The seed and the blinding factor are secrets, as zkp treats them:
+    the generator is published to hide which asset an output carries,
+    and the seed is that asset's tag. blind*G is `curves.mult` and each
+    sum `curves.curve._add`, so on the bindings arm their duration
+    follows neither; the map is Python on either arm, and regular in the
+    seed rather than constant time, `_shallue_van_de_woestijne` says how.
+    Constant time in both is `btclib_secp256k1.zkp.generator.generate_blinded`,
+    where the bindings are built with the zkp extension.
 
     `second_generator` is the other generator this module names, and the
     two are unrelated constructions: that one increments the hash of G
@@ -256,13 +275,14 @@ def generator_from_seed(seed: Octets, blind: Integer | None = None) -> Point:
     https://github.com/BlockstreamResearch/secp256k1-zkp/blob/master/src/modules/generator/main_impl.h
     """
     seed_bytes = bytes_from_octets(seed, _SEED_SIZE)
-    Q = secp256k1.add_aff_var(
+    Q = _add(
         _shallue_van_de_woestijne(
             int.from_bytes(sha256(_FIRST_GENERATION + seed_bytes).digest(), "big")
         ),
         _shallue_van_de_woestijne(
             int.from_bytes(sha256(_SECOND_GENERATION + seed_bytes).digest(), "big")
         ),
+        secp256k1,
     )
     if blind is None:
         return Q
@@ -274,7 +294,7 @@ def generator_from_seed(seed: Octets, blind: Integer | None = None) -> Point:
             f"{hex_string(blind_int)}" if blind_int > HEX_THRESHOLD else f"{blind_int}"
         )
         raise BTClibValueError(err_msg)
-    return secp256k1.add_aff_var(Q, mult(blind_int, secp256k1.G, secp256k1))
+    return _add(Q, mult(blind_int, secp256k1.G, secp256k1), secp256k1)
 
 
 def commit(r: Integer, v: Integer, gen: Point, ec: Curve = secp256k1) -> Point:

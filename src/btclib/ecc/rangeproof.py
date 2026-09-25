@@ -1157,11 +1157,10 @@ def sign(
     heads = []
     for i, (sec, j) in enumerate(zip(secs, params.sign_key_idx, strict=True)):
         # `secp256k1_pedersen_ecmult`: the ring's own blinding factor,
-        # and the digit it proves at the weight of its place
-        head = secp256k1.add_aff_var(
-            mult(sec, secp256k1.G, secp256k1),
-            mult(j * params.scale << 2 * i, gen, secp256k1),
-        )
+        # and the digit it proves at the weight of its place -- a
+        # commitment to that digit, whose two scalars are secrets and
+        # whose digit is zero in a ring as often as any other
+        head = _commit(sec, j * params.scale << 2 * i, gen, secp256k1)
         if head == INF:
             err_msg = "rangeproof ring commitment is the point at infinity"
             raise BTClibRuntimeError(err_msg)

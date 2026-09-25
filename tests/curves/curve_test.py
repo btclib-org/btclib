@@ -18,6 +18,9 @@ from typing import Any
 import pytest
 from typing_extensions import override
 
+from btclib._libsecp256k1 import pubkey_from_prvkey as libsecp256k1_pubkey_from_prvkey
+from btclib._libsecp256k1 import pubkey_sum as libsecp256k1_pubkey_sum
+from btclib._libsecp256k1 import shared_point as libsecp256k1_shared_point
 from btclib.alias import INF, INFJ, Integer, JacPoint, Point
 from btclib.curves import (
     Curve,
@@ -1271,6 +1274,73 @@ def test_add_is_add_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None
         every = [INF, *(mult(k, other.G, other) for k in range(1, other.n))]
         for P, Q in itertools.product(every, repeat=2):
             assert _add(P, Q, other) == other.add_var(P, Q)
+
+
+@needs_bindings
+def test_a_zero_scalar_is_multiplied_as_one(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The bindings arm multiplies one where the scalar is zero.
+
+    A Pedersen commitment's value is a secret and may be zero, so a zero
+    has to cost what any other scalar costs: the call is made with one,
+    the substitution libsecp256k1 makes for a key it refuses, and
+    infinity is answered. The Python arms are made to fail here, so a
+    zero that reached them would fail the test rather than pass slower.
+    """
+
+    def refuse(*_: object, **__: object) -> None:
+        raise AssertionError(  # pragma: no cover -- the bindings arm answers first
+            "a zero scalar reached the Python arithmetic"
+        )
+
+    monkeypatch.setattr(curve, "_mult_fixed_base", refuse)
+    monkeypatch.setattr(curve, "_mult_endomorphism_secp256k1", refuse)
+
+    scalars: list[object] = []
+
+    def record(wrapped: Callable[..., Any]) -> Callable[..., Any]:
+        def recorded(*args: Any, **kwargs: Any) -> Any:
+            scalars.append(next(a for a in args if isinstance(a, int)))
+            return wrapped(*args, **kwargs)
+
+        return recorded
+
+    monkeypatch.setattr(
+        curve,
+        "libsecp256k1_pubkey_from_prvkey",
+        record(libsecp256k1_pubkey_from_prvkey),
+    )
+    monkeypatch.setattr(
+        curve, "libsecp256k1_shared_point", record(libsecp256k1_shared_point)
+    )
+
+    H = second_generator(secp256k1)
+    assert mult(0) == INF
+    assert mult(secp256k1.n, secp256k1.G) == INF
+    assert mult(0, H) == INF
+    assert PreparedPoint(H).mult(secp256k1.n) == INF
+    assert scalars == [1, 1, 1, 1]
+
+
+@needs_bindings
+def test_add_crosses_with_a_term_at_infinity(monkeypatch: pytest.MonkeyPatch) -> None:
+    """One `pubkey_sum` per `_add`, whichever of its terms is infinity.
+
+    A product at infinity is a zero scalar's, and a sum that skipped the
+    crossing for it would time the zero `mult` does not. The answer is
+    `test_add_is_add_var`'s to check; this counts the crossings.
+    """
+    calls: list[int] = []
+
+    def counted(*args: Any, **kwargs: Any) -> bytes | None:
+        calls.append(len(args[0]))
+        return libsecp256k1_pubkey_sum(*args, **kwargs)
+
+    monkeypatch.setattr(curve, "libsecp256k1_pubkey_sum", counted)
+
+    H = second_generator(secp256k1)
+    for P, Q in ((mult(3), H), (mult(3), INF), (INF, H), (INF, INF)):
+        assert _add(P, Q, secp256k1) == secp256k1.add_var(P, Q)
+    assert calls == [2, 2, 2, 2]
 
 
 @pytest.mark.parametrize(
