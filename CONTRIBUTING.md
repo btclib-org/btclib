@@ -1524,14 +1524,14 @@ timed over random inputs of one class, against `add_jac` as the floor —
 1.05x, the group law having nothing to branch on. What measures at that
 floor keeps its plain name, and each is here so that the next reader does
 not have to re-derive it: `dsa._assert_as_valid_` 1.07x and
-`dsa._recover_pub_key_` 1.05x, `ssa._recover_pub_key_` 1.06x,
-`ellswift._try_sqrt` 1.05x, `sec_point.point_from_octets` 1.01x,
-`ssa.point_from_bip340pub_key` 1.03x, `Sig.assert_valid` 1.03x and
-`ellswift.xdh` 1.01x. The inverse or the root inside each of them is
-real, and it is diluted: an inverse varying by 1.32x is 10 us of a 40 us
-verification, and `xdh` is dominated by a `mult` that is blinded.
-`ellswift._constants` is memoized on the curve and receives no value at
-all.
+`dsa._recover_pub_key_` 1.05x, `ssa._assert_as_valid_` 1.07x and
+`ssa._recover_pub_key_` 1.06x, `ellswift._try_sqrt` 1.05x,
+`sec_point.point_from_octets` 1.01x, `ssa.point_from_bip340pub_key`
+1.03x, `Sig.assert_valid` 1.03x and `ellswift.xdh` 1.01x. The inverse
+or the root inside each of them is real, and it is diluted: an inverse
+varying by 1.32x is 10 us of a 40 us verification, and `xdh` is
+dominated by a `mult` that is blinded. `ellswift._constants` is
+memoized on the curve and receives no value at all.
 
 The one number worth keeping in view is `ellswift._xswiftec_inv_var`, at
 **29.62x** — 28 calls of 50 returning under 10 us and 22 over. That is an
