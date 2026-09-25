@@ -20,8 +20,10 @@ ci:
   # the hooks pre-commit.ci cannot run, covered by the lint workflow,
   # which is the required check and runs them: mypy and pyroma below both
   # shell out to uv, which is not installed there (issue
-  # btclib-org/.github#1199)
-  skip: [mypy, pyroma]
+  # btclib-org/.github#1199). uv-lock locks with the interpreter
+  # .python-version names, which the pre-commit.ci image does not carry,
+  # and the hook fails downloading it there (issue btclib-org/.github#1348)
+  skip: [mypy, pyroma, uv-lock]
 
 repos:
   # this file checking itself, on hooks pre-commit ships rather than a

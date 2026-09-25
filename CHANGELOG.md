@@ -131,6 +131,11 @@ So are `mult_pub_key`, `ecies.derive_keys` and `dh.diffie_hellman`, and
 `_mult_sec_var` is `_mult_sec`: each calls the bindings' `ecdh.shared_point`,
 the floor moving to the release adding it (closes #2257).
 
+### pre-commit.ci skips `uv-lock`
+
+Its image lacks the interpreter `.python-version` names, and the `lint`
+workflow still runs the hook (issue btclib-org/.github#1348).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
