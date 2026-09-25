@@ -33,11 +33,14 @@ module-path = [
 # `_serialize_scalar`/`_deserialize_scalar`/`_parse_der_value` -- missing
 # from the first pass's command entirely, so every mutant of that codec
 # this session found was a mutant its own dedicated test file already
-# killed, uncredited for want of being asked
+# killed, uncredited for want of being asked. var_bytes_test.py holds
+# `_parse_der_size`, the size reader of that codec, to `var_bytes`, and it
+# is not under tests/ecc/ because the module it compares against stays in
+# btclib when `ecc` leaves (issue #2282)
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
   tests/ecc/ssa_test.py tests/ecc/dsa_test.py tests/ecc/der_test.py \
   tests/ecc/dsa_anti_exfil_test.py tests/ecc/commit_nonce_test.py \
-  tests/parse_contract_test.py"""
+  tests/parse_contract_test.py tests/var_bytes_test.py"""
 
 timeout = 300
 

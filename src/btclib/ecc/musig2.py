@@ -126,6 +126,7 @@ from dataclasses import dataclass, field
 from hashlib import sha256
 from typing import TYPE_CHECKING
 
+from btclib._ecc_hashes import tagged_hash
 from btclib._libsecp256k1 import musig as libsecp256k1_musig
 from btclib.alias import INF, Integer, Octets, Point
 from btclib.curves import mult, multi_mult_var, scalar_from_prv_key, secp256k1
@@ -142,7 +143,6 @@ from btclib.exceptions import (
     BTClibValueError,
     InvalidContributionError,
 )
-from btclib.hashes import tagged_hash
 from btclib.utils import assert_type, bytes_from_octets, is_octets
 
 __all__ = [

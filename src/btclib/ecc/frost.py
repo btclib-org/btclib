@@ -103,6 +103,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from hashlib import sha256
 
+from btclib._ecc_hashes import tagged_hash
 from btclib.alias import INF, Octets, Point
 from btclib.curves import mult, multi_mult_var, secp256k1
 from btclib.curves.curve import _sum_var, _tweak_add_var
@@ -113,7 +114,6 @@ from btclib.exceptions import (
     BTClibValueError,
     InvalidContributionError,
 )
-from btclib.hashes import tagged_hash
 from btclib.utils import assert_type, bytes_from_octets, is_octets
 
 __all__ = [

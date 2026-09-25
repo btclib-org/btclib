@@ -44,7 +44,7 @@ import btclib
 import btclib.curves
 import btclib.ecc
 import btclib.script
-from btclib import consensus
+from btclib import _ecc_hashes, consensus
 from btclib.curves import curve_group, curve_group_2
 from btclib.script import script_pub_key
 from tests import module_names
@@ -105,6 +105,11 @@ def _reexports(*groups: tuple[ModuleType, list[str]]) -> dict[str, ModuleType]:
 # still, being where the rest of Core's header is and where a caller reading
 # a block's own rules goes.
 #
+# `btclib._ecc_hashes` is the third: `btclib.ecc` tags and reduces with two
+# functions of `btclib.hashes`, and imports nothing above the curve's layer
+# (issue #2282), so the two are defined below it. `btclib.hashes` names
+# them still, being where a caller looks for a hash function.
+#
 # So a name here is not a name about to leak: it is the same object under
 # the name a caller already had, which each entry records its canonical
 # module for and the test below asserts. What would be a leak is a module
@@ -116,6 +121,9 @@ REEXPORTED = {
     ),
     "btclib.block.limits": _reexports(
         (consensus, ["MAX_BLOCK_WEIGHT", "WITNESS_SCALE_FACTOR"]),
+    ),
+    "btclib.hashes": _reexports(
+        (_ecc_hashes, ["reduce_to_hlen", "tagged_hash"]),
     ),
 }
 
@@ -432,10 +440,15 @@ def test_ecc_exports_the_signature_schemes() -> None:
         assert hasattr(module, name), f"btclib.ecc.{module_name}.{name} went missing"
         assert name not in btclib.ecc.__all__
 
-    # and bms resolves dsa through the package that is importing it, which
-    # the single sorted import line does not have to work around: a name
-    # that is not yet an attribute falls back to a submodule import
-    assert btclib.ecc.bms.dsa is btclib.ecc.dsa  # type: ignore[attr-defined]
+    # and bms's own `from btclib.ecc import dsa` reads the attribute the
+    # package's eager imports bound, the same object
+    assert btclib.ecc.bms.dsa is btclib.ecc.dsa
+
+    # bms is the one scheme the package imports on demand (issue #2282):
+    # offered to a prompt like the others, and no answer for anything else
+    assert set(btclib.ecc.__all__) <= set(dir(btclib.ecc))
+    with pytest.raises(AttributeError, match="has no attribute 'bmss'"):
+        _ = btclib.ecc.bmss
 
 
 def test_script_exports_both_halves_of_every_pair() -> None:
@@ -526,7 +539,9 @@ def test_no_module_exports_a_name_it_imported() -> None:
     `bitcoin-core-rpc` package canonically holds, a second copy of Core's
     table being a second thing to keep true; `btclib.block.limits` names
     the two constants `btclib.consensus` defines below the package, which
-    is where a caller reading a block's rules looks for them.
+    is where a caller reading a block's rules looks for them; and
+    `btclib.hashes` names the two functions `btclib._ecc_hashes` defines
+    below `btclib.ecc`, which is where a caller looks for a hash function.
 
     Asserted both ways, because a skip list is only half a table: it says
     which names may be re-exported and nothing about whether they still are,

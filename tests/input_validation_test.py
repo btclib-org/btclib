@@ -352,7 +352,7 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
         # the two hash-function types are always behind a default -- `hf`
         # is the last parameter of everything that takes one -- so the
         # walk cannot reach them for the reason the module docstring
-        # gives. `hashes._assert_valid_hf` is the check, and
+        # gives. `_ecc_hashes._assert_valid_hf` is the check, and
         # tests/hashes_test.py, dsa_test.py and ssa_test.py are where it
         # is held to it
         "HashDigestF",
@@ -384,7 +384,7 @@ def test_the_walk_reaches_what_it_claims() -> None:
     # `network` and `compressed` carry defaults and are not driven
     assert _DRIVABLE["btclib.b58.prv_key_data_from_wif"] == ["String"]
 
-    assert "btclib.hashes._assert_valid_hf" not in _DRIVABLE
+    assert "btclib._ecc_hashes._assert_valid_hf" not in _DRIVABLE
     # a required parameter the vocabulary cannot build: a Tx
     assert "btclib.script.sig_hash.legacy" not in _DRIVABLE
 

@@ -66,6 +66,7 @@ from hashlib import sha256
 from types import TracebackType
 from typing import Self, overload
 
+from btclib._ecc_hashes import _assert_valid_hf, reduce_to_hlen, tagged_hash
 from btclib._libsecp256k1 import ssa as libsecp256k1_ssa
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.curves import (
@@ -88,7 +89,6 @@ from btclib.curves.curve_group import HEX_THRESHOLD
 from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
-from btclib.hashes import _assert_valid_hf, reduce_to_hlen, tagged_hash
 from btclib.number_theory import mod_inv_var
 from btclib.utils import (
     assert_no_trailing,
@@ -1002,7 +1002,7 @@ def assert_as_valid_(
     # ahead of everything, and the one input whose refusal has to be a
     # TypeError: verify_ below turns a ValueError into False, so an hf
     # checked any later than this would be reported as a signature that
-    # does not verify. hashes._assert_valid_hf has the rest
+    # does not verify. _ecc_hashes._assert_valid_hf has the rest
     _assert_valid_hf(hf)
 
     if isinstance(sig, Sig):

@@ -182,6 +182,12 @@ Its sums are the ones a Pedersen commitment makes, and the map forms
 every candidate root before choosing one, as libsecp256k1-zkp does, at
 the cost of the roots it does not keep (closes #2273).
 
+### `btclib.ecc` imports nothing above the curve's layer, `bms` aside
+
+`tagged_hash` and `reduce_to_hlen` are defined below `btclib.hashes`,
+which names them still, and `ecc.bms` is imported on demand, so every
+public import path resolves as before; a test holds it (issue #2282).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

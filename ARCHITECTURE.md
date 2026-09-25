@@ -46,14 +46,16 @@ touching `src/btclib/curves/` or `src/btclib/ecc/`.
 ## Layers
 
 Roughly bottom-up. The directions that hold without exception are the
-pairs in the next section and the edge to `btclib_wallet` below, each held
-by a test; elsewhere a module reaches up where its subject asks for it, as
-`ecc.bms` does for the address a message signature names.
+curve's layer, the pairs in the next section and the edge to
+`btclib_wallet` below, each held by a test; elsewhere a module reaches up
+where its subject asks for it, as `ecc.bms` does for the address a
+message signature names.
 
-- **the substrate**: `alias`, `exceptions`, `utils`, `number_theory`,
-  `hashes`, `var_int`, `var_bytes`, `consensus`, `amount`
-- **the curve**: `curves`
+- **the substrate**: `alias`, `exceptions`, `utils`
+- **the curve**: `number_theory`, `curves`
 - **what is built on a curve**: `ecc`, and `kdf` beside it
+- **bitcoin's hashes, integers and constants**: `hashes`, `var_int`,
+  `var_bytes`, `consensus`, `amount`
 - **networks, keys and addresses**: `network`, `base58`, `bech32`, `key`,
   `b58`, `b32`
 - **the chain**: `script`, `tx`, `block`, `fee`, `coinstats`, `muhash`
@@ -64,6 +66,26 @@ convertible rather than one type, and `exceptions` the errors it raises.
 `consensus` holds the consensus constants and the per-network table, and
 importing it imports nothing else of btclib, which `tests/imports_test.py`
 asserts.
+
+### The curve's layer imports nothing above it
+
+`number_theory`, `curves`, `_libsecp256k1`, `kdf`, `ecc` and `_ecc_hashes`
+import one another and the substrate, and nothing else of btclib:
+`tests/imports_test.py`'s `test_row_2_imports_only_row_2_and_the_substrate`
+reads every import statement they hold. `_ecc_hashes` holds the three
+names of `hashes` that `ecc` needs, `tagged_hash`, `reduce_to_hlen` and
+`_assert_valid_hf`, and `hashes` publishes the first two as the same
+objects. This is the cut
+[issue #2282](https://github.com/btclib-org/btclib/issues/2282) names for
+a package of its own, and two modules under `ecc` straddle it:
+
+- `ecc.bms` stays in btclib when the rest of `ecc` leaves. It names its
+  signer by an address, so it imports `b32`, `b58`, `key` and `network`;
+  the test leaves it out, and `ecc` imports it on demand rather than
+  eagerly.
+- `ecc.ellswift` splits: its SwiftEC map leaves, and `xdh`, `XDH_TAG` and
+  `ELL_SIZE`, BIP324's agreement on the map, stay in btclib. `xdh`
+  imports nothing above the layer, so the test does not see the line.
 
 ### Each pair is one idea split in two
 

@@ -720,7 +720,7 @@ class CurveGroup:
 def _assert_valid_ec(ec: CurveGroup) -> None:
     """Refuse an ec that is not a group of curve points.
 
-    `hashes._assert_valid_hf` is the shape: one check where the parameter
+    `_ecc_hashes._assert_valid_hf` is the shape: one check where the parameter
     is first read, rather than one per function that takes it. What it
     catches is what an `ec` of no curve type otherwise becomes -- a field
     read off it, `'NoneType' object has no attribute 'p'`, which is a

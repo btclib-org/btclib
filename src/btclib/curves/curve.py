@@ -351,7 +351,7 @@ def _assert_valid_ec(ec: Curve) -> None:
     every multiplication below reduces its scalar mod n, so a CurveGroup
     would pass a group check and fail on a field it has not got.
 
-    A type and not a field lookup, the way `hashes._assert_valid_hf` asks
+    A type and not a field lookup, the way `_ecc_hashes._assert_valid_hf` asks
     `callable` rather than making a digest: an ec is an object of the
     library's own making, with no conversion from anything else the way a
     network name has one, so the type is the whole of the question. That

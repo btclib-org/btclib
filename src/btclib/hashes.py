@@ -15,8 +15,9 @@ import hashlib
 from collections.abc import Callable, Sequence
 
 from btclib import var_int
+from btclib._ecc_hashes import reduce_to_hlen, tagged_hash
 from btclib._ripemd160 import ripemd160 as pure_python_ripemd160
-from btclib.alias import HashDigestF, HashF, Octets
+from btclib.alias import HashDigestF, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import bytes_from_octets, is_integer, is_octets
 
@@ -221,56 +222,6 @@ def siphash(k0: int, k1: int, octets: Octets) -> int:
     return v0 ^ v1 ^ v2 ^ v3
 
 
-def _assert_valid_hf(hf: HashF) -> None:
-    """Refuse an hf that is not a hash constructor.
-
-    The mistake it catches is `sha256()` written where `sha256` belongs --
-    the digest object instead of the class that makes one -- which is a
-    caller's own error and not a statement about the message or the
-    signature it was passed with.
-
-    `callable` and not a trial call: a digest object is not callable, so
-    the check is a slot lookup rather than the hash it would otherwise
-    have to build, which matters where it sits in front of a verification
-    the bindings answer fast enough for that hash to show.
-
-    So it is not exhaustive, and does not need to be: a callable of the
-    wrong shape -- `hashes.hash256`, which takes the message rather than
-    making a digest -- still fails at the `hf()` that follows, with the
-    plain TypeError `tests/alias_test.py` pins there on purpose. What
-    matters for the verifications is not the class but that neither one is
-    a ValueError, so neither is mistaken for a signature that does not
-    verify.
-
-    A `BTClibTypeError` for the reason the class exists, and with a
-    consequence the boolean verifications depend on: it is a `TypeError`,
-    so their `except (ValueError, BTClibRuntimeError)` does not catch it
-    and a caller's mistake reaches the caller instead of being reported as
-    a signature that does not verify.
-    """
-    if not callable(hf):
-        raise BTClibTypeError(f"not a hash function: {hf!r} is not callable")
-
-
-def reduce_to_hlen(msg: Octets, hf: HashF = hashlib.sha256) -> bytes:
-    """Return the message digested by hf, one digest long.
-
-    Step 4 of SEC 1 v.2 section 4.1.3: what the un-underscored
-    signing and verifying spellings do to a message before handing it
-    to their trailing-underscore twins.
-    """
-    # here as well as in the verifications this feeds, and not only there:
-    # they take the message already reduced, so this is where an hf of
-    # theirs is first called and where a bad one would otherwise leave as
-    # the bare TypeError of `hf()`
-    _assert_valid_hf(hf)
-    msg = bytes_from_octets(msg)
-    # Step 4 of SEC 1 v.2 section 4.1.3
-    h = hf()
-    h.update(msg)
-    return h.digest()
-
-
 def magic_message(msg: Octets) -> bytes:
     """Return the hash BMS signs: the message in Core's magic envelope.
 
@@ -437,28 +388,3 @@ def merkle_root_from_branch(
         raise BTClibValueError(err_msg)
 
     return root
-
-
-def tagged_hash(tag: bytes, m: bytes, hf: HashF = hashlib.sha256) -> bytes:
-    """Return BIP340's tagged hash: hf(hf(tag) || hf(tag) || m).
-
-    The doubled tag digest is what makes a hash under one tag invalid
-    under every other.
-    """
-    # libsecp256k1 computes exactly this in hashes.tagged_sha256, and the
-    # binding is not called because it is slower at every size, and by
-    # more the larger the message: hashlib's SHA256 is OpenSSL's,
-    # hardware-accelerated, where libsecp256k1 compiles its own portable
-    # C. This path also has to stay for hf != sha256, so delegating would
-    # buy neither speed nor one implementation less.
-    h1 = hf()
-    h1.update(tag)
-    tag_hash = h1.digest()
-
-    h2 = hf()
-    h2.update(tag_hash + tag_hash)
-
-    # it could be sped up by storing the above midstate
-
-    h2.update(m)
-    return h2.digest()
