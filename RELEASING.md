@@ -706,26 +706,35 @@ version=<the released version>
 The placeholder stands in a fence with nothing under it to reach, and the
 fence below carries the guard pair the tagging step of *Release to PyPI*
 describes: `version` is what it consumes from outside itself and is
-written `${version:?}`, where `python`, `repo` and `signer` are assigned
-inside it, and its lines are chained. The chain does a second job at
-release time, stopping the rebuild where a build or a verification fails
-rather than carrying on against a tree that is not the one the tag names.
+written `${version:?}`, where every other variable is assigned inside
+it, and its lines are chained. The chain does a second job at
+release time, stopping the rebuild where the download, the version
+check, the build or a verification fails rather than carrying on
+against a tree that is not the one the tag names.
 
 ```shell
 git worktree add --detach /tmp/btclib-rebuild "v${version:?}" &&
 cd /tmp/btclib-rebuild &&
 python=$(grep -Ev '^[[:space:]]*(#|$)' .python-version) &&
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) &&
-uv build &&
+repo=btclib-org/btclib &&
+signer=btclib-org/.github/.github/workflows/reusable-attest.yml &&
+wheels=$(mktemp -d) &&
+gh release download "v${version:?}" --repo "$repo" --dir "$wheels" \
+  --pattern '*.whl' &&
+gh attestation verify "$wheels"/*.whl \
+  --repo "$repo" --signer-workflow "$signer" &&
+uv_version=$(unzip -p "$wheels"/*.whl '*.dist-info/WHEEL' |
+  sed -n 's/^Generator: uv //p') &&
+[[ $uv_version =~ ^[0-9]+([.][0-9]+)*$ ]] &&
+uvx "uv@$uv_version" build &&
 uv run --no-project --python "$python" \
   .github/scripts/normalize_sdist.py dist/ &&
 uv run --no-project --python "$python" \
   .github/scripts/generate_sbom.py dist/ sbom/ &&
-repo=btclib-org/btclib &&
-signer=btclib-org/.github/.github/workflows/reusable-attest.yml &&
-gh attestation verify "dist/btclib-${version:?}-py3-none-any.whl" \
-  --repo "$repo" --signer-workflow "$signer" &&
 gh attestation verify "dist/btclib-${version:?}.tar.gz" \
+  --repo "$repo" --signer-workflow "$signer" &&
+gh attestation verify "dist/btclib-${version:?}-py3-none-any.whl" \
   --repo "$repo" --signer-workflow "$signer" &&
 gh attestation verify "sbom/btclib-${version:?}.cdx.json" \
   --repo "$repo" --signer-workflow "$signer"
@@ -747,6 +756,18 @@ interpreters' zlib compress alike (issue #2262). A tag older than
 `.python-version` stops the chain at that line, and is older than
 `normalize_sdist.py` too.
 
+`uv_version` is the uv the release job ran, read off the published
+wheel once its attestation verifies, so that what is read is signed: its
+`.dist-info/WHEEL` names it on the `Generator:` line, where the tag holds
+only `[tool.uv] required-version`, a floor `setup-uv` resolves to the
+newest uv at release time. The `[[ ]]` holds it to digits and dots
+before `uvx` sees it, `uvx` taking a URL or a VCS reference in that
+place and running what it fetches. That line is written by the
+build, so a wheel built under another uv is another digest (issue
+btclib-org/btclib-node#1063). The sdist is verified first, it being the
+file the rebuild exists to reproduce: a wheel that still disagrees stops
+the chain after that check rather than ahead of it.
+
 The bill of materials is rebuilt with them and verified like them: its
 timestamp is `SOURCE_DATE_EPOCH` and its serial number is derived from the
 two digests, so it is the same bytes as the released copy — which is the
@@ -755,12 +776,13 @@ only reason a third `gh attestation verify` can pass at all.
 Two things bound that guarantee, and both are worth knowing before reading
 a mismatch as tampering:
 
-- **the build backend is bounded, not pinned.** `[build-system] requires`
-  names a range rather than a version, and a build takes whichever
-  version in that range the uv running it carries, so a rebuild months
-  later runs a backend the release never saw. A mismatch dates the
-  rebuild before it accuses anyone; pinning the backend to a version is
-  the fix, and the cost is a bound that ages.
+- **the build backend is the uv's own.** `[build-system] requires`
+  names a range rather than a version, and for
+  the uv the release ran, which the range admits, `uv build` uses the
+  backend built into that uv rather than a `uv_build` resolved from the
+  range. That is why the command above runs the release's uv rather than
+  the reader's, and why it reproduces the wheel only while that uv can
+  still be installed.
 - **the rehearsal is a different version, by construction.** A TestPyPI
   dispatch appends `.dev<run*100+attempt>` to the version, so its files
   are not a second build of the release's — they are their own artifact,
