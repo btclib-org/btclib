@@ -302,15 +302,15 @@ def _issue_body(ledger_path: Path, drifted: list[Drift], skipped: list[str]) -> 
         if drift.path_is_gone:
             lines.append(
                 f"- **{drift.entry.heading}**: pinned to"
-                f" `{drift.entry.commit[:12]}`, and `{drift.entry.repo}` has no"
+                f" `{drift.entry.commit}`, and `{drift.entry.repo}` has no"
                 f" commit touching `{drift.entry.path}` any more -- renamed,"
                 " moved or deleted upstream"
             )
             continue
         lines.append(
-            f"- **{drift.entry.heading}**: pinned to `{drift.entry.commit[:12]}`,"
+            f"- **{drift.entry.heading}**: pinned to `{drift.entry.commit}`,"
             f" upstream's tip of `{drift.entry.path}` is now"
-            f" `{drift.latest_commit[:12]}` ({drift.latest_date}),"
+            f" `{drift.latest_commit}` ({drift.latest_date}),"
             f" `{drift.entry.repo}`"
         )
     if skipped:
@@ -409,13 +409,13 @@ def main() -> int:
         if drift.path_is_gone:
             print(
                 f"GONE: {drift.entry.heading} pinned to"
-                f" {drift.entry.commit[:12]}, and {drift.entry.repo} has no"
+                f" {drift.entry.commit}, and {drift.entry.repo} has no"
                 f" commit touching {drift.entry.path} any more"
             )
             continue
         print(
-            f"BEHIND: {drift.entry.heading} pinned to {drift.entry.commit[:12]},"
-            f" tip is {drift.latest_commit[:12]} ({drift.latest_date})"
+            f"BEHIND: {drift.entry.heading} pinned to {drift.entry.commit},"
+            f" tip is {drift.latest_commit} ({drift.latest_date})"
         )
     for heading in skipped:
         print(f"SKIPPED: {heading}")

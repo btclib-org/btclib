@@ -142,6 +142,12 @@ It sums a `mult` of each, where `double_mult_var`'s work followed the width
 of both, and `rangeproof.rewind` rebuilds the commitment it checks the same
 way (closes #2267).
 
+### A drift line names both commits whole
+
+`check_vendored_vectors.py` prints the pinned commit and upstream's tip as
+full shas, in its output and in the tracking issue, so two commits alike in
+their first twelve characters print as two (issue btclib-org/.github#1343).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
