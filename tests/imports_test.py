@@ -339,21 +339,16 @@ def _assert_stays_within(entry_point: str, allowed_btclib_modules: set[str]) -> 
 
 
 def test_curves_stays_stdlib_light() -> None:
-    """`btclib.curves` is row 2 of issue #2129, `ellipticcurves`, without `ecc`.
+    """`btclib.curves` loads nothing of btclib's beyond its own modules.
 
-    Pinned module by module, and narrower than row 2: it is the package's
-    own arithmetic, and its docstring states "Nothing here knows what a
-    signature is." `btclib.ecc`, which builds on it, is the check below.
+    Its names are ellipticcurves' objects bound again (issue #2282), so
+    what it costs a caller is that package's closure, which the heavy
+    modules are asserted absent from as well.
     """
     _assert_stays_within(
         "btclib.curves",
         {
             "btclib",
-            "btclib.alias",
-            "btclib.exceptions",
-            "btclib.utils",
-            "btclib.number_theory",
-            "btclib._libsecp256k1",
             "btclib.curves",
             "btclib.curves.curve",
             "btclib.curves.curve_group",
@@ -364,23 +359,24 @@ def test_curves_stays_stdlib_light() -> None:
     )
 
 
-def test_ecc_stays_stdlib_light() -> None:
-    """`btclib.ecc` loads row 2 of issue #2129 and the substrate, nothing else.
+# the units `btclib.ecc` may load: itself, `curves`, and the substrate
+# `ecc.ellswift.xdh` reads its octets with
+_ECC_UNITS = frozenset({"curves", "ecc", "alias", "exceptions", "utils"})
 
-    The runtime half of `test_row_2_imports_only_row_2_and_the_substrate`
-    below: that one reads every file's import statements, this one
-    imports the package in a fresh interpreter, which is what a caller
-    does, and asks what came with it -- `ecc/__init__.py` imports every
-    scheme but `bms` eagerly, so this is the whole of row 2 as a caller
-    gets it, and `bms` is asserted absent from it.
+
+def test_ecc_stays_stdlib_light() -> None:
+    """`btclib.ecc` loads `curves`, the substrate and itself, nothing else.
+
+    `ecc/__init__.py` imports every scheme but `bms` eagerly, so this is
+    the whole of the package as a caller gets it, and `bms` is asserted
+    absent from it.
     """
     loaded = _loaded_after_importing("btclib.ecc")
-    # the package itself is loaded under any of its modules, and its
-    # `__init__` imports none of them
+    # the package itself is loaded under any of its modules
     btclib_loaded = {m for m in loaded if _is_btclib(m) and m != "btclib"}
     assert "btclib.ecc.dsa" in btclib_loaded
     assert "btclib.ecc.bms" not in btclib_loaded
-    assert not _upward_edges({"btclib.ecc": btclib_loaded}, _ROW_2_AND_SUBSTRATE)
+    assert sorted(m for m in btclib_loaded if m.split(".")[1] not in _ECC_UNITS) == []
     assert not set(loaded) & set(_HEAVY_MODULES)
 
 
@@ -391,9 +387,9 @@ def test_the_codecs_stay_stdlib_light() -> None:
     package of their own: their consumers spread over rows 4 and 5 of
     that issue's table, so no single package is short of them. One
     allowlist for the pair, the two being held to the same reach. `base58`
-    reaches `hashes` for its checksum, and `_ecc_hashes`, `_ripemd160` and
-    `var_int` arrive with it; `bech32` reaches nothing of btclib's beyond
-    the substrate.
+    reaches `hashes` for its checksum, and `_ripemd160` and `var_int`
+    arrive with it; `bech32` reaches nothing of btclib's beyond the
+    substrate.
     """
     loaded = _loaded_after_importing("btclib.base58")
     loaded_both = set(loaded) | set(_loaded_after_importing("btclib.bech32"))
@@ -406,7 +402,6 @@ def test_the_codecs_stay_stdlib_light() -> None:
         "btclib.base58",
         "btclib.bech32",
         "btclib.hashes",
-        "btclib._ecc_hashes",
         "btclib._ripemd160",
         "btclib.var_int",
     }
@@ -417,10 +412,9 @@ def test_hashes_stays_stdlib_light() -> None:
     """`btclib.hashes`, with `_ripemd160`, stays in `btclib` under issue #2129.
 
     Not a package of its own, for the reason `base58` and `bech32` are
-    not. `tagged_hash`, `reduce_to_hlen` and `_assert_valid_hf` are row
-    2's, defined in `_ecc_hashes` with the first two re-exported here
-    (issue #2282), and row 2 is a package issue #2129's rule 4 holds
-    stdlib-light. `_hashlib_has_ripemd160` makes whether this
+    not. `tagged_hash` and `reduce_to_hlen` are ellipticcurves', bound
+    again here (issue #2282), and that package is one issue #2129's rule
+    4 holds stdlib-light. `_hashlib_has_ripemd160` makes whether this
     interpreter's hashlib carries RIPEMD-160 a runtime question rather
     than an import; this checks that the module reaches nothing heavy
     rather than assumes it.
@@ -433,7 +427,6 @@ def test_hashes_stays_stdlib_light() -> None:
             "btclib.exceptions",
             "btclib.utils",
             "btclib.hashes",
-            "btclib._ecc_hashes",
             "btclib._ripemd160",
             "btclib.var_int",
         },
@@ -608,132 +601,3 @@ def test_the_application_slab_has_no_inbound_edge() -> None:
         for path in root.rglob("*.py")
     }
     assert _slab_edges(imports_by_file, slab_roots) == {}
-
-
-# Row 2 of issue #2129, `ellipticcurves`, as this tree holds it before the
-# move (issue #2282): the units that leave `btclib` together, with
-# `_ecc_hashes` holding the three names of `btclib.hashes` that go with
-# them. `alias`, `exceptions` and `utils` are the substrate, which each
-# package below `btclib` carries a copy of rather than importing
-_ROW_2 = ("curves", "number_theory", "_libsecp256k1", "kdf", "ecc", "_ecc_hashes")
-_SUBSTRATE = ("alias", "exceptions", "utils")
-_ROW_2_AND_SUBSTRATE = frozenset(_ROW_2 + _SUBSTRATE)
-# the one file under a row-2 unit that is not row 2: issue #2282's cut
-# keeps `ecc/bms.py` in `btclib` when the rest of `ecc/` leaves, message
-# signing naming its signer by an address, so it imports `b32`, `b58`,
-# `key` and `network`, and `ecc/__init__.py` imports it on demand only
-_STAYS_IN_BTCLIB = frozenset({"ecc/bms.py"})
-
-
-def _imported_modules(path: Path) -> set[str]:
-    """Return every btclib or btclib_wallet module one file's imports name.
-
-    `from btclib import kdf` names `btclib.kdf` and nothing else, where
-    `_btclib_names_imported_by` above records `btclib` beside it. Here a
-    bare `btclib` is what `import btclib` alone names, and it is kept:
-    the package's `__getattr__` answers every published module from it,
-    so it reaches as far as any other name does.
-    """
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    names: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            names.update(
-                alias.name for alias in node.names if _is_btclib_or_wallet(alias.name)
-            )
-        elif isinstance(node, ast.ImportFrom) and _is_btclib_or_wallet(
-            node.module or ""
-        ):
-            if node.module == "btclib":
-                names.update(f"btclib.{alias.name}" for alias in node.names)
-            else:
-                names.add(node.module or "")
-    return names
-
-
-def _upward_edges(
-    imports_by_file: dict[str, set[str]], allowed_units: frozenset[str]
-) -> dict[str, list[str]]:
-    """Return, file by file, which of its imports leave the allowed units.
-
-    A unit is the first component under `btclib`: `btclib.curves.curve`
-    is in `curves`. A name with no unit -- a bare `btclib` -- and a name of
-    `btclib_wallet` are outside every set of units, so each is an edge.
-    Separated from the scan for the reason `_slab_edges` is: the branch
-    reporting an edge is one a clean tree never takes.
-    """
-    edges = {}
-    for file, names in imports_by_file.items():
-        reached = sorted(
-            n
-            for n in names
-            if not (n.startswith("btclib.") and n.split(".")[1] in allowed_units)
-        )
-        if reached:
-            edges[file] = reached
-    return edges
-
-
-def test_the_row_2_check_finds_a_planted_edge() -> None:
-    """`_upward_edges` reports each shape of an import leaving row 2."""
-    edges = _upward_edges(
-        {
-            "up.py": {"btclib.var_bytes", "btclib.alias"},
-            "bare.py": {"btclib"},
-            "wallet.py": {"btclib_wallet.bip32"},
-            "clean.py": {"btclib.curves.curve", "btclib.utils"},
-        },
-        _ROW_2_AND_SUBSTRATE,
-    )
-    assert edges == {
-        "up.py": ["btclib.var_bytes"],
-        "bare.py": ["btclib"],
-        "wallet.py": ["btclib_wallet.bip32"],
-    }
-
-
-def test_the_row_2_scan_reads_every_import_form(tmp_path: Path) -> None:
-    """`_imported_modules` names the unit of each form, and no stdlib module."""
-    planted = tmp_path / "planted.py"
-    planted.write_text(
-        "import hashlib\nimport btclib\nimport btclib_wallet.bip32\n"
-        "from btclib import kdf, var_bytes\nfrom btclib.curves.curve import mult\n"
-        "from btclib_secp256k1 import dsa\n",
-        encoding="utf-8",
-    )
-    assert _imported_modules(planted) == {
-        "btclib",
-        "btclib_wallet.bip32",
-        "btclib.kdf",
-        "btclib.var_bytes",
-        "btclib.curves.curve",
-    }
-
-
-def test_row_2_imports_only_row_2_and_the_substrate() -> None:
-    """Every file of row 2 imports row 2 and the substrate alone (issue #2282).
-
-    What makes moving row 2 into `ellipticcurves` a copy: a file that
-    imported anything else of `btclib` would stop resolving there, or
-    would make the package import `btclib`, which depends on it. Static,
-    for the reason `test_the_application_slab_has_no_inbound_edge` gives,
-    and over the installed package that test walks.
-
-    Each unit is asserted present first, so that one renamed away shrinks
-    the scan loudly rather than leaving fewer files to find clean.
-    """
-    root = Path(btclib.__path__[0])
-    files: list[Path] = []
-    for unit in _ROW_2:
-        module, package = root / f"{unit}.py", root / unit
-        assert module.exists() or package.is_dir(), unit
-        files.extend([module] if module.exists() else sorted(package.rglob("*.py")))
-    imports_by_file = {
-        path.relative_to(root).as_posix(): _imported_modules(path) for path in files
-    }
-    # an excluded file is there, and still imports from above row 2: one
-    # that stopped doing so is a file the exclusion no longer has a reason for
-    excluded = {file: imports_by_file.pop(file) for file in _STAYS_IN_BTCLIB}
-    assert set(_upward_edges(excluded, _ROW_2_AND_SUBSTRATE)) == _STAYS_IN_BTCLIB
-    assert "ecc/dsa.py" in imports_by_file
-    assert _upward_edges(imports_by_file, _ROW_2_AND_SUBSTRATE) == {}

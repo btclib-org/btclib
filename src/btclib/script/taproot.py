@@ -17,7 +17,6 @@ from io import BytesIO
 from typing import cast
 
 from btclib import var_bytes
-from btclib._libsecp256k1 import xonly as libsecp256k1_xonly
 from btclib.alias import (
     BinaryData,
     Integer,
@@ -29,13 +28,18 @@ from btclib.alias import (
 )
 from btclib.curves import (
     bytes_from_prv_key_int,
+    is_libsecp256k1_serving,
     mult,
     scalar_from_prv_key,
     secp256k1,
 )
-from btclib.curves.curve import _libsecp256k1_serves, _y_even_var
 from btclib.curves.curve_group import HEX_THRESHOLD
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.ecc.ssa import point_from_bip340pub_key
+from btclib.exceptions import (
+    BTClibTypeError,
+    BTClibValueError,
+    EllipticCurvesValueError,
+)
 from btclib.hashes import tagged_hash
 from btclib.key import _HYBRID_PREFIXES, PubKeyData
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
@@ -52,6 +56,17 @@ from btclib.utils import (
     hex_string,
     is_integer,
 )
+
+# the bindings, imported from their own package; None where they are not
+# installed, which nothing calls: what calls them here is behind
+# `is_libsecp256k1_serving`, False in that configuration. Installed one
+# name short, this import alone falls back to None while ellipticcurves
+# keeps serving, so the call fails rather than degrading: the floor the
+# `secp256k1` extra puts on the bindings is what rules that out
+try:
+    from btclib_secp256k1 import xonly as libsecp256k1_xonly
+except ImportError:  # pragma: no cover -- only an install without them
+    libsecp256k1_xonly = None  # type: ignore[assignment]
 
 __all__ = [
     "MAX_TREE_DEPTH",
@@ -348,13 +363,13 @@ def _tweaked_pubkey(pub_key: PubKeyData, h: bytes) -> tuple[bytes, int]:
     #
     # The predicate is a constant now that the curve is, and the guards
     # in this module keep it rather than saying so: it is the seam the
-    # suite closes -- curve._libsecp256k1_available set to False -- to
+    # suite closes -- `set_libsecp256k1_serving(serving=False)` -- to
     # reach the Python arithmetic below, which is the reference
     # implementation the bindings are checked against and not a path any
     # caller takes. Stated here for every one of them: whatever else a
-    # guard goes on to read, its `_libsecp256k1_serves` half asks the
+    # guard goes on to read, its `is_libsecp256k1_serving` half asks the
     # one question, which arithmetic runs
-    if _libsecp256k1_serves(secp256k1, None):
+    if is_libsecp256k1_serving():
         try:
             return libsecp256k1_xonly.tweak_add(pub_key.sec, t)
         except ValueError as e:
@@ -395,8 +410,13 @@ def _tweaked_pubkey(pub_key: PubKeyData, h: bytes) -> tuple[bytes, int]:
     # which of the two roots the key names is its prefix's business and
     # not BIP341's, whose lift wants the even one: an 03 key is the odd-y
     # point, and the even y is then a subtraction from the root already
-    # taken rather than a second root
-    P_x, y_P = pub_key.point
+    # taken rather than a second root. The lift is ellipticcurves', and so
+    # is the class of its refusal: read into btclib's, the one the arm
+    # above raises, so that a caller need not know which arm answered
+    try:
+        P_x, y_P = pub_key.point
+    except EllipticCurvesValueError as e:
+        raise BTClibValueError(str(e)) from e
     P_y = y_P if y_P % 2 == 0 else secp256k1.p - y_P
     Q = secp256k1.add_var((P_x, P_y), mult(t))
     return Q[0].to_bytes(32, "big"), Q[1] % 2
@@ -462,7 +482,7 @@ def _tweaked_prvkey(internal_prvkey: int, h: bytes) -> int:
     # 2000 tweaks, the difference being the point this path never
     # materializes and the square root it never takes to check that
     # point's parity
-    if _libsecp256k1_serves(secp256k1, None):
+    if is_libsecp256k1_serving():
         pub_key = bytes_from_prv_key_int(internal_prvkey, secp256k1)[1:]
         t = _tap_tweak(pub_key, h)
         tweaked = libsecp256k1_xonly.prvkey_tweak_add(internal_prvkey, t)
@@ -572,13 +592,13 @@ def check_output_pubkey(q: Octets, script: Octets, control: Octets) -> bool:
     # unequal either -- b"\x00" + 32 bytes reads as the same integer the
     # comparison below makes -- so the answer for it stays the Python
     # one rather than becoming an exception
-    if _libsecp256k1_serves(secp256k1, None) and len(q) == 32:
+    if is_libsecp256k1_serving() and len(q) == 32:
         try:
             return libsecp256k1_xonly.tweak_add_check(q, control[0] & 1, p_bytes, t)
         except ValueError as e:
             # an internal key that is not a point leaves the bindings
             # through a plain ValueError and the Python path below
-            # through the BTClibValueError of _y_even_var. The engine
+            # through the EllipticCurvesValueError of the lift. The engine
             # catches the library's own error, so the two must agree on
             # what they raise as well as on what they answer -- and this
             # call knows which half was refused, unlike _tweaked_pubkey's
@@ -595,10 +615,15 @@ def check_output_pubkey(q: Octets, script: Octets, control: Octets) -> bool:
             err_msg += f"{hex_string(p)}" if p > HEX_THRESHOLD else f"{p}"
             raise BTClibValueError(err_msg) from e
 
-    # _y_even_var, i.e. secp256k1.y_even_var with the lift delegated: this is
-    # the path a q of any other length takes, secp256k1 included, so the
-    # modular square root is worth not taking here either
-    P = (p, _y_even_var(p, secp256k1))
+    # the lift with its modular square root delegated, as a BIP340 key is:
+    # this is the path a q of any other length takes, secp256k1 included,
+    # so the root is worth not taking here either. Its refusal is
+    # ellipticcurves' class, and read into btclib's, the one the arm
+    # above raises for the same control block
+    try:
+        P = point_from_bip340pub_key(p)
+    except EllipticCurvesValueError as e:
+        raise BTClibValueError(str(e)) from e
     Q = secp256k1.add_var(P, mult(t))
     return Q[0] == int.from_bytes(q, "big") and control[0] & 1 == Q[1] % 2
 

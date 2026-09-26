@@ -7,6 +7,10 @@
 ripemd160 and sha1 through sha256, the hash160 and hash256 pairs,
 BIP340's tagged hash, SipHash-2-4, the BMS magic envelope, and the
 merkle roots and branches of a block.
+
+`tagged_hash` and `reduce_to_hlen` are the `ellipticcurves` package's,
+whose schemes hash with them: each is that package's own object, bound
+again here, where a caller looks for a hash function (issue #2282).
 """
 
 from __future__ import annotations
@@ -14,8 +18,9 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Callable, Sequence
 
+from ellipticcurves.hashes import reduce_to_hlen, tagged_hash
+
 from btclib import var_int
-from btclib._ecc_hashes import reduce_to_hlen, tagged_hash
 from btclib._ripemd160 import ripemd160 as pure_python_ripemd160
 from btclib.alias import HashDigestF, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError

@@ -23,9 +23,21 @@ which one answers a question the base cannot carry -- whether the value
 was wrong, the type was, or neither was and a check failed anyway. A
 caller with something to do about that difference names the specific
 class; `except BTClibException` is for the caller who only needs to know
-it came from here, and it catches every failure of btclib's: no public
-function lets a native `KeyError`, `IndexError` or `OverflowError`
-escape uncaught.
+it came from here, and it catches every failure btclib's own code raises:
+no public function lets a native `KeyError`, `IndexError` or
+`OverflowError` escape uncaught.
+
+What the `ellipticcurves` package raises is not a `BTClibException`. The
+curve arithmetic and the schemes other than `bms` are that package's
+(issue #2282), and it raises its own classes, `EllipticCurvesValueError`,
+`EllipticCurvesTypeError` and `EllipticCurvesRuntimeError` under
+`EllipticCurvesException`, built the same way beside the same three
+built-ins. So a failure raised inside it, whichever btclib function
+called in, is caught by `except ValueError` and not by `except
+BTClibValueError`. Those classes are bound here again, as are the two
+carrying a field that the package's protocols raise,
+`InvalidContributionError` and `BorromeanRingError`, so that a caller
+names each from here.
 
 The exception is the few classes below carrying a field: what a peer got
 wrong, the node's rpc error code, an HTTP status. Those are values a
@@ -56,6 +68,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from ellipticcurves.exceptions import (
+    BorromeanRingError,
+    EllipticCurvesException,
+    EllipticCurvesRuntimeError,
+    EllipticCurvesTypeError,
+    EllipticCurvesValueError,
+    InvalidContributionError,
+)
 from typing_extensions import override
 
 __all__ = [
@@ -65,6 +85,10 @@ __all__ = [
     "BTClibUserWarning",
     "BTClibValueError",
     "BorromeanRingError",
+    "EllipticCurvesException",
+    "EllipticCurvesRuntimeError",
+    "EllipticCurvesTypeError",
+    "EllipticCurvesValueError",
     "FetchError",
     "HttpError",
     "IncompleteMessageError",
@@ -367,76 +391,6 @@ class NoDescriptorError(BTClibValueError):
     refusal it most often stands in front of is
     `miniscript.from_script`'s, which is one.
     """
-
-
-class InvalidContributionError(BTClibRuntimeError):
-    """A party to an interactive protocol sent a value that does not check out.
-
-    Which party, and which of its contributions: `signer` is the index
-    in the list the caller passed, None for the aggregator -- who has no
-    index, having no key -- and `contrib` names what was wrong, one of
-    "pubkey", "pubnonce", "aggnonce", "aggothernonce", "psig" or
-    "adaptor". That is the whole point of the class: a multi-round
-    protocol that merely fails leaves every participant a suspect, and
-    the answer a caller needs is who to hold accountable and to exclude
-    from the next attempt.
-
-    A BTClibRuntimeError and not a BTClibValueError, which is the other
-    obvious base and the one BIP327 keeps separate: its reference
-    implementation raises ValueError for an argument that breaks a
-    precondition -- the caller's own mistake, a 33-byte tweak -- and
-    this for a peer misbehaving, and the MuSig2 test vectors distinguish
-    the two case by case. Sharing a base would put the two beyond
-    telling apart by `except`, and would let every `except ValueError`
-    in the library swallow an accusation.
-    """
-
-    def __init__(self, signer: int | None, contrib: str) -> None:
-        self.signer = signer
-        self.contrib = contrib
-        super().__init__(signer, contrib)
-
-    @override
-    def __str__(self) -> str:
-        who = "the aggregator" if self.signer is None else f"signer {self.signer}"
-        return f"invalid {self.contrib} from {who}"
-
-
-class BorromeanRingError(BTClibRuntimeError):
-    """A borromean ring signature check failed, and where names it.
-
-    `ring` is the index into `pubk_rings` and `position` the index
-    within that ring: an e-value landing on zero, and the point at
-    infinity its one-in-n neighbour lands a ring's nonce or its `r` on
-    instead, each happen at one ring and one position, and
-    `btclib.ecc.borromean.sign` and `assert_as_valid` already have both
-    in hand at every one of their raises. Naming them is what tells a
-    caller building on this primitive which key rejected the signature
-    rather than only that the whole thing did.
-
-    Both are None for the one failure with no ring of its own: the
-    final `e0` not matching what every ring converges on is a property
-    of the whole signature, not of any single ring in it.
-
-    A BTClibRuntimeError and not `InvalidContributionError`: that class
-    names a party to an interactive multi-round protocol -- MuSig2 --
-    and which of its contributions was wrong, where a borromean ring
-    signature is not interactive and has no parties to accuse, only
-    positions in a signature that either close their ring or do not.
-    A BTClibRuntimeError still, so code catching that keeps catching
-    this, as `verify` already does.
-    """
-
-    def __init__(self, message: str, ring: int | None, position: int | None) -> None:
-        self.ring = ring
-        self.position = position
-        super().__init__(message, ring, position)
-
-    @override
-    def __str__(self) -> str:
-        if self.ring is None:
-            return str(self.args[0])
-        return f"{self.args[0]} (ring {self.ring}, position {self.position})"
 
 
 class BTClibUserWarning(UserWarning):

@@ -9,18 +9,18 @@ to btclib-org/.github's `reusable-deps-oldest.yml`, which runs it against
 the floor resolution `uv lock --resolution lowest-direct` just wrote,
 before the suite.
 
-`src/btclib/_libsecp256k1.py` imports the bindings' whole surface in one
-`try` whose `except ImportError` sets `INSTALLED = False`, so a floor
-release of `btclib_secp256k1` short of one name loses every delegation
-rather than that one, and `tests/conftest.py`'s
+ellipticcurves imports the bindings' whole surface in one `try` whose
+`except ImportError` sets `INSTALLED = False`, so a floor release of
+`btclib_secp256k1` short of one name loses every delegation rather than
+that one, and `tests/conftest.py`'s
 `pytest_collection_modifyitems` then skips every `bindings`-marked test.
 A bare pytest run over that skip reports green, `--no-cov` giving up the
 one ratchet that would otherwise notice the shortfall, which is why this
 step runs ahead of it and by name rather than folded into it.
 
-`is_libsecp256k1_serving` and not `INSTALLED`: serving is installed and
-not refused, and nothing here sets `BTCLIB_NO_LIBSECP256K1`, so the two
-agree, and it is the public reading of the seam deps-latest.yml's own
+`is_libsecp256k1_serving` and not the installation: serving is installed
+and not refused, and nothing here sets `ELLIPTICCURVES_NO_LIBSECP256K1`,
+so the two agree, and it is the public reading of the seam deps-latest.yml's own
 `suite-bindings-latest` job asserts the same way against the newest
 bindings instead of the floor.
 """

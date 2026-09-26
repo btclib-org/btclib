@@ -44,7 +44,6 @@ own with its branch already in its path.
 [![mutation workflow status](https://github.com/btclib-org/btclib/actions/workflows/mutation.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/mutation.yml?query=branch%3Amain)
 [![fuzz workflow status](https://github.com/btclib-org/btclib/actions/workflows/fuzz.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/fuzz.yml?query=branch%3Amain)
 [![integration-bitcoind workflow status](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml?query=branch%3Amain)
-[![zkp-oracle workflow status](https://github.com/btclib-org/btclib/actions/workflows/zkp-oracle.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/zkp-oracle.yml?query=branch%3Amain)
 [![deps-latest workflow status](https://github.com/btclib-org/btclib/actions/workflows/deps-latest.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/deps-latest.yml?query=branch%3Amain)
 [![pypi-install workflow status](https://github.com/btclib-org/btclib/actions/workflows/pypi-install.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/pypi-install.yml?query=branch%3Amain)
 [![deps-oldest workflow status](https://github.com/btclib-org/btclib/actions/workflows/deps-oldest.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/deps-oldest.yml?query=branch%3Amain)
@@ -179,7 +178,7 @@ Whatever that conjunction declines runs the Python arithmetic, which
 the suite validates against the bindings but which is not
 constant-time. A process that has the bindings turns that switch off
 with `curves.set_libsecp256k1_serving(serving=False)`, or with
-`BTCLIB_NO_LIBSECP256K1` in the environment, and every operation here
+`ELLIPTICCURVES_NO_LIBSECP256K1` in the environment, and every operation here
 is then the Python arithmetic. So a caller whose threat model includes
 timing should stay on the delegated paths, or keep the key out of the
 process altogether: `btclib_wallet.hwi` drives a hardware wallet through

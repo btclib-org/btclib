@@ -327,9 +327,9 @@ def test_the_walk_reaches_what_it_claims() -> None:
     assert _NAMED["btclib.script.script_pub_key.is_p2sh"] == "bool"
     assert _NAMED["btclib.script.engine.script.check_pub_key"] == "bool"
     assert _NAMED["btclib.script.taproot.check_output_pubkey"] == "bool"
-    assert _NAMED["btclib.ecc.dsa.verify_"] == "bool"
-    assert _NAMED["btclib.ecc.ssa.batch_verify"] == "bool"
-    assert _NAMED["btclib.ecc.dsa.assert_as_valid"] == "None"
+    assert _NAMED["btclib.script.engine.script.dsa_verify"] == "bool"
+    assert _NAMED["btclib.electrum.verify_merkle_proof"] == "bool"
+    assert _NAMED["btclib.ecc.bms.assert_as_valid"] == "None"
     # a method, and a property among them
     assert _NAMED["btclib.key.is_compressed"] == "bool"
 
@@ -337,7 +337,7 @@ def test_the_walk_reaches_what_it_claims() -> None:
     assert "btclib.script.engine.script_op_codes.op_verify" not in _NAMED
     assert "btclib.script.engine.script_op_codes.op_equalverify" not in _NAMED
     # a private name, and a name that promises nothing
-    assert "btclib._ecc_hashes._assert_valid_hf" not in _NAMED
+    assert "btclib.ecc.bms._assert_p2pkh" not in _NAMED
     assert "btclib.utils.bytes_from_octets" not in _NAMED
 
 
@@ -414,7 +414,7 @@ def test_the_walk_reaches_both_shapes() -> None:
     assert _ARGUMENT_LESS_BOOLS["btclib.key.is_compressed"] is True
     # a bool of an argument is a function of it, and no property can be
     assert "btclib.script.script_pub_key.is_p2sh" not in _ARGUMENT_LESS_BOOLS
-    assert "btclib.ecc.dsa.verify" not in _ARGUMENT_LESS_BOOLS
+    assert "btclib.ecc.bms.verify" not in _ARGUMENT_LESS_BOOLS
 
 
 @pytest.mark.parametrize("dotted", sorted(_CLASS_MEMBERS))
@@ -453,5 +453,5 @@ def test_the_walk_reaches_every_shape_of_member() -> None:
     # OutPoint's and not Tx's, which takes an `unsigned_template` and so
     # is not argument-less at all
     assert _CLASS_MEMBERS["btclib.tx.out_point.OutPoint.assert_valid"] is False
-    assert _CLASS_MEMBERS["btclib.ecc.dsa.Signer.wipe"] is False
+    assert _CLASS_MEMBERS["btclib.block.block.Block.assert_valid_weight"] is False
     assert _CLASS_MEMBERS["btclib.alias.HashObject.digest"] is False

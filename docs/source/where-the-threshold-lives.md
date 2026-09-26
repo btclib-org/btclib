@@ -71,7 +71,7 @@ MuSig2 and FROST have no ceiling the chain imposes, the chain seeing one
 key. What bounds them is the specification, and the two bounds are not
 the same kind of thing. BIP327's is serialization: the number of
 individual public keys is an unsigned 32-bit count. BIP445's is
-security: it refuses an *n* past 128, `src/btclib/ecc/frost.py` refuses
+security: it refuses an *n* past 128, `btclib.ecc.frost` refuses
 it too, and the module's own docstring carries the reason — the
 unforgeability proof assumes the compromised set is fixed before key
 generation, and an adaptive adversary's advantage rests on a search
@@ -117,11 +117,10 @@ interactive threshold signing, key generation included, is tracked.
 
 ## *t* = *n* FROST is not MuSig2
 
-BIP445's own vectors include a 3-of-3 group, under
-`tests/ecc/_data/bip445/`. That group is still not MuSig2: one shared
-key against *n* independent keys aggregated, with everything that
-follows from it about who has seen the secret and about what a departing
-member costs.
+BIP445's own vectors include a 3-of-3 group. That group is still not
+MuSig2: one shared key against *n* independent keys aggregated, with
+everything that follows from it about who has seen the secret and about
+what a departing member costs.
 
 ## MuSig2 with *t* < *n*
 
@@ -175,8 +174,9 @@ that writes one in `btclib_wallet.descriptors.descriptors` — `multi()`
 and `sortedmulti()` (BIP383), `multi_a()` and `sortedmulti_a()` (BIP386,
 BIP387).
 
-The cryptographic threshold is `src/btclib/ecc/musig2.py` (BIP327) and
-`src/btclib/ecc/frost.py` (BIP445), with `btclib_wallet.psbt.musig2`
+The cryptographic threshold is `btclib.ecc.musig2` (BIP327) and
+`btclib.ecc.frost` (BIP445), ellipticcurves' modules bound again under
+btclib's paths, with `btclib_wallet.psbt.musig2`
 (BIP373) and `btclib_wallet.psbt.frost` carrying a session of each
 through a psbt -- the first in the fields BIP373 assigns, the second in
 proprietary records of btclib's own. MuSig2 also has a spelling in the

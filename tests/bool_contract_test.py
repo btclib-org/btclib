@@ -45,6 +45,10 @@ and where its case is. What is left
 on the other side is `merkle_proof.verify` and the two script-engine
 spellings, which answer a structurally invalid argument with `False`.
 
+The verifications of the schemes ellipticcurves carries, `dsa`, `ssa`,
+`dleq` and `pedersen`, are held to these rules by that package's own
+copy of this file (issue #2282); `bms.verify` is btclib's, and is here.
+
 ## Both rules hold, and they did not when this file was written
 
 Reaching ground the automatic walk cannot touch found sixteen positions
@@ -63,10 +67,6 @@ instead of delegating past the reduction.
 No list is left, and that is deliberate: a finding this file makes next is
 a red test above, to be fixed or to be given a reason of its own.
 
-What no fixture here reaches, and why: `musig2.partial_sig_verify_` and
-`partial_sig_verify` want a `SessionContext` and a signing round, and
-`dsa.anti_exfil_host_verify` a host-device exchange. Those are driven by
-the tests of their own modules, against fixtures those modules build.
 """
 
 from __future__ import annotations
@@ -78,8 +78,7 @@ import pytest
 
 from btclib import b58
 from btclib.block import merkle_proof
-from btclib.curves import mult, secp256k1
-from btclib.ecc import bms, dleq, dsa, pedersen, ssa
+from btclib.ecc import bms, dsa, ssa
 from btclib.hashes import reduce_to_hlen
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.script.engine import script as engine_script
@@ -96,20 +95,11 @@ _DSA_SIG = dsa.sign(_MSG, _Q)
 _SSA_SIG = ssa.sign(_MSG, _Q)
 _BMS_SIG = bms.sign(_MSG, PrvKeyData(_Q))
 _TX_ID = bytes.fromhex("01" * 32)
-# a DLEQ triple: A = a*G and C = a*B, so the proof holds for (A, B, C)
-_DLEQ_B = PrvKeyData(2).pub.sec
-_DLEQ_C = PrvKeyData(2 * _Q).pub.sec
-_DLEQ_PROOF = dleq.generate_proof(_Q, _DLEQ_B)
-# rG + vH for the very (r, v) its case opens it with
-_GEN = pedersen.second_generator()
-_COMMITMENT = pedersen.commit(1, 2, _GEN)
 
 # a value of a declared type that no valid input carries. The same split
 # `input_validation_test.py` makes, spelled per position because a
 # hand-written call knows which alias each of its arguments is
 _WRONG_OCTETS_VALUE = "not hex at all"
-_WRONG_INTEGER_VALUE = "not a number"
-_WRONG_KEY_VALUE = "not a key"
 _WRONG_STRING_VALUE = "not an address"
 
 # a value of no type any of these positions declares
@@ -134,46 +124,6 @@ class _Case:
 
 _CASES = (
     _Case(
-        "dsa.verify",
-        dsa.verify,
-        (_MSG, _PUB, _DSA_SIG),
-        {0: _WRONG_OCTETS_VALUE, 2: _WRONG_OCTETS_VALUE},
-        {1: _WRONG_KEY_VALUE},
-    ),
-    _Case(
-        "dsa.verify_",
-        dsa.verify_,
-        (_MSG_HASH, _PUB, _DSA_SIG),
-        # position 0 is a digest here and a message in `dsa.verify`
-        # above, which is why the two cases differ in one position: a
-        # message has no declared size to miss
-        {2: _WRONG_OCTETS_VALUE},
-        {0: _WRONG_OCTETS_VALUE, 1: _WRONG_KEY_VALUE},
-    ),
-    _Case(
-        "ssa.verify",
-        ssa.verify,
-        (_MSG, _X_ONLY, _SSA_SIG),
-        {0: _WRONG_OCTETS_VALUE},
-        {1: _WRONG_KEY_VALUE, 2: _WRONG_OCTETS_VALUE},
-    ),
-    _Case(
-        "ssa.verify_",
-        ssa.verify_,
-        (_MSG_HASH, _X_ONLY, _SSA_SIG),
-        {0: _WRONG_OCTETS_VALUE},
-        {1: _WRONG_KEY_VALUE, 2: _WRONG_OCTETS_VALUE},
-    ),
-    _Case(
-        "ssa.batch_verify",
-        ssa.batch_verify,
-        ([_MSG], [_X_ONLY], [_SSA_SIG]),
-        # a sequence whose element is the wrong value, the sequence being
-        # what the parameter declares
-        {0: [_WRONG_OCTETS_VALUE]},
-        {1: [_WRONG_KEY_VALUE]},
-    ),
-    _Case(
         "bms.verify",
         bms.verify,
         (_MSG, _ADDR, _BMS_SIG),
@@ -181,26 +131,6 @@ _CASES = (
         # the address is this scheme's public key, and the signature is
         # 65 octets or nothing
         {1: _WRONG_STRING_VALUE, 2: _WRONG_STRING_VALUE},
-    ),
-    _Case(
-        "pedersen.verify",
-        pedersen.verify,
-        (1, 2, _COMMITMENT, _GEN),
-        # every value of an int is one, so the wrong value here is a
-        # different number rather than a malformed one, and a commitment
-        # those two do not open. The wrong generator is a point of the
-        # curve like any other, and a commitment made under one does not
-        # open under another
-        {
-            0: 999,
-            1: 999,
-            2: pedersen.commit(9, 9, _GEN),
-            3: mult(2, _GEN, secp256k1),
-        },
-        # an `Integer` spelled as text that is no number at all: the
-        # points are not here, `assert_as_valid` reading the commitment's
-        # type and deliberately not its value (issue #814)
-        {0: _WRONG_INTEGER_VALUE, 1: _WRONG_INTEGER_VALUE},
     ),
     _Case(
         "merkle_proof.verify",
@@ -211,23 +141,6 @@ _CASES = (
         # an index no branch places is the wrong value of an int, as
         # merkle_proof's own tests put it
         {0: _WRONG_OCTETS_VALUE, 2: 1, 3: _WRONG_OCTETS_VALUE},
-    ),
-    _Case(
-        "dleq.verify_proof",
-        dleq.verify_proof,
-        (_PUB, _DLEQ_B, _DLEQ_C, _DLEQ_PROOF),
-        # a C that is a point of the curve like any other, and one the
-        # proof does not relate to A and B: the proof simply does not
-        # hold for it
-        {2: _PUB},
-        # BIP374's own line: its `dleq_verify_proof` opens with
-        # `assert len(proof) == 64`, and its points arrive parsed
-        {
-            0: _WRONG_KEY_VALUE,
-            1: _WRONG_KEY_VALUE,
-            2: _WRONG_KEY_VALUE,
-            3: _WRONG_OCTETS_VALUE,
-        },
     ),
     _Case(
         "engine.script.dsa_verify",
@@ -292,8 +205,7 @@ def test_a_structurally_invalid_value_raises(case: _Case) -> None:
     A signature or a public key whose size or encoding no valid input
     could carry is not a value the equation ever reaches, so it is a
     BTClibValueError rather than a False that would read as a forged
-    signature. `dsa.verify`'s malformed DER stays under the second rule
-    instead, `_assert_structurally_valid_`'s own docstring measuring why.
+    signature.
     """
     for position, wrong in sorted(case.structurally_invalid_values.items()):
         assert _outcome(case, position, wrong) == "BTClibValueError"

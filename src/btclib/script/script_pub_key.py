@@ -25,7 +25,7 @@ from btclib import b32, b58, var_bytes
 from btclib.alias import Octets, ScriptList, ScriptType, String, TaprootScriptTree
 from btclib.b32 import _v0_witness_program_from_key
 from btclib.curves import point_from_octets
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibValueError, EllipticCurvesValueError
 from btclib.hashes import hash160, sha256
 from btclib.key import PubKeyData
 from btclib.network import (
@@ -581,7 +581,8 @@ class ScriptPubKey(Script):
         """
         try:
             return addresses(self.script, self.network)
-        except BTClibValueError:
+        # a p2ms key that is no point is refused by ellipticcurves' class
+        except (BTClibValueError, EllipticCurvesValueError):
             return [self.address]
 
     @override

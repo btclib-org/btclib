@@ -36,11 +36,14 @@ module scope. Anything that calls into btclib's own arithmetic is shared
 as a function instead, computed only when a caller invokes it.
 """
 
-import csv
 import importlib
 import json
 import pkgutil
 import re
+import sys
+import types
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import fields
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -65,6 +68,19 @@ def module_names() -> list[str]:
         "btclib",
         *(module.name for module in pkgutil.walk_packages(btclib.__path__, "btclib.")),
     ]
+
+
+def defined_by_ellipticcurves(obj: object) -> bool:
+    """Whether a name btclib publishes is an object of ellipticcurves.
+
+    The curve arithmetic and the schemes other than `bms` are that
+    package's, and btclib re-exports them (issue #2282): a test walking
+    btclib's surface for a property of every function or class meets them
+    under btclib's spellings, and that package's own suite is what asks
+    them the question. So such a walk leaves them out, by where the object
+    was defined rather than by a list of names.
+    """
+    return (getattr(obj, "__module__", None) or "").split(".")[0] == "ellipticcurves"
 
 
 def public_classes_with(method_name: str) -> set[str]:
@@ -131,18 +147,10 @@ def load(*relative_path: str, encoding: str = "ascii") -> Any:
         return json.load(file_)
 
 
-def load_csv(*relative_path: str, encoding: str = "ascii") -> list[list[str]]:
-    """Read a vendored csv vector file, header row dropped."""
-    with _TESTS_DIR.joinpath(*relative_path).open(
-        newline="", encoding=encoding
-    ) as file_:
-        return list(csv.reader(file_))[1:]
-
-
 def load_bin(*relative_path: str) -> bytes:
     """Read a vendored file of consensus bytes: a block, a transaction.
 
-    Named from `tests/` for the same reason as the two above, and it is
+    Named from `tests/` for the same reason as the one above, and it is
     what a block is read by outside `tests/block`: the signed
     transactions of a block are the fixtures of more than one question
     about them.
@@ -334,218 +342,79 @@ def key_pair_spellings() -> KeyPairSpellings:
 # loaders these same modules import.
 needs_bindings = pytest.mark.bindings
 
-# What a test asking the flagged `btclib_secp256k1.zkp` extension for the
-# right answer is marked with. Issue #1679 is the sentinel that installs
-# btclib-secp256k1 from the sdist with `BTCLIB_LIBSECP256K1_ZKP=true`,
-# which is the only environment where the extension exists at all: every
-# published wheel carries the `zkp` wrapper modules and none carries
-# `_btclib_secp256k1_zkp`, so this marker's own environment is narrower
-# than `bindings`' and needs a probe of its own.
-#
-# `import btclib_secp256k1.zkp` succeeds wherever `btclib_secp256k1`
-# itself does, wheel or sdist, flagged or not -- the wrapper modules bind
-# their names without reaching for the extension, which is why the
-# condition below is an attribute access and not the import. `zkp.lib`
-# and `zkp.ffi` are what the subpackage resolves lazily, through a
-# module-level `__getattr__` its own docstring names, and raise
-# `ImportError` where the build the environment installed has none.
-# `ImportError` and not `ModuleNotFoundError` alone, because
-# `btclib_secp256k1` itself is absent in the no-bindings job, and the
-# import above raises the narrower `ModuleNotFoundError` there -- a
-# subclass of `ImportError`, so one `except` covers both without a
-# tuple.
-#
-# Here rather than beside `INSTALLED` in `src/btclib/_libsecp256k1.py`:
-# that module answers what btclib's own run-time asks of libsecp256k1,
-# and nothing in btclib delegates to secp256k1-zkp -- issue #1679 asks
-# only for the comparison this suite makes to be runnable, not for a
-# dispatch, so the question "is zkp available" is this suite's own and
-# has no answer `_libsecp256k1.py` would ever read.
-#
-# Both arms below carry a pragma, the build deciding which one a run
-# takes: a flagged build never raises here and an unflagged one never
-# reaches the `else`, so an arm left measured is one that run cannot
-# execute. Unlike `INSTALLED` above, whose arms `test.yml`'s `coverage`
-# and `no-bindings` jobs measure between them and its `coverage-union`
-# combines: `zkp-oracle.yml` runs `pytest -m zkp --no-cov`, which
-# collects nothing for a union to combine. What the reasons name is the
-# build and not the job, because a contributor who builds the extension
-# to run `pytest -m zkp` measures coverage in that build too, and a
-# reason true only of CI leaves that run short of the floor in files
-# the contributor never touched (issue #1885).
-try:
-    from btclib_secp256k1 import zkp
-
-    # the probe itself: not assigned because nothing here reads it back,
-    # `ffi` answering the same question `lib` does once either has run
-    _ = zkp.lib
-except ImportError:  # pragma: no cover -- the arm an unflagged build takes
-    ZKP_AVAILABLE = False
-else:
-    ZKP_AVAILABLE = True  # pragma: no cover -- the arm a flagged build takes
-
-needs_zkp = pytest.mark.zkp
 
 # --------------------------------------------------------------------------
-# AES-128, for `ecc/ecies_test.py`'s CBC vectors.
-#
-# **Why a test writes its own block cipher.** btclib takes no
-# cryptographic dependency and ships no cipher: hashlib and the
-# secp256k1 bindings are the whole of it, `ecc.ecies`'s module docstring
-# has the argument in full, and `ecc.dsa`/`ecc.ssa` inherit it -- a
-# table-driven AES leaks its key through cache timing, and a
-# timing-vulnerable cipher is a worse thing to ship than none. None of
-# that reaches this file: the wheel and the sdist carry no tests, so
-# nothing here is installed on a user's machine, and the keys used
-# against it below are fixed published test vectors, so there is no
-# secret for a timing side channel to leak. A test-only dependency would
-# buy the same vectors for the price of a package neither module
-# otherwise needs, and would make this reasoning invisible, since a
-# dependency does not explain itself.
-#
-# It is written for the vectors, not for use: correct, small enough to
-# read against FIPS-197, and slow. Do not import it from anywhere but
-# `ecc/ecies_test.py`.
+# The libsecp256k1 dispatch switched off, for the tests that ask the Python
+# arm of a btclib function a question. The dispatch is ellipticcurves', and
+# `curves.set_libsecp256k1_serving` is its public switch; `conftest.py`
+# puts it back after every test, the switch being process-wide where
+# `monkeypatch` undoes only its own patches.
 # --------------------------------------------------------------------------
 
-_AES_BLOCK_SIZE = 16
-# FIPS-197 section 5.2, the round constants a 128-bit key schedule
-# reads: index `i // nk - 1` with `i < 4 * (nr + 1)`, which reaches 9
-_AES_RCON = (0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36)
 
+@contextmanager
+def python_arithmetic() -> Iterator[None]:
+    """Switch the dispatch off for a block, and back to what it was after.
 
-def _aes_xtime(a: int) -> int:
-    """Multiply by x in GF(2^8), modulo the AES polynomial x^8+x^4+x^3+x+1."""
-    a <<= 1
-    return a ^ 0x11B if a & 0x100 else a
-
-
-def _aes_mul(a: int, b: int) -> int:
-    """Multiply two elements of GF(2^8)."""
-    result = 0
-    while b:
-        if b & 1:
-            result ^= a
-        a = _aes_xtime(a)
-        b >>= 1
-    return result
-
-
-def _aes_build_boxes() -> tuple[tuple[int, ...], tuple[int, ...]]:
-    """Return the S-box and its inverse, derived rather than tabulated.
-
-    A 256-entry table copied from somewhere is a table nobody can check;
-    the definition is short enough to write instead. Each byte maps to its
-    multiplicative inverse in GF(2^8) -- read off the exp/log tables of the
-    generator 3, with zero mapping to itself -- under the AES affine
-    transform, which is the byte xored with four rotations of itself and
-    with 0x63.
+    For a test comparing the two arms within itself: `conftest.py`
+    restores the switch after the test, and this restores it after the
+    block, so that what follows in the same test is delegated again.
     """
-    exp = [0] * 255
-    log = [0] * 256
-    x = 1
-    for i in range(255):
-        exp[i] = x
-        log[x] = i
-        x = _aes_mul(x, 3)
+    from btclib.curves import (  # noqa: PLC0415
+        is_libsecp256k1_serving,
+        set_libsecp256k1_serving,
+    )
 
-    sbox = []
-    for i in range(256):
-        inverse = 0 if i == 0 else exp[(255 - log[i]) % 255]
-        rotated = inverse
-        affine = inverse
-        for _ in range(4):
-            rotated = ((rotated << 1) | (rotated >> 7)) & 0xFF
-            affine ^= rotated
-        sbox.append(affine ^ 0x63)
-
-    inv_sbox = [0] * 256
-    for i, s in enumerate(sbox):
-        inv_sbox[s] = i
-    return tuple(sbox), tuple(inv_sbox)
+    serving = is_libsecp256k1_serving()
+    set_libsecp256k1_serving(serving=False)
+    try:
+        yield
+    finally:
+        set_libsecp256k1_serving(serving=serving)
 
 
-_AES_SBOX, _AES_INV_SBOX = _aes_build_boxes()
+def no_bindings_anywhere(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Switch the dispatch off, and every bound bindings callable out of reach.
 
+    An arm gated on the dispatch can hold a binding of its own --
+    `script.engine.script` imports the bindings' `dsa.verify`,
+    `script.taproot` their `xonly` -- and `from ... import x as y` copies
+    the object rather than looking it up again, so a patch on the module
+    the bindings live in does not reach a name already copied out of it.
 
-def aes_expand_key(key: bytes) -> list[list[int]]:
-    """Return the round keys of an AES-128 key.
-
-    `nk`, the key length in 32-bit words, is 4 and `nr`, the number of
-    rounds, is `nk + 6`, FIPS-197 table 1. AES-256's extra SubWord every
-    fourth word is not here: nothing in this suite asks for a 256-bit
-    key, and a branch no test reaches is one no test checks.
+    So this walks every module already loaded under `btclib`,
+    `ellipticcurves` or `btclib_secp256k1` and replaces every callable there
+    whose `__module__` traces back to the bindings with one that raises,
+    whichever module holds the name; the dispatch is switched off
+    alongside it, since a caller with the switch still on and every name
+    unreachable is not the configuration a missing install produces. An
+    arm this does not cover fails by calling through instead of passing
+    by measuring the bindings against themselves.
     """
-    nk = len(key) // 4
-    nr = nk + 6
-    words = [list(key[4 * i : 4 * i + 4]) for i in range(nk)]
-    for i in range(nk, 4 * (nr + 1)):
-        word = list(words[i - 1])
-        if i % nk == 0:
-            word = [_AES_SBOX[b] for b in (*word[1:], word[0])]
-            word[0] ^= _AES_RCON[i // nk - 1]
-        words.append([a ^ b for a, b in zip(words[i - nk], word, strict=True)])
-    return [
-        [b for word in words[4 * r : 4 * r + 4] for b in word] for r in range(nr + 1)
-    ]
+    from btclib.curves import set_libsecp256k1_serving  # noqa: PLC0415
 
+    def refuse(what: str) -> Callable[..., Any]:
+        def asked(*_args: object, **_kwargs: object) -> Any:
+            # a green suite is one where this never runs, the dispatch
+            # switched off ruling the call out
+            raise AssertionError(  # pragma: no cover -- the dispatch switched off keeps this uncalled
+                f"the Python arm reached libsecp256k1: {what}"
+            )
 
-# the state is 16 bytes in input order, so flat index 4*column+row: that is
-# exactly how FIPS-197 fills its 4x4 array, column by column
-def _aes_sub_bytes(state: list[int], box: tuple[int, ...]) -> list[int]:
-    return [box[b] for b in state]
+        return asked
 
+    for mod_name, mod in list(sys.modules.items()):
+        if mod_name.split(".")[0] not in {
+            "btclib",
+            "btclib_secp256k1",
+            "ellipticcurves",
+        }:
+            continue
+        for attr, value in list(vars(mod).items()):
+            if isinstance(value, types.ModuleType) or not callable(value):
+                continue
+            origin = getattr(value, "__module__", None) or ""
+            if origin.split(".")[0] == "btclib_secp256k1":
+                monkeypatch.setattr(mod, attr, refuse(f"{mod_name}.{attr}"))
 
-def _aes_shift_rows(state: list[int], *, inverse: bool = False) -> list[int]:
-    out = [0] * 16
-    for r in range(4):
-        for c in range(4):
-            source = (c - r) % 4 if inverse else (c + r) % 4
-            out[4 * c + r] = state[4 * source + r]
-    return out
-
-
-def _aes_mix_columns(state: list[int], *, inverse: bool = False) -> list[int]:
-    coefficients = (14, 11, 13, 9) if inverse else (2, 3, 1, 1)
-    out = [0] * 16
-    for c in range(4):
-        column = state[4 * c : 4 * c + 4]
-        for r in range(4):
-            acc = 0
-            for k in range(4):
-                acc ^= _aes_mul(column[k], coefficients[(k - r) % 4])
-            out[4 * c + r] = acc
-    return out
-
-
-def _aes_add_round_key(state: list[int], round_key: list[int]) -> list[int]:
-    return [a ^ b for a, b in zip(state, round_key, strict=True)]
-
-
-def aes_encrypt_block(block: bytes, round_keys: list[list[int]]) -> bytes:
-    """Encrypt one 16-byte block under an expanded key, no mode, no padding."""
-    nr = len(round_keys) - 1
-    state = _aes_add_round_key(list(block), round_keys[0])
-    for rnd in range(1, nr):
-        state = _aes_mix_columns(_aes_shift_rows(_aes_sub_bytes(state, _AES_SBOX)))
-        state = _aes_add_round_key(state, round_keys[rnd])
-    state = _aes_shift_rows(_aes_sub_bytes(state, _AES_SBOX))
-    return bytes(_aes_add_round_key(state, round_keys[nr]))
-
-
-def aes_decrypt_block(block: bytes, round_keys: list[list[int]]) -> bytes:
-    """Decrypt one 16-byte block under an expanded key, no mode, no padding."""
-    nr = len(round_keys) - 1
-    state = _aes_add_round_key(list(block), round_keys[nr])
-    for rnd in range(nr - 1, 0, -1):
-        state = _aes_sub_bytes(_aes_shift_rows(state, inverse=True), _AES_INV_SBOX)
-        state = _aes_mix_columns(
-            _aes_add_round_key(state, round_keys[rnd]), inverse=True
-        )
-    state = _aes_sub_bytes(_aes_shift_rows(state, inverse=True), _AES_INV_SBOX)
-    return bytes(_aes_add_round_key(state, round_keys[0]))
-
-
-def aes_xor(a: bytes, b: bytes) -> bytes:
-    """Return the byte-wise XOR of two equal-length buffers."""
-    return bytes(x ^ y for x, y in zip(a, b, strict=True))
+    set_libsecp256k1_serving(serving=False)

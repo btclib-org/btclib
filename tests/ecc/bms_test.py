@@ -24,17 +24,24 @@ from typing import Any
 import pytest
 
 from btclib import b32, b58
-from btclib._libsecp256k1 import recovery as libsecp256k1_recovery
 from btclib.alias import Point
 from btclib.b58 import h160_from_address
-from btclib.curves import curve, mult, secp256k1
-from btclib.curves.curve import CURVES
+from btclib.curves import CURVES, mult, secp256k1
 from btclib.ecc import bms, dsa
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.exceptions import (
+    BTClibValueError,
+    EllipticCurvesRuntimeError,
+    EllipticCurvesValueError,
+)
 from btclib.hashes import magic_message
 from btclib.key import PrvKeyData, PubKeyData
-from tests import load, needs_bindings, vector_id
-from tests.curves.curve_test import no_bindings_anywhere
+from tests import (
+    load,
+    needs_bindings,
+    no_bindings_anywhere,
+    python_arithmetic,
+    vector_id,
+)
 
 ec = secp256k1
 
@@ -906,7 +913,8 @@ def test_the_recovery_flag_carries_a_key_id_not_a_list_index() -> None:
 
 
 def _recovers(key_id: int, magic_msg: bytes, dsa_sig: dsa.Sig) -> Point | None:
-    with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
+    # ellipticcurves' two classes, `dsa` being that package's
+    with contextlib.suppress(EllipticCurvesValueError, EllipticCurvesRuntimeError):
         return dsa.recover_pub_key(key_id, magic_msg, dsa_sig)
     return None
 
@@ -973,10 +981,10 @@ def test_a_key_id_that_recovers_nothing() -> None:
     for key_id in (2, 3):
         assert _recovers(key_id, magic_msg, bms_sig.dsa_sig) is None
         # either exception, which is why the helper suppresses both: the
-        # wrapped x may miss the curve, and BTClibValueError comes out of
-        # y_even_var, or it may land on it and recover a key that does not
-        # verify, which is the BTClibRuntimeError
-        with pytest.raises((BTClibValueError, BTClibRuntimeError)):
+        # wrapped x may miss the curve, and a ValueError comes out of the
+        # lift, or it may land on it and recover a key that does not
+        # verify, which is the RuntimeError -- each ellipticcurves' class
+        with pytest.raises((EllipticCurvesValueError, EllipticCurvesRuntimeError)):
             dsa.recover_pub_key(key_id, magic_msg, bms_sig.dsa_sig)
 
 
@@ -1014,8 +1022,7 @@ def test_recoverable_signing_answers_the_key_id_the_search_finds(
         assert key_id == _search_key_id(magic_msg, dsa_sig, q)
         # and the search asked of the implementation that did not report
         # the key_id, so that the two derivations are independent
-        with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(dsa, "_libsecp256k1_serves", lambda *_: False)
+        with python_arithmetic():
             assert key_id == _search_key_id(magic_msg, dsa_sig, q)
 
         bms.assert_as_valid(msg, addr, bms_sig)
@@ -1062,11 +1069,10 @@ def test_the_python_path_answers_the_same(
     The switch rather than a patch per module, because signing and
     verifying ask in different places: `dsa.sign_recoverable` under
     `sign` asks for itself, while `assert_as_valid` asks in `bms` before
-    it recovers. Clearing `_libsecp256k1_available` reaches both, where
-    naming one module would leave the other delegated.
+    it recovers. Switching the dispatch off reaches both, where naming one
+    module would leave the other delegated.
     """
-    with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(curve, "_libsecp256k1_available", False)
+    with python_arithmetic():
         vector_test()
 
 
@@ -1075,19 +1081,17 @@ def test_the_py_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None
     """The recovery gated on availability alone must be Python throughout.
 
     A mixed arm is the one shape that is never right: with libsecp256k1 in
-    reach `_libsecp256k1_recover_sec_` is the better call, and out of
-    reach there is nothing to mix. `assert_as_valid`'s guard picks between
-    that and `dsa.recover_pub_key(..., sha256)` for its Python arm, itself
-    a dispatch on the same predicate rather than a call that could
-    delegate on its own.
+    reach the bindings' recovery is the better call, and out of reach there
+    is nothing to mix. `assert_as_valid` asks `dsa.recover_sec`, which
+    picks between the two on the dispatch.
 
     `no_bindings_anywhere` is the check `tests.script.taproot_test` uses
     for the same shape: it puts the whole of btclib_secp256k1 out of
-    reach, module and already-bound name alike, and switches the dispatch
-    off -- which `dsa.recover_pub_key`'s own guard then reads the same way
-    `assert_as_valid`'s does, so the walk covering
-    `_libsecp256k1_recover_sec_` covers this arm's delegate too.
+    reach, module and already-bound name alike, ellipticcurves' bindings
+    included, and switches the dispatch off.
     """
+    from btclib_secp256k1 import recovery as libsecp256k1_recovery  # noqa: PLC0415
+
     wif, addr = bms.gen_keys()
     msg = b"a message signed once and recovered from twice"
     sig = bms.sign(msg, b58.prv_key_data_from_wif(wif))
@@ -1097,7 +1101,7 @@ def test_the_py_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None
 
     no_bindings_anywhere(monkeypatch)
 
-    # what bms itself would have called, so that a walk reaching nothing
+    # what the recovery would have called, so that a walk reaching nothing
     # would fail here rather than pass by touching nothing
     with pytest.raises(AssertionError, match="reached libsecp256k1"):
         libsecp256k1_recovery.recover(bytes(32), bytes(64), 0, True)

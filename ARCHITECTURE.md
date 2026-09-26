@@ -6,41 +6,44 @@ and the properties those dependencies keep. What a user can expect of it
 in terms of security is [SECURITY](./SECURITY.md), and why those
 expectations hold is the [assurance case](./ASSURANCE_CASE.md).
 
-## Two arithmetic paths
+## The curve arithmetic is ellipticcurves'
 
-secp256k1 arithmetic is delegated to
+Elliptic-curve arithmetic and the cryptography built on it are
+[ellipticcurves](https://github.com/btclib-org/ellipticcurves), a required
+dependency: `curves`, `number_theory`, `kdf`, `ecc` except `ecc.bms`, and
+the SwiftEC map of `ecc.ellswift`. btclib binds each of those names again
+under its btclib path, so `btclib.curves.mult` is
+`ellipticcurves.curves.mult`, the same object; `tests/all_test.py`'s
+`REEXPORTED` holds every such module to that. What those names raise is
+ellipticcurves' exception classes, which derive from the built-in classes
+and not from `BTClibException`.
+
+ellipticcurves delegates secp256k1 to
 [btclib-secp256k1](https://github.com/btclib-org/btclib-secp256k1), the
 cffi bindings to Bitcoin Core's
-[libsecp256k1](https://github.com/bitcoin-core/secp256k1). The delegation
-is conditional, and that is the most important thing to know before
-touching `src/btclib/curves/` or `src/btclib/ecc/`.
+[libsecp256k1](https://github.com/bitcoin-core/secp256k1), conditionally,
+and btclib delegates its own few operations on the same condition.
 
-- **One import.** `src/btclib/_libsecp256k1.py` imports everything btclib
-  asks of the bindings, inside one `try`. Where the import fails,
-  `INSTALLED` is false, every binding it re-exports is `None`, and nothing
-  is delegated. It is also the one module that reads
-  `BTCLIB_NO_LIBSECP256K1`.
-- **One predicate.** `curves.curve._libsecp256k1_serves` is what every
-  delegating call asks first: the process-wide switch
-  (`curves.set_libsecp256k1_serving`), secp256k1 as the curve, and sha256
-  or no hash function. A call site ands its own conditions onto it.
-  SECURITY.md's *Limitations, not vulnerabilities* states those
-  conditions operation by operation, and is the only place they are
-  stated.
-- **The Python arithmetic.** Whatever the predicate and the call site
-  decline runs `src/btclib/curves/curve_group.py` and
-  `src/btclib/curves/curve_group_2.py`. That path is not dead code: it
-  serves every other curve, every other hash function and a
+- **One switch.** `curves.is_libsecp256k1_serving` answers whether the
+  process delegates, and `curves.set_libsecp256k1_serving` sets it;
+  `ELLIPTICCURVES_NO_LIBSECP256K1` in the environment sets it off at
+  import. btclib's own delegating calls, `ecc.ellswift.xdh`, the
+  script engine's signature checks and `script.taproot`'s tweaks, ask it
+  first and add their own conditions to it. SECURITY.md's *Limitations,
+  not vulnerabilities* states those conditions operation by operation.
+- **The Python arithmetic.** Whatever the switch and the call site
+  decline runs ellipticcurves' Python arithmetic. That path is not dead
+  code: it serves every other curve, every other hash function and a
   caller-imposed nonce, it answers for the point at infinity, which
   libsecp256k1 has no public key for, and it is the whole library in an
   install without the `secp256k1` extra. It is not constant-time, which
   SECURITY.md publishes as a known limitation.
 - **The bindings are the authority on the answer.** The suite validates
-  the Python arithmetic against them. `tests/no_bindings_test.py` imports
-  btclib in an interpreter with the bindings out of reach and compares
-  what it computes with what the bindings compute, and
-  `tests/py_arm_authority_test.py` records, for each Python arm, which
-  vectors published by somebody else reach it.
+  btclib's own Python arms against them. `tests/no_bindings_test.py`
+  imports btclib in an interpreter with the bindings out of reach and
+  compares what it computes with what the bindings compute, and
+  `tests/py_arm_authority_test.py` records, for each of btclib's Python
+  arms, which vectors published by somebody else reach it.
   `.github/workflows/py-arm-authority.yml` re-measures that record.
 
 ## Layers
@@ -52,8 +55,10 @@ where its subject asks for it, as `ecc.bms` does for the address a
 message signature names.
 
 - **the substrate**: `alias`, `exceptions`, `utils`
-- **the curve**: `number_theory`, `curves`
-- **what is built on a curve**: `ecc`, and `kdf` beside it
+- **the curve**: `number_theory`, `curves`, bound again from
+  ellipticcurves
+- **what is built on a curve**: `ecc`, and `kdf` beside it, bound again
+  from ellipticcurves but for `ecc.bms` and `ecc.ellswift.xdh`
 - **bitcoin's hashes, integers and constants**: `hashes`, `var_int`,
   `var_bytes`, `consensus`, `amount`
 - **networks, keys and addresses**: `network`, `base58`, `bech32`, `key`,
@@ -67,25 +72,15 @@ convertible rather than one type, and `exceptions` the errors it raises.
 importing it imports nothing else of btclib, which `tests/imports_test.py`
 asserts.
 
-### The curve's layer imports nothing above it
+### What of the curve's layer is btclib's
 
-`number_theory`, `curves`, `_libsecp256k1`, `kdf`, `ecc` and `_ecc_hashes`
-import one another and the substrate, and nothing else of btclib:
-`tests/imports_test.py`'s `test_row_2_imports_only_row_2_and_the_substrate`
-reads every import statement they hold. `_ecc_hashes` holds the three
-names of `hashes` that `ecc` needs, `tagged_hash`, `reduce_to_hlen` and
-`_assert_valid_hf`, and `hashes` publishes the first two as the same
-objects. This is the cut
-[issue #2282](https://github.com/btclib-org/btclib/issues/2282) names for
-a package of its own, and two modules under `ecc` straddle it:
+Two modules under `ecc` are btclib's own rather than ellipticcurves':
 
-- `ecc.bms` stays in btclib when the rest of `ecc` leaves. It names its
-  signer by an address, so it imports `b32`, `b58`, `key` and `network`;
-  the test leaves it out, and `ecc` imports it on demand rather than
-  eagerly.
-- `ecc.ellswift` splits: its SwiftEC map leaves, and `xdh`, `XDH_TAG` and
-  `ELL_SIZE`, BIP324's agreement on the map, stay in btclib. `xdh`
-  imports nothing above the layer, so the test does not see the line.
+- `ecc.bms` names its signer by an address, so it imports `b32`, `b58`,
+  `key` and `network`, and `ecc` imports it on demand rather than eagerly.
+- `ecc.ellswift` binds ellipticcurves' SwiftEC map again beside `xdh`,
+  `XDH_TAG` and `ELL_SIZE`, BIP324's agreement on the map, which are
+  btclib's.
 
 ### Each pair is one idea split in two
 
@@ -150,9 +145,9 @@ hands them what it read.
   client it never uses. `tests/imports_test.py`'s
   `test_the_codec_does_not_pay_for_the_rpc_package` and
   `test_electrum_codec_stays_stdlib_light` hold both codecs to that.
-- **Package data.** The catalogued curves and the networks are JSON under
-  `src/btclib/curves/_data/` and `src/btclib/_data/`, read once at import
-  by `src/btclib/curves/curve.py` and `src/btclib/network.py`.
+- **Package data.** The networks are JSON under `src/btclib/_data/`, read
+  once at import by `src/btclib/network.py`; the catalogued curves are
+  ellipticcurves' package data.
 
 ## The public surface
 

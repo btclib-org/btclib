@@ -188,6 +188,12 @@ the cost of the roots it does not keep (closes #2273).
 which names them still, and `ecc.bms` is imported on demand, so every
 public import path resolves as before; a test holds it (issue #2282).
 
+### The curve arithmetic and the schemes built on it are ellipticcurves'
+
+`btclib.curves`, `number_theory`, `kdf` and `ecc` but `bms` bind that
+package's objects again under the same paths, and the `secp256k1` extra
+asks for its own; RELEASE_NOTES.md says what changes (issue #2282).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

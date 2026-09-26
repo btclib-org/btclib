@@ -109,7 +109,13 @@ The [assurance case](./ASSURANCE_CASE.md) is the threat model these are
 written against, and the argument for what this file does promise.
 
 These are known and inherent. They are worth stating because btclib is
-used to teach and to prototype as much as to build:
+used to teach and to prototype as much as to build.
+
+`btclib.curves` and `btclib.ecc`, `ecc.bms` and `ecc.ellswift.xdh`
+excepted, are [ellipticcurves](https://github.com/btclib-org/ellipticcurves)'
+objects bound again under btclib's paths, so what follows of them is said
+of that package's code, and a citation into it links its source at the
+commit it was read at:
 
 - secret material handed to btclib lives in Python objects, which are
     immutable and not zeroized: it stays in the process memory until
@@ -126,7 +132,9 @@ used to teach and to prototype as much as to build:
     measured rather than assumed: the point-multiplication side has
     been regular since #254, and `sign`'s own line, `s = (k_1_ +
     values.b * k_2_ + values.e * a * d) % secp256k1.n`
-    (`src/btclib/ecc/musig2.py:851`), spreads 1.016x over uniform scalars
+    ([`src/ellipticcurves/ecc/musig2.py:848`](
+    https://github.com/btclib-org/ellipticcurves/blob/69609d0996b5b5610a6706f11ef0e450a3f15668/src/ellipticcurves/ecc/musig2.py#L848
+    )), spreads 1.016x over uniform scalars
     in `[1, n-1]` -- the magnitude leak that remains shows only for
     scalars with zero high bits, keys already lost for other reasons.
     The gain left is narrower than that figure suggests: delegating
@@ -155,16 +163,18 @@ used to teach and to prototype as much as to build:
     decision, not an oversight. These call sites read one of those
     straight into a Python `int`: `commit_nonce.commit_nonce_` at
     `int.from_bytes(tweaked, byteorder="big", signed=False)`
-    (`src/btclib/ecc/commit_nonce.py:158`) and `taproot._tweaked_prvkey`
+    ([`src/ellipticcurves/ecc/commit_nonce.py:159`](
+    https://github.com/btclib-org/ellipticcurves/blob/69609d0996b5b5610a6706f11ef0e450a3f15668/src/ellipticcurves/ecc/commit_nonce.py#L159
+    )) and `taproot._tweaked_prvkey`
     at `int.from_bytes(tweaked, "big")`
-    (`src/btclib/script/taproot.py:469`). A caller-owned buffer can be
+    (`src/btclib/script/taproot.py:489`). A caller-owned buffer can be
     wiped once the call that filled it returns; the `int` it is read
     into cannot be, and outlives the call regardless, so taking the
     buffer at these call sites would cost a public signature and buy
     nothing, short of btclib no longer
     holding a private key as a Python `int`, which is a change to that
     representation and not to a call site. `ellswift.xdh`
-    (`src/btclib/ecc/ellswift.py:365`) is the one of them that returns
+    (`src/btclib/ecc/ellswift.py:117`) is the one of them that returns
     octets rather than an `int`, so a caller-owned buffer there would
     hold what it wiped: taking it means growing `xdh`'s public
     signature with `into=` and owning the contract that comes with
@@ -173,7 +183,9 @@ used to teach and to prototype as much as to build:
     the bullet above already gives: no Python object holding a secret
     is zeroized, on either path, and this one is no exception to it.
     `dsa.Signer.__init__` at `self._q.to_bytes(32, "big")`
-    (`src/btclib/ecc/dsa.py:1432`) crosses the same boundary the other
+    ([`src/ellipticcurves/ecc/dsa.py:1445`](
+    https://github.com/btclib-org/ellipticcurves/blob/69609d0996b5b5610a6706f11ef0e450a3f15668/src/ellipticcurves/ecc/dsa.py#L1445
+    )) crosses the same boundary the other
     way, once, at construction: the plain `int` `scalar_from_prv_key`
     already produced becomes a transient `bytes` on the way into the
     owned buffer `wipe` overwrites afterwards. That `bytes` is dropped
@@ -192,17 +204,19 @@ used to teach and to prototype as much as to build:
     asks which of the two it has.
     The dispatch is a runtime switch besides:
     `curves.set_libsecp256k1_serving(serving=False)` turns it off for the
-    whole process, and `BTCLIB_NO_LIBSECP256K1` set in the environment
+    whole process, and `ELLIPTICCURVES_NO_LIBSECP256K1` set in the environment
     makes that the state from the first call — a test framework built on
     btclib wants exactly that, having to check libsecp256k1 with
     something other than libsecp256k1. With the dispatch off, every
     operation named below is the Python arithmetic, whichever way the
     library was installed
 - not every operation crosses that boundary, and one predicate decides
-    whether it can: `curve._libsecp256k1_serves` asks for the switch
-    above, then for secp256k1 as the curve, then for a hash function
-    that is sha256 or absent — `hf is None or hf is sha256`
-    (`src/btclib/curves/curve.py:534`) — with whatever further
+    whether it can: ellipticcurves' `curve._libsecp256k1_serves` asks for
+    the switch above, then for secp256k1 as the curve, then for a hash
+    function that is sha256 or absent — `hf is None or hf is sha256`
+    ([`src/ellipticcurves/curves/curve.py:535`](
+    https://github.com/btclib-org/ellipticcurves/blob/69609d0996b5b5610a6706f11ef0e450a3f15668/src/ellipticcurves/curves/curve.py#L535
+    )) — with whatever further
     conditions the call site ands onto it. The hash function is matched
     by identity rather than by what it computes, so
     `functools.partial(sha256)`, or any other wrapper a caller writes to
@@ -324,11 +338,17 @@ used to teach and to prototype as much as to build:
     that arm and infinity is not delegated at all —
     `curve._libsecp256k1_mult` at
     `libsecp256k1_shared_point(_sec_from_point(Q), m, False)`
-    (`src/btclib/curves/curve.py:797`). `dh.diffie_hellman` at
+    ([`src/ellipticcurves/curves/curve.py:799`](
+    https://github.com/btclib-org/ellipticcurves/blob/69609d0996b5b5610a6706f11ef0e450a3f15668/src/ellipticcurves/curves/curve.py#L799
+    )). `dh.diffie_hellman` at
     `sec = libsecp256k1_shared_point(`
-    (`src/btclib/ecc/dh.py:100`) and `sec_point._mult_sec` at
+    ([`src/ellipticcurves/ecc/dh.py:93`](
+    https://github.com/btclib-org/ellipticcurves/blob/69609d0996b5b5610a6706f11ef0e450a3f15668/src/ellipticcurves/ecc/dh.py#L93
+    )) and `sec_point._mult_sec` at
     `libsecp256k1_shared_point(sec, m, False)`
-    (`src/btclib/curves/sec_point.py:361`), under `sec_point.mult_pub_key`
+    ([`src/ellipticcurves/curves/sec_point.py:361`](
+    https://github.com/btclib-org/ellipticcurves/blob/69609d0996b5b5610a6706f11ef0e450a3f15668/src/ellipticcurves/curves/sec_point.py#L361
+    )), under `sec_point.mult_pub_key`
     and `ecies.derive_keys`, make the same call on the octets they
     already hold.
     `double_mult_var` and `multi_mult_var`, and `ssa.batch_verify`, are
@@ -342,10 +362,14 @@ used to teach and to prototype as much as to build:
     scalars are secrets, is a `mult` of each and their sum instead —
     `pedersen._commit` at
     `return _add(mult(r, ec.G, ec), mult(v, gen, ec), ec)`
-    (`src/btclib/ecc/pedersen.py:354`), under `pedersen.commit`,
+    ([`src/ellipticcurves/ecc/pedersen.py:357`](
+    https://github.com/btclib-org/ellipticcurves/blob/69609d0996b5b5610a6706f11ef0e450a3f15668/src/ellipticcurves/ecc/pedersen.py#L357
+    )), under `pedersen.commit`,
     `rangeproof.sign` and `rangeproof.rewind`. The sum is
     `curve._add` at `return _libsecp256k1_sum((P, Q))`
-    (`src/btclib/curves/curve.py:1244`): `secp256k1_ec_pubkey_combine`,
+    ([`src/ellipticcurves/curves/curve.py:1245`](
+    https://github.com/btclib-org/ellipticcurves/blob/69609d0996b5b5610a6706f11ef0e450a3f15668/src/ellipticcurves/curves/curve.py#L1245
+    )): `secp256k1_ec_pubkey_combine`,
     whose group law `secp256k1_gej_add_ge` and whose inversion
     `secp256k1_fe_inv` are constant time. A commitment to a zero value
     has a product at infinity, which `_add` does not hand over: it sums

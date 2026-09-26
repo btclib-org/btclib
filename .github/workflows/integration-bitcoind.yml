@@ -52,9 +52,8 @@ name: integration-bitcoind
 
 on:
   schedule:
-    # An integration sentinel, the other being zkp-oracle.yml: what this
-    # run watches is the download rather than
-    # the tree, so it wants no particular day.
+    # An integration sentinel: what this run watches is the download
+    # rather than the tree, so it wants no particular day.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
     # Only the default branch schedules workflows, so on any other branch

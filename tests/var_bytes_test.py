@@ -8,12 +8,14 @@ from collections.abc import Callable
 from io import BytesIO
 
 import pytest
+
+# private on purpose: two copies' agreement is the subject (issue #2282, Rule 3)
+from ellipticcurves.ecc.dsa import _parse_der_value
 from hypothesis import given
 from hypothesis import strategies as st
 
 from btclib import var_bytes
-from btclib.ecc import dsa
-from btclib.exceptions import BTClibException, BTClibRuntimeError, BTClibValueError
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 
 
 @given(octets=st.binary(max_size=512))
@@ -72,11 +74,15 @@ def test_the_size_and_the_serialization_agree() -> None:
 
 
 def _outcome(read: Callable[[BytesIO], bytes], data: bytes) -> tuple[str, bytes | str]:
-    """Return what one reader answers, or the class and message it raises."""
+    """Return what one reader answers, or the family and message it raises.
+
+    The family and not the class: the two readers are two packages', and
+    each raises its own `ValueError`.
+    """
     try:
         return "value", read(BytesIO(data))
-    except BTClibException as e:
-        return type(e).__name__, str(e)
+    except ValueError as e:
+        return "ValueError", str(e)
 
 
 def _var_bytes_as_dsa_reports_it(stream: BytesIO) -> bytes:
@@ -105,13 +111,12 @@ def _var_bytes_as_dsa_reports_it(stream: BytesIO) -> bytes:
     ],
 )
 def test_dsa_reads_a_der_size_as_var_bytes_does(data: bytes) -> None:
-    """`ecc.dsa` carries its own reader, and it answers as `var_bytes` does.
+    """The DER size reader of `ecc.dsa` answers as `var_bytes` does.
 
-    `btclib.ecc` imports nothing above the substrate (issue #2282), so
-    `Sig.parse` cannot call `var_bytes` and reads a DER element's size
-    itself. This is the one place both are in reach, and every branch of
-    either reader is a row here: the value, or the exception class and
-    its message.
+    ellipticcurves does not import btclib, so `Sig.parse` cannot call
+    `var_bytes` and reads a DER element's size itself. This is the one
+    place both are in reach, and every branch of either reader is a row
+    here: the value, or the refusal and its message.
     """
     expected = _outcome(_var_bytes_as_dsa_reports_it, data)
-    assert _outcome(dsa._parse_der_value, data) == expected
+    assert _outcome(_parse_der_value, data) == expected

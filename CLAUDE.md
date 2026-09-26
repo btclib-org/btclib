@@ -16,11 +16,13 @@ is what the pull request will be answered against.
 
 ## Architecture
 
-[ARCHITECTURE.md](./ARCHITECTURE.md) is the design: the two arithmetic
-paths, the layers, and the import edges the tests hold. Read it before
-touching `src/btclib/curves/` or `src/btclib/ecc/`, where secp256k1
-arithmetic is delegated to the bindings only where
-`curves.curve._libsecp256k1_serves` and the call site both admit it, so a
+[ARCHITECTURE.md](./ARCHITECTURE.md) is the design: the curve arithmetic
+ellipticcurves provides, the layers, and the import edges the tests hold.
+Read it before touching `src/btclib/curves/` or `src/btclib/ecc/`, whose
+modules bind ellipticcurves' objects again, `ecc.bms` and
+`ecc.ellswift.xdh` excepted; `xdh`, the script engine and
+`script.taproot` delegate to the bindings only where
+`curves.is_libsecp256k1_serving()` and the call site both admit it, so a
 change there has two paths to keep right.
 
 ## The primary checkout is the maintainer's

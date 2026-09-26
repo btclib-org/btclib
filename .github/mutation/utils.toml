@@ -1,8 +1,7 @@
 # The shared codec helpers, mutated. Nearly every other profile in this
 # directory calls into `src/btclib/utils.py`: `decode_num`/`encode_num` are the
 # script-number codec the engine and `Tx.height` both read, `int_from_bits`
-# is the RFC 6979 bit-string-to-int helper `borromean`, `ssa` and the other
-# deterministic-nonce modules share, and `read_exactly`/`assert_no_trailing`
+# is the RFC 6979 bit-string-to-int helper, and `read_exactly`/`assert_no_trailing`
 # are the exact-read boundary `tx`, `block` and `p2p` share. Issue #327
 # measured this file at 325 mutants while sizing the wire-format profile and
 # left it for a session of its own; #219's question is the same one here --
@@ -18,16 +17,12 @@ module-path = "src/btclib/utils.py"
 # so that one needs a caller's test to be reached at all.
 # tests/integer_policy_test.py is is_integer's own file, already named in
 # parsers.toml for the same reason; tests/block is int_from_json_number's
-# caller, through `from_dict`. tests/ecc/ssa_test.py is beside them for
-# int_from_bits' own boundary -- every real caller hashes into exactly
-# `ec.nlen` bits, so this file's `blen < nlen` case is the only one that
-# exercises the other direction.
+# caller, through `from_dict`.
 # Not tests/script_engine: encode_num/decode_num's boundaries are already
 # the round trip above, and the engine's mutants cost far more wall
 # clock each for coverage this file's own suite already gives cheaply.
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
-  tests/utils_test.py tests/integer_policy_test.py tests/ecc/ssa_test.py \
-  tests/block"""
+  tests/utils_test.py tests/integer_policy_test.py tests/block"""
 
 # seconds of wall clock: see sig_hash.toml for why a per-mutant timeout is
 # answered KILLED rather than left pending, and why the width is paid only

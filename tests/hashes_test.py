@@ -11,8 +11,7 @@ from typing import Any
 import pytest
 
 from btclib import hashes
-from btclib._ecc_hashes import _assert_valid_hf
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibValueError
 from btclib.hashes import (
     hash160,
     hash256,
@@ -199,27 +198,3 @@ def test_merkle_root_empty() -> None:
     # root
     with pytest.raises(BTClibValueError, match="empty merkle tree"):
         merkle_root([], hash256)
-
-
-@pytest.mark.parametrize(
-    "hf",
-    [sha256(), hashlib.sha256(b"already fed"), b"\x00", None, 42],
-    ids=["a-digest-object", "a-fed-digest", "octets", "None", "an-int"],
-)
-def test_a_hash_function_that_is_not_one_is_refused(hf: Any) -> None:
-    """`sha256()` where `sha256` belongs is the caller error this names.
-
-    A BTClibTypeError and not a BTClibValueError, which is what the five
-    boolean verifications rely on: theirs is an `except (ValueError,
-    BTClibRuntimeError)`, so a value error here would be reported as a
-    signature that does not verify rather than reaching the caller who
-    made the mistake.
-    """
-    with pytest.raises(BTClibTypeError, match="not a hash function"):
-        _assert_valid_hf(hf)
-
-
-def test_a_hash_function_that_is_one_passes() -> None:
-    """The control, over the three shapes a caller can legitimately pass."""
-    for hf in (sha256, hashlib.sha512, lambda: hashlib.sha256()):  # noqa: PLW0108
-        _assert_valid_hf(hf)

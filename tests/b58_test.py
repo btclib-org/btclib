@@ -16,6 +16,7 @@ from btclib.base58 import encode as b58encode
 from btclib.curves import bytes_from_point, point_from_octets, secp256k1
 from btclib.exceptions import (
     BTClibValueError,
+    EllipticCurvesValueError,
     InvalidPrvKeyError,
     NotAPrvKeyError,
 )
@@ -50,12 +51,12 @@ def test_wif_from_prv_key() -> None:
         assert (data.q, data.network, data.compressed) == (q_int, network, compressed)
 
     bad_q = ec.n.to_bytes(ec.n_size, byteorder="big", signed=False)
-    with pytest.raises(BTClibValueError, match="private key not in 1..n-1"):
+    with pytest.raises(EllipticCurvesValueError, match="private key not in 1..n-1"):
         b58.wif_from_prv_key(bad_q, "mainnet", True)
 
     # not a private key: 33 bytes, not the 32 a scalar's octets are
     bad_q = 33 * b"\x02"
-    with pytest.raises(BTClibValueError, match="invalid size: 33 bytes"):
+    with pytest.raises(EllipticCurvesValueError, match="invalid size: 33 bytes"):
         b58.wif_from_prv_key(bad_q, "mainnet", True)
 
 

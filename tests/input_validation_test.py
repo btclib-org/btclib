@@ -24,7 +24,11 @@ distinction issue #814 settled, so this file drives the two separately:
 Both are `BTClibException`, which is what makes the second rule one
 predicate instead of a tuple that has to be kept in step with the
 hierarchy -- the reason issue #743 landed that base class before this
-test rather than after it.
+test rather than after it. A function of btclib's own that hands its
+argument on to ellipticcurves, a private key to `scalar_from_prv_key`
+most often, lets that package's refusal through, and its classes are
+`EllipticCurvesTypeError` and `EllipticCurvesException` (issue #2282):
+each rule accepts the class of either package, and nothing else.
 
 ## How it calls what it calls
 
@@ -97,7 +101,12 @@ from typing import Any
 
 import pytest
 
-from btclib.exceptions import BTClibException, BTClibTypeError
+from btclib.exceptions import (
+    BTClibException,
+    BTClibTypeError,
+    EllipticCurvesException,
+    EllipticCurvesTypeError,
+)
 
 _LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 
@@ -125,7 +134,6 @@ _WRONG_TYPE: dict[str, tuple[Any, ...]] = {
     ),
     "Octets": (None, 1.5, tuple(range(4))),
     "Point": (None, 1.5, "not a point"),
-    "PubKey": (None, 1.5),
     "ScriptList": (None, 1.5, "not a list"),
     "Sequence[Octets]": (
         None,
@@ -152,7 +160,6 @@ _WRONG_VALUE: dict[str, tuple[Any, ...]] = {
     # is a value here and not a type
     "Iterable[Octets]": (["not hex at all"],),
     "Point": ((1,), (1, 2)),
-    "PubKey": ("not a key",),
     "ScriptList": (["OP_NOT_AN_OP_CODE"],),
     "Sequence[Octets]": (["not hex at all"],),
     "String": ("not an address",),
@@ -169,11 +176,7 @@ _WRONG_VALUE: dict[str, tuple[Any, ...]] = {
 # `taproot.check_output_pubkey` is deliberately *not* here, and is the
 # reason `check_` keeps its prefix: it answers a bool and refuses a
 # malformed control block, that being no proof rather than a disproof.
-# `ecc.dleq.verify_proof` and `ecc.pedersen.verify` were here and are
-# not: a point spelled in a way that is no point, a proof that is not 64
-# octets and an opening that is no integer are structurally invalid
-# rather than merely wrong, and issue #2170 is where they became
-# refusals. CONTRIBUTING.md's carve-out states it
+# CONTRIBUTING.md's carve-out states it
 _A_BOOL_ANSWERS_FALSE = (
     "a bool answers about a value of a declared type, so a value that is"
     " not one is False rather than a refusal: issue #814 settled it, and"
@@ -267,7 +270,7 @@ def test_a_wrong_type_leaves_as_a_btclib_type_error(dotted: str) -> None:
     is the library calling a caller's mistake a fact about the input.
     """
     for call in _calls(dotted, _WRONG_TYPE):
-        with pytest.raises(BTClibTypeError):
+        with pytest.raises((BTClibTypeError, EllipticCurvesTypeError)):
             call()
 
 
@@ -281,7 +284,7 @@ def test_a_wrong_value_leaves_as_a_btclib_exception(dotted: str) -> None:
     `BTClibTypeError` -- and the contract a caller is given is the base.
     """
     for call in _calls(dotted, _WRONG_VALUE):
-        with pytest.raises(BTClibException):
+        with pytest.raises((BTClibException, EllipticCurvesException)):
             call()
 
 
@@ -352,9 +355,8 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
         # the two hash-function types are always behind a default -- `hf`
         # is the last parameter of everything that takes one -- so the
         # walk cannot reach them for the reason the module docstring
-        # gives. `_ecc_hashes._assert_valid_hf` is the check, and
-        # tests/hashes_test.py, dsa_test.py and ssa_test.py are where it
-        # is held to it
+        # gives. ellipticcurves' `hashes` holds the check, and that
+        # package's suite is where it is held to it
         "HashDigestF",
         "HashF",
         # a callable, and the same again: its wrong values are the
@@ -374,17 +376,17 @@ def test_the_walk_reaches_what_it_claims() -> None:
     """The shapes the walk must find, and two it must not.
 
     A walk that found nothing would pass every test above. One function
-    per shape it has to reach -- a single parameter, two of different
-    types, one behind a default it must ignore -- and the two kinds it
-    must leave alone: a private name, and a function whose required
+    per shape it has to reach -- a single parameter, several of one type,
+    one behind a default it must ignore -- and the two kinds it must
+    leave alone: a private name, and a function whose required
     parameters are not all in the vocabulary.
     """
     assert _DRIVABLE["btclib.hashes.sha256"] == ["Octets"]
-    assert _DRIVABLE["btclib.ecc.dleq.generate_proof"] == ["Integer", "PubKey"]
+    assert _DRIVABLE["btclib.script.taproot.check_output_pubkey"] == ["Octets"] * 3
     # `network` and `compressed` carry defaults and are not driven
     assert _DRIVABLE["btclib.b58.prv_key_data_from_wif"] == ["String"]
 
-    assert "btclib._ecc_hashes._assert_valid_hf" not in _DRIVABLE
+    assert "btclib.var_bytes._size" not in _DRIVABLE
     # a required parameter the vocabulary cannot build: a Tx
     assert "btclib.script.sig_hash.legacy" not in _DRIVABLE
 

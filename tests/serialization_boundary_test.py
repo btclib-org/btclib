@@ -64,10 +64,13 @@ tuple the day one does.
 `check_validity` is not driven anywhere in this file: it is a flag that
 decides whether a check runs rather than what is computed, so it is read
 for its truth, and `check_validity_test.py` owns that convention.
-`dsa.Sig.parse`'s `strict` is the same kind of flag and the same
-exemption, recorded below beside the arguments that are not --
 `bool_parameter_test.py` is where that classification is decided, for
 every flag in the library and with the reason for each.
+
+The decoders of the schemes ellipticcurves carries, `dsa.Sig`, `ssa.Sig`,
+`BorromeanSig`, `RangeProof` and `ecies.Envelope`, are that package's to
+hold to this contract (issue #2282), and the walk leaves them out by
+where each class is defined.
 """
 
 from __future__ import annotations
@@ -84,11 +87,8 @@ import pytest
 
 from btclib import var_bytes, var_int
 from btclib.block import BasicBlockFilter, Block, BlockHeader, PartialMerkleTree
-from btclib.ecc import bms, dsa, ecies, ssa
-from btclib.ecc.borromean import BorromeanSig
-from btclib.ecc.rangeproof import RangeProof
+from btclib.ecc import bms
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.key import PrvKeyData
 from btclib.network import NETWORKS, Network
 from btclib.p2p import (
     Addr,
@@ -150,11 +150,6 @@ _TX_ID = "01" * 32
 
 _TX = Tx(1, 0x12345678, [TxIn(OutPoint(_TX_ID, 0), b"", 0xFFFFFFFF)], [TxOut(1, b"")])
 _BLOCK = Block.parse(load_bin("block", "_data", "block_1.bin"))
-# framed rather than encrypted: `ecies.encrypt` takes a block cipher this
-# library does not carry, and the framing is all this file is about
-_ENVELOPE = ecies.Envelope.from_ciphertext(
-    PrvKeyData(1).pub.sec, b"\x00" * 16, b"key material"
-)
 
 
 @dataclass(frozen=True)
@@ -205,12 +200,7 @@ _OCTETS_DECODERS = (
     ("BasicBlockFilter.parse", BasicBlockFilter, "parse"),
     ("PartialMerkleTree.parse", PartialMerkleTree, "parse"),
     ("Witness.parse", Witness, "parse"),
-    ("BorromeanSig.parse", BorromeanSig, "parse"),
-    ("RangeProof.parse", RangeProof, "parse"),
     ("bms.Sig.parse", bms.Sig, "parse"),
-    ("ssa.Sig.parse", ssa.Sig, "parse"),
-    ("dsa.Sig.parse", dsa.Sig, "parse"),
-    ("ecies.Envelope.parse", ecies.Envelope, "parse"),
     ("Message.parse", Message, "parse"),
     ("NetworkAddress.parse", NetworkAddress, "parse"),
     ("TimestampedNetworkAddress.parse", TimestampedNetworkAddress, "parse"),
@@ -256,10 +246,7 @@ _OCTETS_DECODERS = (
 _OCTETS_IDS = tuple(label for label, _, _ in _OCTETS_DECODERS)
 
 # and what reads text: the base64 decoders
-_TEXT_DECODERS = (
-    ("bms.Sig.b64decode", bms.Sig, "b64decode"),
-    ("ecies.Envelope.b64decode", ecies.Envelope, "b64decode"),
-)
+_TEXT_DECODERS = (("bms.Sig.b64decode", bms.Sig, "b64decode"),)
 
 _TEXT_IDS = tuple(label for label, _, _ in _TEXT_DECODERS)
 
@@ -267,20 +254,11 @@ _TEXT_IDS = tuple(label for label, _, _ in _TEXT_DECODERS)
 # octets or the mapping it reads, and the `check_validity` that
 # `check_validity_test.py` owns. Few of them over the whole family,
 # which is its shape: the object is the input, and this is everything
-# else a caller can get wrong.
-#
-# Each is driven below except `strict`, which is a flag deciding whether a
-# check runs -- Bitcoin Core's IsValidSignatureEncoding, and `dsa.Sig.parse`
-# says where it does it -- and is therefore read for its truth, as
-# `check_validity` is
+# else a caller can get wrong. Each is driven below
 _EXTRA_ARGUMENTS = {
     ("btclib.tx.tx.Tx", "serialize"): "include_witness",
     ("btclib.block.block.Block", "serialize"): "include_witness",
     ("btclib.block.block_filter.BasicBlockFilter", "parse"): "block_hash",
-    ("btclib.ecc.borromean.BorromeanSig", "parse"): "rsizes",
-    ("btclib.ecc.ecies.Envelope", "parse"): "magic",
-    ("btclib.ecc.ecies.Envelope", "b64decode"): "magic",
-    ("btclib.ecc.dsa.Sig", "parse"): "strict",
     # BIP152 encodes an index as the difference from the one before it,
     # so writing one and reading one back both need that previous index:
     # `btclib.p2p.compact_blocks` is where holding the absolute index and
@@ -589,25 +567,6 @@ def test_a_block_filter_is_read_against_the_hash_of_its_block() -> None:
     for wrong in _WRONG_TYPES:
         with pytest.raises(BTClibTypeError, match="invalid octets type"):
             BasicBlockFilter.parse(serialized, block_hash=wrong)
-
-
-def test_an_envelope_is_read_against_magic_bytes_that_are_bytes() -> None:
-    """An argument of this family that is neither a flag nor a version.
-
-    Compared against the first four octets of the buffer, so a magic of
-    no bytes type is unequal to whatever is there: every envelope was
-    refused, and for the bytes it does carry rather than for the argument
-    that cannot be any.
-    """
-    armor = _ENVELOPE.b64encode()
-    assert ecies.Envelope.b64decode(armor) == _ENVELOPE
-    assert ecies.Envelope.parse(_ENVELOPE.serialize(), magic=b"BIE1") == _ENVELOPE
-
-    for wrong in _WRONG_TYPES:
-        with pytest.raises(BTClibTypeError, match="invalid magic type"):
-            ecies.Envelope.parse(_ENVELOPE.serialize(), magic=wrong)
-        with pytest.raises(BTClibTypeError, match="invalid magic type"):
-            ecies.Envelope.b64decode(armor, magic=wrong)
 
 
 def test_a_tapscript_says_which_answer_it_is_asked_for() -> None:

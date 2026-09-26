@@ -8,15 +8,15 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from btclib._libsecp256k1 import dsa_verify as _libsecp256k1_dsa_verify
 from btclib.alias import ScriptList
-from btclib.curves import point_from_octets, secp256k1
-from btclib.curves.curve import _libsecp256k1_serves
+from btclib.curves import is_libsecp256k1_serving, point_from_octets
 from btclib.ecc import dsa
 from btclib.ecc.dsa import Sig
 from btclib.exceptions import (
     BTClibRuntimeError,
     BTClibValueError,
+    EllipticCurvesRuntimeError,
+    EllipticCurvesValueError,
     ScriptError,
 )
 from btclib.script import sig_hash
@@ -38,6 +38,17 @@ from btclib.script.script import (
 from btclib.script.script import serialize as serialize_script
 from btclib.script.sig_hash import SIG_HASH_TYPES, PrecomputedTxData
 from btclib.tx.tx import Tx
+
+# the bindings, imported from their own package; None where they are not
+# installed, which nothing calls: what calls them here is behind
+# `is_libsecp256k1_serving`, False in that configuration. Installed one
+# name short, this import alone falls back to None while ellipticcurves
+# keeps serving, so the call fails rather than degrading: the floor the
+# `secp256k1` extra puts on the bindings is what rules that out
+try:
+    from btclib_secp256k1.dsa import verify as _libsecp256k1_dsa_verify
+except ImportError:  # pragma: no cover -- only an install without them
+    _libsecp256k1_dsa_verify = None  # type: ignore[assignment]
 from btclib.utils import assert_type, bytesio_from_binarydata, encode_num
 
 __all__ = [
@@ -96,7 +107,7 @@ def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     One try around both arms, because the contract is one: a signature or
     a public key that cannot be parsed is a failed verification, not an
     exception the interpreter loop sees. The bindings raise ValueError
-    for it, `point_from_octets` raises BTClibValueError, which is one,
+    for it, `point_from_octets` raises EllipticCurvesValueError, which is one,
     and `dsa.verify_` catches its own. DER strictness is enforced
     upstream either way, by fix_signature under the STRICT_DER_FLAGS
     below -- and so is the lower-s form, which is what keeps the two arms
@@ -115,7 +126,7 @@ def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     _assert_bytes_arguments(msg_hash=msg_hash, pub_key=pub_key, sig=sig)
 
     try:
-        if _libsecp256k1_serves(secp256k1, None):
+        if is_libsecp256k1_serving():
             return bool(_libsecp256k1_dsa_verify(msg_hash, pub_key, sig))
         return dsa.verify_(msg_hash, point_from_octets(pub_key, hybrid=True), sig)
     except ValueError:
@@ -303,10 +314,17 @@ def op_checksig(
         return False
     try:
         signature = fix_signature(signature, flags)
-    except (BTClibValueError, BTClibRuntimeError):
-        # under any of the three, CheckSignatureEncoding is what failed and
-        # Core ends the script; under none of them the lax parse failed,
-        # which is a signature that does not verify and nothing more
+    except (
+        BTClibValueError,
+        BTClibRuntimeError,
+        EllipticCurvesValueError,
+        EllipticCurvesRuntimeError,
+    ):
+        # `Sig.parse` is ellipticcurves', hence its two classes beside
+        # btclib's. Under any of the three flags, CheckSignatureEncoding is
+        # what failed and Core ends the script; under none of them the lax
+        # parse failed, which is a signature that does not verify and
+        # nothing more
         if flags & STRICT_DER_FLAGS:
             raise
         return False
@@ -768,7 +786,9 @@ def verify_script(
             script_index_ref,
             hash_types,
         )
-    except BTClibValueError as e:
+    # ellipticcurves' refusal beside btclib's: a signature or a key the
+    # loop hands to it is refused by that package's own class
+    except (BTClibValueError, EllipticCurvesValueError) as e:
         raise ScriptError(str(e), script_index_ref[0], len(stack)) from e
     except IndexError as e:
         # what the loop indexes and pops is the stack and the altstack,

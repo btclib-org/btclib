@@ -59,6 +59,11 @@ dependencies = [
     # the package into errors, chains, transport and client modules behind
     # its facade and the first release the `chains` module exists in
     "bitcoin-core-rpc>=2026.8.29",
+    # the curve arithmetic and the schemes built on it: `btclib.curves`,
+    # `btclib.ecc` less `bms`, `btclib.kdf` and `btclib.number_theory`
+    # re-export that package's objects, and `btclib.exceptions` its
+    # exception classes (issue #2282)
+    "ellipticcurves>=2026.10",
     # `typing.override` is 3.12's, `typing.TypeIs` is 3.13's, and the
     # floor is 3.11, so both come from the backport; 4.4 is the release
     # that adds `override`, 4.10 the one that adds `TypeIs`, and the
@@ -119,67 +124,28 @@ classifiers = [
 # shell and answers `no matches found` to the bare form, and it is
 # what README.md and the guide tell a reader to run -- and an extra
 # rather than a dependency because
-# btclib answers without them: every delegation asks a dispatch that
-# declines where they are absent, and `btclib._libsecp256k1` is the one
-# import that decides it. What that buys is a btclib a distribution can
+# btclib answers without them: every delegation asks
+# `curves.is_libsecp256k1_serving`, which is False where they are
+# absent. What that buys is a btclib a distribution can
 # package with no C toolchain in reach, and a caller that must not check
 # libsecp256k1 with libsecp256k1 (issue #198). What it costs is in
 # RELEASE_NOTES.md, because an upgrade that stops installing them is an
 # upgrade onto the Python arithmetic, which is tens of times slower and
 # is not constant-time -- SECURITY.md publishes both
 secp256k1 = [
-    # 0.8.0.3 for `xonly.tweak_add_` (btclib-org/btclib-secp256k1#158),
-    # which `script.taproot` calls: it tweaks the parsed internal key,
-    # where `xonly.tweak_add` parses the x again and that parse is a field
-    # square root. The same version for `keys.pubkey_sum`,
-    # `xonly.pubkey_verify` and `xonly.to_pubkey`
-    # (btclib-org/btclib-secp256k1#171), which `curves.curve` calls -- one
-    # sum instead of a combine per term, and the two questions about an x
-    # asked as x-only questions. The same version again for
-    # `keys.pubkey_tweak_mul_sum` (btclib-org/btclib-secp256k1#182), which
-    # is that sum with its terms as well, so that no product of a
-    # multi-scalar multiplication crosses the boundary; and for
-    # `ssa.Signer` (btclib-org/btclib-secp256k1#154), which
-    # `ecc.ssa.Signer` holds so that a keypair is built once per key rather
-    # than once per signature; and for `dsa.sign` accepting a caller-owned
-    # 32-octet cffi array as `prvkey` and passing it through unconverted
-    # (btclib-org/btclib-secp256k1#253), which `ecc.dsa.Signer` now holds
-    # so that `wipe` reaches the delegated arm too (issue #1009).
-    # 0.8.0.4 for the `musig` module (btclib-org/btclib-secp256k1#282), which
-    # `btclib._libsecp256k1` imports and `btclib.ecc.musig2` calls --
-    # `KeyAggCache` and `Session`, which is issue #1049's delegation of
-    # `partial_sig_verify_`.
-    # That last one is why this floor is not decoration.
-    # `btclib._libsecp256k1` imports the whole surface in one `try` whose
-    # `except ImportError` sets `INSTALLED = False`, so a bindings
-    # missing a single name of it costs not that one delegation but every
-    # one of them: the install answers on the Python arithmetic,
-    # silently, tens of times slower and not in constant time. A floor
-    # naming 0.8.0.3 while this tree imports `musig` describes exactly
-    # that install, which is issue #1116.
-    # 0.8.0.5 for a name this tree does not import: outside `zkp`, that
-    # release adds, removes and renames nothing (its own release notes
-    # say so), so nothing above needed it. What needs it is issue
-    # #1679's `zkp-oracle.yml`, which resolves this same specifier with
-    # `--no-binary-package btclib-secp256k1` and
-    # `BTCLIB_LIBSECP256K1_ZKP=true` set -- `btclib_secp256k1.zkp` is
-    # what 0.8.0.5 is, and a floor below it has no such subpackage to
-    # build against at all
-    # 0.8.0.6 for `zkp.rangeproof.borromean_verify`
-    # (btclib-org/btclib-secp256k1#828), which
-    # `tests/ecc/borromean_test.py` asks whether zkp's verifier takes a
-    # signature `ecc.borromean` wrote. It reads
-    # `secp256k1_borromean_verify`, which stays internal to
-    # BlockstreamResearch's secp256k1-zkp: this release is the first
-    # whose submodule is the `fametrano/secp256k1-zkp` fork that wraps
-    # it, proposed upstream as
-    # `BlockstreamResearch/secp256k1-zkp#373` and unmerged there.
-    # 0.8.0.8 for `ecdh.shared_point` (btclib-org/btclib-secp256k1#1005),
-    # which `curves.curve`, `curves.sec_point` and `ecc.dh` call to multiply
-    # a point other than the generator by a private scalar. It runs
-    # `secp256k1_ecmult_const`, where `keys.pubkey_tweak_mul` runs the
-    # variable-time `secp256k1_ecmult` (issue #2257).
+    # what btclib calls directly, `script.taproot`, `script.engine` and
+    # `ecc.ellswift.xdh` importing their bindings module themselves, each
+    # behind the dispatch: 0.8.0.3 is the release adding
+    # `xonly.tweak_add_` (btclib-org/btclib-secp256k1#158), which
+    # `script.taproot` calls to tweak the parsed internal key, where
+    # `xonly.tweak_add` parses the x again and that parse is a field
+    # square root. The floor is the one ellipticcurves' own `secp256k1`
+    # extra sets, below which the entry after this one does not resolve
     "btclib-secp256k1>=0.8.0.8",
+    # what the rest of the delegation is: ellipticcurves imports the
+    # bindings for the curve arithmetic and the schemes, and its extra is
+    # what states which release that takes
+    "ellipticcurves[secp256k1]>=2026.10",
 ]
 
 [project.urls]
@@ -235,11 +201,11 @@ pull_requests = "https://github.com/btclib-org/btclib/pulls"
 # the bindings, which is half a suite: the tests that matter most here
 # compare the two implementations against each other.
 #
-# So the specifier is written twice, and `tests/build_system_test.py`
+# So the specifiers are written twice, and `tests/build_system_test.py`
 # refuses the day the two stop agreeing. What the group buys is that no
 # documented command had to grow an `--extra`, and that the job of issue
 # #991 is those same commands with this group left out
-bindings = ["btclib-secp256k1>=0.8.0.8"]
+bindings = ["btclib-secp256k1>=0.8.0.8", "ellipticcurves[secp256k1]>=2026.10"]
 # what runs the suite, without what the suite delegates to: `test` is the
 # two together and is what every documented command asks for, while
 # `harness` alone is the environment the no-bindings job of test.yml
@@ -301,6 +267,10 @@ dev = [
 # once; section 15 carries the command that re-derives the ceiling
 # (btclib-org/.github#312)
 required-version = ">=0.12.17"
+
+# goes before landing, with the ellipticcurves floor above set to its first release
+[tool.uv.sources]
+ellipticcurves = { git = "https://github.com/btclib-org/ellipticcurves", rev = "69609d0996b5b5610a6706f11ef0e450a3f15668" }
 
 [tool.uv.build-backend]
 # what the sdist carries beyond what the backend puts there by itself --
@@ -591,7 +561,6 @@ xfail_strict = true
 markers = [
     "integration: needs an external program, opt-in via BTCLIB_INTEGRATION",
     "bindings: compares against btclib_secp256k1, so it needs it installed",
-    "zkp: compares against btclib_secp256k1.zkp, built with BTCLIB_LIBSECP256K1_ZKP",
 ]
 # a deprecation warning is the early form of a break, emitted years before
 # the removal that will fail the suite: on the spread of interpreters the
@@ -742,14 +711,6 @@ extend-ignore-re = ['[0-9A-Za-z+/]{26,}={0,2}']
 [tool.typos.default.extend-identifiers]
 # BIP342 spells it so, and the x is the placeholder for the opcode number
 OP_SUCCESSx = "OP_SUCCESSx"
-# `secp256k1_borromean_verify_impl`'s own out-parameter, the challenges it
-# saves for a rewind (secp256k1-zkp,
-# src/modules/rangeproof/borromean_impl.h), which
-# src/btclib/ecc/rangeproof.py cites. The hook runs with --write-changes,
-# so without this line it becomes `evaluates`, a word naming nothing in
-# zkp -- a citation a reader would go and fail to find, which is the
-# reason the `ser`/`unser` entries below give
-evalues = "evalues"
 
 [tool.typos.default.extend-words]
 # "ands" is the verb, mult's further condition anded onto the bindings
@@ -877,8 +838,7 @@ precision = 2
 # no longer disappears into a rounding step. It is covered by patching
 # what stands in the way, which is what hashes_test and electrum_test
 # already do and say, or it carries a `pragma: no cover --` whose reason
-# names the case on that same line, as borromean, dleq and musig2 do for
-# a branch arithmetic rules out. Neither of those is a build left red.
+# names the case on that same line. Neither of those is a build left red.
 # Measured on one interpreter, and that is still enough at 100: btclib
 # has no sys.version_info and no sys.platform branch, so every job walks
 # the same lines and a tree at 100.00% there is at 100.00% anywhere --
@@ -1238,8 +1198,7 @@ ignore = [
     # from a test verifying an implementation detail on purpose, or from
     # a sibling module inside this package's own layered architecture
     # (ARCHITECTURE.md) reaching into another module's
-    # private state the way curve_group.py reads a Curve's own
-    # `_fixed_points` cache
+    # private state
     "private-member-access",
     # zero-finding for a construct this codebase does not contain, so
     # selecting it reads as an enforced invariant while enforcing

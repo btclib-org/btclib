@@ -74,13 +74,13 @@ Python arithmetic, tens of times more slowly and not in constant time,
 which ``SECURITY.md`` publishes.
 
 secp256k1 arithmetic is delegated to those bindings, and the delegation
-can be turned off. Setting ``BTCLIB_NO_LIBSECP256K1`` to a non-empty
-value in the environment, before btclib is imported, makes *off* the
-state the process starts in:
+can be turned off. Setting ``ELLIPTICCURVES_NO_LIBSECP256K1`` to a
+non-empty value in the environment, before btclib is imported, makes
+*off* the state the process starts in:
 
 .. code-block:: shell
 
-   BTCLIB_NO_LIBSECP256K1=1 python your_script.py
+   ELLIPTICCURVES_NO_LIBSECP256K1=1 python your_script.py
 
 :func:`btclib.curves.set_libsecp256k1_serving` changes it from inside a
 running process — including back on, so the variable sets the initial
@@ -118,7 +118,7 @@ with ``bytes.fromhex``. Passing text where hex is expected fails:
 >>> from btclib.ecc import dsa
 >>> dsa.sign("hello world", 1)
 Traceback (most recent call last):
-btclib.exceptions.BTClibValueError: invalid hex string: non-hexadecimal number found in fromhex() arg at position 0
+ellipticcurves.exceptions.EllipticCurvesValueError: invalid hex string: non-hexadecimal number found in fromhex() arg at position 0
 
 Pass ``bytes`` when you mean text, and let the hex spelling be for
 things that are bytes:

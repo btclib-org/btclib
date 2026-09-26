@@ -9,12 +9,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from btclib import var_bytes
-from btclib._libsecp256k1 import ssa_verify as _libsecp256k1_ssa_verify
 from btclib.alias import ScriptList
-from btclib.curves import secp256k1
-from btclib.curves.curve import _libsecp256k1_serves
+from btclib.curves import is_libsecp256k1_serving
 from btclib.ecc import ssa
-from btclib.exceptions import BTClibValueError, ScriptError
+from btclib.exceptions import BTClibValueError, EllipticCurvesValueError, ScriptError
 from btclib.hashes import tagged_hash
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
@@ -28,6 +26,17 @@ from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.op_codes_tapscript import OP_CODE_NAMES
 from btclib.script.script_pub_key import type_and_payload
 from btclib.script.sig_hash import PrecomputedTxData
+
+# the bindings, imported from their own package; None where they are not
+# installed, which nothing calls: what calls them here is behind
+# `is_libsecp256k1_serving`, False in that configuration. Installed one
+# name short, this import alone falls back to None while ellipticcurves
+# keeps serving, so the call fails rather than degrading: the floor the
+# `secp256k1` extra puts on the bindings is what rules that out
+try:
+    from btclib_secp256k1.ssa import verify as _libsecp256k1_ssa_verify
+except ImportError:  # pragma: no cover -- only an install without them
+    _libsecp256k1_ssa_verify = None  # type: ignore[assignment]
 from btclib.script.taproot import parse
 from btclib.script.taproot import serialize as serialize_script
 from btclib.tx.tx import Tx
@@ -65,7 +74,7 @@ def ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     _assert_bytes_arguments(msg_hash=msg_hash, pub_key=pub_key, sig=sig)
 
     try:
-        if _libsecp256k1_serves(secp256k1, None):
+        if is_libsecp256k1_serving():
             return bool(_libsecp256k1_ssa_verify(msg_hash, pub_key, sig))
         return ssa.verify_(msg_hash, pub_key, sig)
     except ValueError:
@@ -425,7 +434,9 @@ def verify_script_path_vc0(
             script_index_ref,
             hash_types,
         )
-    except BTClibValueError as e:
+    # ellipticcurves' refusal beside btclib's: a signature or a key the
+    # loop hands to it is refused by that package's own class
+    except (BTClibValueError, EllipticCurvesValueError) as e:
         raise ScriptError(str(e), script_index_ref[0], len(stack)) from e
     except IndexError as e:
         # what the loop indexes and pops is the stack and the altstack,
