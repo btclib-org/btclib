@@ -67,8 +67,7 @@ def _is_public(parts: tuple[str, ...]) -> bool:
     private name is not API, so it takes no automodule stanza, and the
     underscore is the whole of what says so -- `btclib._ripemd160`, the
     pure Python fallback `btclib.hashes` reaches where hashlib has no
-    RIPEMD-160, and `btclib._libsecp256k1`, where the bindings are
-    imported once for the package. `_data` holds data and no Python.
+    RIPEMD-160. `_data` holds data and no Python.
     """
     return not any(part.startswith("_") for part in parts if part != "__init__")
 

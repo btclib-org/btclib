@@ -108,9 +108,9 @@ myst_heading_anchors = 6
 # a docstring type field, so it draws no reference for -n to raise on
 intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 
-# What the mapping above does not answer for is two shapes, neither an
-# inventory can fix, and each entry below carries its own reason rather
-# than a nitpick_ignore_regex that would give the check up entirely:
+# What the mapping above does not answer for is the shapes below, and each
+# entry carries its own reason rather than a nitpick_ignore_regex that
+# would give the check up entirely:
 #
 # - a subscripted generic written inline in a signature -- Callable's
 #   argument list, a bare tuple[int, ...], a union built out of either --
@@ -123,6 +123,12 @@ intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 #   underscore, and automodule does not document a name spelled that way
 #   at all, so `:members:` renders no page for a signature naming one to
 #   link to
+# - a name under btclib_ecc's own path that the pages here document
+#   under btclib's alone, or not at all: the objects `btclib.curves` and
+#   `btclib.ecc` bind again carry that package's annotations and
+#   docstrings, and btclib-ecc.readthedocs.io serves no objects.inv
+#   for a mapping to read (issue #2282). An inventory there is what
+#   retires these three
 nitpick_ignore = [
     ("py:class", "collections.abc.Callable[[]"),
     ("py:class", "tuple[int"),
@@ -133,6 +139,9 @@ nitpick_ignore = [
     ("py:class", "btclib.p2p.inventory._LocatorPayload"),
     ("py:class", "btclib.p2p.keepalive._NoncePayload"),
     ("py:class", "btclib.p2p.block_filters._FilterRangeRequest"),
+    ("py:class", "btclib_ecc.alias.HashObject"),
+    ("py:mod", "btclib_ecc.ecc.dh"),
+    ("py:func", "btclib_ecc.ecc.dh.diffie_hellman"),
 ]
 
 # no suppress_warnings, and myst.xref_missing least of all: the transform

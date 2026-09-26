@@ -74,18 +74,20 @@ Python arithmetic, tens of times more slowly and not in constant time,
 which ``SECURITY.md`` publishes.
 
 secp256k1 arithmetic is delegated to those bindings, and the delegation
-can be turned off. Setting ``BTCLIB_NO_LIBSECP256K1`` to a non-empty
-value in the environment, before btclib is imported, makes *off* the
-state the process starts in:
+can be turned off. Setting ``BTCLIB_ECC_NO_LIBSECP256K1`` to a
+non-empty value in the environment, before btclib is imported, makes
+*off* the state the process starts in:
 
 .. code-block:: shell
 
-   BTCLIB_NO_LIBSECP256K1=1 python your_script.py
+   BTCLIB_ECC_NO_LIBSECP256K1=1 python your_script.py
 
-:func:`btclib.curves.set_libsecp256k1_serving` changes it from inside a
+:func:`btclib.curves.set_libsecp256k1_serving
+<btclib.curves.curve.set_libsecp256k1_serving>` changes it from inside a
 running process — including back on, so the variable sets the initial
 state rather than locking one — and
-:func:`btclib.curves.is_libsecp256k1_serving` reads the answer back.
+:func:`btclib.curves.is_libsecp256k1_serving
+<btclib.curves.curve.is_libsecp256k1_serving>` reads the answer back.
 Both are one state and not two: what they report is whether the next
 call goes to libsecp256k1 or to the Python arithmetic, which is the only
 difference a caller can act on.
@@ -118,7 +120,7 @@ with ``bytes.fromhex``. Passing text where hex is expected fails:
 >>> from btclib.ecc import dsa
 >>> dsa.sign("hello world", 1)
 Traceback (most recent call last):
-btclib.exceptions.BTClibValueError: invalid hex string: non-hexadecimal number found in fromhex() arg at position 0
+btclib_ecc.exceptions.BTClibEccValueError: invalid hex string: non-hexadecimal number found in fromhex() arg at position 0
 
 Pass ``bytes`` when you mean text, and let the hex spelling be for
 things that are bytes:

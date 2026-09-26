@@ -24,6 +24,8 @@ import pytest
 from btclib.alias import Octets, ScriptList, TaprootScriptTree
 from btclib.ecc import ssa
 from btclib.exceptions import (
+    BTClibEccRuntimeError,
+    BTClibEccValueError,
     BTClibRuntimeError,
     BTClibTypeError,
     BTClibValueError,
@@ -128,12 +130,20 @@ def test_invalid_taproot_key_path(vector: dict[str, Any]) -> None:
     # tested
     assert not vector["failure"]["scriptSig"]
 
-    # the two of the contract this can legitimately leave through:
-    # BTClibValueError for a malformed input and BTClibRuntimeError for
-    # `ssa.assert_as_valid_` on a signature that does not verify. Neither
+    # the two of the contract this can legitimately leave through: a
+    # ValueError for a malformed input and a RuntimeError for
+    # `ssa.assert_as_valid_` on a signature that does not verify, each in
+    # btclib's class or, from `ssa` itself, in btclib_ecc's. Neither
     # derives from the other -- ValueError against RuntimeError -- so both
     # are named, and nothing wider is
-    with pytest.raises((BTClibRuntimeError, BTClibValueError)):
+    with pytest.raises(
+        (
+            BTClibRuntimeError,
+            BTClibValueError,
+            BTClibEccRuntimeError,
+            BTClibEccValueError,
+        )
+    ):
         sighash_type = 0  # all
         signature = witness.stack[0][:64]
         if len(witness.stack[0]) == 65:
@@ -414,21 +424,22 @@ def test_key_path_spend_round_trip(hash_type: int, script_tree: Any) -> None:
     # the network).
     #
     # An alternation and not a bare class, because the two arms of
-    # `assert_as_valid_` word it differently: libsecp256k1 answers one
-    # bit and btclib says "signature verification failed", while the
+    # `assert_as_valid_` word it differently: libsecp256k1 answers one bit
+    # and btclib_ecc says "signature verification failed", while the
     # Python arm knows which of BIP340's checks failed and says so -- "y_K
-    # is odd" for these signatures. Both are BTClibRuntimeError, which is
-    # the contract, and dropping the match outright would throw away in
-    # both configurations a check that has held since issue #124. Issue
-    # #998 is whether the wording should agree
+    # is odd" for these signatures. Both are BTClibEccRuntimeError,
+    # `ssa` being btclib_ecc's, which is the contract, and dropping the
+    # match outright would throw away in both configurations a check that
+    # has held since issue #124. Issue #998 is whether the wording should
+    # agree
     wrong = ssa.sign(msg, output_prvkey(prv_key, script_tree))
-    with pytest.raises(BTClibRuntimeError, match=_REFUSED):
+    with pytest.raises(BTClibEccRuntimeError, match=_REFUSED):
         ssa.assert_as_valid_(msg, pub_key, wrong)
 
     # and the key from the script is the tweaked one, the internal key
     # being what the tweak is computed from
     wrong = ssa.sign_(msg, prv_key)
-    with pytest.raises(BTClibRuntimeError, match=_REFUSED):
+    with pytest.raises(BTClibEccRuntimeError, match=_REFUSED):
         ssa.assert_as_valid_(msg, pub_key, wrong)
 
 

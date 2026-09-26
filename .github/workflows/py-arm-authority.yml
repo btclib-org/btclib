@@ -46,10 +46,10 @@ name: py arm authority
 # touched the cron and then sits in the Actions tab.
 #
 # Which pull request can invalidate the table is not a path list. An arm
-# is any function calling `_libsecp256k1_serves`, and what reaches one
-# changes above it: `script_engine/script_test.py` reaches
-# `curves.sec_point.bytes_from_prv_key_int` through `key.PrvKeyData`,
-# which holds no arm of its own. That is the push trigger's reasoning
+# is any function calling `is_libsecp256k1_serving`, and what reaches
+# one changes above it: `script_engine/script_test.py` reaches
+# `taproot.check_output_pubkey` through `script.engine`, whose own
+# module holds no arm. That is the push trigger's reasoning
 # below, where a filter naming this surface honestly "would be `every
 # merge`".
 
@@ -164,8 +164,9 @@ jobs:
       - name: Assert the bindings are absent
         run: >
           uv run --locked --no-default-groups --group harness
-          python -c "from btclib._libsecp256k1 import INSTALLED;
-          assert not INSTALLED, 'btclib_secp256k1 is installed';
+          python -c "import importlib.util;
+          assert importlib.util.find_spec('btclib_secp256k1') is None,
+          'btclib_secp256k1 is installed';
           from btclib.curves import is_libsecp256k1_serving;
           assert not is_libsecp256k1_serving()"
 

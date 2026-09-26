@@ -36,7 +36,9 @@ miss if it stopped at the constructor. Inherited
 methods are not walked a second time under a subclass that does not
 override them, deduplication being by the id of the underlying function
 once resolved, so a name re-exported under a second `__all__` --
-`all_test.py`'s `REEXPORTED` -- is one entry and not two either.
+`all_test.py`'s `REEXPORTED` -- is one entry and not two either. What
+btclib re-exports of the btclib_ecc package is no entry at all, that
+package's own suite being what holds its signatures (issue #2282).
 """
 
 from __future__ import annotations
@@ -47,6 +49,7 @@ from typing import Any
 
 import pytest
 
+from tests import defined_by_btclib_ecc
 from tests.all_test import library_modules
 
 # Walked from `btclib`, on the commit this file is part of: every public
@@ -88,61 +91,11 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.block:PartialMerkleTree.from_txids": ["check_validity"],
     "btclib.block:PartialMerkleTree.parse": ["check_validity"],
     "btclib.block:PartialMerkleTree.serialize": ["check_validity"],
-    "btclib.curves:point_from_octets": ["hybrid"],
-    "btclib.curves:set_libsecp256k1_serving": ["serving"],
     "btclib.ecc.bms:Sig.__init__": ["check_validity"],
     "btclib.ecc.bms:Sig.b64decode": ["check_validity"],
     "btclib.ecc.bms:Sig.b64encode": ["check_validity"],
     "btclib.ecc.bms:Sig.parse": ["check_validity"],
     "btclib.ecc.bms:Sig.serialize": ["check_validity"],
-    "btclib.ecc.borromean:BorromeanSig.__init__": ["check_validity"],
-    "btclib.ecc.borromean:BorromeanSig.parse": ["check_validity"],
-    "btclib.ecc.borromean:BorromeanSig.serialize": ["check_validity"],
-    "btclib.ecc.rangeproof:RangeProof.__init__": ["check_validity"],
-    "btclib.ecc.rangeproof:RangeProof.nonce_chain": ["check_validity"],
-    "btclib.ecc.rangeproof:RangeProof.parse": ["check_validity"],
-    "btclib.ecc.rangeproof:RangeProof.pubk_rings": ["check_validity"],
-    "btclib.ecc.rangeproof:RangeProof.serialize": ["check_validity"],
-    "btclib.ecc.rangeproof:assert_as_valid": ["extra_commit"],
-    "btclib.ecc.rangeproof:rewind": ["extra_commit"],
-    "btclib.ecc.rangeproof:sign": [
-        "min_value",
-        "exp",
-        "min_bits",
-        "message",
-        "extra_commit",
-    ],
-    "btclib.ecc.rangeproof:verify": ["extra_commit"],
-    "btclib.ecc.dsa:Sig.__init__": ["check_validity"],
-    "btclib.ecc.dsa:Sig.parse": ["check_validity", "strict"],
-    "btclib.ecc.dsa:Sig.serialize": ["check_validity"],
-    "btclib.ecc.dsa:Signer.sign": ["grind", "verify"],
-    "btclib.ecc.dsa:Signer.sign_": ["grind", "verify"],
-    "btclib.ecc.dsa:assert_as_valid": ["commit", "receipt"],
-    "btclib.ecc.dsa:assert_as_valid_": ["commit_hash", "receipt"],
-    "btclib.ecc.dsa:sign": ["grind", "verify", "pub_key", "commit"],
-    "btclib.ecc.dsa:sign_": ["grind", "verify", "pub_key", "commit_hash"],
-    "btclib.ecc.dsa:verify": ["commit", "receipt"],
-    "btclib.ecc.dsa:verify_": ["commit_hash", "receipt"],
-    "btclib.ecc.ecies:Envelope.__init__": ["check_validity"],
-    "btclib.ecc.ecies:Envelope.b64decode": ["magic", "check_validity"],
-    "btclib.ecc.ecies:Envelope.b64encode": ["check_validity"],
-    "btclib.ecc.ecies:Envelope.from_ciphertext": ["magic"],
-    "btclib.ecc.ecies:Envelope.parse": ["magic", "check_validity"],
-    "btclib.ecc.ecies:Envelope.serialize": ["check_validity"],
-    "btclib.ecc.ecies:decrypt": ["magic"],
-    "btclib.ecc.ecies:encrypt": ["eph_prv_key", "magic"],
-    "btclib.ecc.ssa:Sig.__init__": ["check_validity"],
-    "btclib.ecc.ssa:Sig.parse": ["check_validity"],
-    "btclib.ecc.ssa:Sig.serialize": ["check_validity"],
-    "btclib.ecc.ssa:Signer.sign": ["verify"],
-    "btclib.ecc.ssa:Signer.sign_": ["verify"],
-    "btclib.ecc.ssa:assert_as_valid": ["commit", "receipt"],
-    "btclib.ecc.ssa:assert_as_valid_": ["commit_hash", "receipt"],
-    "btclib.ecc.ssa:sign": ["verify", "commit"],
-    "btclib.ecc.ssa:sign_": ["verify", "commit_hash"],
-    "btclib.ecc.ssa:verify": ["commit", "receipt"],
-    "btclib.ecc.ssa:verify_": ["commit_hash", "receipt"],
     "btclib.fee:FeeRate.__init__": ["sats_per_kvbyte"],
     "btclib.fee:FeeRate.from_btc_per_kvbyte": ["round_up"],
     "btclib.fee:FeeRate.from_sats_per_vbyte": ["round_up"],
@@ -362,6 +315,8 @@ def _live_keyword_only() -> dict[str, list[str]]:
             continue
         for name in names:
             obj = getattr(module, name)
+            if defined_by_btclib_ecc(obj):
+                continue
             if inspect.isclass(obj):
                 found.update(_class_sites(module, name, obj, seen_ids))
             elif inspect.isfunction(obj) or inspect.isbuiltin(obj):

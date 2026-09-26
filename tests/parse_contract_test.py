@@ -28,10 +28,15 @@ from typing import Any
 import pytest
 
 from btclib.block import Block, BlockHeader, PartialMerkleTree
-from btclib.ecc import bms, ssa
-from btclib.ecc.borromean import BorromeanSig
-from btclib.ecc.rangeproof import RangeProof
-from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
+from btclib.ecc import bms
+from btclib.exceptions import (
+    BTClibEccRuntimeError,
+    BTClibEccTypeError,
+    BTClibEccValueError,
+    BTClibRuntimeError,
+    BTClibTypeError,
+    BTClibValueError,
+)
 from btclib.key import PrvKeyData
 from btclib.p2p import (
     Addr,
@@ -81,9 +86,17 @@ from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import public_classes_with
 
 # what btclib promises to raise, and the whole of it: a truncated buffer
-# has to be refused as one of these three, and never as an IndexError or a
-# struct error from underneath the library
-_CONTRACT_EXCEPTIONS = (BTClibValueError, BTClibRuntimeError, BTClibTypeError)
+# has to be refused as one of btclib's three classes, or of btclib_ecc's
+# three where a parser hands a field on to that package (issue #2282), and
+# never as an IndexError or a struct error from underneath the library
+_CONTRACT_EXCEPTIONS = (
+    BTClibValueError,
+    BTClibRuntimeError,
+    BTClibTypeError,
+    BTClibEccValueError,
+    BTClibEccRuntimeError,
+    BTClibEccTypeError,
+)
 
 _TX_ID = "01" * 32
 
@@ -145,18 +158,7 @@ _CASES: list[tuple[str, type[Any], bytes]] = [
         PartialMerkleTree,
         _partial_merkle_tree().serialize(),
     ),
-    ("ssa_sig", ssa.Sig, ssa.sign(b"parse contract", 1).serialize()),
     ("bms_sig", bms.Sig, bms.sign(b"parse contract", PrvKeyData(1)).serialize()),
-    # the public-value proof, which is the smallest one this format has:
-    # a header, its min_value, and the single-key ring the commitment
-    # itself gives. What a longer one adds is more of the same fields,
-    # and `tests/ecc/rangeproof_test.py` drives those against the proofs
-    # libsecp256k1-zkp signed
-    (
-        "rangeproof",
-        RangeProof,
-        RangeProof(-1, 0, 100000, (), (), BorromeanSig(bytes(32), [[1]])).serialize(),
-    ),
     ("witness", Witness, Witness([b"\x51", b"\x52\x53"]).serialize()),
     ("p2p_message", Message, Message("f9beb4d9", "ping", bytes(8)).serialize()),
     (
@@ -406,25 +408,6 @@ _EXCLUDED = {
         " and a padded one are two objects, each serializing back to the"
         " buffer it came from"
     ),
-    "btclib.ecc.borromean.BorromeanSig": (
-        "the wire format has no length of its own for the ring structure:"
-        " e0 || s... is only as long as the caller's rsizes says it is,"
-        " the same reason zkp's secp256k1_borromean_verify takes rsizes as"
-        " an argument rather than reading it from the proof. The three"
-        " generic properties assume a self-contained encoding, and driving"
-        " them with rsizes defaulting to empty would test that default's"
-        " artifact rather than a real signature's boundary; the real one is"
-        " tests/ecc/borromean_test.py's own"
-        " test_borromean_sig_parse_refuses_short_and_trailing_data, driven"
-        " with the rsizes an actual pubk_rings carries"
-    ),
-    "btclib.ecc.dsa.Sig": (
-        "the one parser here with a flag in front of the rule, and the flag"
-        " is Bitcoin Core's: trailing octets are refused under `strict`"
-        " alone, where IsValidSignatureEncoding is called, and refused in a"
-        " stream as well -- no caller in this library reads a signature out"
-        " of the middle of one. Sig.parse says so where it does it"
-    ),
     "btclib.p2p.handshake.Version": (
         "BIP37's relay flag is the last field of a `version` and may not"
         " be on the wire at all, so the hundred-octet payload a pre-BIP37"
@@ -439,12 +422,6 @@ _EXCLUDED = {
         " next message, so the third property has no stream to be about"
         " either. src/btclib/p2p/handshake.py states both, and"
         " tests/p2p/handshake_test.py drives what is true instead"
-    ),
-    "btclib.ecc.ecies.Envelope": (
-        "BIE1 writes the ciphertext between fixed offsets with no length in"
-        " front of it, so what would trail the envelope is ciphertext and a"
-        " truncation of it is a shorter message: the size rule it can be"
-        " held to is the minimum one it checks"
     ),
     "btclib.p2p.reject.Reject": (
         "BIP61's optional trailing hash is fixed-width and carries no length"

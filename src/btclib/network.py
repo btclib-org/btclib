@@ -54,8 +54,7 @@ from typing import Any
 
 from btclib.alias import NetworkField, NetworkName, NetworkType, Octets
 from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams
-from btclib.curves import Curve
-from btclib.curves.curve import CURVES, _assert_valid_ec
+from btclib.curves import CURVES, Curve
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import assert_type, bytes_from_octets, fields_from_json_object
 
@@ -340,8 +339,8 @@ class Network:
         # read for its own fields wherever the network is: `curve.name`
         # goes into to_dict, and `network_from_name(net).curve` is what
         # the key converters compare an `ec` against. Same check as the
-        # one in front of those, `curve._assert_valid_ec`
-        _assert_valid_ec(self.curve)
+        # one in front of those, a Curve and not merely a CurveGroup
+        assert_type(self.curve, Curve, "ec")
 
         # the hrp is the human-readable part of every bech32 address of this
         # network, so it has to be a str. An isinstance check, because

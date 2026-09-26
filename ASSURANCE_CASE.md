@@ -126,14 +126,19 @@ caller is trusted with the choices the API offers it: a caller-imposed
 nonce, a hash function, a curve, or `check_validity=False`. Some of those
 choices select the Python arithmetic, and SECURITY.md states which.
 
-**btclib and the bindings.** Past this boundary is C code btclib does not
-own. `src/btclib/_libsecp256k1.py` is the one module importing it, and
-`curves.curve._libsecp256k1_serves` decides each call, so what crosses is
-decided in one predicate rather than at each call site. The bindings are
-trusted for the answer, and the suite compares the Python arithmetic
-against them, as [ARCHITECTURE](./ARCHITECTURE.md)'s *Two arithmetic
-paths* describes. A flaw on the far side is reported upstream, as
-SECURITY.md's *What belongs here, and what belongs upstream* says.
+**btclib and btclib_ecc.** The curve arithmetic and the schemes built
+on it are btclib_ecc's, a btclib-org package btclib binds again under
+its own paths. What they raise derives from the built-in exception
+classes and not from `BTClibException`, as [ARCHITECTURE](./ARCHITECTURE.md)'s
+*The curve arithmetic is btclib_ecc's* describes.
+
+**btclib and the bindings.** Past this boundary is C code btclib does
+not own. `curves.is_libsecp256k1_serving` decides each call, btclib's
+own and btclib_ecc's alike, so whether anything crosses is decided by
+one switch rather than at each call site. The bindings are trusted for
+the answer, and the suite compares btclib's own Python arms against
+them. A flaw on the far side is reported upstream, as SECURITY.md's
+*What belongs here, and what belongs upstream* says.
 
 **Octets from the network.** A p2p message, a block, a transaction, a
 script and a witness come from parties btclib has no reason to trust.
@@ -154,25 +159,26 @@ json, and `electrum.decode_response` refuses a line that is not a
 well-formed answer to the request it is matched to.
 
 **Files.** btclib opens no file a caller names. What it reads is its own
-package data, the curve catalogues and the network tables under
-`src/btclib/curves/_data/` and `src/btclib/_data/`, once, at import, in
-`src/btclib/curves/curve.py` and `src/btclib/network.py`. A caller
+package data, the network tables under `src/btclib/_data/`, once, at
+import, in `src/btclib/network.py`. A caller
 reading a file hands btclib its contents, and `from_dict` is the
 boundary a json document crosses: `tests/serialization_boundary_test.py`
 holds it to the same refusals as any other input.
 
-**The environment.** `BTCLIB_NO_LIBSECP256K1` is read once, in
-`src/btclib/_libsecp256k1.py`, and can only turn the delegation off.
+**The environment.** `BTCLIB_ECC_NO_LIBSECP256K1` is read once, by
+btclib_ecc at import, and can only turn the delegation off.
 
 ## Secure design principles
 
 Saltzer and Schroeder's principles, and the layering ARCHITECTURE
 describes beside them.
 
-- **Economy of mechanism.** One import site for the bindings and one
-  predicate for the dispatch, as above, where a copy per call site could
-  drift. Every error btclib defines derives from `BTClibException`
-  (`src/btclib/exceptions.py`), so one class is what a caller catches.
+- **Economy of mechanism.** One switch for the dispatch, as above, where
+  a copy per call site could drift. Every error btclib defines derives
+  from `BTClibException` (`src/btclib/exceptions.py`), and
+  `BTClibValueError` and btclib_ecc's `BTClibEccValueError` both
+  derive from `ValueError`, so `except ValueError` catches a value refused
+  by either package.
 - **Fail-safe defaults.** A function whose duration follows its operand
   ends in `_var`, and the plain name beside it is the one a secret may be
   handed, so a caller who does not choose gets the safer call:
@@ -182,8 +188,7 @@ describes beside them.
   `tests/check_validity_test.py` asserts that default for the wire-format
   classes it walks. A hash function that is
   not sha256 itself, by identity, sends a call down the Python path,
-  never to an answer computed for a different function
-  (`curves.curve._libsecp256k1_serves`).
+  never to an answer computed for a different function.
 - **Complete mediation.** Every public function validates its inputs,
   and where it defers the work to a private twin, the twin trusts its
   inputs because its callers checked them (CONTRIBUTING.md's *The public
@@ -241,10 +246,11 @@ to, and what counters each.
   (SECURITY.md), and ruff's flake8-bandit rules, selected with the rest
   of `ALL` in `pyproject.toml`, flag a call into the `random` module
   under `src/`. A `dsa` or `ssa` nonce the caller does not impose is
-  derived by RFC 6979 or by BIP340, each checked against the vectors its
-  specification publishes.
+  derived by RFC 6979 or by BIP340, each checked by btclib_ecc's suite
+  against the vectors its specification publishes.
 - **Improper verification of a signature (CWE-347).** A scheme whose
-  specification publishes vectors is checked against them, and the
+  specification publishes vectors is checked against them, by
+  btclib_ecc's suite for the schemes that package carries, and the
   script engine against Bitcoin Core's own script, transaction and
   sighash vectors, all pinned in `tests/_data/README.md` and compared
   with upstream on a schedule by `.github/workflows/vendored-vectors.yml`.
@@ -252,13 +258,11 @@ to, and what counters each.
   `main`, runs a regtest Bitcoin Core node against what btclib computes
   and emits: the UTXO-set statistics of `btclib.coinstats`, and a
   `version` message `btclib.p2p` serialized.
-  `.github/workflows/zkp-oracle.yml` compares btclib with
-  libsecp256k1-zkp, in a build of the bindings that carries it.
 - **Exposure of sensitive information (CWE-209).** A refusal of octets
-  that may be key material does not echo them: `tests/key_test.py` and
-  `tests/curves/sec_point_test.py` pin the messages the key parsers
-  refuse with, and `tests/ecc/dsa_test.py` asserts that a private key
-  handed where a public key belongs is not repeated in the error.
+  that may be key material does not echo them: `tests/key_test.py` pins
+  the messages the key parsers refuse with, and btclib_ecc's own
+  `tests/ecc/dsa_test.py` asserts that a private key handed where a
+  public key belongs is not repeated in the error.
 - **Deserialization of untrusted data (CWE-502).** btclib reads only its
   own binary formats, its text encodings and json, through the parsers
   and `from_dict` above. The census under *Threat model* lists neither

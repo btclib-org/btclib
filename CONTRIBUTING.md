@@ -278,15 +278,15 @@ tools, including those needed to build the documentation, is then created with:
 uv sync
 ```
 
-**Two dependencies are required and one, the bindings, is the `secp256k1`
-extra; every one of them is a floor with no upper bound**, and the absence
+**Every dependency is required but the bindings, which are the `secp256k1`
+extra, and every one of them is a floor with no upper bound**, and the absence
 of a ceiling is a decision. Which releases those floors name is
 `pyproject.toml`, next to the reason each one is where it is: a floor
 moves whenever this tree starts calling something newer, so a copy of the
 number here would be a second place to remember and the first to go
 stale. `typing-extensions` is the backport of what the 3.11 floor does
 not have, and its floor is the release adding the latest name this tree
-imports from it. The other two are btclib-org projects developed by the
+imports from it. The others are btclib-org projects developed by the
 same people, and the bindings' whole purpose is to be the bindings this
 library calls, so a breaking change there is coordinated with the release
 here —
@@ -297,41 +297,44 @@ would make a published artifact refuse a version it in fact works with; a
 `<1` ceiling constrains nothing, pre-1.0 semver putting the breaking
 changes in the minor.
 
-**One is required and the other is an extra, and that was weighed rather
-than inherited.** Making `bitcoin-core-rpc` an extra was considered and
-refused: an optional dependency whose absence changes a *speed* is a
-different object from one whose absence removes a *capability*, and only
-the first is what an extra is for. The bindings are the first — btclib
-answers without them, on a pure-Python arm that is supported, covered by
-CI and documented. `bitcoin-core-rpc` is the second: `btclib.p2p.magic`
-takes Core's chain names and a signet's message start from it, and
-nothing in btclib stands behind them.
+**`bitcoin-core-rpc` is required and the bindings are an extra, and that
+was weighed rather than inherited.** Making `bitcoin-core-rpc` an extra
+was considered and refused: an optional dependency whose absence changes
+a *speed* is a different object from one whose absence removes a
+*capability*, and only the first is what an extra is for. The bindings
+are the first — btclib answers without them, on a pure-Python arm that
+is supported, covered by CI and documented. `bitcoin-core-rpc` is the
+second: `btclib.p2p.magic` takes Core's chain names and a signet's
+message start from it, and nothing in btclib stands behind them.
 
-**Both sibling floors name a release PyPI serves**, so `pyproject.toml` carries
-no `[tool.uv.sources]` table and uv resolves the bindings from the index
-like anything else: `uv.lock` pins a version and its wheels, every job
-passes `--locked`, and `uv sync` downloads rather than compiling
-libsecp256k1 in each environment. The floor is then the whole of the
-coordination with that sibling, and it carries weight the specifier
-alone does not show: `src/btclib/_libsecp256k1.py` imports the bindings'
+**Every sibling floor names a release PyPI serves**, so `pyproject.toml`
+carries no `[tool.uv.sources]` table and uv resolves the siblings from
+the index like anything else: `uv.lock` pins a version and its wheels,
+every job passes `--locked`, and `uv sync` downloads rather than
+compiling libsecp256k1 in each environment. The floor is then the whole
+of the coordination with that sibling, and it carries weight the
+specifier alone does not show: btclib_ecc imports the bindings'
 surface in a single `try` whose `except ImportError` sets
 `INSTALLED = False`, so an install that resolves one release short of
-what this tree imports does not lose the entry point it is missing — it
-loses every delegation, quietly, on to the Python arithmetic that
-SECURITY.md publishes as slower and not constant-time. Calling something
-new is therefore the same commit that raises the floor in both of its
-places, with the reason written beside it.
+what that package imports does not lose the entry point it is missing —
+it loses every delegation, quietly, on to the Python arithmetic that
+SECURITY.md publishes as slower and not constant-time. btclib's own
+imports of the bindings are guarded one by one instead, so a shortfall
+there fails at the call rather than degrading. Calling something new is
+therefore the same commit that raises the floor in both of its places,
+with the reason written beside it.
 
 Calling an entry point merged upstream but not yet released is what a
-`[tool.uv.sources]` entry pointing `btclib-secp256k1` at its `main`
+`[tool.uv.sources]` entry pointing a sibling at a commit of its `main`
 branch is for, and it is a state to leave rather than to keep.
 `[tool.uv]` is not distribution metadata, so `dependencies` still
 publishes a plain floor and PyPI still accepts a release — where a
 direct reference written into `dependencies` instead would have to be
 written back over before publication, which is what RELEASING.md's step
 1 refuses. What the entry costs is the wheels: a git source has none, so
-every environment builds the bindings from source, submodule and C
-library included, and `uv.lock` pins the resolved commit, so the branch
+every environment builds that sibling from source, for the bindings
+their submodule and C library included, and `uv.lock` pins the resolved
+commit, so the branch
 is followed only when the lock is regenerated. One release upstream
 clears it — the source table goes and the floor moves to the version
 that carries what is being called.
@@ -531,7 +534,6 @@ read by every checkout of this repository.
 | `os-windows` | weekly, a release | Windows images and interpreters |
 | `deps-latest` | weekly | platforms sampled, deps upgraded |
 | `deps-oldest` | weekly | the floor interpreter, deps at their floors |
-| `zkp-oracle` | weekly | a bindings build carrying `secp256k1-zkp` |
 | `links`, `mutation` | weekly | — |
 | `vendored-vectors` | weekly | the pin ledgers |
 | `pypi-install` | weekly, a release | what PyPI serves |
@@ -684,8 +686,9 @@ prunes them back to the one group this job runs with:
 ```shell
 uv sync --exact --no-default-groups --group harness
 uv run --locked --no-default-groups --group harness \
-    python -c "from btclib._libsecp256k1 import INSTALLED; \
-      assert not INSTALLED, 'btclib_secp256k1 is installed'; \
+    python -c "import importlib.util; \
+      assert importlib.util.find_spec('btclib_secp256k1') is None, \
+        'btclib_secp256k1 is installed'; \
       from btclib.curves import is_libsecp256k1_serving; \
       assert not is_libsecp256k1_serving()"
 COVERAGE_FILE=coverage-data-no-bindings \
@@ -1221,7 +1224,11 @@ until it is exported or recorded in that file's `UNEXPORTED` table.
 string, octets, or an object somebody built earlier — a name a caller can
 reach checks it before acting on it, and a malformed argument leaves as a
 `BTClibTypeError` or a `BTClibValueError`, which is what the callers of
-this library are written to catch. The work itself may be deferred to a
+this library are written to catch. A name bound again from btclib_ecc,
+and a function of btclib's own handing an argument on to one, leaves with
+that package's `BTClibEccTypeError` or `BTClibEccValueError`
+instead: each derives from the same built-in, and neither from
+`BTClibException` (issue #2282). The work itself may be deferred to a
 private twin that does not validate; that twin is then what the library
 composes internally, where the inputs have already been checked and
 checking them a second time buys nothing.
@@ -1237,14 +1244,15 @@ own mistake, it is a call mypy already refuses, and it leaves as a
 12 being a private key in this library and never a public one, where a
 well-formed public key that simply did not sign is False.
 
-**`ecc`'s verifications carve one case out of that**, as `ecc.musig2` and
-`ecc.frost` do: a value of a declared type whose size or encoding makes it
-impossible to read as a signature, a key, an address, a digest or an
-opening raises rather than answering False. The function is not saying the
-signature is forged, it is saying it has no way to find out (issue #2170).
-So `dsa.verify(msg, "not a key", sig)` raises `BTClibValueError`, and
-`bms.verify(msg, "not an address", sig)` with it, while a signature that
-is well formed and simply does not verify is False.
+**`ecc`'s verifications carve one case out of that**, as `ecc.musig2`
+and `ecc.frost` do: a value of a declared type whose size or encoding
+makes it impossible to read as a signature, a key, an address, a digest
+or an opening raises rather than answering False. The function is not
+saying the signature is forged, it is saying it has no way to find out
+(issue #2170). So `dsa.verify(msg, "not a key", sig)` raises
+`BTClibEccValueError`, and `bms.verify(msg, "not an address", sig)`
+raises `BTClibValueError`, while a signature that is well formed and
+simply does not verify is False.
 
 **What decides is whether the parameter declares a size**, which is what
 makes the carve-out one rule rather than a judgement per call site. A

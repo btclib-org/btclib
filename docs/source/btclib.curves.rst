@@ -45,3 +45,4 @@ Module contents
 .. automodule:: btclib.curves
    :members:
    :show-inheritance:
+   :no-index:

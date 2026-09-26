@@ -30,9 +30,7 @@ from typing import Any
 
 import pytest
 
-# the module, not the name in it: `_libsecp256k1_available` is an
-# attribute of `curve`, and every dispatch in the package reads it there
-from btclib.curves import curve
+from btclib.curves import is_libsecp256k1_serving, set_libsecp256k1_serving
 from btclib.script.engine import script as engine_script
 from btclib.script.engine import tapscript as engine_tapscript
 
@@ -56,15 +54,16 @@ pytestmark = needs_bindings
 
 
 @pytest.fixture
-def python_verification(monkeypatch: pytest.MonkeyPatch) -> None:
+def python_verification() -> None:
     """Run the whole engine, and everything under it, in Python.
 
-    One assignment, and it has to be the global rather than a predicate
-    per module: `_libsecp256k1_serves` reads
-    `curve._libsecp256k1_available`, so clearing it is the package's
-    dispatch switched off at once -- the engine's two verifications,
+    One call, and it has to be the process-wide switch rather than a
+    predicate per module: `curves.set_libsecp256k1_serving` is what every
+    dispatch reads, btclib_ecc's and btclib's, so switching it off is
+    the dispatch switched off at once -- the engine's two verifications,
     `ecc.dsa` and `ecc.ssa` beneath them, and the field and group
-    arithmetic beneath those. Patching the predicate where a module
+    arithmetic beneath those; `conftest.py` switches it back after the
+    test. Patching the predicate where a module
     imported it would reach that module alone and leave the arm mixed:
     Python down to the verdict and C under it, which is a configuration
     nothing ships and issue #968 says an arm chosen by availability may
@@ -82,7 +81,7 @@ def python_verification(monkeypatch: pytest.MonkeyPatch) -> None:
     the slowest worker and not this; and the alternative buys back that
     difference by testing a configuration nobody installs.
     """
-    monkeypatch.setattr(curve, "_libsecp256k1_available", False)
+    set_libsecp256k1_serving(serving=False)
 
 
 # the sibling test functions are called rather than reimplemented: two
@@ -124,15 +123,13 @@ def test_invalid_taproot_vectors(vector: dict[str, Any]) -> None:
 
 
 @pytest.mark.parametrize("delegated", [True, False], ids=["bindings", "python"])
-def test_verify_answers_false_for_what_cannot_be_parsed(
-    monkeypatch: pytest.MonkeyPatch, *, delegated: bool
-) -> None:
+def test_verify_answers_false_for_what_cannot_be_parsed(*, delegated: bool) -> None:
     """A malformed signature is a failed CHECKSIG, not an exception.
 
     The contract of both adapters, and it is one contract for two arms
     that refuse in two different ways: the bindings raise a ValueError of
     "invalid DER signature" or "invalid public key", `point_from_octets`
-    raises BTClibValueError, and `ecc.dsa.verify_` and `ecc.ssa.verify_`
+    raises BTClibEccValueError, and `ecc.dsa.verify_` and `ecc.ssa.verify_`
     answer False for what they decline. Whichever it is, the interpreter
     loop must see False.
 
@@ -143,21 +140,21 @@ def test_verify_answers_false_for_what_cannot_be_parsed(
     the one this installation happens to have.
     """
     if (
-        delegated and not curve._libsecp256k1_available
+        delegated and not is_libsecp256k1_serving()
     ):  # pragma: no cover -- pytestmark skips one job, the flag guards the other
         # the id would say `bindings` and the run would be the Python arm:
         # both answer False here, so nothing would go red and half the
         # parametrization would check the same thing twice. Skipped rather
         # than asserted, this file having to pass wherever it is run --
         # and unreachable in every job that runs it: with the bindings
-        # installed, `_libsecp256k1_available` is True and the branch is
+        # installed, `is_libsecp256k1_serving()` is True and the branch is
         # never taken; without them, this module's own `pytestmark =
         # needs_bindings` above skips the whole function before its body
         # runs, so `no-bindings` never reaches it either, and neither does
         # `coverage-union`'s combination of the two runs' data
         pytest.skip("the bindings are not serving in this configuration")
     if not delegated:
-        monkeypatch.setattr(curve, "_libsecp256k1_available", False)
+        set_libsecp256k1_serving(serving=False)
 
     msg_hash = b"\x11" * 32
     # a signature that is not DER at all

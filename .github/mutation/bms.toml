@@ -92,11 +92,9 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # `Sig.parse`'s `len(sig_bin) != 65` against `<`, `stream.read(65)`
 # never returning more than 65 bytes to begin with; `_assert_p2wpkh`'s
 # `len(h160) != 20` against `>`, wit_ver 0 restricted upstream to
-# exactly 20 or 32 bytes, both already caught by `> 20`; the base64
+# exactly 20 or 32 bytes, both already caught by `> 20`; and the base64
 # decode's own `validate=True` against `False`, undone by the re-encode
-# comparison the line right after it already makes; and
-# `_libsecp256k1_serves`'s branch negated, both paths already held
-# to the same answer by `test_the_python_path_answers_the_same`.
+# comparison the line right after it already makes.
 #
 # A survivor left open: `compressed = sig.rf > 30` needs `rf == 30`
 # exactly to move, which needs key_id 3 -- the recovery id secp256k1

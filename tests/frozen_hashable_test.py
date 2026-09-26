@@ -121,7 +121,7 @@ def _frozen_dataclasses() -> dict[str, type]:
         for obj in vars(module).values():
             if not isinstance(obj, type):
                 continue
-            if not getattr(obj, "__module__", "").startswith("btclib"):
+            if getattr(obj, "__module__", "").split(".")[0] != "btclib":
                 continue
             if obj.__qualname__.startswith("_"):
                 continue
