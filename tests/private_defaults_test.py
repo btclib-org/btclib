@@ -7,22 +7,21 @@
 A default argument is written for a caller the author cannot see, and a
 leading underscore says there is none: every call site is in this tree and
 can be read. What the default buys is therefore nothing, and what it costs
-is the value the call is actually made with -- `_deserialize_scalar`'s
-`strict` decides whether BIP66's minimal encoding is enforced,
-`ssa._checked_sign_`'s `verify` whether the signature is checked before
-it is returned, and defaulted, each reads as absent at the call site
-that most needs to state it. Spelled out, a flag added to a private
+is the value the call is actually made with: a flag deciding whether an
+encoding is enforced, or whether a result is checked before it is
+returned, reads as absent at the call site that most needs to state it
+when it is defaulted. Spelled out, a flag added to a private
 function is also a question asked again at every one of its call sites,
 where a default answers it for all the ones nobody revisited.
 
 The two underscore spellings pull opposite ways here, and the rule names
-one of them. A trailing underscore is public -- `dsa.verify_`, `ssa.sign_`
--- and its signature mirrors the plain sibling's, defaults included, or
-the pair is two functions rather than a bypass; a leading underscore is
-private, and a default on it is a convenience for nobody.
-`_rfc6979_nonce_` carries both and is private: the leading underscore is
-what decides. CONTRIBUTING.md's "The public surface" states both
-conventions, and this rule beside them.
+one of them. A trailing underscore is public -- `dsa.verify_`,
+`ssa.sign_` -- and its signature mirrors the plain sibling's, defaults
+included, or the pair is two functions rather than a bypass; a leading
+underscore is private, and a default on it is a convenience for nobody.
+A name carrying both is private: the leading underscore is what decides.
+CONTRIBUTING.md's "The public surface" states both conventions, and this
+rule beside them.
 
 Two spellings the rule does not reach: a dunder, whose signature is the
 interpreter's protocol and a public constructor's where it is `__init__`,
@@ -50,10 +49,11 @@ from pathlib import Path
 _LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 
 # the shapes the walk has to be reaching for the gate to mean anything: a
-# module-level function, a private method of a public class, and a nested
-# function. A rename here is a failure worth reading rather than fixing
-# blind -- what it asks for is the new name of the same shape
-_SHAPES = frozenset({"_to_num", "Block._assert_coinbase", "sign_._checked"})
+# module-level function and a private method of a public class. The
+# library holds no nested function, so that shape is `_SOURCE`'s alone.
+# A rename here is a failure worth reading rather than fixing blind --
+# what it asks for is the new name of the same shape
+_SHAPES = frozenset({"_to_num", "Block._assert_coinbase"})
 
 # every private function of a module, with the parameters it defaults:
 # what `_private_functions` answers, and what the checker test pins

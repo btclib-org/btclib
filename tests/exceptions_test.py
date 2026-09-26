@@ -6,9 +6,9 @@
 
 The classes with nothing added to their base need no test of their own:
 what they are is the base, and every module raising one asserts the
-message it raised. What is tested here is the four carrying a field --
-`HttpError`, `RpcError`, `ScriptError` and `InvalidContributionError` --
-and specifically that a field survives leaving the process it was raised
+message it raised. What is tested here is the classes carrying a field
+-- `HttpError`, `RpcError`, `SignerError` and `ScriptError` -- and
+specifically that a field survives leaving the process it was raised
 in, which is the case the field exists for and the one nothing else in
 the suite exercises: pytest-xdist sends a report as text, so no exception
 object crosses between workers (issue #391).
@@ -24,7 +24,9 @@ from typing import Any
 import pytest
 
 from btclib import exceptions
+from btclib.ecc import dsa, ellswift
 from btclib.exceptions import (
+    BTClibEccException,
     BTClibException,
     BTClibRuntimeError,
     BTClibTypeError,
@@ -32,11 +34,11 @@ from btclib.exceptions import (
     BTClibValueError,
     FetchError,
     HttpError,
-    InvalidContributionError,
     RpcError,
     ScriptError,
     SignerError,
 )
+from tests import defined_by_btclib_ecc
 
 HTTP_MESSAGE = "getblockcount at http://127.0.0.1:8332: HTTP 503"
 
@@ -86,20 +88,6 @@ CASES = [
         "unbalanced conditional (command 3, stack depth 2)",
         {"index": 3, "stack_depth": 2},
         id="ScriptError",
-    ),
-    pytest.param(
-        InvalidContributionError(2, "psig"),
-        (2, "psig"),
-        "invalid psig from signer 2",
-        {"signer": 2, "contrib": "psig"},
-        id="InvalidContributionError",
-    ),
-    pytest.param(
-        InvalidContributionError(None, "aggnonce"),
-        (None, "aggnonce"),
-        "invalid aggnonce from the aggregator",
-        {"signer": None, "contrib": "aggnonce"},
-        id="InvalidContributionError-aggregator",
     ),
 ]
 
@@ -191,7 +179,8 @@ def test_every_exception_of_the_module_is_one_base_to_catch() -> None:
 
     `BTClibUserWarning` is the exception, and the assertion says which way:
     a warning is filtered, not caught, so it stays out of the class an
-    `except` names.
+    `except` names. The classes btclib_ecc defines, bound here again,
+    are the other: they are that package's base, not this one.
     """
     classes = [
         getattr(exceptions, name)
@@ -206,6 +195,10 @@ def test_every_exception_of_the_module_is_one_base_to_catch() -> None:
     for cls in classes:
         if cls is BTClibUserWarning:
             assert not issubclass(cls, BTClibException)
+            continue
+        if defined_by_btclib_ecc(cls):
+            assert issubclass(cls, BTClibEccException), cls.__name__
+            assert not issubclass(cls, BTClibException), cls.__name__
             continue
         assert issubclass(cls, BTClibException), f"{cls.__name__} is not catchable"
 
@@ -240,8 +233,8 @@ def test_the_base_carries_no_behaviour_of_its_own() -> None:
     """It adds a name to catch and nothing else, which is the whole design.
 
     A base that composed a message, or took a field, would be a second
-    thing to keep true in every subclass -- and the four subclasses that
-    do carry a field compose in `__str__` for the pickling reason the
+    thing to keep true in every subclass -- and the subclasses that do
+    carry a field compose in `__str__` for the pickling reason the
     module docstring gives, which a base doing its own would undo.
     """
     assert BTClibException.__init__ is Exception.__init__
@@ -274,3 +267,24 @@ def test_a_field_carrying_exception_crosses_a_process_boundary() -> None:
     assert type(remote.value) is type(local.value)
     assert str(remote.value) == str(local.value)
     assert remote.value.status == local.value.status == 503
+
+
+def test_a_failure_raised_inside_btclib_ecc_is_caught_by_the_builtin() -> None:
+    """`except ValueError` catches it, and `except BTClibException` does not.
+
+    What a btclib name bound again from btclib_ecc raises is that
+    package's class, and so is what a function of btclib's own lets
+    through from a call into it: `ellswift.xdh` reads its private key
+    with btclib_ecc's `scalar_from_prv_key`. The built-in is the one
+    base both packages share, which is what a caller catching either
+    names.
+    """
+    with pytest.raises(ValueError, match="invalid compound header") as parsed:
+        dsa.Sig.parse(b"")
+    ell = ellswift.create_var(1)
+    with pytest.raises(ValueError, match="private key not in 1..n-1") as read:
+        ellswift.xdh(ell, ell, 0, 0)
+
+    for raised in (parsed.value, read.value):
+        assert isinstance(raised, BTClibEccException)
+        assert not isinstance(raised, BTClibException)

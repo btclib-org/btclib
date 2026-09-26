@@ -16,7 +16,7 @@ import pytest
 from btclib.alias import TaprootScriptTree
 from btclib.ecc import ssa
 from btclib.ecc.dsa import Sig, sign_
-from btclib.exceptions import BTClibValueError, ScriptError
+from btclib.exceptions import BTClibEccValueError, BTClibValueError, ScriptError
 from btclib.hashes import hash160, sha256
 from btclib.key import PrvKeyData
 from btclib.script import ScriptPubKey, sig_hash
@@ -411,7 +411,7 @@ def test_fix_signature_asks_for_strict_der_as_one_mask() -> None:
         ScriptFlag.DERSIG | ScriptFlag.STRICTENC,
         ScriptFlag.DERSIG | ScriptFlag.LOW_S,
     ):
-        with pytest.raises(BTClibValueError, match="padding"):
+        with pytest.raises(BTClibEccValueError, match="padding"):
             fix_signature(signature, flags)
 
     # with none of the three it is normalized instead, which is what stands

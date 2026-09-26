@@ -154,9 +154,9 @@ def _canonical_spec(module: str, remote: str, attr: str) -> str:
     """Return "module:Qual.name", telling a submodule bind from a class one.
 
     `from btclib import var_bytes; var_bytes.parse(...)` binds a module,
-    where `parse` is that module's own function; `from btclib.ecc.ecies
-    import Envelope; Envelope.b64decode(...)` binds a class, where
-    `b64decode` is a method on it. Trying the submodule import is what
+    where `parse` is that module's own function; `from btclib.ecc.bms
+    import Sig; Sig.b64decode(...)` binds a class, where `b64decode` is a
+    method on it. Trying the submodule import is what
     tells the two apart, both being an ordinary `from X import Y` to the
     AST alone.
     """
@@ -420,11 +420,20 @@ def test_called_specs_ignores_a_two_level_attribute() -> None:
     assert _called_specs(func, {}) == set()
 
 
-def test_round_trip_is_unchecked_when_b64decode_has_no_b64encode() -> None:
-    """A b64decode entry point whose object cannot re-armor is parse-only.
+class _Armored:
+    """An object that re-armors to the base64 of one octet."""
 
-    No harness's declared b64decode entry point lacks a b64encode
-    counterpart today -- Envelope carries one -- so this is exercised on a
-    bare object rather than on any seed.
+    def b64encode(self) -> str:
+        return "YQ=="
+
+
+def test_round_trip_of_a_b64decode_entry_point() -> None:
+    """A b64decode entry point re-armors, or is parse-only where it cannot.
+
+    No harness declares a b64decode entry point, so both branches are
+    exercised on bare objects rather than on any seed.
     """
-    assert _round_trip("btclib.ecc.ecies:Envelope.b64decode", object(), b"") is None
+    spec = "btclib.ecc.bms:Sig.b64decode"
+    assert _round_trip(spec, _Armored(), b"YQ==") is True
+    assert _round_trip(spec, _Armored(), b"Yg==") is False
+    assert _round_trip(spec, object(), b"") is None

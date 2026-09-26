@@ -34,6 +34,9 @@ def payload_types() -> set[type[Any]]:
     while pending:
         cls = pending.pop()
         pending.extend(cls.__subclasses__())
-        if not cls.__name__.startswith("_") and cls.__module__.startswith("btclib"):
+        if (
+            not cls.__name__.startswith("_")
+            and cls.__module__.split(".")[0] == "btclib"
+        ):
             found.add(cls)
     return found

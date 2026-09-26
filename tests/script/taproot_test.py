@@ -18,9 +18,14 @@ from typing import Any
 import pytest
 
 from btclib import b32
-from btclib._libsecp256k1 import xonly as libsecp256k1_xonly
 from btclib.alias import Octets, ScriptList
-from btclib.curves import bytes_from_point, curve, curve_group, mult, secp256k1
+from btclib.curves import (
+    Curve,
+    bytes_from_point,
+    mult,
+    secp256k1,
+    set_libsecp256k1_serving,
+)
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.number_theory import mod_sqrt_var
@@ -45,9 +50,12 @@ from btclib.script.taproot import (
     tree_helper,
 )
 from btclib.tx import TxOut
-from tests import load, needs_bindings, vector_id
-from tests.curves.curve_test import low_card_curves, no_bindings_anywhere
+from tests import load, needs_bindings, no_bindings_anywhere, vector_id
 from tests.script import serialize_non_canonical
+
+# the modular square root the lift of an x takes, where btclib_ecc's
+# group law calls it: what the tests counting roots patch
+_EC_CURVE_GROUP_ROOT = "btclib_ecc.curves.curve_group.mod_sqrt_var"
 
 
 def script_path_vectors() -> list[Any]:
@@ -149,7 +157,7 @@ def test_one_internal_key_however_it_is_spelled(
         for key in spellings:
             assert output_pubkey(PubKeyData(key), script_tree) == expected
             with monkeypatch.context() as no_bindings:
-                no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+                no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
                 assert output_pubkey(PubKeyData(key), script_tree) == expected
 
     # and the control block carries the same internal key from any of them,
@@ -185,7 +193,7 @@ def test_the_python_tweak_is_the_bindings_tweak(
         delegated = output_pubkey(pub_key, script_tree)
         delegated_prvkey = output_prvkey(prv_key, script_tree)
         with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+            no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
             assert output_pubkey(pub_key, script_tree) == delegated
             assert output_prvkey(prv_key, script_tree) == delegated_prvkey
 
@@ -220,7 +228,7 @@ def test_the_python_output_key_lifts_the_internal_x_once(
     readers of `_output_pubkey_and_internal_key`, and reading it twice is
     the shape the count would otherwise hide.
 
-    The dispatch goes off at `curve._libsecp256k1_available` and not at
+    The dispatch goes off at `curves.set_libsecp256k1_serving` and not at
     this module's own guard, which is what the test below patches: the
     lift is `point_from_octets`', and that call delegates on its own, so
     silencing taproot alone leaves the square root being taken in C where
@@ -239,7 +247,9 @@ def test_the_python_output_key_lifts_the_internal_x_once(
     # `number_theory` and not the `curve_group` binding being patched: the
     # two are one function, and reading it off the module that exports it
     # is what strict mypy allows -- an attribute an `__all__` does not
-    # name cannot be read, only set
+    # name cannot be read, only set. The binding patched is
+    # btclib_ecc's own, where the lift takes its root: the arithmetic
+    # is that package's, and the count is of what btclib asks of it
     def counting(a: int, p_: int) -> int:
         nonlocal roots_taken
         roots_taken += 1
@@ -247,8 +257,8 @@ def test_the_python_output_key_lifts_the_internal_x_once(
 
     for tree in SCRIPT_TREES:
         with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(curve, "_libsecp256k1_available", False)
-            no_bindings.setattr(curve_group, "mod_sqrt_var", counting)
+            set_libsecp256k1_serving(serving=False)
+            no_bindings.setattr(_EC_CURVE_GROUP_ROOT, counting)
 
             roots_taken = 0
             output_pubkey(PubKeyData(sec), tree)
@@ -293,8 +303,8 @@ def test_the_python_prvkey_tweak_lifts_nothing(
         )
 
     with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
-        no_bindings.setattr(curve_group, "mod_sqrt_var", refuse)
+        no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
+        no_bindings.setattr(_EC_CURVE_GROUP_ROOT, refuse)
         for tree, expected in zip(SCRIPT_TREES, delegated, strict=True):
             assert output_prvkey(prv_key, tree) == expected
 
@@ -323,6 +333,8 @@ def test_the_py_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None
     the same shape: it puts the whole of btclib_secp256k1 out of reach,
     module and already-bound name alike, and switches the dispatch off.
     """
+    from btclib_secp256k1 import xonly as libsecp256k1_xonly  # noqa: PLC0415
+
     prv_key = 0xC0FFEE
     pub_key = PrvKeyData(prv_key).pub
     script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
@@ -366,7 +378,7 @@ def test_the_python_commitment_check_is_the_bindings_one(
     assert check_output_pubkey(q, script_bytes, control)
     assert not check_output_pubkey(not_q, script_bytes, control)
     with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+        no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
         assert check_output_pubkey(q, script_bytes, control)
         assert not check_output_pubkey(not_q, script_bytes, control)
 
@@ -416,7 +428,7 @@ def test_check_output_pubkey_of_an_internal_key_that_is_not_a_point(
         with pytest.raises(BTClibValueError, match=err_msg):
             check_output_pubkey(b"\x00" * 32, b"\x51", control)
         with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+            no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
             with pytest.raises(BTClibValueError, match=err_msg):
                 check_output_pubkey(b"\x00" * 32, b"\x51", control)
 
@@ -455,7 +467,7 @@ def test_the_tweak_refuses_an_internal_key_that_is_no_point_alike(
         with pytest.raises(BTClibValueError, match=err_msg):
             output_pubkey_from_merkle_root(x_only, b"")
         with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+            no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
             with pytest.raises(BTClibValueError, match=err_msg):
                 output_pubkey_from_merkle_root(x_only, b"")
 
@@ -505,7 +517,7 @@ def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
         with pytest.raises(BTClibValueError, match="invalid internal public key"):
             output_pubkey(key)
         with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+            no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
             with pytest.raises(BTClibValueError, match=python_msg):
                 output_pubkey(key)
 
@@ -544,7 +556,7 @@ def test_a_hybrid_internal_key_is_refused_on_both_arms(
     with pytest.raises(BTClibValueError, match="hybrid SEC prefix"):
         output_pubkey(key)
     with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+        no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
         with pytest.raises(BTClibValueError, match="hybrid SEC prefix"):
             output_pubkey(key)
 
@@ -572,7 +584,7 @@ def test_check_output_pubkey_takes_every_buffer_the_door_accepts(
 
     assert check_output_pubkey(spelling(q), spelling(script), spelling(control))
     with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+        no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
         assert check_output_pubkey(spelling(q), spelling(script), spelling(control))
 
 
@@ -837,7 +849,7 @@ def test_tweak_above_group_order(monkeypatch: pytest.MonkeyPatch) -> None:
     `output_prvkey` is still not among them, its own path reaching the y
     parity of a secp256k1 point first.
     """
-    monkeypatch.setattr(taproot, "secp256k1", low_card_curves["ec13_11"])
+    monkeypatch.setattr(taproot, "secp256k1", Curve(13, 7, 6, (1, 1), 11, 1, False))
     err_msg = "Invalid script tree hash"
 
     script_tree: TaprootScriptTree = [(0xC0, ["OP_1"])]
@@ -906,6 +918,6 @@ def test_the_control_block_commits_to_the_output_key_parity(
     assert check_output_pubkey(q, script_bytes, control)
     assert not check_output_pubkey(q, script_bytes, flipped)
     with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+        no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
         assert check_output_pubkey(q, script_bytes, control)
         assert not check_output_pubkey(q, script_bytes, flipped)

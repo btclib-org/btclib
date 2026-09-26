@@ -96,19 +96,9 @@ from typing import Any
 import pytest
 
 from btclib import b32, b58, var_bytes
-from btclib._libsecp256k1 import INSTALLED
 from btclib.block.block import Block
-from btclib.curves.curve import (
-    Curve,
-    SEC2v1_params2,
-    set_libsecp256k1_serving,
-)
-from btclib.curves.sec_point import (
-    bytes_from_point,
-    bytes_from_prv_key_int,
-    point_from_octets,
-)
-from btclib.ecc import bms, dsa, frost, musig2, ssa
+from btclib.curves import bytes_from_point, bytes_from_prv_key_int
+from btclib.ecc import bms, dsa
 from btclib.exceptions import BTClibTypeError
 from btclib.fee import FeeRate
 from btclib.key import PrvKeyData, PubKeyData
@@ -146,17 +136,6 @@ _MSG = b"Satoshi Nakamoto"
 _MSG_HASH = sha256(_MSG).digest()
 _DER_SIG = dsa.sign(_MSG, _PRV_KEY).serialize()
 
-# the cheapest catalogued curve, and the point of it is that both
-# construction-time checks pass on it: a low-cardinality one is MOV-weak,
-# which is what `weakness_check=True` is there to refuse
-_SMALL_CURVE = dict(
-    zip(
-        ("p", "a", "b", "G", "n", "cofactor"),
-        SEC2v1_params2["secp112r1"][:6],
-        strict=True,
-    )
-)
-
 # a transaction with an input, which is what the engine refuses to work
 # without
 _TX = Tx(vin=[TxIn(OutPoint(b"\x00" * 32, 0))], vout=[TxOut(1000, b"\x51")])
@@ -171,9 +150,6 @@ _PREVOUTS = [TxOut(2000, b"\x51")]
 _BLOCK = Block.parse(
     (Path(__file__).parent / "block" / "_data" / "block_1.bin").read_bytes()
 )
-
-_KEY_AGG = musig2.key_agg([_SEC, _SEC_2])
-_FROST_TWEAK_CTX = frost.tweak_ctx_init(_SEC)
 
 
 @dataclass(frozen=True)
@@ -200,20 +176,7 @@ class _Case:
 
 _KINDS = (
     # `compressed` chooses which public key is computed, and therefore
-    # which address: a handful of checks, the rest of the `compressed`
-    # parameters reaching one of them
-    _Case(
-        "btclib.curves.sec_point.bytes_from_point",
-        "compressed",
-        bytes_from_point,
-        {"Q": _PUB_KEY},
-    ),
-    _Case(
-        "btclib.curves.sec_point.bytes_from_prv_key_int",
-        "compressed",
-        bytes_from_prv_key_int,
-        {"prv_key_int": _PRV_KEY},
-    ),
+    # which address
     _Case(
         "btclib.key.PrvKeyData.__init__",
         "compressed",
@@ -243,51 +206,6 @@ _KINDS = (
         "lexicographic_sorting",
         ScriptPubKey.p2ms,
         {"m": 1, "keys": [PubKeyData(_SEC), PubKeyData(_SEC_2)]},
-    ),
-    # `lower_s` chooses which of the two signatures is returned, `grind`
-    # whether the nonce is searched until r is short
-    _Case(
-        "btclib.ecc.dsa.sign_",
-        "lower_s",
-        dsa.sign_,
-        {"msg_hash": _MSG_HASH, "prv_key": _PRV_KEY},
-    ),
-    _Case(
-        "btclib.ecc.dsa.sign", "lower_s", dsa.sign, {"msg": _MSG, "prv_key": _PRV_KEY}
-    ),
-    _Case(
-        "btclib.ecc.dsa.sign_recoverable_",
-        "lower_s",
-        dsa.sign_recoverable_,
-        {"msg_hash": _MSG_HASH, "prv_key": _PRV_KEY},
-    ),
-    _Case(
-        "btclib.ecc.dsa.sign_recoverable",
-        "lower_s",
-        dsa.sign_recoverable,
-        {"msg": _MSG, "prv_key": _PRV_KEY},
-    ),
-    _Case(
-        "btclib.ecc.dsa.anti_exfil_sign",
-        "lower_s",
-        dsa.anti_exfil_sign,
-        {"msg_hash": _MSG_HASH, "prv_key": _PRV_KEY, "rho": _MSG_HASH},
-    ),
-    _Case(
-        "btclib.ecc.dsa.sign_",
-        "grind",
-        dsa.sign_,
-        {"msg_hash": _MSG_HASH, "prv_key": _PRV_KEY},
-    ),
-    _Case("btclib.ecc.dsa.sign", "grind", dsa.sign, {"msg": _MSG, "prv_key": _PRV_KEY}),
-    _Case(
-        "btclib.ecc.dsa.Signer.sign_",
-        "grind",
-        dsa.Signer(_PRV_KEY).sign_,
-        {"msg_hash": _MSG_HASH},
-    ),
-    _Case(
-        "btclib.ecc.dsa.Signer.sign", "grind", dsa.Signer(_PRV_KEY).sign, {"msg": _MSG}
     ),
     # the script engine: `segwit` says which digest a signature commits
     # to and which script code it is checked against, so it is a
@@ -433,32 +351,6 @@ _KINDS = (
         },
         valid=False,
     ),
-    _Case(
-        "btclib.ecc.musig2.apply_tweak",
-        "is_xonly",
-        musig2.apply_tweak,
-        {"key_agg_ctx": _KEY_AGG, "tweak": b"\x01" * 32},
-    ),
-    _Case(
-        "btclib.ecc.frost.apply_tweak",
-        "is_xonly",
-        frost.apply_tweak,
-        {"tweak_ctx": _FROST_TWEAK_CTX, "tweak": b"\x01" * 32},
-    ),
-    # `serving` chooses which implementation every later call reaches, so
-    # it is as much a kind as `compressed` is: a value read for its truth
-    # would let `serving="no"` ask for C and `serving=0` for Python, and
-    # a caller that asked for one and got the other would be timing the
-    # other and calling it the one. `valid=True` and not False, so that
-    # the call this file makes leaves the state an installation with the
-    # bindings is normally in
-    _Case(
-        "btclib.curves.curve.set_libsecp256k1_serving",
-        "serving",
-        set_libsecp256k1_serving,
-        {},
-        valid=INSTALLED,
-    ),
     # The ones below decide no answer, which every kind above does, and
     # are here for the other half of the line: their `True` is the
     # permissive value. A truth is safe because a non-bool is true and
@@ -479,14 +371,6 @@ _KINDS = (
         reason="`True` suppresses the NULLFAIL refusal, so a non-bool lets"
         " a non-empty signature that failed to verify through a consensus"
         " rule; `verify_script`'s `final` beside it tightens instead",
-    ),
-    _Case(
-        "btclib.curves.sec_point.point_from_octets",
-        "hybrid",
-        point_from_octets,
-        {"pub_key": _SEC},
-        reason="`True` accepts the 0x06 and 0x07 prefixes, so a non-bool"
-        " parses the very forms it was written down to keep out",
     ),
     _Case(
         "btclib.fee.FeeRate.from_sats_per_vbyte",
@@ -529,90 +413,6 @@ _KINDS = (
 )
 
 _TRUTHS = (
-    _Case(
-        "btclib.curves.curve.Curve.__init__",
-        "weakness_check",
-        Curve,
-        _SMALL_CURVE,
-        reason="whether the embedding degree is derived; a construction-time"
-        " check, and no parameter of the curve built",
-    ),
-    _Case(
-        "btclib.curves.curve.Curve.__init__",
-        "order_check",
-        Curve,
-        _SMALL_CURVE,
-        reason="whether n*G is verified to be the point at infinity",
-    ),
-    _Case(
-        "btclib.ecc.dsa.Sig.parse",
-        "strict",
-        dsa.Sig.parse,
-        {"data": _DER_SIG},
-        reason="whether the encoding must be Bitcoin Core's canonical one,"
-        " trailing bytes and non-minimal scalars alike; the signature"
-        " parsed out of what both readings accept is one signature",
-    ),
-    _Case(
-        "btclib.ecc.dsa.sign_",
-        "verify",
-        dsa.sign_,
-        {"msg_hash": _MSG_HASH, "prv_key": _PRV_KEY},
-        reason="whether the signature is checked before it is answered with;"
-        " the signature is the same either way, the check being a"
-        " verification of what has already been computed",
-    ),
-    _Case(
-        "btclib.ecc.dsa.sign",
-        "verify",
-        dsa.sign,
-        {"msg": _MSG, "prv_key": _PRV_KEY},
-        reason="whether the signature is checked before it is answered with",
-    ),
-    _Case(
-        "btclib.ecc.dsa.Signer.sign_",
-        "verify",
-        dsa.Signer(_PRV_KEY).sign_,
-        {"msg_hash": _MSG_HASH},
-        reason="whether the signature is checked before it is answered with",
-    ),
-    _Case(
-        "btclib.ecc.dsa.Signer.sign",
-        "verify",
-        dsa.Signer(_PRV_KEY).sign,
-        {"msg": _MSG},
-        reason="whether the signature is checked before it is answered with",
-    ),
-    _Case(
-        "btclib.ecc.ssa.sign_",
-        "verify",
-        ssa.sign_,
-        {"msg": _MSG, "prv_key": _PRV_KEY},
-        reason="whether the signature is checked before it is answered with;"
-        " the signature is the same either way, the check being a"
-        " verification of what has already been computed",
-    ),
-    _Case(
-        "btclib.ecc.ssa.sign",
-        "verify",
-        ssa.sign,
-        {"msg": _MSG, "prv_key": _PRV_KEY},
-        reason="whether the signature is checked before it is answered with",
-    ),
-    _Case(
-        "btclib.ecc.ssa.Signer.sign_",
-        "verify",
-        ssa.Signer(_PRV_KEY).sign_,
-        {"msg": _MSG},
-        reason="whether the signature is checked before it is answered with",
-    ),
-    _Case(
-        "btclib.ecc.ssa.Signer.sign",
-        "verify",
-        ssa.Signer(_PRV_KEY).sign,
-        {"msg": _MSG},
-        reason="whether the signature is checked before it is answered with",
-    ),
     _Case(
         "btclib.var_bytes.parse",
         "forbid_zero_size",
@@ -690,8 +490,6 @@ def _flags_of(function: ast.FunctionDef) -> set[str]:
     """Return the `bool`-annotated parameters of one public function."""
     if function.name.startswith("_") and not function.name.startswith("__"):
         return set()
-    if any(ast.unparse(d) == "overload" for d in function.decorator_list):
-        return set()
     arguments = [
         *function.args.posonlyargs,
         *function.args.args,
@@ -713,9 +511,8 @@ def _bool_parameters() -> set[tuple[str, str]]:
     called says nothing, and `include_witness` is spelled both ways.
 
     A method counts and a private function does not, as in
-    `curve_parameter_test.py`; an `@overload` stub is not a function to
-    drive; and a function nested in another is a closure rather than API,
-    a parameter no caller can pass.
+    `curve_parameter_test.py`; and a function nested in another is a closure
+    rather than API, a parameter no caller can pass.
     """
     found: set[tuple[str, str]] = set()
 
@@ -793,7 +590,7 @@ def test_the_walk_reaches_what_it_claims() -> None:
     """
     found = _bool_parameters()
     # a defaulted flag, a required one, an optional annotation, a method
-    assert ("btclib.ecc.dsa.sign", "lower_s") in found
+    assert ("btclib.ecc.bms.gen_keys", "compressed") in found
     assert ("btclib.tx.tx.join", "shuffle_inp") in found
     assert ("btclib.b58.prv_key_data_from_wif", "compressed") in found
     assert ("btclib.tx.tx.Tx.serialize", "include_witness") in found
@@ -801,5 +598,8 @@ def test_the_walk_reaches_what_it_claims() -> None:
     # the convention with a file of its own
     assert not [pair for pair in found if pair[1] == "check_validity"]
     # a private function, and a parameter of another type
-    assert ("btclib.ecc.musig2._flag", "is_xonly") not in found
-    assert ("btclib._ecc_hashes.reduce_to_hlen", "hf") not in found
+    assert ("btclib.block.block.Block._serialized_size", "include_witness") not in found
+    assert ("btclib.hashes.merkle_root", "hf") not in found
+    # and nothing of what btclib re-exports of btclib_ecc: the walk
+    # reads btclib's own files, where those names are imports and no def
+    assert not [pair for pair in found if pair[0].startswith("btclib.ecc.dsa.")]

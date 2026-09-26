@@ -4,10 +4,11 @@
 
 """btclib with btclib_secp256k1 not installed, which is a subprocess.
 
-`btclib._libsecp256k1` asks for the bindings once, at import, and
-`curves.curve._libsecp256k1_available` is that answer; so the question
-this file asks -- does the library import and answer without them -- can
-only be asked of an interpreter that has not imported btclib yet. A
+btclib_ecc asks for the bindings once, at import, and btclib's own
+modules calling them directly each try their import once too; so the
+question this file asks -- does the library import and answer without
+them -- can only be asked of an interpreter that has not imported btclib
+yet. A
 monkeypatch cannot: by the time a test runs, the import has happened and
 its answer is bound.
 
@@ -40,6 +41,7 @@ compares what each arm refuses them with.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import subprocess
@@ -49,19 +51,16 @@ from typing import Any
 
 import pytest
 
-from btclib._libsecp256k1 import ENABLED, INSTALLED, NO_LIBSECP256K1
-from btclib.curves import (
-    bytes_from_point,
-    curve,
-    is_libsecp256k1_serving,
-    mult,
-    set_libsecp256k1_serving,
-)
+from btclib.curves import bytes_from_point, is_libsecp256k1_serving, mult
 from btclib.ecc import dsa, ssa
-from btclib.exceptions import BTClibException, BTClibValueError
+from btclib.exceptions import BTClibEccException, BTClibException
 from btclib.key import PubKeyData
 from btclib.script.taproot import output_pubkey
 from tests import needs_bindings
+
+# the environment variable that refuses the bindings without uninstalling
+# them: btclib_ecc's own, read once, when its dispatch is first imported
+_NO_LIBSECP256K1 = "BTCLIB_ECC_NO_LIBSECP256K1"
 
 # the key and message the child works from: constants, because the two
 # processes have to be asked the same question
@@ -91,18 +90,16 @@ class RefuseTheBindings:
 sys.meta_path.insert(0, RefuseTheBindings())
 
 import btclib
-from btclib._libsecp256k1 import ENABLED, INSTALLED, NO_LIBSECP256K1
-from btclib.curves import curve, mult
+from btclib.curves import is_libsecp256k1_serving, mult
 from btclib.ecc import dh, dsa, ellswift, ssa
-from btclib.exceptions import BTClibValueError
+from btclib.script import taproot
 from btclib.script.engine import script as engine_script
 from btclib.script.engine import tapscript as engine_tapscript
 
 assert "btclib_secp256k1" not in sys.modules, "the finder let the bindings in"
 
 print(json.dumps({{
-    "installed": INSTALLED,
-    "dispatch": curve._libsecp256k1_available,
+    "dispatch": is_libsecp256k1_serving(),
     "point": mult({prv_key}),
     "dsa": dsa.sign_({msg_hash!r}, {prv_key}).serialize().hex(),
     "ssa": ssa.sign_({msg_hash!r}, {prv_key}, {aux!r}).serialize().hex(),
@@ -152,21 +149,19 @@ def test_btclib_answers_with_the_bindings_out_of_reach() -> None:
     The child imports guarded modules beyond the ones it then calls:
     `src/btclib/__init__.py` imports nothing eagerly, so `import btclib` is
     the metadata lookup and no module at all, and a guard nothing imports
-    is a guard nothing checks. `ecc.dh`, `ecc.ellswift` and
-    `script.engine.tapscript` are the three the calls below would not
+    is a guard nothing checks. `ecc.dh`, `ecc.ellswift`, `script.taproot`
+    and `script.engine.tapscript` are the ones the calls below would not
     reach on their own.
     """
     # the same question this process answers with the bindings serving
-    assert INSTALLED
-    assert ENABLED
-    assert curve._libsecp256k1_available
+    assert importlib.util.find_spec("btclib_secp256k1") is not None
+    assert is_libsecp256k1_serving()
 
     sec = bytes_from_point(mult(_PRV_KEY)).hex()
     sig = dsa.sign_(_MSG_HASH, _PRV_KEY).serialize().hex()
 
     answers = _child_answers(sec, sig)
 
-    assert answers["installed"] is False
     assert answers["dispatch"] is False
     assert tuple(answers["point"]) == mult(_PRV_KEY)
     assert answers["dsa"] == sig
@@ -176,87 +171,26 @@ def test_btclib_answers_with_the_bindings_out_of_reach() -> None:
 
 @needs_bindings
 def test_the_environment_variable_refuses_the_installed_bindings() -> None:
-    """`BTCLIB_NO_LIBSECP256K1` is the way in that settles before import.
+    """The environment variable is the way in that settles before import.
 
-    A public function cannot do this job on its own: `btclib.
-    _libsecp256k1` answers at import, so a caller that wants the Python
-    arithmetic from the first call has to say so before the interpreter
-    reaches `import btclib`. A test runner is exactly that caller, which
-    is why the variable exists beside `set_libsecp256k1_serving` rather
-    than instead of it.
-
-    Installed and refused answers what absent answers -- one state, not
-    two -- so the assertion is the same as the child above makes.
+    It is btclib_ecc's, and what this asks is that btclib answers to
+    it: `is_libsecp256k1_serving` is what every dispatch of btclib's own
+    reads too, so installed and refused is the Python arithmetic
+    throughout. An empty value is not set, and leaves the bindings serving.
     """
     probe = (
-        "from btclib._libsecp256k1 import ENABLED, INSTALLED;"
         "from btclib.curves import is_libsecp256k1_serving;"
-        "print(INSTALLED, ENABLED, is_libsecp256k1_serving())"
+        "print(is_libsecp256k1_serving())"
     )
-    answered = subprocess.run(  # noqa: S603
-        [sys.executable, "-c", probe],
-        capture_output=True,
-        encoding="utf-8",
-        check=True,
-        env={**os.environ, NO_LIBSECP256K1: "1"},
-    ).stdout.split()
-    assert answered == ["True", "False", "False"]
-
-    # and an empty value is not set: the bindings serve
-    answered = subprocess.run(  # noqa: S603
-        [sys.executable, "-c", probe],
-        capture_output=True,
-        encoding="utf-8",
-        check=True,
-        env={**os.environ, NO_LIBSECP256K1: ""},
-    ).stdout.split()
-    assert answered == ["True", "True", "True"]
-
-
-def test_the_switch_refuses_to_promise_bindings_that_are_not_there(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Asking for C where there is none is refused, not ignored.
-
-    A caller that asked for the bindings and was quietly left on the
-    Python arithmetic would be timing Python and calling it C, which is
-    the mistake `curves/curve.py` says the seam exists to make
-    impossible.
-    """
-    monkeypatch.setattr(curve, "_bindings_installed", False)
-    with pytest.raises(BTClibValueError, match="btclib_secp256k1 is not installed"):
-        set_libsecp256k1_serving(serving=True)
-
-    # try/finally and not a monkeypatch for the restore: monkeypatch puts
-    # back the value it found, and it would find the False this test has
-    # just set -- which is a process-wide switch left off for whatever
-    # runs next in this worker
-    try:
-        # switching them off is allowed whatever is installed: it is the
-        # direction that always has an implementation to fall back to
-        set_libsecp256k1_serving(serving=False)
-        assert not is_libsecp256k1_serving()
-    finally:
-        monkeypatch.undo()
-        set_libsecp256k1_serving(serving=ENABLED)
-
-
-@needs_bindings
-def test_the_switch_is_read_back_by_the_reader() -> None:
-    """The pair is one state: what is set is what is read."""
-    assert is_libsecp256k1_serving() is curve._libsecp256k1_available
-    delegated = mult(_PRV_KEY)
-
-    try:
-        set_libsecp256k1_serving(serving=False)
-        assert is_libsecp256k1_serving() is False
-        # every dispatch reads it, which is what makes the pair worth
-        # having: the arithmetic answers the same either way
-        assert mult(_PRV_KEY) == delegated
-        set_libsecp256k1_serving(serving=True)
-        assert is_libsecp256k1_serving() is True
-    finally:
-        set_libsecp256k1_serving(serving=ENABLED)
+    for value, serving in (("1", "False"), ("", "True")):
+        answered = subprocess.run(  # noqa: S603
+            [sys.executable, "-c", probe],
+            capture_output=True,
+            encoding="utf-8",
+            check=True,
+            env={**os.environ, _NO_LIBSECP256K1: value},
+        ).stdout.split()
+        assert answered == [serving]
 
 
 # the point taproot's own tests already build from -- (0xC0FFEE)`mult`
@@ -308,10 +242,10 @@ _REFUSALS: dict[str, tuple[Callable[[], object], bool]] = {
 
 # a second child, built the same way as `_CHILD` above: the finder
 # first, then a table of the same inputs `_REFUSALS` names, run against
-# whatever each raises rather than what each returns. `installed` and
-# `dispatch` are asked again here rather than trusted from the first
-# child's own answer, a separate `-c` invocation being a separate
-# process this test has not otherwise looked at
+# whatever each raises rather than what each returns. `dispatch` is asked
+# again here rather than trusted from the first child's own answer, a
+# separate `-c` invocation being a separate process this test has not
+# otherwise looked at
 _REFUSAL_CHILD = """
 import json, sys
 
@@ -326,10 +260,9 @@ class RefuseTheBindings:
 sys.meta_path.insert(0, RefuseTheBindings())
 
 import btclib
-from btclib._libsecp256k1 import INSTALLED
-from btclib.curves import curve
+from btclib.curves import is_libsecp256k1_serving
 from btclib.ecc import dsa
-from btclib.exceptions import BTClibException
+from btclib.exceptions import BTClibException, BTClibEccException
 from btclib.key import PubKeyData
 from btclib.script.taproot import output_pubkey
 
@@ -339,14 +272,13 @@ assert "btclib_secp256k1" not in sys.modules, "the finder let the bindings in"
 def refused(call):
     try:
         call()
-    except BTClibException as e:
+    except (BTClibException, BTClibEccException) as e:
         return [type(e).__name__, str(e)]
     return None  # a call this table names but does not refuse is the finding
 
 
 print(json.dumps({{
-    "installed": INSTALLED,
-    "dispatch": curve._libsecp256k1_available,
+    "dispatch": is_libsecp256k1_serving(),
     "bool private key": refused(lambda: dsa.sign({msg_hash!r}, True)),
     "hybrid internal key": refused(
         lambda: output_pubkey(
@@ -385,7 +317,7 @@ def _refusal_child_answers() -> dict[str, Any]:
 
 def _locally_refused(call: Callable[[], object]) -> tuple[str, str]:
     """Run call with the bindings in reach and return what it raised."""
-    with pytest.raises(BTClibException) as excinfo:
+    with pytest.raises((BTClibException, BTClibEccException)) as excinfo:
         call()
     return type(excinfo.value).__name__, str(excinfo.value)
 
@@ -413,7 +345,6 @@ def test_the_two_arms_refuse_the_same_inputs() -> None:
     local = {name: _locally_refused(call) for name, (call, _) in _REFUSALS.items()}
 
     answers = _refusal_child_answers()
-    assert answers["installed"] is False
     assert answers["dispatch"] is False
 
     for name, (_, compare_message) in _REFUSALS.items():

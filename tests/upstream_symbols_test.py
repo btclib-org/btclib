@@ -46,16 +46,17 @@ command that names the difference.
 
 **The authority is the library's own `src`, not its `include`.**
 Publishing is a different question from having, and a credit raises the
-second: `curves.curve` names `secp256k1_ge_x_on_curve_var`,
-`curves.curve_group` names `secp256k1_ecmult_gen_gej` and
-`number_theory` names `secp256k1_ctz64_var`, each of them defined in
-that library's own `src` and declared in no header of `include`.
+second: btclib_ecc's `curves.curve` names
+`secp256k1_ge_x_on_curve_var`, its `curves.curve_group` names
+`secp256k1_ecmult_gen_gej` and its `number_theory` names
+`secp256k1_ctz64_var`, each of them defined in that library's own `src`
+and declared in no header of `include`.
 `src/group.h`, `src/ecmult_gen.h` and `src/util.h` are where they are
 declared, which is the point: a header under `src` is not publishing.
 Measured
 against an `include` listing, every one of those paragraphs is an
 offender and the repair on offer is to stop naming an internal function
-this tree really does read, so the narrower set answers a question
+that package really does read, so the narrower set answers a question
 nobody asked. It is also not the smaller one in the end: every name
 `include` declares is named in `src` as well, the difference being names
 a header comment wraps in prose rather than declares.
@@ -333,10 +334,11 @@ def test_the_sweep_reads_the_tree_rather_than_an_empty_list() -> None:
 
     A file a walk never reached reads exactly like a file with nothing
     in it, and the assertion above cannot tell the two apart. This names
-    a paragraph the tree really carries -- `curves.curve_group`'s
-    account of what a random Z buys -- and asks the same helpers for it.
+    a paragraph the tree really carries -- `script.taproot`'s account
+    of the call `check_output_pubkey` delegates -- and asks the same
+    helpers for it.
     """
-    source = (_ROOT / "src" / "btclib" / "curves" / "curve_group.py").read_text(
+    source = (_ROOT / "src" / "btclib" / "script" / "taproot.py").read_text(
         encoding="utf-8"
     )
     credited = {
@@ -346,7 +348,7 @@ def test_the_sweep_reads_the_tree_rather_than_an_empty_list() -> None:
         if _LIBRARY.search(_fold(paragraph))
         for name in _NAME.findall(_fold(paragraph))
     }
-    assert "secp256k1_gej_rescale" in credited
+    assert "secp256k1_xonly_pubkey_tweak_add_check" in credited
 
 
 def test_a_name_the_library_does_not_have_is_what_fails() -> None:

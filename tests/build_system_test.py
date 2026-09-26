@@ -122,8 +122,10 @@ def test_the_bindings_extra_and_group_ask_for_the_same_thing() -> None:
     """
     extra, group = _bindings_requirements()
     assert extra == group, f"the extra asks {extra}, the group asks {group}"
-    assert len(extra) == 1, f"the extra names more than the bindings: {extra}"
-    assert extra[0].startswith("btclib-secp256k1"), extra[0]
+    # the bindings, and btclib_ecc's own extra for them, which is what
+    # puts them behind that package's delegations as well as btclib's
+    names = sorted(requirement.split(">=")[0] for requirement in extra)
+    assert names == ["btclib-ecc[secp256k1]", "btclib-secp256k1"], extra
 
 
 # `[tool.uv.build-backend] source-exclude` carries its own reasoning in

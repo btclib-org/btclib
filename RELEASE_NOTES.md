@@ -134,6 +134,25 @@ full year, short month, short day (YYYY-M-D)
   copies, and its modules import all of them but `MnemonicLang` from
   `btclib.alias`, so upgrade btclib-wallet together with btclib, to a
   release later than 2026.9.24.
+- **`except BTClibException` does not catch what the curve arithmetic and
+  the schemes built on it raise** (issue #2282). `btclib.curves`,
+  `btclib.number_theory`, `btclib.kdf` and every `btclib.ecc` module but
+  `bms` are btclib_ecc's objects bound again, and they raise that
+  package's `BTClibEccValueError`, `BTClibEccTypeError` and
+  `BTClibEccRuntimeError`, as does a btclib function handing its
+  argument on to them: `b58.wif_from_prv_key` refuses a key out of range
+  with `BTClibEccValueError`. v2023.7.12's `dsa.Sig.parse` raised
+  `BTClibValueError`. Each class derives from the built-in its name ends
+  in, so act on it by catching `ValueError`, `TypeError` or
+  `RuntimeError`, or by naming `BTClibEccException`, which
+  `btclib.exceptions` exports, beside `BTClibException`.
+  `InvalidContributionError` and `BorromeanRingError` derive from
+  `BTClibEccRuntimeError`.
+- **`BTCLIB_NO_LIBSECP256K1` is `BTCLIB_ECC_NO_LIBSECP256K1`** (issue
+  #2282): btclib_ecc reads the variable that starts a process with
+  the delegation to libsecp256k1 off, under its own name, and nothing
+  reads the old one. Act on it by renaming the variable wherever it is
+  set.
 
 ## v2026.9.24
 

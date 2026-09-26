@@ -60,6 +60,7 @@ minutes, and it answers a question no pull request introduces.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import shutil
 import subprocess
@@ -67,7 +68,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-from btclib._libsecp256k1 import INSTALLED
+# whether btclib_secp256k1 can be imported at all, asked of the import
+# system without importing it
+INSTALLED = importlib.util.find_spec("btclib_secp256k1") is not None
 
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
@@ -129,7 +132,7 @@ def _assert_bindings_absent() -> None:
     """Refuse to measure where btclib_secp256k1 is installed at all.
 
     Presence rather than delegation, which is the broader of the two on
-    purpose: `BTCLIB_NO_LIBSECP256K1` leaves the package installed with
+    purpose: `BTCLIB_ECC_NO_LIBSECP256K1` leaves the package installed with
     the Python arithmetic answering, and `_AUTHORITY` is measured in an
     environment holding no bindings. Refusing presence is what holds a
     run by hand to that environment instead of to one a reader has

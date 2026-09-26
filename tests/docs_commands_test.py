@@ -157,15 +157,15 @@ _HARNESS_PYTEST = re.compile(
     r"pytest --cov-fail-under=0\b(?:\s+-\S+)*\s*$"
 )
 # the `python -c` that asserts the bindings are absent, anchored on the
-# import `INSTALLED` is bound from and the call that closes the
-# argument's quote: `test.yml` folds the four clauses in between over
-# four lines with none of them, alone or joined to one neighbour, ending
+# import the absence is asked through and the call that closes the
+# argument's quote: `test.yml` folds the clauses in between over several
+# lines with none of them, alone or joined to one neighbour, ending
 # in a valid command -- `_spellings`'s one-line join never reaches a
 # match, so this one is read whole-file instead, by
 # `_whole_text_spellings` below
 _BINDINGS_ASSERT = re.compile(
     r"uv run --locked --no-default-groups --group harness\s+"
-    r'python -c "from btclib\._libsecp256k1 import INSTALLED;'
+    r'python -c "import importlib\.util;'
     r".*?is_libsecp256k1_serving\(\)\"",
     re.DOTALL,
 )

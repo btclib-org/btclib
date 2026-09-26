@@ -1,5 +1,5 @@
-# The numeric and monetary validators, mutated: satoshi amounts, fee rates,
-# and the output length of both key derivation functions. Issue #327
+# The numeric and monetary validators, mutated: satoshi amounts and fee
+# rates. Issue #327
 # proposed this scope beside the wire-format and fetch profiles, listing
 # the same defect class each time -- negative, zero, maximum and
 # maximum-plus-one, a bool passing where a bool is not a number, and the
@@ -12,22 +12,18 @@
 module-path = [
     "src/btclib/amount.py",
     "src/btclib/fee.py",
-    "src/btclib/ecc/dh.py",
-    "src/btclib/kdf.py",
 ]
 
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
-  tests/amount_test.py tests/fee_test.py tests/ecc/dh_test.py \
-  tests/kdf_test.py tests/integer_policy_test.py"""
+  tests/amount_test.py tests/fee_test.py tests/integer_policy_test.py"""
 
 # 30 seconds, narrow where sig_hash.toml's is wide, and measured rather
-# than inherited. What that file's width is for does not arise here: a
-# mutant that widens the bound is answered by memory and not by the clock,
-# `ansi_x9_63_kdf` sizing one buffer from the block count, so the request
-# meets the `ulimit -v` a session runs under and the MemoryError arrives
-# at the first statement.
+# than inherited. The measurement's scope is wider than this file's:
+# `amount.py` and `fee.py` beside `ecc.dh` and `kdf`, which are
+# btclib_ecc's and mutated there, with the 25-minute budget
+# mutation.yml gives this file ending that session complete.
 #
-# What the clock still answers is a loop no bound stops, rare here.
+# What the clock answers is a loop no bound stops, rare here.
 # Each costs this width once, and the arithmetic is what decides the
 # outcome: a wide timeout lets the rare loop mutants spend the whole
 # budget between them while the session judges only a fraction of its
@@ -47,56 +43,11 @@ timeout = 30
 
 excluded-modules = []
 
-# The `BitOr` exclusion parsers.toml argues.
-# Measured rather than assumed, as script.toml's own comment on this
-# exclusion asks:
-#
-#   grep -n ' | ' src/btclib/amount.py src/btclib/fee.py src/btclib/ecc/dh.py \
-#     src/btclib/kdf.py
-#
-# Every hit is an annotation. Confirmed by running the filter itself
-# rather than by the grep alone: `cosmic-ray init` over this file
-# enumerates the mutants below, and
-# `cosmic_ray.tools.filters.operators_filter` marks SKIPPED every
-# `bytes | None` annotation the grep finds, at eleven mutants apiece
-# -- leaving the rest for a future session to have an opinion about
-# (issue #987).
-[cosmic-ray.filters.operators-filter]
-exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
-
 # A complete session, read off the `numeric-survivors.txt` the
-# workflow uploads, at run 34833390559 -- the first session of this
-# profile to finish rather than sample, which is what the budget and
-# the timeout above buy together. The enumeration above is larger
-# because `src/btclib/kdf.py`'s HKDF is outside that session's scope,
-# and no session has had an opinion about those mutants yet.
-#
-# Most of the survivors fall into a few shapes:
-#
-# - the two `shared_info: bytes | None` annotations, on
-#   `ansi_x9_63_kdf`'s parameter and on `diffie_hellman`'s, eleven mutants
-#   apiece -- equivalent under Python 3.14's deferred annotation
-#   evaluation (PEP 649), the class parsers.toml documents.
-# - some lower `hf_size * (2**32 - 1)` without reaching the sizes a
-#   test asks for. Killing one needs a `size` between the two bounds,
-#   and for every hash function this ships with that is gigabytes of
-#   keying data -- the ask the session ceiling refuses, so no test can
-#   come at it from that side either.
-# - others widen `ceil(size / hf_size)`. The buffer is sized from the
-#   count, so it grows with it and every block still writes into a
-#   slot of its own; `bytes(view[:size])` returns the same octets, the
-#   extra blocks being work and not a wrong answer.
-# - `size > max_size` as `>=`, which still refuses the oversize call.
-#   Nothing asks for exactly `max_size`, and nothing can: it is a hundred
-#   and thirty-seven gigabytes of sha256 output.
-# - `shared_secret_point[1] == 0` as `<=`, a field element having no
-#   value below zero to tell them apart with.
-#
-# The rest are neither equivalent by inspection nor chased, spread
-# across `amount.py`, `fee.py`, `ansi_x9_63_kdf` and `diffie_hellman`.
-# `numeric-survivors.txt` in the run's artifact, at the same run,
-# names each with its diff, which is where whoever writes the tests
-# should start.
+# workflow uploads, at run 34833390559, over the scope the timeout above
+# was measured on. Its survivors in `amount.py` and `fee.py` are neither
+# equivalent by inspection nor chased; the artifact names each with its
+# diff, which is where whoever writes the tests should start.
 
 [cosmic-ray.distributor]
 name = "local"

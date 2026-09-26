@@ -38,14 +38,17 @@ from pkgutil import iter_modules
 from types import ModuleType
 
 import bitcoin_core_rpc
+import btclib_ecc.ecc
+import btclib_ecc.ecc.ellswift
+import btclib_ecc.exceptions
+import btclib_ecc.hashes
 import pytest
 
 import btclib
 import btclib.curves
 import btclib.ecc
 import btclib.script
-from btclib import _ecc_hashes, consensus
-from btclib.curves import curve_group, curve_group_2
+from btclib import consensus
 from btclib.script import script_pub_key
 from tests import module_names
 
@@ -55,7 +58,6 @@ from tests import module_names
 # the suite pass is one that was about to become public by accident
 UNEXPORTED = {
     "btclib": ["name"],
-    "btclib.curves.curve": ["datadir"],
     "btclib.network": ["datadir"],
 }
 
@@ -105,16 +107,56 @@ def _reexports(*groups: tuple[ModuleType, list[str]]) -> dict[str, ModuleType]:
 # still, being where the rest of Core's header is and where a caller reading
 # a block's own rules goes.
 #
-# `btclib._ecc_hashes` is the third: `btclib.ecc` tags and reduces with two
-# functions of `btclib.hashes`, and imports nothing above the curve's layer
-# (issue #2282), so the two are defined below it. `btclib.hashes` names
-# them still, being where a caller looks for a hash function.
+# The `btclib_ecc` package is the third decision (issue #2282): the
+# curve arithmetic, the number theory, the key derivation functions and
+# every scheme of `btclib.ecc` but `bms` are that package's, and each
+# module btclib kept for them binds its objects again under the spelling a
+# caller already had. Those entries are derived from the canonical
+# module's own `__all__` rather than listed, which is the rule itself: a
+# name the package publishes is a name btclib re-exports, so one it adds
+# and btclib does not follow fails here. `btclib.hashes` names the two
+# hash functions the package's schemes use, being where a caller looks for
+# a hash function, and `btclib.exceptions` the package's exception
+# classes, so that a caller names each from there. The two packages are
+# recorded too, for their names that are not a module.
 #
 # So a name here is not a name about to leak: it is the same object under
 # the name a caller already had, which each entry records its canonical
 # module for and the test below asserts. What would be a leak is a module
 # not listed here, or a listed module exporting a name its recorded
 # canonical module does not
+# the modules btclib keeps for the package's, each re-exporting the whole
+# of its canonical module's `__all__`
+_BTCLIB_ECC_MODULES = (
+    "curves.curve",
+    "curves.curve_group",
+    "curves.curve_group_2",
+    "curves.curve_group_f",
+    "curves.sec_point",
+    "ecc.bip340_nonce",
+    "ecc.borromean",
+    "ecc.commit_nonce",
+    "ecc.dh",
+    "ecc.dleq",
+    "ecc.dsa",
+    "ecc.ecies",
+    "ecc.frost",
+    "ecc.musig2",
+    "ecc.pedersen",
+    "ecc.rangeproof",
+    "ecc.rfc6979_nonce",
+    "ecc.ssa",
+    "kdf",
+    "number_theory",
+)
+
+
+def _the_whole_of(dotted: str) -> tuple[ModuleType, list[str]]:
+    """Return a btclib_ecc module and every name it publishes."""
+    canonical = import_module(f"btclib_ecc.{dotted}")
+    return canonical, list(canonical.__all__)
+
+
 REEXPORTED = {
     "btclib.p2p.magic": _reexports(
         (bitcoin_core_rpc, ["magic_from_chain", "magic_from_signet_challenge"]),
@@ -123,8 +165,32 @@ REEXPORTED = {
         (consensus, ["MAX_BLOCK_WEIGHT", "WITNESS_SCALE_FACTOR"]),
     ),
     "btclib.hashes": _reexports(
-        (_ecc_hashes, ["reduce_to_hlen", "tagged_hash"]),
+        (btclib_ecc.hashes, ["reduce_to_hlen", "tagged_hash"]),
     ),
+    "btclib.exceptions": _reexports(
+        (
+            btclib_ecc.exceptions,
+            [
+                "BorromeanRingError",
+                "BTClibEccException",
+                "BTClibEccRuntimeError",
+                "BTClibEccTypeError",
+                "BTClibEccValueError",
+                "InvalidContributionError",
+            ],
+        ),
+    ),
+    "btclib.ecc.ellswift": _reexports(
+        (btclib_ecc.ecc.ellswift, ["create_var", "decode_var", "encode_var"]),
+    ),
+    "btclib.curves": _reexports(_the_whole_of("curves")),
+    "btclib.ecc": _reexports(
+        (btclib_ecc.ecc, ["diffie_hellman", "second_generator"]),
+    ),
+    **{
+        f"btclib.{dotted}": _reexports(_the_whole_of(dotted))
+        for dotted in _BTCLIB_ECC_MODULES
+    },
 }
 
 # every direct child module of every package, on the side of the decision
@@ -332,7 +398,8 @@ def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
 
     mult dispatches to libsecp256k1 for secp256k1, which is exactly what a
     caller choosing _mult_jac_var from the same namespace -- on the
-    strength of its name -- gives up.
+    strength of its name -- gives up. The variants are btclib_ecc's
+    own, and that package's suite is what asks after them.
     """
     assert sorted(btclib.curves.__all__) == [
         "CURVES",
@@ -359,29 +426,6 @@ def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
         "sum_var",
         "tweak_add_var",
     ]
-
-    # the implementations are still there, in the module that defines them
-    variants = [
-        (curve_group, "_mult_aff_var"),
-        (curve_group, "_mult_base_3_var"),
-        (curve_group, "_mult_fixed_window_var"),
-        (curve_group, "_mult_fixed_window_cached_var"),
-        (curve_group, "_mult_jac_var"),
-        (curve_group, "_mult_mont_ladder_var"),
-        (curve_group, "_mult_recursive_aff_var"),
-        (curve_group, "_mult_recursive_jac_var"),
-        (curve_group, "_cached_multiples"),
-        (curve_group, "_jac_from_aff"),
-        (curve_group, "_multiples"),
-        (curve_group_2, "_double_mult_endomorphism_secp256k1_var"),
-        (curve_group_2, "_mult_endomorphism_secp256k1"),
-        (curve_group_2, "_mult_endomorphism_secp256k1_var"),
-        (curve_group_2, "_mult_sliding_window_var"),
-        (curve_group_2, "_mult_w_NAF_var"),
-    ]
-    for module, name in variants:
-        assert hasattr(module, name), f"{module.__name__}.{name} went missing"
-        assert name not in btclib.curves.__all__
 
 
 def test_ecc_exports_the_signature_schemes() -> None:
@@ -539,9 +583,11 @@ def test_no_module_exports_a_name_it_imported() -> None:
     `bitcoin-core-rpc` package canonically holds, a second copy of Core's
     table being a second thing to keep true; `btclib.block.limits` names
     the two constants `btclib.consensus` defines below the package, which
-    is where a caller reading a block's rules looks for them; and
-    `btclib.hashes` names the two functions `btclib._ecc_hashes` defines
-    below `btclib.ecc`, which is where a caller looks for a hash function.
+    is where a caller reading a block's rules looks for them; and the
+    modules btclib keeps for the `btclib_ecc` package bind that
+    package's objects under the spellings a caller already had. A package
+    is asked too where it is recorded, for its names that are not one of
+    its own submodules.
 
     Asserted both ways, because a skip list is only half a table: it says
     which names may be re-exported and nothing about whether they still are,
@@ -552,11 +598,18 @@ def test_no_module_exports_a_name_it_imported() -> None:
     the property the whole arrangement exists for.
     """
     for module in library_modules():
-        if hasattr(module, "__path__"):  # a package re-exports for a living
+        recorded = REEXPORTED.get(module.__name__)
+        is_package = hasattr(module, "__path__")
+        if is_package and recorded is None:  # a package re-exports for a living
             continue
         imported = imported_names(module)
-        leaked = {name for name in module.__all__ if name in imported}
-        recorded = REEXPORTED.get(module.__name__)
+        # a package's own submodules are its to publish, and not an alias
+        leaked = {
+            name
+            for name in module.__all__
+            if name in imported
+            and not (is_package and isinstance(getattr(module, name), ModuleType))
+        }
         if recorded is None:
             assert not leaked, f"{module.__name__} re-exports {sorted(leaked)}"
             continue

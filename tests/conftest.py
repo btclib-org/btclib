@@ -18,17 +18,23 @@ and this file is the second of the two: such a run is refused
 """
 
 import difflib
+import importlib.util
 import json
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any, Protocol
 
 import pytest
 from hypothesis import settings
 
-from btclib._libsecp256k1 import INSTALLED
-from tests import ZKP_AVAILABLE
+from btclib.curves import is_libsecp256k1_serving, set_libsecp256k1_serving
+
+# whether the bindings can be imported at all, asked of the import system
+# without importing them: `curves.is_libsecp256k1_serving` answers whether
+# they serve, which btclib_ecc's environment switch can make False with
+# them installed, and a test marked `bindings` needs them installed
+INSTALLED = importlib.util.find_spec("btclib_secp256k1") is not None
 
 # The deadline is a per-example time limit, measured on a run whose cost
 # the interpreter and the runner decide: pypy meets these tests with a
@@ -120,7 +126,7 @@ def coverage_fail_under(
     a gate that CI alone runs is one a change meets after it is pushed.
     What that costs is this function. `fail_under` applies to every
     report coverage writes, a partial one included, so `pytest
-    tests/ecc/dsa_test.py` would end in `Required test coverage of
+    tests/ecc/bms_test.py` would end in `Required test coverage of
     100.0% not reached` -- true of that run and saying nothing about the
     tree. Running one file and one test are documented commands, and a
     gate that fails them is a gate read as noise.
@@ -307,38 +313,18 @@ def pytest_configure(config: pytest.Config) -> None:
     )
 
 
-def pytest_report_header() -> str:
-    """State which `btclib_secp256k1` build this run measured.
+@pytest.fixture(autouse=True)
+def _libsecp256k1_serving_restored() -> Iterator[None]:
+    """Put the libsecp256k1 dispatch back as the test found it.
 
-    Beside the interpreter, the rootdir and the plugins pytest already
-    announces there: which of the two builds answered is a fact about
-    the same run, and the report otherwise carries it only where there
-    is a skip. `-ra` names the missing build once per test an unflagged
-    run skips, where a flagged run skips none of them and leaves the
-    answer to a subtraction over the passed and the skipped totals --
-    the exit code, the coverage total and the floor it clears reading
-    the same either way (issue #1937).
-
-    Printed under both builds and not under the flagged one alone,
-    because a line that appears only one way makes its own absence carry
-    the other answer, which a report written before this line carries
-    just as well.
-
-    What it names is what `ZKP_AVAILABLE` measured, whether
-    `btclib_secp256k1.zkp.lib` resolves, so the second arm covers a
-    build made without the flag and an environment without the bindings
-    at all alike. A conditional expression rather than an `if`, which
-    keeps this one statement. `conftest_test.py` calls the hook under
-    each value of that name, so its coverage is a fact about the code
-    and not about how the runner was invoked -- unlike the guard in
-    `tests/__init__.py`, which runs at import and carries a `pragma` in
-    each of its arms (issue #2179).
+    `curves.set_libsecp256k1_serving` is process-wide and nothing undoes
+    it, where `monkeypatch` undoes its own patches: a test switching the
+    dispatch off would otherwise leave every later test in the worker on
+    the Python arithmetic, passing while measuring the wrong arm.
     """
-    return "btclib_secp256k1.zkp: " + (
-        "built with BTCLIB_LIBSECP256K1_ZKP, so the tests marked zkp run"
-        if ZKP_AVAILABLE
-        else "no BTCLIB_LIBSECP256K1_ZKP build, so the tests marked zkp skip"
-    )
+    serving = is_libsecp256k1_serving()
+    yield
+    set_libsecp256k1_serving(serving=serving)
 
 
 @pytest.fixture
@@ -471,47 +457,20 @@ def _skip_what_needs_the_bindings(items: list[pytest.Item]) -> None:
             item.add_marker(skip)
 
 
-def _skip_what_needs_zkp(items: list[pytest.Item]) -> None:
-    """Skip every test marked `zkp`, naming why once.
-
-    The hook below calls this wherever `btclib_secp256k1.zkp.lib` is not
-    the flagged extension, `ZKP_AVAILABLE` being set once at import from
-    that same attribute access, in `tests/__init__.py`. The reason is
-    worded like `bindings`' own rather than naming the extension by
-    name: a contributor reading a skip report wants to know what to
-    build, not which cffi module answered.
-
-    `conftest_test.py` calls this directly too, so a flagged build
-    measures it like any other -- unlike the guard in `tests/__init__.py`
-    that sets the name, whose arms run at import and carry a `pragma`
-    each, a build being what decides which one a run takes (issue
-    #1885).
-    """
-    skip = pytest.mark.skip(
-        reason="btclib_secp256k1.zkp is not built with BTCLIB_LIBSECP256K1_ZKP"
-    )
-    for item in items:
-        # see `iter_markers` and not `item.keywords` above, same reason
-        if any(mark.name == "zkp" for mark in item.iter_markers()):
-            item.add_marker(skip)
-
-
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """Turn the `bindings` and `zkp` markers into a skip absent their build.
+    """Turn the `bindings` marker into a skip where the bindings are absent.
 
-    Each marker is what `tests.needs_bindings` or `tests.needs_zkp`
-    applies and what `pytest -m "not bindings"` or `-m "not zkp"` selects
-    on; this is what makes it a skip as well, so that one name does the
-    selecting and the skipping and cannot drift into doing only one.
+    The marker is what `tests.needs_bindings` applies and what `pytest -m
+    "not bindings"` selects on; this is what makes it a skip as well, so
+    that one name does the selecting and the skipping and cannot drift
+    into doing only one.
 
-    A build takes one way out of each `if` at collection and cannot take
+    A build takes one way out of the `if` at collection and cannot take
     the other, which is what a `pragma` here would otherwise stand for.
-    `conftest_test.py` calls this hook with `INSTALLED` and
-    `ZKP_AVAILABLE` monkeypatched instead, and coverage accumulates arcs
-    over the whole session, so both ways out of both are taken whatever
-    the machine was built with (issue #2185).
+    `conftest_test.py` calls this hook with `INSTALLED` monkeypatched
+    instead, and coverage accumulates arcs over the whole session, so
+    both ways out are taken whatever the machine was built with (issue
+    #2185).
     """
     if not INSTALLED:
         _skip_what_needs_the_bindings(items)
-    if not ZKP_AVAILABLE:
-        _skip_what_needs_zkp(items)

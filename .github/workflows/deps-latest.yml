@@ -185,9 +185,9 @@ jobs:
       # the mirror image of its reason: asked before the suite, and asked
       # of the interpreter rather than of the resolver, because the step
       # above resolves and installs whatever the newest release is
-      # whether or not this tree can import it. `btclib._libsecp256k1`
-      # imports the whole surface in one `try` whose `except ImportError`
-      # sets `INSTALLED = False`, so a release missing one name of it --
+      # whether or not this tree can import it. btclib_ecc imports
+      # the whole surface in one `try` whose `except ImportError` sets
+      # `INSTALLED = False`, so a release missing one name of it --
       # issue #1116, where the name was `musig` -- leaves the suite below
       # answering on the Python arithmetic, tests/conftest.py's
       # `pytest_collection_modifyitems` skipping every `bindings`-marked
@@ -208,13 +208,13 @@ jobs:
       # it measures a suite that really did skip those tests, and
       # lowering it would turn this failure green. What was missing is a
       # step in front of it that says which suite ran.
-      # `is_libsecp256k1_serving` and not `INSTALLED`: serving is
+      # `is_libsecp256k1_serving` and not the installation: serving is
       # installed and not refused, so it implies the other, and it is the
       # public reading of the seam every dispatch consults -- the name
       # the wheel smoke tests assert (issue #1117) and the one
       # `no-bindings` and py-arm-authority.yml assert the negative
-      # of. Nothing here sets BTCLIB_NO_LIBSECP256K1, so refusal is not
-      # reachable and False leaves only the import, which is what the
+      # of. Nothing here sets BTCLIB_ECC_NO_LIBSECP256K1, so refusal is
+      # not reachable and False leaves only the import, which is what the
       # message says rather than the generic sentence those two carry
       - name: Assert the bindings are serving
         # see the callee's suite-latest job above; this one folds a

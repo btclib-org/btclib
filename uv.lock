@@ -310,16 +310,19 @@ version = "2026.10"
 source = { editable = "." }
 dependencies = [
     { name = "bitcoin-core-rpc" },
+    { name = "btclib-ecc" },
     { name = "typing-extensions" },
 ]
 
 [package.optional-dependencies]
 secp256k1 = [
+    { name = "btclib-ecc", extra = ["secp256k1"] },
     { name = "btclib-secp256k1" },
 ]
 
 [package.dev-dependencies]
 bindings = [
+    { name = "btclib-ecc", extra = ["secp256k1"] },
     { name = "btclib-secp256k1" },
 ]
 check = [
@@ -330,6 +333,7 @@ check = [
     { name = "uv-build" },
 ]
 dev = [
+    { name = "btclib-ecc", extra = ["secp256k1"] },
     { name = "btclib-secp256k1" },
     { name = "check-sdist" },
     { name = "check-wheel-contents" },
@@ -351,6 +355,7 @@ dev = [
     { name = "uv-build" },
 ]
 docs = [
+    { name = "btclib-ecc", extra = ["secp256k1"] },
     { name = "btclib-secp256k1" },
     { name = "furo", marker = "python_full_version >= '3.12'" },
     { name = "myst-parser", marker = "python_full_version >= '3.12'" },
@@ -365,6 +370,7 @@ harness = [
     { name = "pytest-xdist" },
 ]
 lint = [
+    { name = "btclib-ecc", extra = ["secp256k1"] },
     { name = "btclib-secp256k1" },
     { name = "mypy" },
     { name = "pre-commit" },
@@ -374,6 +380,7 @@ mutation = [
     { name = "cosmic-ray" },
 ]
 test = [
+    { name = "btclib-ecc", extra = ["secp256k1"] },
     { name = "btclib-secp256k1" },
     { name = "coverage" },
     { name = "hypothesis" },
@@ -386,13 +393,18 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "bitcoin-core-rpc", specifier = ">=2026.8.29" },
+    { name = "btclib-ecc", specifier = ">=2026.9.26" },
+    { name = "btclib-ecc", extras = ["secp256k1"], marker = "extra == 'secp256k1'", specifier = ">=2026.9.26" },
     { name = "btclib-secp256k1", marker = "extra == 'secp256k1'", specifier = ">=0.8.0.8" },
     { name = "typing-extensions", specifier = ">=4.10" },
 ]
 provides-extras = ["secp256k1"]
 
 [package.metadata.requires-dev]
-bindings = [{ name = "btclib-secp256k1", specifier = ">=0.8.0.8" }]
+bindings = [
+    { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.9.26" },
+    { name = "btclib-secp256k1", specifier = ">=0.8.0.8" },
+]
 check = [
     { name = "check-sdist", specifier = ">=1.6.0" },
     { name = "check-wheel-contents", specifier = ">=0.6.3" },
@@ -401,6 +413,7 @@ check = [
     { name = "uv-build", specifier = ">=0.12.0,<0.13" },
 ]
 dev = [
+    { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.9.26" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0.8" },
     { name = "check-sdist", specifier = ">=1.6.0" },
     { name = "check-wheel-contents", specifier = ">=0.6.3" },
@@ -422,6 +435,7 @@ dev = [
     { name = "uv-build", specifier = ">=0.12.0,<0.13" },
 ]
 docs = [
+    { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.9.26" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0.8" },
     { name = "furo", marker = "python_full_version >= '3.12'", specifier = ">=2025.12.19" },
     { name = "myst-parser", marker = "python_full_version >= '3.12'", specifier = ">=5.1.0" },
@@ -436,6 +450,7 @@ harness = [
     { name = "pytest-xdist", specifier = ">=3.8.0" },
 ]
 lint = [
+    { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.9.26" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0.8" },
     { name = "mypy", specifier = ">=2.3.1" },
     { name = "pre-commit", specifier = ">=4.6.2" },
@@ -443,6 +458,7 @@ lint = [
 ]
 mutation = [{ name = "cosmic-ray", specifier = ">=8.7.0" }]
 test = [
+    { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.9.26" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0.8" },
     { name = "coverage", specifier = ">=7.16.0" },
     { name = "hypothesis", specifier = ">=6.168.0" },
@@ -450,6 +466,23 @@ test = [
     { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "pytest-randomly", specifier = ">=5.0.0" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
+]
+
+[[package]]
+name = "btclib-ecc"
+version = "2026.9.26"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/78/4a/92157cbf14a4891d19020eb995838d1c1427aa377c585ee128b4ec36a802/btclib_ecc-2026.9.26.tar.gz", hash = "sha256:653a5806e941623032da317f3e67e57a0b8c9c6483680922274005cdd9a46d9e", size = 1694713, upload-time = "2026-09-26T18:30:33.348Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0a/de/da66fc24e078a0bf09cad99de222b3c077c1772a5e94bcb5324b0a59879c/btclib_ecc-2026.9.26-py3-none-any.whl", hash = "sha256:c0c7ef490fa61d5aed67638894e355293671591dddf83a1b06a7e4f901f8dedd", size = 267460, upload-time = "2026-09-26T18:30:31.725Z" },
+]
+
+[package.optional-dependencies]
+secp256k1 = [
+    { name = "btclib-secp256k1" },
 ]
 
 [[package]]

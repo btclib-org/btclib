@@ -56,8 +56,8 @@ on:
     inputs:
       profile:
         # one scope's numbers are what a question about that scope needs,
-        # and without this the only way to ask is the whole matrix: twelve
-        # runners and, at the consensus job's ceiling, most of an
+        # and without this the only way to ask is the whole matrix: a
+        # runner per profile and, at the consensus job's ceiling, most of an
         # afternoon. Re-measuring one configuration -- a budget changed, a
         # timeout argued about, a survivor that moved -- is worth minutes
         # rather than that, and a question nobody can afford to ask twice
@@ -78,11 +78,7 @@ on:
           - signing
           - block
           - shared
-          - signatures
-          - curves
           - script
-          - boundaries
-          - frost
 
 # least privilege for the GITHUB_TOKEN: everything running in a job can
 # read it, and nothing here writes. In particular no issues: write --
@@ -164,22 +160,11 @@ jobs:
       # each other. utils.toml carries the larger of them and is sampled
       # rather than expected to finish, a weakened size bound turning
       # into a near-timeout mutant there the way numeric.toml's own does.
-      # numeric.toml gets 25 rather than 15 because at the 30 s
-      # per-mutant timeout its configuration argues for, 25 is what a
-      # complete session costs, and a profile that finishes states a
-      # survival rate where a sampled one can only be read for the
-      # verdicts that move in it.
-      #
-      # `signatures`: sampled rather than expected to finish, and
-      # signatures.toml's header is what the ninety minutes below reached.
-      #
-      # `curves`: ninety minutes, matching signatures.toml's budget for a
-      # scope curve_group.toml's header measures at nearly double the
-      # size, which samples the scope rather than finishing it -- the
-      # weekly job cuts the session there and reports what it judged. Why
-      # this scope is invisible to the signatures profile, and what
-      # triaging its survivors involves, are curve_group.toml's own
-      # header too.
+      # numeric.toml gets 25 rather than 15, at the 30 s per-mutant
+      # timeout its configuration argues for; what that budget was
+      # measured over is numeric.toml's own timeout comment. A profile
+      # that finishes states a survival rate where a sampled one can only
+      # be read for the verdicts that move in it.
       #
       # `script`: not folded into the consensus job, which spends 180 of
       # its 200 minutes already. 45, the 20 it was cut to
@@ -193,20 +178,6 @@ jobs:
       # is what this profile is for. If it dies here again the budget was
       # the only thing holding it, and that is a mechanism still to find
       # rather than one this file should hide.
-      #
-      # `boundaries`: musig2.toml, which spends most of a session on the
-      # two `%` turned `**` its configuration names, and the ceiling is
-      # its budget plus the environment.
-      #
-      # `frost`: a runner of its own rather than a second session in
-      # `boundaries`, where musig2.toml sits. The two are the same
-      # protocol question one BIP apart, which is the argument for
-      # putting them together; the arithmetic is the argument against.
-      # The dispatch frost.toml's header cites, run 35443988434, spent the
-      # whole budget below -- more than the session in `boundaries` is
-      # given -- and left most of the scope's mutants unrun. It is a
-      # sample, for the reason the `consensus` cell gives engine.toml's,
-      # and the ceiling leaves fifteen minutes of slack over the budget.
       profiles: >-
         [{"profile": "the consensus code", "slug": "consensus", "ceiling": 200, "sessions":
         "sig_hash.toml 90m\nengine.toml 90m"},
@@ -220,16 +191,8 @@ jobs:
         "block.toml 75m"},
         {"profile": "shared helpers and numeric bounds", "slug": "shared", "ceiling": 65,
         "sessions": "utils.toml 30m\nnumeric.toml 25m"},
-        {"profile": "signature signing and verification", "slug": "signatures", "ceiling": 100,
-        "sessions": "signatures.toml 90m"},
-        {"profile": "the pure-Python curve arithmetic", "slug": "curves", "ceiling": 100,
-        "sessions": "curve_group.toml 90m"},
         {"profile": "the script encodings", "slug": "script", "ceiling": 60, "sessions":
-        "script.toml 45m"},
-        {"profile": "musig2 signing", "slug": "boundaries", "ceiling": 30, "sessions":
-        "musig2.toml 20m"},
-        {"profile": "FROST threshold signing", "slug": "frost", "ceiling": 75, "sessions":
-        "frost.toml 60m"}]
+        "script.toml 45m"}]
       # the dropdown above, forwarded. A schedule has no `inputs` at all,
       # so this arrives at the callee as an empty string, which its own
       # `SELECTED` expression reads as every profile rather than as none

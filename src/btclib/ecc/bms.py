@@ -118,12 +118,14 @@ from hashlib import sha256
 from btclib.alias import BinaryData, Octets, String
 from btclib.b32 import is_segwit_prefixed, p2wpkh, witness_from_address
 from btclib.b58 import h160_from_address, p2pkh, p2wpkh_p2sh, wif_from_prv_key
-from btclib.curves import bytes_from_point, bytes_from_prv_key_int, secp256k1
-from btclib.curves.curve import _libsecp256k1_serves
+from btclib.curves import bytes_from_prv_key_int, secp256k1
 from btclib.ecc import dsa
-from btclib.ecc.dsa import _libsecp256k1_recover_sec_
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.hashes import hash160, magic_message, reduce_to_hlen
+from btclib.exceptions import (
+    BTClibEccRuntimeError,
+    BTClibRuntimeError,
+    BTClibValueError,
+)
+from btclib.hashes import hash160, magic_message
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.network import network_from_name
 from btclib.utils import (
@@ -408,19 +410,12 @@ def assert_as_valid(msg: Octets, addr: String, sig: Sig | String) -> None:
     magic_msg = magic_message(msg)
     compressed = sig.rf > 30
     # signature is valid only if the provided address is matched, and an
-    # address is a hash of the sec octets: no point is built here, the
-    # bindings answering the octets themselves -- which is the mod_inv_var of
-    # an affine conversion not paid either. Delegated, `verify` costs a
-    # small fraction of what the Python path does, the mean over 40
-    # random keys, of which the recovery itself is most and the
-    # r-congruence check of the Sig validation above a little
-    if _libsecp256k1_serves(secp256k1, None):
-        pub_key = _libsecp256k1_recover_sec_(
-            key_id, reduce_to_hlen(magic_msg), sig.dsa_sig, compressed, lower_s=False
-        )
-    else:
-        Q = dsa.recover_pub_key(key_id, magic_msg, sig.dsa_sig, sha256)
-        pub_key = bytes_from_point(Q, compressed=compressed)
+    # address is a hash of the sec octets: `recover_sec` answers the
+    # octets, which where the bindings serve they write themselves, no
+    # point being built
+    pub_key = dsa.recover_sec(
+        key_id, magic_msg, sig.dsa_sig, sha256, compressed=compressed
+    )
 
     # the address says which of the three checks applies, and each of them
     # carries the recovery-flag range that belongs to its type: the flag
@@ -489,14 +484,15 @@ def verify(msg: Octets, addr: String, sig: Sig | String) -> bool:
     `_assert_structurally_valid_`.
     """
     parsed_sig = _assert_structurally_valid_(addr, sig)
-    # ValueError and BTClibRuntimeError: a well-formed signature that
+    # ValueError and the two RuntimeErrors, btclib's and that of
+    # btclib_ecc, which recovers the key: a well-formed signature that
     # does not open to the address is False, and so is a recovery flag
     # or a scalar out of range; a caller's own mistake in the address or
     # in the signature's encoding is refused above rather than excluded
     # from the except
     try:
         assert_as_valid(msg, addr, parsed_sig)
-    except (ValueError, BTClibRuntimeError):
+    except (ValueError, BTClibRuntimeError, BTClibEccRuntimeError):
         return False
 
     return True

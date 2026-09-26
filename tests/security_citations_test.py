@@ -35,6 +35,11 @@ reason, and what the prose leaves further back names something the
 citation does not point into, which no definition holding the cited
 line answers for.
 
+A path under `src/btclib_ecc/` cites that package's source, which
+this tree does not hold: it is read from the installed package, the one
+`uv.lock` resolves, and the prose links the same file at the commit it
+was measured on.
+
 A path with no line number is held to naming a file that exists, which
 is the whole of what it claims, so the spans in front of it are not
 read: an anchor is a claim about the line cited, and a citation carrying
@@ -62,9 +67,14 @@ import ast
 import re
 from pathlib import Path
 
+import btclib_ecc
 import pytest
 
 _ROOT = Path(__file__).parents[1]
+# the installed package, whose files a citation spelled from that
+# repository's own root, `src/btclib_ecc/...`, is read from
+_BTCLIB_ECC_PREFIX = "src/btclib_ecc/"
+_BTCLIB_ECC = Path(btclib_ecc.__file__).parent
 _SECURITY = _ROOT / "SECURITY.md"
 
 # a path in this repository, with the line number it may carry: the
@@ -188,9 +198,18 @@ def _quoted_defect(anchor: str, cited: str, lineno: int) -> str:
     return ""
 
 
-def _defect(anchor: str, path: str, line: str, root: Path = _ROOT) -> str:
+def _defect(
+    anchor: str,
+    path: str,
+    line: str,
+    root: Path = _ROOT,
+    package: Path = _BTCLIB_ECC,
+) -> str:
     """Return what the citation fails to answer for, empty where nothing."""
-    source = root / path
+    if path.startswith(_BTCLIB_ECC_PREFIX):
+        source = package / path.removeprefix(_BTCLIB_ECC_PREFIX)
+    else:
+        source = root / path
     if not source.is_file():
         return f"cites {path}, which is not a file of this repository"
     if not line:
@@ -368,3 +387,18 @@ def test_a_broken_citation_of_each_kind_is_named(
     quotes that has moved.
     """
     assert _defect(anchor, path, line, control)
+
+
+def test_a_citation_of_btclib_ecc_is_read_from_the_package(
+    control: Path,
+) -> None:
+    """A path under `src/btclib_ecc/` answers from the package given.
+
+    The control module stands in for the installed package, so the same
+    citation that is sound against it is a file that is gone against
+    this repository's own root.
+    """
+    package = control / "src"
+    cited = ("control.Klass.method", "src/btclib_ecc/control.py", "9")
+    assert not _defect(*cited, control, package)
+    assert _defect(*cited, control, control / "absent")

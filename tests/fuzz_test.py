@@ -18,6 +18,7 @@ that class in seconds, which is the argument for keeping this file
 green rather than for having written it once.
 """
 
+import base64
 import contextlib
 import importlib
 from collections.abc import Callable
@@ -33,11 +34,15 @@ from btclib.block.block import Block
 from btclib.block.block_filter import BasicBlockFilter
 from btclib.block.block_header import BlockHeader
 from btclib.block.partial_merkle_tree import PartialMerkleTree
-from btclib.curves.sec_point import point_from_octets
-from btclib.ecc import bms, dsa, ecies, ssa
-from btclib.ecc.borromean import BorromeanSig
-from btclib.ecc.rangeproof import RangeProof
-from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
+from btclib.ecc import bms
+from btclib.exceptions import (
+    BTClibEccRuntimeError,
+    BTClibEccTypeError,
+    BTClibEccValueError,
+    BTClibRuntimeError,
+    BTClibTypeError,
+    BTClibValueError,
+)
 from btclib.key import PrvKeyData
 from btclib.p2p.address import Addr, NetworkAddress, TimestampedNetworkAddress
 from btclib.p2p.addrv2 import AddrV2, NetworkAddressV2, SendAddrV2
@@ -92,13 +97,23 @@ from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
 from tests import module_names, public_classes_with
 
-# What a btclib parser is allowed to raise. Anything else -- an
+# What a btclib parser is allowed to raise: btclib's three classes, and
+# btclib_ecc's three where a parser hands a field on to that package --
+# `bms.Sig.parse` its r and s -- which CONTRIBUTING.md's "Every public
+# function validates its inputs" states (issue #2282). Anything else -- an
 # IndexError off a short slice, an OverflowError off an unchecked size,
 # a KeyError, a UnicodeDecodeError -- leaves the contract that
 # src/btclib/exceptions.py documents, and reaches a caller who wrote
-# `except BTClibValueError` to reject bad input and has no reason to
-# expect anything else
-CONTRACT = (BTClibValueError, BTClibTypeError, BTClibRuntimeError)
+# `except ValueError` to reject bad input and has no reason to expect
+# anything else
+CONTRACT = (
+    BTClibValueError,
+    BTClibTypeError,
+    BTClibRuntimeError,
+    BTClibEccValueError,
+    BTClibEccTypeError,
+    BTClibEccRuntimeError,
+)
 
 # Bounded because these are parsers, not benchmarks: what a length field
 # does with the bytes behind it is decided in the first few of them, and
@@ -173,28 +188,13 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     # BIP61's payload: two var_bytes strings around a code octet, and a
     # trailing hash that is either exactly thirty-two octets or absent
     "Reject.parse": Reject.parse,
-    "dsa.Sig.parse": dsa.Sig.parse,
-    "ssa.Sig.parse": ssa.Sig.parse,
     "bms.Sig.parse": bms.Sig.parse,
-    # `rsizes` left at its default, which is the ring structure a
-    # verifier supplies and the wire format does not carry: what the
-    # default reaches is the digest read, the trailing-octet refusal, and
-    # -- for the input of exactly thirty-two octets that passes both --
-    # `assert_valid`'s own "no rings"
-    "BorromeanSig.parse": BorromeanSig.parse,
-    # the proof that carries one of those signatures, whose own ring
-    # structure a mutation *can* reach: the mantissa octet is what says
-    # how many rings follow, so a flip there asks for a body the buffer
-    # does not hold
-    "RangeProof.parse": RangeProof.parse,
-    "ecies.Envelope.parse": ecies.Envelope.parse,
-    "point_from_octets": point_from_octets,
     "base58.decode": base58.decode,
     "bech32.decode": bech32.decode,
 }
 
 # The same contract, for what a user pastes rather than what a peer
-# sends: an address, a signature, an encrypted envelope.
+# sends: an address, a signature.
 #
 # The base64 wrappers are here rather than above, and each is a parser of
 # its own: `b64decode` decodes and then hands the bytes to `parse`, so
@@ -207,7 +207,6 @@ TEXT_PARSERS: dict[str, Callable[[str], Any]] = {
     "b32.witness_from_address": b32.witness_from_address,
     "b58.h160_from_address": b58.h160_from_address,
     "bms.Sig.b64decode": bms.Sig.b64decode,
-    "ecies.Envelope.b64decode": ecies.Envelope.b64decode,
 }
 
 
@@ -221,10 +220,10 @@ _CLASS_DECODER_METHODS = ("parse", "b64decode", "b58decode")
 
 # And the module-function side of the same family: a bare function takes the
 # same roles under different names. What this tuple does not reach is a
-# decoder named otherwise -- `point_from_octets` and `b58.h160_from_address`
-# are two such, both driven by the dicts above and found by neither this walk
-# nor any tuple of literal names, since nothing about their name says they
-# decode. Their coverage rests on the dicts, by hand, not on this walk
+# decoder named otherwise -- `b58.h160_from_address` is one such, driven by
+# the dicts above and found by neither this walk nor any tuple of literal
+# names, since nothing about its name says it decodes. Its coverage rests on
+# the dicts, by hand, not on this walk
 _MODULE_DECODER_NAMES = ("parse", "decode")
 
 
@@ -337,6 +336,23 @@ def test_text_parser_honors_the_exception_contract(
 ) -> None:
     """Fuzz every text parser: refusals stay within the contract."""
     _assert_contract(parse, data)
+
+
+def test_a_scalar_out_of_range_stays_within_the_contract() -> None:
+    """A 65-octet signature with a valid flag and r at zero is refused.
+
+    The input the strategies above reach only by chance: every length and
+    flag check passes, and the refusal comes from btclib_ecc, which
+    reads the scalar, so it is that package's class leaving a btclib parser.
+    """
+    sig = bytes([31]) + bytes(32) + (1).to_bytes(32, "big")
+    for parse, data in (
+        (bms.Sig.parse, sig),
+        (bms.Sig.b64decode, base64.b64encode(sig).decode("ascii")),
+    ):
+        with pytest.raises(BTClibEccValueError, match="scalar r not in 1..n-1"):
+            parse(data)
+        _assert_contract(parse, data)
 
 
 def _load(*parts: str) -> bytes:

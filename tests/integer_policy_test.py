@@ -14,7 +14,6 @@ instead of failing beside the input that caused it.
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Callable
 from datetime import UTC, datetime
 from enum import IntEnum
@@ -31,25 +30,10 @@ from btclib.block.block import bip34_commitment
 from btclib.block.block_context import BlockContext
 from btclib.block.mining import mine
 from btclib.block.proof_of_work import hash_rate, retarget_first_height
-from btclib.curves import (
-    PreparedPoint,
-    bytes_from_point,
-    mult,
-    point_from_pub_key,
-    scalar_from_prv_key,
-    secp256k1,
-)
-from btclib.ecc.dsa import recover_pub_key_
-from btclib.ecc.dsa import sign as dsa_sign
-from btclib.ecc.ssa import challenge_ as ssa_challenge_
-from btclib.ecc.ssa import point_from_bip340pub_key
-from btclib.ecc.ssa import sign as ssa_sign
-from btclib.ecc.ssa import verify as ssa_verify
-from btclib.exceptions import BTClibTypeError
+from btclib.exceptions import BTClibEccTypeError, BTClibTypeError
 from btclib.fee import FeeRate, fee_from_vsize
 from btclib.hashes import merkle_root_from_branch, sha256
 from btclib.key import PrvKeyData
-from btclib.number_theory import mod_inv, mod_inv_batch_var, mod_inv_var
 from btclib.script import input_script_sig, sig_hash
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.utils import (
@@ -62,11 +46,6 @@ from btclib.utils import (
 
 _TX_ID = "01" * 32
 _RATE = FeeRate(sats_per_kvbyte=1000)
-# the key is 1, so the x-only public key it verifies under is `secp256k1.G[0]`
-_SSA_SIG = ssa_sign(b"msg", 1)
-# the key is 1 as well, and key_id 1 is the candidate that recovers it
-_DSA_MSG_HASH = hashlib.sha256(b"msg").digest()
-_DSA_SIG = dsa_sign(b"msg", 1)
 _NOW = datetime(2026, 8, 4, tzinfo=UTC)
 # a one-leaf tree and the prevout of the one input `_tx` builds: what the
 # two index parameters below have to be handed something valid to index
@@ -121,12 +100,6 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("var_int", var_int.serialize),
     ("var_int max_size", lambda v: var_int.parse(b"\x01", max_size=v)),
     ("bech32 5-bit value", lambda v: bech32.encode("bc", [v])),
-    ("modular operand", lambda v: mod_inv_var(v, 7)),
-    ("modulus", lambda v: mod_inv_var(3, v)),
-    ("blinded modular operand", lambda v: mod_inv(v, 7)),
-    ("blinded modulus", lambda v: mod_inv(3, v)),
-    ("modular operand in a batch", lambda v: mod_inv_batch_var([3, v], 7)),
-    ("modulus of a batch", lambda v: mod_inv_batch_var([3], v)),
     ("taproot leaf index", lambda v: input_script_sig(None, _SCRIPT_TREE, v)),
     (
         "sig_hash input index",
@@ -144,10 +117,10 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("hash rate timespan", lambda v: hash_rate(1.0, v)),
     ("hash rate block count", lambda v: hash_rate(1.0, 600.0, v)),
     # the key path, which this census did not reach until issue #1206.
-    # One line of the library stands behind all of it, `int_from_integer`:
-    # `scalar_from_prv_key` reads an int through it, and `wif_from_prv_key`
-    # reaches it through that. These cases are here for the reach of the
-    # policy and not as a test apiece. The address builders are not among
+    # One line stands behind all of it, `int_from_integer`: `wif_from_prv_key`
+    # reaches it through btclib_ecc's copy, which is that package's to
+    # test. These cases are here for the reach of the policy and not as a
+    # test apiece. The address builders are not among
     # them: they take a `PubKeyData`, so a bool is refused by
     # `bytes_from_octets` on the same terms as any other wrong type, and
     # `bms.sign` likewise takes a `PrvKeyData` and refuses one through
@@ -155,48 +128,7 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     # this census
     ("integer coercion", int_from_integer),
     ("hex string", hex_string),
-    ("curve multiplier", mult),
-    ("curve scalar", scalar_from_prv_key),
     ("WIF private key", wif_from_prv_key),
-    ("BIP340 x-only key", point_from_bip340pub_key),
-    # not the converter twice: `verify` answers False where it cannot
-    # verify, so what this pins is that the refusal is not one of those
-    # answers -- `BTClibTypeError` is a `TypeError` and the except there
-    # takes `ValueError`, which is issue #814's rule
-    ("BIP340 verification key", lambda v: ssa_verify(b"msg", v, _SSA_SIG)),
-    # the trailing-underscore layer, which took no bare `int` parameter
-    # through `int_from_integer` or a key converter's type gate and so sat
-    # outside the census until issue #1248: prepared is not unchecked, and
-    # `is_integer` is asked of what these two are handed already prepared
-    (
-        "BIP340 challenge x-coordinate",
-        lambda v: ssa_challenge_(b"msg", v, 1, secp256k1, hashlib.sha256),
-    ),
-    (
-        "BIP340 challenge nonce x-coordinate",
-        lambda v: ssa_challenge_(b"msg", 1, v, secp256k1, hashlib.sha256),
-    ),
-    (
-        "dsa recovery key_id",
-        lambda v: recover_pub_key_(v, _DSA_MSG_HASH, _DSA_SIG),
-    ),
-    # `CurveGroup.is_on_curve` is the one funnel behind a `Point` tuple,
-    # `point_from_pub_key`, `_x_from_bip340pub_key`, `PreparedPoint` and
-    # `bytes_from_point` included, and it read a bool coordinate as an
-    # int -- `Q[1] == 0` marking infinity, so a bool `False` for y was
-    # read as infinity for any x (issue #1249). One case per funnel
-    # pins the reach; `secp256k1.G[1]` is a placeholder y that only the
-    # x-coordinate cases need on the curve, is_on_curve's type check
-    # running before the equation it would otherwise fail
-    ("point x-coordinate", lambda v: secp256k1.is_on_curve((v, secp256k1.G[1]))),
-    ("point y-coordinate", lambda v: secp256k1.is_on_curve((secp256k1.G[0], v))),
-    ("public key point", lambda v: point_from_pub_key((v, secp256k1.G[1]))),
-    (
-        "BIP340 x-only point",
-        lambda v: point_from_bip340pub_key((v, secp256k1.G[1])),
-    ),
-    ("prepared point", lambda v: PreparedPoint((v, secp256k1.G[1]))),
-    ("point to sec bytes", lambda v: bytes_from_point((v, secp256k1.G[1]))),
 ]
 
 _IDS = [case[0] for case in _CASES]
@@ -213,8 +145,11 @@ def test_a_bool_is_not_an_integer_field(
     `isinstance(True, int)` is what let each of these through as one or
     zero, and `int(True) == True` is what let the satoshi amount through a
     conversion-and-equality check on top of that.
+
+    btclib_ecc's class where that package reads the field -- the WIF's
+    key, through its `scalar_from_prv_key` -- and btclib's elsewhere.
     """
-    with pytest.raises(BTClibTypeError):
+    with pytest.raises((BTClibTypeError, BTClibEccTypeError)):
         call(value)
 
 
@@ -233,52 +168,7 @@ def test_a_bool_is_not_an_integer_field(
 _WORDINGS = [
     ("integer coercion", int_from_integer, "non-integer: True"),
     ("hex string", hex_string, "non-integer: True"),
-    ("curve multiplier", mult, "non-integer: True"),
-    ("curve scalar", scalar_from_prv_key, "non-integer: True"),
-    ("dsa signing key", lambda v: dsa_sign(b"msg", v), "non-integer: True"),
     ("WIF private key", wif_from_prv_key, "non-integer: True"),
-    ("BIP340 x-only key", point_from_bip340pub_key, "non-integer: True"),
-    # separate from the three families above too: the trailing-underscore
-    # layer's own type gate on a bare `int` (issue #1248), one sentence per
-    # parameter and neither routed through `int_from_integer`
-    (
-        "BIP340 challenge x-coordinate",
-        lambda v: ssa_challenge_(b"msg", v, 1, secp256k1, hashlib.sha256),
-        "non-integer x-coordinate: True",
-    ),
-    (
-        "BIP340 challenge nonce x-coordinate",
-        lambda v: ssa_challenge_(b"msg", 1, v, secp256k1, hashlib.sha256),
-        "non-integer nonce x-coordinate: True",
-    ),
-    (
-        "dsa recovery key_id",
-        lambda v: recover_pub_key_(v, _DSA_MSG_HASH, _DSA_SIG),
-        "non-integer key_id: True",
-    ),
-    # separate from the three families above: `is_on_curve`'s own
-    # refusal of a bool coordinate (issue #1249), one sentence per
-    # coordinate and shared by every funnel behind it
-    (
-        "point x-coordinate",
-        lambda v: secp256k1.is_on_curve((v, secp256k1.G[1])),
-        "non-integer x-coordinate: True",
-    ),
-    (
-        "point y-coordinate",
-        lambda v: secp256k1.is_on_curve((secp256k1.G[0], v)),
-        "non-integer y-coordinate: True",
-    ),
-    (
-        "public key point",
-        lambda v: point_from_pub_key((v, secp256k1.G[1])),
-        "non-integer x-coordinate: True",
-    ),
-    (
-        "prepared point",
-        lambda v: PreparedPoint((v, secp256k1.G[1])),
-        "non-integer x-coordinate: True",
-    ),
 ]
 
 
@@ -291,7 +181,7 @@ def test_which_check_refuses_the_bool_decides_the_sentence(
     call: Callable[[Any], object], message: str
 ) -> None:
     """The wordings the release notes promise, held to what is raised."""
-    with pytest.raises(BTClibTypeError, match=message):
+    with pytest.raises((BTClibTypeError, BTClibEccTypeError), match=message):
         call(True)
 
 
@@ -314,26 +204,13 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert valid_sats_amount(1, dust=1) == 1
     assert int_from_integer(1) == 1
     assert hex_string(1) == "01"
-    assert mult(1) == secp256k1.G
-    assert scalar_from_prv_key(1) == 1
     assert wif_from_prv_key(1).startswith("Kw")
-    assert point_from_bip340pub_key(secp256k1.G[0]) == secp256k1.G
-    assert ssa_verify(b"msg", secp256k1.G[0], _SSA_SIG)
-    assert ssa_challenge_(b"msg", 1, 1, secp256k1, hashlib.sha256)
-    assert recover_pub_key_(1, _DSA_MSG_HASH, _DSA_SIG) == secp256k1.G
-    assert secp256k1.is_on_curve(secp256k1.G) is True
-    assert point_from_pub_key(secp256k1.G) == secp256k1.G
-    assert PreparedPoint(secp256k1.G).point == secp256k1.G
-    assert bytes_from_point(secp256k1.G).hex().startswith("02")
     assert bytes_from_octets(b"x", 1) == b"x"
     assert bytes_from_octets(b"xx", [1, 2]) == b"xx"
     assert base58.decode(base58.encode(b"x"), 1) == b"x"
     assert var_int.serialize(1) == b"\x01"
     assert var_int.parse(b"\x01", max_size=1) == 1
     assert bech32.encode("bc", [1]) == b"bc1pdg93mv"
-    assert mod_inv_var(3, 7) == 5
-    assert mod_inv(3, 7) == 5
-    assert mod_inv_batch_var([3, 2], 7) == [5, 4]
     assert input_script_sig(None, _SCRIPT_TREE, 0)[0] == ["OP_1"]
     assert len(sig_hash.taproot(_tx(), 0, _PREVOUTS, 1, 0, b"", b"")) == 32
     assert encode_num(1) == b"\x01"
