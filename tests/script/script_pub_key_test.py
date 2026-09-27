@@ -42,7 +42,7 @@ from btclib.script import (
     type_and_payload,
 )
 from btclib.script import script as script_module
-from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
+from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_SCRIPT_SIZE
 from btclib.script.script import ERROR_COMMAND
 from btclib.script.script_pub_key import (
     _script_from,
@@ -454,6 +454,24 @@ def test_p2sh_redeem_script_size() -> None:
     err_msg = "redeem script exceeds size limit: 521 > 520"
     with pytest.raises(BTClibValueError, match=err_msg):
         ScriptPubKey.p2sh(redeem_script + b"\x51")
+
+
+def test_p2wsh_witness_script_size() -> None:
+    """A witness script is executed to spend, so it is at most a script.
+
+    Bitcoin Core fails a segwit v0 script longer than MAX_SCRIPT_SIZE, so
+    10000 bytes is the longest witness script a p2wsh output can be spent
+    with.
+    """
+    witness_script = b"\x51" * MAX_SCRIPT_SIZE
+    expected = serialize(["OP_0", sha256(witness_script)])
+    assert ScriptPubKey.p2wsh(witness_script).script == expected
+    # the length is the bytes', not the hex string's
+    assert ScriptPubKey.p2wsh(witness_script.hex()).script == expected
+
+    err_msg = "witness script exceeds size limit: 10001 > 10000"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        ScriptPubKey.p2wsh(witness_script + b"\x51")
 
 
 def test_p2wsh() -> None:

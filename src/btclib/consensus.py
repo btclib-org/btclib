@@ -31,6 +31,13 @@ what let a 1443-byte push be refused as unparsable when it was merely
 unspendable (issue #123). The bound below is not `MAX_STACK_SIZE`: it
 refuses a count no block could carry, not a witness no script could run.
 
+`MAX_SCRIPT_ELEMENT_SIZE` and `MAX_SCRIPT_SIZE` are script caps, and are
+here because of who else reads them: `btclib.b58` and `btclib.b32` refuse
+to hash into an address a redeem script or a witness script over the cap
+its spend is held to, and `btclib.script` imports both modules, so
+neither can import it back. `btclib.script.limits` re-exports both,
+beside the rest of Core's `script/script.h` block.
+
 ## The per-network table
 
 `CONSENSUS_PARAMS` answers for every network `btclib.network.NETWORKS`
@@ -108,6 +115,8 @@ if TYPE_CHECKING:
 __all__ = [
     "CONSENSUS_PARAMS",
     "MAX_BLOCK_WEIGHT",
+    "MAX_SCRIPT_ELEMENT_SIZE",
+    "MAX_SCRIPT_SIZE",
     "MAX_WITNESS_STACK_ITEMS",
     "WITNESS_SCALE_FACTOR",
     "ConsensusParams",
@@ -126,6 +135,12 @@ WITNESS_SCALE_FACTOR = 4
 # in it can exceed either -- which is what lets a parser refuse a count
 # before allocating a Python object per declared element (issue #569)
 MAX_WITNESS_STACK_ITEMS = MAX_BLOCK_WEIGHT
+
+# Maximum number of bytes pushable to the stack
+MAX_SCRIPT_ELEMENT_SIZE = 520
+
+# Maximum script length in bytes
+MAX_SCRIPT_SIZE = 10000
 
 # what Core's GetBlockScriptFlags turns on for every block of every chain,
 # before a height is consulted at all: P2SH, segwit v0 and taproot are

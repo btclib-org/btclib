@@ -337,6 +337,24 @@ full year, short month, short day (YYYY-M-D)
 
   Act on it if you hand these functions such text: write `"1"`, `"0.5"`
   and `"1.0"`.
+- **`b58.p2sh` refuses a redeem script longer than
+  `MAX_SCRIPT_ELEMENT_SIZE`** (closes #2383), with the `BTClibValueError`
+  of `ScriptPubKey.p2sh`, where it returned the address of an output
+  nothing can spend.
+
+  Act on it as on the `ScriptPubKey.p2sh` bullet.
+- **`ScriptPubKey.p2wsh`, `b32.p2wsh` and `b58.p2wsh_p2sh` refuse a witness
+  script longer than `MAX_SCRIPT_SIZE`** (closes #2384), with
+  `BTClibValueError` reading `witness script exceeds size limit` and the
+  length, where each returned the script_pub_key or the address of an
+  output nothing can spend.
+
+  Act on it if you build p2wsh outputs from scripts that long: no spend of
+  one is valid, and a tapscript is not held to `MAX_SCRIPT_SIZE`. This
+  bounds the `p2wsh` the `ScriptPubKey.p2sh` bullet points to, and
+  Bitcoin Core relays a p2wsh spend only while its witness script is at
+  most 3600 bytes, its `MAX_STANDARD_P2WSH_SCRIPT_SIZE`, a policy limit
+  btclib does not apply.
 
 ## v2026.9.24
 

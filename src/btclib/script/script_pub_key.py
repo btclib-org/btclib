@@ -23,17 +23,18 @@ from typing_extensions import override
 
 from btclib import b32, b58, var_bytes
 from btclib.alias import Octets, ScriptList, ScriptType, String, TaprootScriptTree
-from btclib.b32 import _v0_witness_program_from_key
+from btclib.b32 import _v0_witness_program_from_key, _v0_witness_program_from_script
+from btclib.b58 import _script_hash_from_redeem_script
 from btclib.curves import point_from_octets
 from btclib.exceptions import BTClibEccValueError, BTClibTypeError, BTClibValueError
-from btclib.hashes import hash160, sha256
+from btclib.hashes import hash160
 from btclib.key import PubKeyData
 from btclib.network import (
     network_type_from_network,
     normalized_network_name,
     validated_network_name,
 )
-from btclib.script.limits import MAX_PUBKEYS_PER_MULTISIG, MAX_SCRIPT_ELEMENT_SIZE
+from btclib.script.limits import MAX_PUBKEYS_PER_MULTISIG
 from btclib.script.script import Script, op_int, push_int, serialize
 from btclib.script.taproot import output_pubkey
 from btclib.utils import (
@@ -848,18 +849,11 @@ class ScriptPubKey(Script):
     ) -> ScriptPubKey:
         """Return the p2sh ScriptPubKey of the provided redeem script.
 
-        The redeem script is at most MAX_SCRIPT_ELEMENT_SIZE bytes: a
-        spend pushes it in the script_sig, and a longer push fails script
-        evaluation, so its output could never be spent. Bitcoin Core's
-        createmultisig and bitcoin-tx refuse the same length with the same
-        comparison.
+        A redeem script over MAX_SCRIPT_ELEMENT_SIZE bytes is refused, since a
+        spend pushes it in the script_sig and Bitcoin Core fails a longer push,
+        so the output could never be spent.
         """
-        redeem_script = bytes_from_octets(redeem_script)
-        if len(redeem_script) > MAX_SCRIPT_ELEMENT_SIZE:
-            err_msg = "redeem script exceeds size limit: "
-            err_msg += f"{len(redeem_script)} > {MAX_SCRIPT_ELEMENT_SIZE}"
-            raise BTClibValueError(err_msg)
-        script_h160 = hash160(redeem_script)
+        script_h160 = _script_hash_from_redeem_script(redeem_script)
         script = serialize(["OP_HASH160", script_h160, "OP_EQUAL"])
         return cls(script, network, check_validity=check_validity)
 
@@ -889,8 +883,13 @@ class ScriptPubKey(Script):
         *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
-        """Return the p2wsh ScriptPubKey of the provided redeem script."""
-        script_h256 = sha256(redeem_script)
+        """Return the p2wsh ScriptPubKey of the provided redeem script.
+
+        A witness script over MAX_SCRIPT_SIZE bytes is refused, since a spend
+        executes it and Bitcoin Core fails a longer segwit v0 script, so the
+        output could never be spent.
+        """
+        script_h256 = _v0_witness_program_from_script(redeem_script)
         script = serialize(["OP_0", script_h256])
         return cls(script, network, check_validity=check_validity)
 

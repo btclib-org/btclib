@@ -11,9 +11,20 @@
 # named one by one rather than as `src/btclib/script` with the other two
 # scopes excluded, which is what sig_hash.toml explains: the test command
 # is per-configuration, and an engine mutant costs far more wall clock
-# than one of these does. `limits.py` is here for its arithmetic --
-# the tapscript script-size bound is derived from the stack and
-# element limits rather than copied
+# than one of these does. `limits.py` is here for the caps it defines,
+# each a literal a mutant can change.
+#
+# `MAX_SCRIPT_ELEMENT_SIZE` and `MAX_SCRIPT_SIZE`, which it re-exports, are
+# defined in `src/btclib/consensus.py`, and that file is not named: most of
+# its mutants are on the per-network table and `subsidy`, which the command
+# below does not read, so each would stand as a survivor of this profile.
+# The two caps are held instead by the boundary tests that quote them,
+# `redeem script exceeds size limit: 521 > 520` and `witness script
+# exceeds size limit: 10001 > 10000`, both in tests/script and in
+# tests/b58_test.py and tests/b32_test.py. What the file would add is
+# asked with a configuration naming it alone:
+#
+#   cosmic-ray init <that configuration> <session.sqlite>
 module-path = [
     "src/btclib/script/script.py",
     "src/btclib/script/script_pub_key.py",

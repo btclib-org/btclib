@@ -24,6 +24,7 @@ from btclib.exceptions import (
 )
 from btclib.hashes import hash160, sha256
 from btclib.key import PubKeyData
+from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_SCRIPT_SIZE
 from btclib.script.script import serialize
 
 ec = secp256k1
@@ -254,6 +255,31 @@ def test_p2sh() -> None:
     assert script_hash.hex() == "4266fc6f2c2861d7fe229b279a79803afca7ba34"
     script_sig: ScriptList = ["OP_HASH160", script_hash.hex(), "OP_EQUAL"]
     serialize(script_sig)
+
+
+def test_p2sh_redeem_script_size() -> None:
+    """The address of the longest redeem script a spend can push, no longer."""
+    redeem_script = b"\x51" * MAX_SCRIPT_ELEMENT_SIZE
+    expected = b58.address_from_h160("p2sh", hash160(redeem_script), "mainnet")
+    assert b58.p2sh(redeem_script) == expected
+    # the length is the bytes', not the hex string's
+    assert b58.p2sh(redeem_script.hex()) == expected
+
+    err_msg = "redeem script exceeds size limit: 521 > 520"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        b58.p2sh(redeem_script + b"\x51")
+
+
+def test_p2wsh_p2sh_witness_script_size() -> None:
+    """The bound is the witness script's, not the 34-byte redeem script's."""
+    witness_script = b"\x51" * MAX_SCRIPT_SIZE
+    expected = b58.p2sh(serialize(["OP_0", sha256(witness_script)]))
+    assert b58.p2wsh_p2sh(witness_script) == expected
+    assert b58.p2wsh_p2sh(witness_script.hex()) == expected
+
+    err_msg = "witness script exceeds size limit: 10001 > 10000"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        b58.p2wsh_p2sh(witness_script + b"\x51")
 
 
 def test_p2w_p2sh() -> None:

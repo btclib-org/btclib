@@ -47,6 +47,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.script import ScriptPubKey, op_int, output_pubkey, serialize
+from btclib.script.limits import MAX_SCRIPT_SIZE
 
 
 def test_has_segwit_prefix() -> None:
@@ -397,6 +398,19 @@ def test_p2wsh() -> None:
     err_msg = "invalid size: "
     with pytest.raises(BTClibValueError, match=err_msg):
         b32.address_from_witness(0, witness_script_bytes)
+
+
+def test_p2wsh_witness_script_size() -> None:
+    """The address of the longest witness script a spend can run, no longer."""
+    witness_script = b"\x51" * MAX_SCRIPT_SIZE
+    expected = b32.address_from_witness(0, sha256(witness_script))
+    assert b32.p2wsh(witness_script) == expected
+    # the length is the bytes', not the hex string's
+    assert b32.p2wsh(witness_script.hex()) == expected
+
+    err_msg = "witness script exceeds size limit: 10001 > 10000"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        b32.p2wsh(witness_script + b"\x51")
 
 
 def test_p2tr() -> None:
