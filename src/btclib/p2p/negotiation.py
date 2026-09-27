@@ -148,6 +148,7 @@ from btclib.p2p.limits import (
 )
 from btclib.p2p.payload import Payload
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -413,7 +414,7 @@ class FeeFilter(Payload):
             err_msg = f"invalid feerate type: {type(self.feerate).__name__}"
             raise BTClibTypeError(err_msg)
         if not _MIN_INT64 <= self.feerate <= _MAX_INT64:
-            raise BTClibValueError(f"invalid feerate: {self.feerate}")
+            raise BTClibValueError(f"invalid feerate: {_message_text(self.feerate)}")
 
     @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
@@ -484,13 +485,13 @@ class SendTxRcncl(Payload):
             err_msg = f"invalid version type: {type(self.version).__name__}"
             raise BTClibTypeError(err_msg)
         if not 0 <= self.version <= _MAX_RECON_VERSION:
-            raise BTClibValueError(f"invalid version: {self.version}")
+            raise BTClibValueError(f"invalid version: {_message_text(self.version)}")
 
         if not is_integer(self.salt):
             err_msg = f"invalid salt type: {type(self.salt).__name__}"
             raise BTClibTypeError(err_msg)
         if not 0 <= self.salt <= _MAX_SALT:
-            raise BTClibValueError(f"invalid salt: {self.salt}")
+            raise BTClibValueError(f"invalid salt: {_message_text(self.salt)}")
 
     @override
     def serialize(self, *, check_validity: bool = True) -> bytes:

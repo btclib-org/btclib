@@ -556,6 +556,12 @@ rate above MAX_MONEY sat/vB, so its repr never meets one (closes #2389).
 tests/b32_test.py quotes the witness-script message alone, where
 tests/script and tests/b58_test.py quote both (closes #2395).
 
+### A refusal outside amount and fee describes an int `str()` cannot write
+
+Refusals name an int past `str()`'s digit limit by sign and bit length, and
+`var_int.serialize` quotes as `hex()` does; amount and fee bounds use `int`'s
+methods; `assert_valid_hash_type` refuses a non-int as a type (closes #2394).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

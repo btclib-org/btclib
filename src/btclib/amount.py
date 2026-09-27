@@ -191,8 +191,9 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
         raise BTClibValueError("invalid BTC dust threshold")
     # an int is bounded as an int, before str() reads it: str() of one
     # past 4300 digits raises ValueError, and every int it would refuse
-    # for that is out of range
-    if isinstance(amount, int) and not 0 <= amount <= int(_MAX_BITCOIN):
+    # for that is out of range. Compared as int.__index__ returns it, a
+    # plain int, so that a subclass's own comparison is never what runs
+    if isinstance(amount, int) and not 0 <= int.__index__(amount) <= int(_MAX_BITCOIN):
         raise BTClibValueError(f"invalid BTC amount: {_message_text(amount)}")
     with localcontext(_CONTEXT):
         # any input str() writes is read through its text

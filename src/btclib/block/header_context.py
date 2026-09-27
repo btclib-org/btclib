@@ -33,7 +33,7 @@ from btclib.block.limits import MAX_TIMEWARP
 from btclib.block.proof_of_work import next_bits
 from btclib.consensus import ConsensusParams
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import is_integer
+from btclib.utils import _message_text, is_integer
 
 __all__ = [
     "MEDIAN_TIME_SPAN",
@@ -75,7 +75,7 @@ def median_time_past(header: BlockHeader, height: int, parent_of: ParentOf) -> i
     if not is_integer(height):
         raise BTClibTypeError(f"invalid height type: {type(height).__name__}")
     if height < 0:
-        raise BTClibValueError(f"invalid height: {height}")
+        raise BTClibValueError(f"invalid height: {_message_text(height)}")
 
     times = [_block_time(header)]
     for _ in range(min(MEDIAN_TIME_SPAN, height + 1) - 1):
@@ -104,10 +104,10 @@ def header_at_height(
         if not is_integer(value):
             raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
     if height < 0:
-        raise BTClibValueError(f"invalid height: {height}")
+        raise BTClibValueError(f"invalid height: {_message_text(height)}")
     if not 0 <= target_height <= height:
-        err_msg = f"invalid target height: {target_height}"
-        err_msg += f" is not between 0 and {height}"
+        err_msg = f"invalid target height: {_message_text(target_height)}"
+        err_msg += f" is not between 0 and {_message_text(height)}"
         raise BTClibValueError(err_msg)
 
     for _ in range(height - target_height):
@@ -190,7 +190,7 @@ def next_bits_required(
         err_msg = f"invalid parent height type: {type(parent_height).__name__}"
         raise BTClibTypeError(err_msg)
     if parent_height < 0:
-        raise BTClibValueError(f"invalid parent height: {parent_height}")
+        raise BTClibValueError(f"invalid parent height: {_message_text(parent_height)}")
 
     interval = consensus.difficulty_adjustment_interval
     height = parent_height + 1

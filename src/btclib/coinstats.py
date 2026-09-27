@@ -66,7 +66,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.muhash import MuHash3072
 from btclib.script.spendability import is_unspendable
 from btclib.tx.coin import Coin
-from btclib.utils import assert_type, bytes_from_octets
+from btclib.utils import _message_text, assert_type, bytes_from_octets
 
 __all__ = [
     "CoinStats",
@@ -142,7 +142,7 @@ def _checked_out_point(out_point_bytes: Octets, coin: Coin) -> bytes:
     # a height the uint32 above cannot hold would leave as an
     # OverflowError, from outside the library's exception contract
     if coin.height > _MAX_PACKED_HEIGHT:
-        raise BTClibValueError(f"invalid height: {coin.height}")
+        raise BTClibValueError(f"invalid height: {_message_text(coin.height)}")
     return out_point_bytes
 
 

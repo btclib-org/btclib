@@ -1072,3 +1072,22 @@ def test_a_quote_whose_str_raises_is_refused_in_kind(round_up: bool) -> None:
     match = f"invalid BTC(/kvB fee rate| amount): {unwritable}"
     with pytest.raises(BTClibValueError, match=match):
         FeeRate.from_btc_per_kvbyte(_Unwritable(), round_up=round_up)
+
+
+class _UnsignedInt(int):
+    @override
+    def __abs__(self) -> int:
+        raise RuntimeError
+
+
+@pytest.mark.parametrize("sign", [1, -1])
+def test_a_quote_is_bounded_through_int_s_own_abs(sign: int) -> None:
+    """A subclass overriding `abs` is refused as a rate (issue #2394)."""
+    value = _UnsignedInt(sign * _TOO_LONG_TO_WRITE)
+    # the override does raise, so a bound reaching it would too
+    with pytest.raises(RuntimeError):
+        abs(value)
+    with pytest.raises(BTClibValueError, match="invalid sat/vB fee rate: "):
+        FeeRate.from_sats_per_vbyte(value)
+    with pytest.raises(BTClibValueError, match="invalid BTC/kvB fee rate: "):
+        FeeRate.from_btc_per_kvbyte(value, round_up=True)

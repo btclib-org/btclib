@@ -33,7 +33,13 @@ from datetime import datetime
 from btclib.alias import Octets
 from btclib.consensus import CONSENSUS_PARAMS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import assert_type, bytes_from_octets, is_integer, is_octets
+from btclib.utils import (
+    _message_text,
+    assert_type,
+    bytes_from_octets,
+    is_integer,
+    is_octets,
+)
 
 __all__ = [
     "DIFFICULTY_ADJUSTMENT_INTERVAL",
@@ -234,7 +240,7 @@ def retarget_first_height(last_height: int) -> int:
     # answer would be a window Core never measures, and the caller
     # asking has mistaken which block ends the period
     if (last_height + 1) % DIFFICULTY_ADJUSTMENT_INTERVAL:
-        err_msg = f"invalid retarget height: {last_height}"
+        err_msg = f"invalid retarget height: {_message_text(last_height)}"
         err_msg += f" is not a multiple of {DIFFICULTY_ADJUSTMENT_INTERVAL}"
         err_msg += " minus one"
         raise BTClibValueError(err_msg)
@@ -389,10 +395,10 @@ def hash_rate(difficulty: float, timespan: float, block_count: int = 1) -> float
         raise BTClibTypeError(f"invalid block count type: {type(block_count).__name__}")
 
     if timespan <= 0:
-        raise BTClibValueError(f"invalid timespan: {timespan}")
+        raise BTClibValueError(f"invalid timespan: {_message_text(timespan)}")
     if block_count < 1:
-        raise BTClibValueError(f"invalid block count: {block_count}")
+        raise BTClibValueError(f"invalid block count: {_message_text(block_count)}")
     if difficulty <= 0:
-        raise BTClibValueError(f"invalid difficulty: {difficulty}")
+        raise BTClibValueError(f"invalid difficulty: {_message_text(difficulty)}")
 
     return difficulty * 2**32 * block_count / timespan

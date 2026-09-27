@@ -13,6 +13,7 @@ from typing import Any
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -110,7 +111,7 @@ class OutPoint:
             raise BTClibTypeError(err_msg)
         # must be a 4-bytes int
         if not 0 <= self.vout <= 0xFFFFFFFF:
-            raise BTClibValueError(f"invalid vout: {self.vout}")
+            raise BTClibValueError(f"invalid vout: {_message_text(self.vout)}")
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, str | int]:
         """Return {"txid", "vout"}, the keys Bitcoin Core's RPC uses.

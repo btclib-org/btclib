@@ -37,6 +37,7 @@ from warnings import warn
 from btclib.alias import BinaryData, Command, Octets, ScriptList
 from btclib.exceptions import BTClibTypeError, BTClibUserWarning, BTClibValueError
 from btclib.utils import (
+    _message_text,
     bytes_from_octets,
     bytesio_from_binarydata,
     encode_num,
@@ -339,7 +340,7 @@ def op_int(i: int) -> str:
         return "OP_1NEGATE"
     if 0 <= i <= 16:
         return f"OP_{i}"
-    raise BTClibValueError(f"invalid OP_INT: {i}")
+    raise BTClibValueError(f"invalid OP_INT: {_message_text(i)}")
 
 
 def push_int(i: int) -> str:

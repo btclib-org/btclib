@@ -51,6 +51,7 @@ from btclib.script.op_codes_tapscript import (
 )
 from btclib.script.script import _serialize_bytes_command, _serialize_int_command
 from btclib.utils import (
+    _message_text,
     assert_type,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -288,7 +289,7 @@ def _tree_helper(leaf: object) -> tuple[TaprootLeafPaths, bytes]:
         raise BTClibTypeError(err_msg)
     # the mask below would read 0x100 as 0x00 and -1 as 0xFE
     if not 0 <= leaf_version <= 0xFF:
-        raise BTClibValueError(f"invalid leaf version: {leaf_version}")
+        raise BTClibValueError(f"invalid leaf version: {_message_text(leaf_version)}")
     leaf_version &= 0xFE
     h = leaf_hash(leaf_version, serialize(script))
     return ([((leaf_version, script), b"")], h)
@@ -602,7 +603,7 @@ def input_script_sig(
     if not is_integer(script_num):
         raise BTClibTypeError(f"invalid leaf index type: {type(script_num).__name__}")
     if not 0 <= script_num < len(leaves):
-        raise BTClibValueError(f"invalid leaf index: {script_num}")
+        raise BTClibValueError(f"invalid leaf index: {_message_text(script_num)}")
     (leaf_version, script), path = leaves[script_num]
     control = (parity_bit + leaf_version).to_bytes(1, "big")
     control += pub_key_bytes

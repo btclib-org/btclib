@@ -43,7 +43,7 @@ from btclib.tx import OutPoint, Tx, TxIn, TxOut
 # field width, and a second spelling of it would be a second place to
 # read before believing the two agree
 from btclib.tx.tx import _assert_valid_4_byte_field
-from btclib.utils import bytes_from_octets, is_integer
+from btclib.utils import _message_hex, _message_text, bytes_from_octets, is_integer
 
 __all__ = [
     "ALL",
@@ -94,8 +94,13 @@ def assert_valid_hash_type(hash_type: int) -> None:
     The set is the seven combinations the BIPs define; ANYONECANPAY
     with DEFAULT is not among them, BIP341 leaving 0x80 undefined.
     """
+    # the type before the membership, which a float or a str answers with
+    # a plain False, and a bool is not a hash type either
+    if not is_integer(hash_type):
+        err_msg = f"invalid hash_type type: {type(hash_type).__name__}"
+        raise BTClibTypeError(err_msg)
     if hash_type not in SIG_HASH_TYPES:
-        raise BTClibValueError(f"invalid sig_hash type: {hex(hash_type)}")
+        raise BTClibValueError(f"invalid sig_hash type: {_message_hex(hash_type)}")
 
 
 def _serialized_hash_type(hash_type: int) -> bytes:
@@ -119,7 +124,7 @@ def _serialized_hash_type(hash_type: int) -> bytes:
     """
     if not -(2**31) <= hash_type < 2**32:
         raise BTClibValueError(
-            f"sig_hash type too wide for its four bytes: {hash_type}"
+            f"sig_hash type too wide for its four bytes: {_message_text(hash_type)}"
         )
     return (hash_type & 0xFFFFFFFF).to_bytes(4, byteorder="little")
 
@@ -145,7 +150,8 @@ def _script_code_from(script: bytes, codesep_index: int) -> bytes:
     of the script, and nothing here can know it. The signer does.
     """
     if codesep_index < 0:
-        raise BTClibValueError(f"negative OP_CODESEPARATOR index: {codesep_index}")
+        err_msg = f"negative OP_CODESEPARATOR index: {_message_text(codesep_index)}"
+        raise BTClibValueError(err_msg)
     if codesep_index == 0:
         return script
     found = 0
@@ -159,7 +165,8 @@ def _script_code_from(script: bytes, codesep_index: int) -> bytes:
             # run lists it as a survivor with nothing to add (issue #252)
             if found == codesep_index:
                 return script[stop:]
-    err_msg = f"OP_CODESEPARATOR index {codesep_index}, but the script has {found}"
+    err_msg = f"OP_CODESEPARATOR index {_message_text(codesep_index)}"
+    err_msg += f", but the script has {found}"
     raise BTClibValueError(err_msg)
 
 
@@ -302,7 +309,7 @@ _CAMOUNT = range(-(2**63), 2**63)
 def _assert_valid_camount(amount: int, name: str) -> None:
     """Refuse an amount no eight-byte signed field can hold."""
     if amount not in _CAMOUNT:
-        raise BTClibValueError(f"invalid {name}: {amount}")
+        raise BTClibValueError(f"invalid {name}: {_message_text(amount)}")
 
 
 # the two field widths every preimage here is made of, each as the write
@@ -354,7 +361,7 @@ def _serialized_spend_type(ext_flag: int, annex_present: int) -> bytes:
     if not is_integer(ext_flag):
         raise BTClibTypeError(f"invalid extension flag type: {type(ext_flag).__name__}")
     if not 0 <= ext_flag <= 0x7F:
-        raise BTClibValueError(f"invalid extension flag: {ext_flag}")
+        raise BTClibValueError(f"invalid extension flag: {_message_text(ext_flag)}")
     return (2 * ext_flag + annex_present).to_bytes(1, "little")
 
 
@@ -385,7 +392,7 @@ def _assert_valid_vin_i(tx: Tx, vin_i: int) -> None:
     if not is_integer(vin_i):
         raise BTClibTypeError(f"invalid input index type: {type(vin_i).__name__}")
     if not 0 <= vin_i < len(tx.vin):
-        raise BTClibValueError(f"invalid input index: {vin_i}")
+        raise BTClibValueError(f"invalid input index: {_message_text(vin_i)}")
 
 
 def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
@@ -669,7 +676,7 @@ def taproot(
     _assert_valid_vin_i(transaction, input_index)
 
     if hashtype not in SIG_HASH_TYPES:
-        raise BTClibValueError(f"Unknown hash type: {hashtype}")
+        raise BTClibValueError(f"Unknown hash type: {_message_text(hashtype)}")
     if hashtype & 0x03 == SINGLE and input_index >= len(transaction.vout):
         raise BTClibValueError("Sighash single without a corresponding output")
 

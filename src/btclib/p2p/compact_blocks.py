@@ -156,6 +156,7 @@ from btclib.p2p.limits import MAX_BLOCK_TX_INDEX
 from btclib.p2p.payload import Payload
 from btclib.tx.tx import Tx
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     assert_type,
     bytes_from_octets,
@@ -212,7 +213,7 @@ def _assert_valid_index(index: int, what: str) -> None:
     if not is_integer(index):
         raise BTClibTypeError(f"invalid {what} type: {type(index).__name__}")
     if not 0 <= index <= MAX_BLOCK_TX_INDEX:
-        raise BTClibValueError(f"invalid {what}: {index}")
+        raise BTClibValueError(f"invalid {what}: {_message_text(index)}")
 
 
 def _assert_previous_index(previous_index: int) -> None:
@@ -226,7 +227,8 @@ def _assert_previous_index(previous_index: int) -> None:
         err_msg = f"invalid previous_index type: {type(previous_index).__name__}"
         raise BTClibTypeError(err_msg)
     if not _NO_PREVIOUS_INDEX <= previous_index <= MAX_BLOCK_TX_INDEX:
-        raise BTClibValueError(f"invalid previous_index: {previous_index}")
+        err_msg = f"invalid previous_index: {_message_text(previous_index)}"
+        raise BTClibValueError(err_msg)
 
 
 def _assert_increasing(indexes: Sequence[int], what: str) -> None:
@@ -241,7 +243,8 @@ def _assert_increasing(indexes: Sequence[int], what: str) -> None:
     previous = _NO_PREVIOUS_INDEX
     for index in indexes:
         if index <= previous:
-            err_msg = f"{what} out of order: {index} after {previous}"
+            err_msg = f"{what} out of order: {_message_text(index)}"
+            err_msg += f" after {_message_text(previous)}"
             raise BTClibValueError(err_msg)
         previous = index
 
@@ -336,7 +339,8 @@ def _assert_positions(prefilled: Sequence[PrefilledTransaction], count: int) -> 
     """
     _assert_increasing([prefilled_tx.index for prefilled_tx in prefilled], "prefilled")
     if prefilled and prefilled[-1].index >= count:
-        err_msg = f"prefilled index past the block: {prefilled[-1].index}"
+        err_msg = "prefilled index past the block: "
+        err_msg += _message_text(prefilled[-1].index)
         err_msg += f" of {count} transactions"
         raise BTClibValueError(err_msg)
 
@@ -392,7 +396,7 @@ class SendCmpct(Payload):
             err_msg = f"invalid version type: {type(self.version).__name__}"
             raise BTClibTypeError(err_msg)
         if not 0 <= self.version <= _MAX_VERSION:
-            raise BTClibValueError(f"invalid version: {self.version}")
+            raise BTClibValueError(f"invalid version: {_message_text(self.version)}")
 
     @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
@@ -493,7 +497,8 @@ class PrefilledTransaction:
         _assert_previous_index(previous_index)
         difference = self.index - previous_index - 1
         if difference < 0:
-            err_msg = f"index {self.index} not past previous_index {previous_index}"
+            err_msg = f"index {_message_text(self.index)}"
+            err_msg += f" not past previous_index {previous_index}"
             raise BTClibValueError(err_msg)
 
         out = var_int.serialize(difference)
@@ -638,14 +643,14 @@ class CmpctBlock(Payload):
         if not is_integer(self.nonce):
             raise BTClibTypeError(f"invalid nonce type: {type(self.nonce).__name__}")
         if not 0 <= self.nonce <= _MAX_NONCE:
-            raise BTClibValueError(f"invalid nonce: {self.nonce}")
+            raise BTClibValueError(f"invalid nonce: {_message_text(self.nonce)}")
 
         for short_id in self.short_ids:
             if not is_integer(short_id):
                 err_msg = f"invalid short id type: {type(short_id).__name__}"
                 raise BTClibTypeError(err_msg)
             if not 0 <= short_id <= _MAX_SHORT_ID:
-                raise BTClibValueError(f"invalid short id: {short_id}")
+                raise BTClibValueError(f"invalid short id: {_message_text(short_id)}")
 
         for prefilled_tx in self.prefilled_txns:
             if not isinstance(prefilled_tx, PrefilledTransaction):

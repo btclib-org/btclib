@@ -85,7 +85,7 @@ from btclib import var_bytes
 from btclib.alias import Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.payload import Payload
-from btclib.utils import bytes_from_octets, is_integer, read_exactly
+from btclib.utils import _message_text, bytes_from_octets, is_integer, read_exactly
 
 __all__ = [
     "Reject",
@@ -199,7 +199,7 @@ class Reject(Payload):
             err_msg = f"invalid code type: {type(self.code).__name__}"
             raise BTClibTypeError(err_msg)
         if not 0 <= self.code <= _MAX_CODE:
-            raise BTClibValueError(f"invalid code: {self.code}")
+            raise BTClibValueError(f"invalid code: {_message_text(self.code)}")
 
         if len(self.data) not in (0, _HASH_SIZE):
             err_msg = f"invalid data length: {len(self.data)} bytes"

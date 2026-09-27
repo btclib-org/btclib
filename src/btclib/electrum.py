@@ -62,7 +62,7 @@ from btclib.block.block_header import BlockHeader
 from btclib.block.merkle_proof import assert_as_valid
 from btclib.block.merkle_proof import verify as verify_merkle_branch
 from btclib.exceptions import BTClibTypeError, BTClibValueError, RpcError
-from btclib.utils import bytes_from_octets, is_integer
+from btclib.utils import _message_text, bytes_from_octets, is_integer
 
 __all__ = [
     "HeaderTip",
@@ -149,7 +149,7 @@ def decode_response(line: bytes, request_id: int) -> Any:
         _raise_rpc_error(error)
     if not (is_integer(reply_id) and reply_id == request_id):
         err_msg = f"response id {reply_id!r}"
-        err_msg += f" does not answer request {request_id}"
+        err_msg += f" does not answer request {_message_text(request_id)}"
         raise BTClibValueError(err_msg)
     if error is not None:
         _raise_rpc_error(error)

@@ -17,6 +17,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import Witness, script_from_dict, script_to_dict
 from btclib.tx.out_point import OutPoint
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -149,7 +150,7 @@ class TxIn:
 
         # must be a 4-bytes int
         if not 0 <= self.sequence <= 0xFFFFFFFF:
-            raise BTClibValueError(f"invalid sequence: {self.sequence}")
+            raise BTClibValueError(f"invalid sequence: {_message_text(self.sequence)}")
 
         self.script_witness.assert_valid()
 

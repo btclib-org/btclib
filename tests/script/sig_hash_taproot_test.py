@@ -205,6 +205,13 @@ def test_valid_sighash_type() -> None:
                 sig_hash.assert_valid_hash_type(hash_type)
 
 
+@pytest.mark.parametrize("hash_type", [1.5, "x", True])
+def test_a_hash_type_that_is_no_integer_is_a_type_error(hash_type: object) -> None:
+    """A float, a str or a bool is the wrong type, not a wrong hash type."""
+    with pytest.raises(BTClibTypeError, match="invalid hash_type type: "):
+        sig_hash.assert_valid_hash_type(hash_type)  # type: ignore[arg-type]
+
+
 def test_empty_stack() -> None:
     """Refuse to hash a p2tr spend whose witness stack is empty."""
     utxo = TxOut(

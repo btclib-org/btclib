@@ -111,6 +111,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.limits import MAX_HEADERS_RESULTS, MAX_INV_SZ, MAX_LOCATOR_SZ
 from btclib.p2p.payload import Payload
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -318,7 +319,9 @@ class Inventory:
             err_msg = f"invalid type_code type: {type(self.type_code).__name__}"
             raise BTClibTypeError(err_msg)
         if not 0 <= self.type_code <= _MAX_TYPE:
-            raise BTClibValueError(f"invalid type_code: {self.type_code}")
+            raise BTClibValueError(
+                f"invalid type_code: {_message_text(self.type_code)}"
+            )
 
         _assert_valid_hash(self.hash, "hash length")
 
@@ -515,7 +518,7 @@ class _LocatorPayload(Payload):
             err_msg = f"invalid version type: {type(self.version).__name__}"
             raise BTClibTypeError(err_msg)
         if not _MIN_INT32 <= self.version <= _MAX_INT32:
-            raise BTClibValueError(f"invalid version: {self.version}")
+            raise BTClibValueError(f"invalid version: {_message_text(self.version)}")
 
         if len(self.locator) > MAX_LOCATOR_SZ:
             err_msg = f"invalid locator count: {len(self.locator)}"

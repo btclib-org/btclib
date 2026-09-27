@@ -72,7 +72,7 @@ from btclib.tx.limits import (
     SEQUENCE_LOCKTIME_TYPE_FLAG,
 )
 from btclib.tx.tx import Tx
-from btclib.utils import is_integer
+from btclib.utils import _message_text, is_integer
 
 __all__ = [
     "AncestorMedianTimePast",
@@ -236,5 +236,6 @@ def assert_coinbase_value(coinbase: Tx, subsidy: int, fees: int) -> None:
     coinbase_value = sum(tx_out.value for tx_out in coinbase.vout)
     ceiling = subsidy + fees
     if coinbase_value > ceiling:
-        err_msg = f"bad-cb-amount: {coinbase_value} instead of {ceiling}"
+        err_msg = f"bad-cb-amount: {_message_text(coinbase_value)}"
+        err_msg += f" instead of {_message_text(ceiling)}"
         raise BTClibValueError(err_msg)

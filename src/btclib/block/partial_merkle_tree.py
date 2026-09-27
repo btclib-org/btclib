@@ -68,6 +68,7 @@ from btclib.block.limits import MAX_BLOCK_WEIGHT, MIN_SERIALIZABLE_TRANSACTION_W
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     assert_type,
     bytes_from_octets,
@@ -364,7 +365,8 @@ class PartialMerkleTree:
             raise BTClibValueError("partial merkle tree: transaction count is zero")
         if n_transactions > _MAX_TRANSACTIONS:
             err_msg = (
-                f"partial merkle tree: transaction count too high: {n_transactions}"
+                "partial merkle tree: transaction count too high: "
+                f"{_message_text(n_transactions)}"
             )
             err_msg += f", max is {_MAX_TRANSACTIONS}"
             raise BTClibValueError(err_msg)
