@@ -47,9 +47,10 @@ could not compare equal without performing the very conversion the split
 was meant to avoid.
 
 **Why frozen, and why not `slots=True`.** Frozen for the reason
-`BIP32KeyData` is (issue 727): a public function handed one may trust it
-instead of revalidating, and a mutable field would let
-`check_validity=False` stay unchecked forever. Not slotted, because
+`BIP32KeyData` is (issue 727): no field changes after construction, so
+an object built with checks on stays valid, and one built with
+`check_validity=False` has to be asked by whichever public name uses it,
+as `PrvKeyData.pub` and `bms.sign` ask it. Not slotted, because
 `functools.cached_property` stores into the instance `__dict__` and a
 slotted dataclass has none -- it raises `TypeError: No '__dict__'
 attribute`. Equality and hashing read the declared fields alone, so what
@@ -245,17 +246,19 @@ class PrvKeyData:
     def pub(self) -> PubKeyData:
         """Return the public key this one derives, multiplying once.
 
-        `check_validity=False`, and it is the one call in this module
-        entitled to it. What makes the skip safe is not that
-        `assert_valid` ran -- on an object built with
-        `check_validity=False` it never did -- but that the two lines
-        above ask everything it would: `self.curve` resolves the network
-        name through `network_from_name`, which refuses one no network
-        has, and `bytes_from_prv_key_int` asserts `compressed` is a bool
-        and answers the SEC form by construction. Asking again is what
-        CONTRIBUTING.md's "checking them a second time buys nothing"
-        names, and it would be this module's own argument run backwards.
+        The key is asked first, whatever `check_validity` it was built
+        with, as `bms.sign` asks the key it is handed: an object built
+        with `check_validity=False` has never been asked, and
+        `bytes_from_prv_key_int` reduces its scalar mod n and reads a hex
+        string as one, so an out-of-range `q` would otherwise derive the
+        public key of a different scalar, silently.
+
+        The `PubKeyData` is built with `check_validity=False`, the one
+        call in this module entitled to it: its octets are the
+        serialization just written, and its network is the name
+        `assert_valid` has just resolved.
         """
+        self.assert_valid()
         sec = bytes_from_prv_key_int(self.q, self.curve, self.compressed)
         return PubKeyData(sec, self.network, check_validity=False)
 

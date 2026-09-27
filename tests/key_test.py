@@ -203,6 +203,26 @@ def test_prv_key_data_deferred_validity() -> None:
         key.assert_valid()
 
 
+@pytest.mark.parametrize("q", [0, secp256k1.n, secp256k1.n + 1, -1, -(secp256k1.n - 1)])
+def test_prv_key_data_pub_asks_an_unchecked_key(q: int) -> None:
+    """`pub` refuses the scalar rather than deriving it reduced mod n."""
+    key = PrvKeyData(q, check_validity=False)
+    with pytest.raises(BTClibValueError, match="not in 1..n-1"):
+        _ = key.pub
+
+
+def test_prv_key_data_pub_asks_an_unchecked_type() -> None:
+    """A hex string is no scalar, though `bytes_from_prv_key_int` reads one."""
+    key = PrvKeyData("cafe", check_validity=False)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="not a private key scalar"):
+        _ = key.pub
+
+
+def test_prv_key_data_pub_of_an_unchecked_valid_key() -> None:
+    """A key built unchecked and in range derives as a checked one does."""
+    assert PrvKeyData(Q_INT, check_validity=False).pub == PrvKeyData(Q_INT).pub
+
+
 @pytest.mark.parametrize("q", [0, secp256k1.n, -1])
 def test_invalid_prv_key_data(q: int) -> None:
     """A scalar outside 1..n-1 is refused, and never echoed."""
