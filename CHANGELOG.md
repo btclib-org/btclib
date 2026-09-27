@@ -328,6 +328,12 @@ With no flag asking for strict DER, the sequence length is skipped and a length
 octet with its top bit set is read as X.690's long form, as in Core: a
 signature Core verifies was refused, and one it refuses taken (closes #2283).
 
+### The fuzz container is built from a pinned image and locked dependencies
+
+`.clusterfuzzlite/Dockerfile` pins its base image by digest, a Dependabot
+docker entry moving it (closes #2305), and `build.sh` installs the versions
+uv.lock pins, exported with their hashes (closes #2306).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

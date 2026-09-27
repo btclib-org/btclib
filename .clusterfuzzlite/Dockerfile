@@ -9,9 +9,19 @@
 #
 # ClusterFuzzLite copies the checked-out tree in rather than cloning it,
 # unlike a plain OSS-Fuzz integration (docs/build_integration.md,
-# "Prerequisites"): the workflow's own checkout step is what puts the
-# source `docker build` sees on disk, so no `git clone` belongs here.
-FROM gcr.io/oss-fuzz-base/base-builder-python
+# "Prerequisites"): the build_fuzzers action clones the repository at
+# the run's own commit and hands that clone to `docker build` as its
+# context (ExternalGithub.prepare_for_fuzzer_build, in google/oss-fuzz's
+# infra/cifuzz/continuous_integration.py), so no `git clone` belongs here.
+#
+# The digest is what `docker build` pulls; the tag beside it is the one
+# the digest was read from, and the one Dependabot's docker ecosystem
+# (.github/dependabot.yml) follows to propose the next digest. `latest`
+# rather than the `v1` google/clusterfuzzlite's docs/build_integration.md
+# writes: dependabot-core parses `v1` as a version, and a version tag is
+# the kind its `digest_only_update_suppressed?` can hold at the digest it
+# has, where `latest` is exempt from it.
+FROM gcr.io/oss-fuzz-base/base-builder-python:latest@sha256:d74383a516f17ae3300aee7160277adf0702a22ca400d2dc54cd79f4b4c86b70
 
 COPY . $SRC/btclib
 WORKDIR $SRC/btclib

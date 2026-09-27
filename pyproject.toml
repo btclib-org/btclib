@@ -249,6 +249,12 @@ check = [
     # which needs an index -- is never asked for
     "uv_build>=0.12.0,<0.13",
 ]
+# the build backend .clusterfuzzlite/build.sh installs btclib with, in the
+# fuzz container and non-isolated, so that the backend is a hashed entry of
+# .clusterfuzzlite/requirements.txt -- this lock exported -- rather than
+# whatever an isolated build resolves off the index. [build-system]'s own
+# specifier, the way `check`'s is
+fuzz = ["uv_build>=0.12.0,<0.13"]
 mutation = ["cosmic-ray>=8.7.0"]
 docs = [
     { include-group = "bindings" },

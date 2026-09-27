@@ -1,8 +1,13 @@
 ---
-# three of the four ecosystems this repo has:
-# - the pre-commit hook revs are the one left out, because dependabot has no
-#   pre-commit ecosystem; pre-commit.ci updates them instead, weekly, as
-#   configured in the ci: block of .pre-commit-config.yaml
+# what is left out, and why:
+# - the pre-commit hook revs, because dependabot has no pre-commit
+#   ecosystem; pre-commit.ci updates them instead, weekly, as configured
+#   in the ci: block of .pre-commit-config.yaml
+# - .clusterfuzzlite/requirements.txt, which is uv.lock exported and which
+#   the uv-export hook of .pre-commit-config.yaml rewrites from the lock:
+#   a pip entry moving it would be moving it away from the lock. A uv pull
+#   request below that moves a package the file names fails that hook
+#   until the hook's own output is committed to it
 #
 # every pull request here runs the whole test matrix, so each ecosystem
 # groups its updates into a single pull request. None declares a
@@ -26,8 +31,9 @@
 # trading against: a compromised release is usually yanked within days.
 # Weekly plus cooldown still means nothing is ever offered before it has
 # been public a week -- it means the offer comes at most a week after
-# that, rather than at most a month. Neither ecosystem tracks anything
-# security-critical, so nothing here wants to be faster than that
+# that, rather than at most a month. No ecosystem here tracks anything
+# security-critical, so nothing here wants to be faster than that. The
+# docker entry at the bottom carries no cooldown, and says why
 version: 2
 updates:
   # every action is pinned to a commit SHA, which nothing but this
@@ -64,3 +70,21 @@ updates:
         patterns: ["*"]
     cooldown:
       default-days: 7
+
+  # .clusterfuzzlite/Dockerfile's base image is pinned by digest, and the
+  # tag beside the digest is what this follows: a pull request here is
+  # that tag's newer digest.
+  #
+  # No cooldown, because it would be inert: dependabot-core dates a docker
+  # tag only on Docker Hub (registry_tag_release_date, in its
+  # docker/lib/dependabot/docker/update_checker.rb), and on any other
+  # registry -- gcr.io, which this image is on -- it logs that it has no
+  # publication date and proposes the digest with no cooldown applied
+  - package-ecosystem: docker
+    directory: /.clusterfuzzlite
+    schedule:
+      interval: weekly
+      day: thursday
+    groups:
+      base-image:
+        patterns: ["*"]
