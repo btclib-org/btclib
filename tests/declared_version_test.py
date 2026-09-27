@@ -164,7 +164,8 @@ def _verify() -> tuple[str, str] | None:
                 " cannot be told from a release it names -- test.yml's"
                 " coverage and no-bindings jobs, the two that run pytest and"
                 " gate a merge, fetch tags for exactly this reason, so a pull"
-                " request does not take this skip"
+                " request does not take this skip; in a local clone,"
+                " `git fetch --tags` is what spares it"
             ),
         )
     version = _declared_version()

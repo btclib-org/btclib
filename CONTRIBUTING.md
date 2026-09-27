@@ -433,6 +433,17 @@ flags select is section 8 of the organization standard's, and
 `tests/README.md` is where this tree states it.
 See [Tests, code coverage, and profiling](./tests/README.md).
 
+**The ratchet needs the release tags in the clone.**
+`tests/changelog_immutability_test.py` and `tests/declared_version_test.py`
+read the `v*` tags. A clone holding none — `--no-tags`, or a `--depth` that
+reaches no tagged commit — skips what they compare, and a skipped test's
+body counts as uncovered lines of `tests/`, so `uv run pytest` fails the
+ratchet with no test failing. A `--depth` that reaches a tagged commit holds
+only the tags it reaches, and `tests/changelog_immutability_test.py` then
+fails for every release it reads whose tag the clone lacks. `git fetch --tags`
+cures both without deepening a shallow history, and those modules need
+nothing more.
+
 These requirements are easily checked (and partially fixed) with:
 
 ```shell
@@ -665,8 +676,9 @@ The job types `pytest` and nothing after it, which is section 8 of the
 organization standard: addopts carries `--cov`, and what it measures and
 how it reports are `tool.coverage.run`'s `source` and
 `tool.coverage.report` in pyproject.toml. So this command and the bare
-`uv run pytest` above are the same measurement, the job being unable to
-gate on a scope a contributor's run does not have. `COVERAGE_FILE` is
+`uv run pytest` above are the same measurement in a clone carrying the
+tags the job's checkout fetches, the job being unable to gate on a scope a
+contributor's run does not have. `COVERAGE_FILE` is
 `--data-file`'s environment variable, coverage's own, and names here what
 the step's own `env:` names there, not a local-reproduction addition: the
 two artifacts this job and `no-bindings` below produce would overwrite
