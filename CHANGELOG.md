@@ -533,6 +533,12 @@ A redeem script over `MAX_SCRIPT_ELEMENT_SIZE` (closes #2383), a witness script
 over the consensus `MAX_SCRIPT_SIZE`, not Core's relay limit (closes #2384).
 Both are in `btclib.consensus`, and `btclib.script.limits` re-exports them.
 
+### `codeql-passed` re-reads a lagging row and judges `analyze`'s own result
+
+A lagging row is read again up to three times, 10 s apart, before it is
+accepted (issue btclib-org/.github#1416), and a `needs.analyze.result` neither
+`success` nor `skipped` fails the step (issue btclib-org/.github#1424).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
