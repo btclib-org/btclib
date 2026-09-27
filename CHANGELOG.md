@@ -270,6 +270,12 @@ A pin whose file upstream deleted or renamed is reported as the commit that
 removed it, which the report says may be a deletion or a rename; "no commit"
 names a path the branch walked never held (closes #2312).
 
+### `hashes.merkle_root`'s docstring says it hashes each item first
+
+The docstrings of it and `merkle_root_and_mutated` gave the provided list
+as the tree's bottom level, which is its items' hashes; a list of hashes
+taken as given goes to `merkle_root_and_mutated_from_hashes` (closes #2300).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
