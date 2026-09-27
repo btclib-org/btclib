@@ -71,11 +71,24 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
     million cap, and one with more than 8 decimals, no output being
     able to carry a fraction of a satoshi.
     """
+    # dust is compared against the parsed amount inside the FloatOperation
+    # trap this function sets below, so a float dust trips that trap and
+    # leaks a bare decimal.FloatOperation instead of this library's own
+    # exception contract. It is type-checked here, by name and not by
+    # attempting a conversion, the same way valid_sats_amount type-checks
+    # its own dust threshold
+    if not isinstance(dust, Decimal):
+        raise BTClibTypeError(f"non-Decimal BTC dust threshold: {dust}")
     with localcontext() as ctx:
         ctx.traps[FloatOperation] = True
         # any input that can be converted to str is fine
         amount = "0" if amount is None else str(amount)
         err_msg = f"invalid BTC amount: {amount}"
+        # Decimal(str) accepts the digit-grouping underscore Python's own
+        # number literals do -- "1_0" would parse as ten -- which is not a
+        # decimal number anybody actually wrote
+        if "_" in amount:
+            raise BTClibValueError(err_msg)
         # using str in the Decimal constructor avoids the
         # FloatOperation exception trapped just above.
         #
@@ -101,7 +114,11 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
         if not dust <= btc <= _MAX_BITCOIN:
             raise BTClibValueError(err_msg)
         if btc == btc.quantize(_BITCOIN_PER_SATOSHI):
-            return btc
+            # a signed zero ("-0", "-0.00000000") compares equal to zero
+            # and passes every check above unchanged; unary plus clears
+            # the sign of a zero result and leaves every other value,
+            # exponent included, exactly as parsed
+            return +btc
         raise BTClibValueError(f"too many decimals for a BTC amount: {amount}")
 
 
@@ -125,6 +142,12 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     # one satoshi rather than a caller error
     if not is_integer(dust):
         raise BTClibTypeError(f"non-integer satoshi dust threshold: {dust}")
+    # int(str), like Decimal(str) in valid_btc_amount, accepts the
+    # digit-grouping underscore Python's own number literals do --
+    # "1_0" would parse as ten -- which is not an integer anybody
+    # actually wrote
+    if isinstance(amount, str) and "_" in amount:
+        raise BTClibValueError(f"invalid satoshi amount: {amount}")
     # any input that can be converted to int is fine -- and int() refuses
     # what it cannot convert with a bare ValueError ("abc", b"\x01"), a
     # bare TypeError (a list), or a bare OverflowError (an infinity, where
@@ -140,7 +163,15 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
         raise BTClibValueError(f"invalid satoshi amount: {amount}") from e
     except TypeError as e:
         raise BTClibTypeError(f"non-integer satoshi amount: {amount}") from e
-    if amount is not None and sats != amount:
+    # sats != amount is what catches the truncation int() performs
+    # silently on a float or a Decimal fraction (int(2.5) == 2, so
+    # 2 != 2.5 fires); it cannot fire that way on a str, since int()
+    # only ever parses a string that already spells a bare integer, no
+    # fraction surviving to be truncated -- and an int compares unequal
+    # to every str regardless of value, which is what refused every
+    # numeric string despite the comment above admitting one. A str is
+    # exempted from the check rather than compared under it
+    if amount is not None and not isinstance(amount, str) and sats != amount:
         raise BTClibTypeError(f"non-integer satoshi amount: {amount}")
     if not dust <= sats <= _MAX_SATOSHI:
         raise BTClibValueError(f"invalid satoshi amount: {amount}")

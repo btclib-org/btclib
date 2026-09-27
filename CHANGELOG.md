@@ -235,6 +235,24 @@ refuses or a bare `UnicodeEncodeError` (closes #2286).
 `1.0` for request id 1 (closes #2298), and reads a `null` id's `error` before
 the id check, JSON-RPC 2.0's answer to an unparsable request (closes #2299).
 
+### `valid_sats_amount` accepts the numeric string its comment admitted
+
+The equality check after `int()` refused every `str` regardless of
+value, `int("10") != "10"`, though a float of the same value passed; a
+`str` is now exempt, refused instead for a `_` or a fraction (closes #2291).
+
+### `valid_btc_amount` type-checks its `dust` threshold
+
+A float `dust` tripped the `FloatOperation` trap around its own
+comparison and leaked a bare `decimal.FloatOperation`; `dust` now has
+to be a `Decimal`, matching `valid_sats_amount`'s own check (closes #2292).
+
+### `valid_btc_amount` refuses digit grouping and a signed zero's sign
+
+`Decimal(str(amount))` accepted Python's digit-grouping underscore, so
+`"1_0"` read as ten BTC; a string amount carrying `_` is now refused,
+and a zero result's sign is now cleared rather than kept (closes #2293).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
