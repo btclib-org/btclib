@@ -322,6 +322,12 @@ to BIP324's reference code and not to libsecp256k1 alone (closes #2307).
 `p2wpkh` and `p2ms` refuse a key `assert_valid` refuses, which reached the
 output unchecked, and a non-key, which raised `AttributeError` (closes #2329).
 
+### `fix_signature` reads lax DER as Core's `ecdsa_signature_parse_der_lax`
+
+With no flag asking for strict DER, the sequence length is skipped and a length
+octet with its top bit set is read as X.690's long form, as in Core: a
+signature Core verifies was refused, and one it refuses taken (closes #2283).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

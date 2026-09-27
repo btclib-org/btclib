@@ -141,6 +141,62 @@ def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
 STRICT_DER_FLAGS = ScriptFlag.DERSIG | ScriptFlag.LOW_S | ScriptFlag.STRICTENC
 
 
+def _read_der_lax_integer(der: bytes, pos: int) -> tuple[int, int]:
+    """Read the integer at pos as Core's lax parser does: (value, next pos).
+
+    A length octet with its top bit set is X.690's long form, the octets
+    it counts read big-endian once their leading zeros are skipped, and
+    four or more left over refuse the encoding. The value is unsigned
+    whatever its top bit, so a negative integer reads as its octets.
+    """
+    if der[pos : pos + 1] != b"\x02":
+        raise BTClibValueError("lax DER: missing integer tag")
+    pos += 1
+    if pos == len(der):
+        raise BTClibValueError("lax DER: missing integer length")
+    length = der[pos]
+    pos += 1
+    if length & 0x80:
+        width = length - 0x80
+        if width > len(der) - pos:
+            raise BTClibValueError("lax DER: integer length overruns the data")
+        length_octets = der[pos : pos + width].lstrip(b"\x00")
+        pos += width
+        if len(length_octets) >= 4:
+            raise BTClibValueError("lax DER: integer length too wide")
+        length = int.from_bytes(length_octets, byteorder="big", signed=False)
+    if length > len(der) - pos:
+        raise BTClibValueError("lax DER: integer overruns the data")
+    value = int.from_bytes(der[pos : pos + length], byteorder="big", signed=False)
+    return value, pos + length
+
+
+def _parse_der_lax(der: bytes) -> tuple[int, int]:
+    """Return (r, s) from an encoding Core's lax DER parser accepts.
+
+    `ecdsa_signature_parse_der_lax` in Core's src/pubkey.cpp, which
+    `CPubKey::Verify` parses with, refusal for refusal: the sequence
+    length is skipped rather than read, its long form included, and
+    nothing after s is looked at. An r or an s it reads that is zero, not
+    below n or wider than 32 octets is a signature Core fails to verify,
+    and `Sig` refusing it is the same False once op_checksig has caught
+    the error.
+    """
+    if der[:1] != b"\x30":
+        raise BTClibValueError("lax DER: missing sequence tag")
+    if len(der) == 1:
+        raise BTClibValueError("lax DER: missing sequence length")
+    pos = 2
+    if der[1] & 0x80:
+        width = der[1] - 0x80
+        if width > len(der) - pos:
+            raise BTClibValueError("lax DER: sequence length overruns the data")
+        pos += width
+    r, pos = _read_der_lax_integer(der, pos)
+    s, _ = _read_der_lax_integer(der, pos)
+    return r, s
+
+
 def fix_signature(signature: bytes, flags: ScriptFlag) -> bytes:
     """Return the signature the bindings can be asked to verify.
 
@@ -149,15 +205,16 @@ def fix_signature(signature: bytes, flags: ScriptFlag) -> bytes:
     before verifying, and it is CheckSignatureEncoding above it that
     refuses either -- under the flags for it and not otherwise. So both
     are answered here, each in the direction its flags ask for: a lax
-    encoding is re-serialized strict when no flag wants it refused, and a
-    high s is negated when no flag wants it refused.
+    encoding, read by Core's own lax parser, is re-serialized strict when
+    no flag wants it refused, and a high s is negated when no flag wants
+    it refused.
     """
     signature_suffix = signature[-1:]
     if ScriptFlag.STRICTENC in flags and signature_suffix[0] not in SIG_HASH_TYPES:
         raise BTClibValueError(f"invalid sighash type: {hex(signature_suffix[0])}")
     signature = signature[:-1]
     if not flags & STRICT_DER_FLAGS:
-        signature = Sig.parse(signature, strict=False).serialize()
+        signature = Sig(*_parse_der_lax(signature)).serialize()
     # strict, so that this is what enforces DER for the three flags above:
     # a lax encoding was normalized already, and one that was not has to be
     # refused here rather than reach the bindings, which answer a parse
