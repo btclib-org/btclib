@@ -8,9 +8,9 @@ CONTRIBUTING.md's "Every public function validates its inputs" is driven
 automatically by `input_validation_test.py`, over the functions whose every
 required parameter is a library input type, and by hand in
 `bool_contract_test.py`, over the ones that answer a `bool`. Neither
-reaches a function whose parameter is a `CmpctBlock` or a sequence of
-transactions: no vocabulary of wrong values builds one, so a fixture has
-to, and issue #856 is where that ceiling is written down.
+reaches a function whose parameter is a `CmpctBlock`, a `PubKeyData` or a
+sequence of transactions: no vocabulary of wrong values builds one, so a
+fixture has to, and issue #856 is where that ceiling is written down.
 
 `check_validity=False` is why this family is worth a gate of its own.
 CONTRIBUTING.md's "it says *do not check now*, not *this object is exempt
@@ -36,9 +36,12 @@ from typing import Any
 
 import pytest
 
+from btclib import b32, b58
 from btclib.block import Block
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.key import PrvKeyData, PubKeyData
 from btclib.p2p import CmpctBlock, PrefilledTransaction, reconstruct
+from btclib.script import ScriptPubKey
 
 # the block after genesis, for the one case here whose argument is a p2p
 # message: a `CmpctBlock` needs a header that is one, and a header cannot
@@ -56,6 +59,18 @@ _CMPCTBLOCK = CmpctBlock(
 # perfectly good type and a value no block has: there is none without a
 # coinbase, and Core's `InitData` refuses it too
 _NO_TRANSACTIONS = CmpctBlock(_BLOCK_1.header, 0)
+
+# a compressed public key, and octets of its size under a prefix no SEC key
+# has: `check_validity=False` builds the second, which `assert_valid`
+# refuses, and hashing it would answer an address nobody can spend from
+_PUB_KEY = PrvKeyData(1).pub
+_BAD_PREFIX = PubKeyData(b"\x05" + _PUB_KEY.sec[1:], check_validity=False)
+
+
+def _p2ms_1_of_1(key: PubKeyData) -> ScriptPubKey:
+    """`ScriptPubKey.p2ms` driven at one of its keys."""
+    return ScriptPubKey.p2ms(1, [key])
+
 
 # a value of no type any of these positions declares
 _WRONG_TYPES = (None, 1.5)
@@ -81,6 +96,18 @@ _CASES = (
         # may hold, and a pool that answers no short id is the ordinary
         # case rather than a refusal
         {0: _NO_TRANSACTIONS},
+    ),
+    *(
+        _Case(label, function, (_PUB_KEY,), {0: _BAD_PREFIX})
+        for label, function in (
+            ("b58.p2pkh", b58.p2pkh),
+            ("b58.p2wpkh_p2sh", b58.p2wpkh_p2sh),
+            ("b32.p2wpkh", b32.p2wpkh),
+            ("script.ScriptPubKey.p2pk", ScriptPubKey.p2pk),
+            ("script.ScriptPubKey.p2pkh", ScriptPubKey.p2pkh),
+            ("script.ScriptPubKey.p2wpkh", ScriptPubKey.p2wpkh),
+            ("script.ScriptPubKey.p2ms", _p2ms_1_of_1),
+        )
     ),
 )
 

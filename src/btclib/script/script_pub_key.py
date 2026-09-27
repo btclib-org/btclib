@@ -687,6 +687,10 @@ class ScriptPubKey(Script):
         check_validity: bool = True,
     ) -> ScriptPubKey:
         """Return the p2pk ScriptPubKey of the provided public key."""
+        # asked as `b58.p2pkh` asks it, whatever `check_validity` it was
+        # built with: this one's own flag is about the script it builds
+        assert_type(key, PubKeyData, "key")
+        key.assert_valid()
         script = serialize([key.sec, "OP_CHECKSIG"])
         return cls(script, key.network, check_validity=check_validity)
 
@@ -721,6 +725,10 @@ class ScriptPubKey(Script):
         if not 0 < m <= n:
             raise BTClibValueError(f"invalid m in m-of-n: {m}-of-{n}")
 
+        # each key asked as `p2pk` above asks it
+        for key in keys:
+            assert_type(key, PubKeyData, "key")
+            key.assert_valid()
         # the first key names the network and the rest have to agree:
         # each key carries its own, where the `Key` spellings this used to
         # take carried none and were filled in from one argument for all
@@ -776,6 +784,9 @@ class ScriptPubKey(Script):
         check_validity: bool = True,
     ) -> ScriptPubKey:
         """Return the p2pkh ScriptPubKey of the provided public key."""
+        # asked as `p2pk` above asks it
+        assert_type(key, PubKeyData, "key")
+        key.assert_valid()
         script = serialize(
             ["OP_DUP", "OP_HASH160", hash160(key.sec), "OP_EQUALVERIFY", "OP_CHECKSIG"]
         )
@@ -806,6 +817,9 @@ class ScriptPubKey(Script):
         The key must be compressed, which is BIP141's rule and
         `b32._v0_witness_program_from_key`'s refusal.
         """
+        # asked as `p2pk` above asks it
+        assert_type(key, PubKeyData, "key")
+        key.assert_valid()
         script = serialize(["OP_0", _v0_witness_program_from_key(key)])
         return cls(script, key.network, check_validity=check_validity)
 

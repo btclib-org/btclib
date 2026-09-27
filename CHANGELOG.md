@@ -316,6 +316,12 @@ Each row of bitcoin/bips' `packet_encoding_test_vectors.csv` is asserted
 through the bindings and through the Python arithmetic, whose arm then answers
 to BIP324's reference code and not to libsecp256k1 alone (closes #2307).
 
+### The address and script builders ask the `PubKeyData` they are handed
+
+`b58.p2pkh`, `p2wpkh_p2sh`, `b32.p2wpkh` and `ScriptPubKey.p2pk`, `p2pkh`,
+`p2wpkh` and `p2ms` refuse a key `assert_valid` refuses, which reached the
+output unchecked, and a non-key, which raised `AttributeError` (closes #2329).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
