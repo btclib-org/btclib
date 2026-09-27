@@ -311,6 +311,14 @@ full year, short month, short day (YYYY-M-D)
 
   Act on it if you hand these functions a signed positive string: drop the
   `+` first.
+- **`int_from_json_number`, and `BlockHeader`'s `version` and `nonce`
+  through it, refuse a str and bytes** (closes #2371): `"1"` and `b"1"`
+  raise `BTClibTypeError`, where they read as 1. A Decimal or a Fraction
+  that is not whole raises `BTClibValueError`, where it was truncated. A
+  `BTClibValueError` out of it reads `invalid <field>: not a whole number`,
+  with no value quoted.
+
+  Act on it if you pass a number as text: pass the int.
 
 ## v2026.9.24
 

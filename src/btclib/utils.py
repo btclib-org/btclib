@@ -54,6 +54,7 @@ from __future__ import annotations
 import string
 from collections.abc import Iterable, Mapping
 from io import BytesIO
+from numbers import Number
 from typing import Any, BinaryIO
 
 from typing_extensions import TypeIs
@@ -363,28 +364,42 @@ def int_from_json_number(value: Any, what: str) -> int:
     schema mistake would become a version, a depth or an index instead of
     an error beside the input that caused it.
 
+    A *number*: json decodes one to an int or a float, or to a Decimal
+    where `parse_float` asks for it, and never to a str or to bytes. `int`
+    reads both as the text of a number, a sign, an underscore and
+    surrounding whitespace included, and a str in every Unicode decimal
+    digit, so a string no json writer emits for a number would be one.
+    They are refused by type, as anything that is not a `numbers.Number`
+    is.
+
     A *whole* number: 1.0 is the json spelling of 1 and coerces, 1.5 is
     the spelling of nothing this library has a field for, and `int`
     truncates it to 1 rather than refusing -- silently, and to a number
     the caller did write, which is what makes it worse than a type error.
-    `float.is_integer()` asks that of the value, `nan` and `inf` being no
-    more whole than 1.5 is.
+    `int(value) == value` asks that of a float, a Decimal and a Fraction
+    alike, and `int` refuses `nan` and `inf` outright.
+
+    A refusal names the field and not the value.
 
     `is_integer` is the same decision where there is nothing to coerce.
     """
-    if isinstance(value, bool):
+    if isinstance(value, bool) or not isinstance(value, Number):
         raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
-    if isinstance(value, float) and not value.is_integer():
-        raise BTClibValueError(f"invalid {what}: {value}")
+    # `Number` declares no `__int__`, so the check above narrows past what
+    # `int` and `!=` accept; the value is read back as the Any it came in as
+    number: Any = value
     try:
-        return int(value)
-    # what is left is anything at all, this taking Any: a str that is no
-    # number, a None, an object. Neither error is btclib's as it stands,
-    # and `except ValueError` is what a caller of a json reader writes
+        result = int(number)
+    # a complex is a Number `int` cannot convert, and neither error is
+    # btclib's as it stands: `except ValueError` is what a caller of a
+    # json reader writes, and OverflowError, out of `inf`, is not even one
     except TypeError as e:
         raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}") from e
-    except ValueError as e:
-        raise BTClibValueError(f"invalid {what}: {value!r}") from e
+    except (ValueError, OverflowError) as e:
+        raise BTClibValueError(f"invalid {what}: not a whole number") from e
+    if result != number:
+        raise BTClibValueError(f"invalid {what}: not a whole number")
+    return result
 
 
 def assert_type(value: Any, expected: Any, what: str) -> None:

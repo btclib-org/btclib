@@ -509,6 +509,12 @@ Docker Hub and the base image is on gcr.io (issue btclib-org/.github#1405).
 Neither of Bitcoin Core's `ParseMoney` and `ParseFixedPoint` reads one; the `+`
 of an exponent, "1e+1", stays (closes #2372).
 
+### `int_from_json_number` takes a whole number, never its text
+
+A str or bytes is refused by type, as `int` reads non-ASCII digits, an
+underscore and padding in one (closes #2371); a fractional Decimal or Fraction
+is refused where it truncated, and no refusal quotes the value.
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
