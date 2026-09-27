@@ -46,6 +46,7 @@ from btclib.script import (
 )
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.taproot import (
+    MAX_TREE_DEPTH,
     assert_valid_control_block,
     parse,
     serialize,
@@ -761,6 +762,42 @@ def test_a_tree_of_the_wrong_shape_is_refused_as_a_value(
             call()
 
 
+def _tree_of_depth(depth: int) -> TaprootScriptTree:
+    """Return a tree whose first leaf sits `depth` branches below the root."""
+    tree: TaprootScriptTree = [(0xC0, ["OP_1"])]
+    for _ in range(depth):
+        tree = [tree, [(0xC0, ["OP_2"])]]
+    return tree
+
+
+def test_a_leaf_at_max_tree_depth_is_the_deepest_there_is() -> None:
+    """Deeper than TAPROOT_CONTROL_MAX_NODE_COUNT is refused (issue #2343).
+
+    At the bound the deepest leaf has a control block of the largest
+    size BIP341 admits, and it proves the leaf. One level more had an
+    output key and a control block `check_output_pubkey` refused as too
+    long; far deeper left `tree_helper` as a RecursionError.
+    """
+    tree = _tree_of_depth(MAX_TREE_DEPTH)
+    q = output_pubkey(None, tree)[0]
+    script, control = input_script_sig(None, tree, 0)
+    assert len(control) == 33 + 32 * MAX_TREE_DEPTH
+    assert check_output_pubkey(q, serialize(script), control)
+
+    err_msg = f"script tree deeper than {MAX_TREE_DEPTH}"
+    calls: tuple[Callable[[TaprootScriptTree], object], ...] = (
+        tree_helper,
+        lambda t: output_pubkey(None, t),
+        lambda t: output_prvkey(1, t),
+        lambda t: input_script_sig(None, t, 0),
+    )
+    for depth in (MAX_TREE_DEPTH + 1, 5000):
+        tree = _tree_of_depth(depth)
+        for call in calls:
+            with pytest.raises(BTClibValueError, match=err_msg):
+                call(tree)
+
+
 def test_none_is_the_only_absent_internal_key_or_tree() -> None:
     """A falsy value of a wrong type is no missing one (issue #2334).
 
@@ -883,6 +920,20 @@ def test_bip_test_vector(test: dict[str, Any]) -> None:
 
     assert tweaked_pubkey.hex() == test["intermediary"]["tweakedPubkey"]
     assert address == test["expected"]["bip350Address"]
+
+
+@pytest.mark.parametrize("op_code", [0x4C, 0x4D, 0x4E], ids=["1", "2", "4"])
+def test_a_push_cut_short_is_refused(op_code: int) -> None:
+    """A length field, and then the data, shorter than the push declares.
+
+    Held here rather than left to `fuzz_test.py`: its draw is what else
+    reaches the length field's refusal, on some runs and not others.
+    """
+    width = 2 ** (op_code - 0x4C)
+    with pytest.raises(BTClibValueError, match="Invalid pushdata length"):
+        parse(bytes([op_code]) + b"\x01" * (width - 1))
+    with pytest.raises(BTClibValueError, match="Invalid pushdata length"):
+        parse(bytes([op_code]) + b"\x01" + b"\x00" * (width - 1))
 
 
 def test_serialize_op_success() -> None:
