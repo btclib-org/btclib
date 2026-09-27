@@ -101,11 +101,11 @@ _INDEX_OF = {c: i for i, c in enumerate(_ALPHABET)}
 def _hrp_in_range(text: str) -> bool:
     """Whether every character of `text` is in BIP173's HRP range.
 
-    "a value in the range [33-126]", shared between `_decode`'s check on
-    `text[:pos]` and `encode`'s on the HRP it is given, so the bound
-    lives in one place. 33 and 126 are the boundary themselves ("!" and
-    "~"); a weakened `<=` at either end would accept 32 (" ") or 127
-    (DEL).
+    "a value in the range [33-126]", shared between `_decode`'s checks on
+    `text[:pos]` and on the data part after it and `encode`'s on the HRP
+    it is given, so the bound lives in one place. 33 and 126 are the
+    boundary themselves ("!" and "~"); a weakened `<=` at either end
+    would accept 32 (" ") or 127 (DEL).
     """
     return all(32 < ord(x) < 127 for x in text)
 
@@ -168,6 +168,13 @@ def _decode(bech: String) -> tuple[str, list[int], list[int]]:
 
     if not _hrp_in_range(text[:pos]):
         raise BTClibValueError("HRP character out of range")
+    # the data part is held to the same range before anything lowers it:
+    # str.lower maps U+212A KELVIN SIGN, its own uppercase, onto "k", so
+    # an all-uppercase string carrying it would pass the case check and
+    # decode as the string spelled with "K". Bitcoin Core's
+    # CheckCharacters refuses the same range over the whole string
+    if not _hrp_in_range(text[pos + 1 :]):
+        raise BTClibValueError("data part character out of range")
     if text.lower() != text and text.upper() != text:
         raise BTClibValueError("mixed case")
 

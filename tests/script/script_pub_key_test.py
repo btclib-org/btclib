@@ -1237,3 +1237,13 @@ def test_script_from_script_pub_key_asks_the_object_first() -> None:
     assert _script_from(unchecked) == script
     with pytest.raises(BTClibValueError, match="unknown network"):
         script_from_script_pub_key(unchecked)
+
+
+def test_an_address_with_a_character_lowering_onto_the_alphabet_is_refused() -> None:
+    """KELVIN SIGN in place of "K" is no address, at either entry point."""
+    addr = "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4"
+    assert ScriptPubKey.from_address(addr).addresses == [addr.lower()]
+    kelvin = addr.replace("K", chr(0x212A))
+    for decoder in (b32.witness_from_address, ScriptPubKey.from_address):
+        with pytest.raises(BTClibValueError, match="data part character out of range"):
+            decoder(kelvin)

@@ -434,6 +434,12 @@ Each refusal says what is wrong, a missing separator or an invalid checksum,
 where it repeated the whole string, so that a private key pasted where an
 address goes came back in the exception (closes #2344).
 
+### `bech32.decode` refuses a data part character outside 33..126
+
+Ahead of the case check: `str.lower` maps U+212A KELVIN SIGN onto `k`, so an
+uppercase address with it in place of `K` decoded as that address. Bitcoin
+Core's `CheckCharacters` refuses the same range (closes #2347).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
