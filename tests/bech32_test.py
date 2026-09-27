@@ -104,33 +104,35 @@ def test_bech32() -> None:
         # \x20 and \x7f are the boundary itself, one character below and
         # one above BIP173's HRP range [33-126]: `32 < ord(x) < 127`
         # weakened at either end to `<=` would accept them
-        ["\x20" + " 1nwldj5", r"HRP character out of range: *"],
-        ["\x7f" + "1axkwrx", r"HRP character out of range: *"],
-        ["\x80" + "1eym55h", r"HRP character out of range: *"],
+        ["\x20" + " 1nwldj5", "HRP character out of range"],
+        ["\x7f" + "1axkwrx", "HRP character out of range"],
+        ["\x80" + "1eym55h", "HRP character out of range"],
         # mixed case where lowering it does not sort below the original:
         # `bech.lower() != bech` weakened to `< bech` is false here (the
         # raised "u" sorts above the "U" it replaces), and the `and`
         # after it only raises if the upper-casing check also does
-        ["a12UEL5L", r"mixed case: *"],
-        ["pzry9x0s0muk", r"no separator character: *"],
-        ["1pzry9x0s0muk", r"empty HRP: *"],
-        ["x1b4n0q5v", r"invalid data character: *"],
-        ["li1dgmt3", r"too short checksum: *"],
+        ["a12UEL5L", "mixed case"],
+        ["pzry9x0s0muk", "no separator character"],
+        ["1pzry9x0s0muk", "empty HRP"],
+        ["x1b4n0q5v", "invalid data character"],
+        ["li1dgmt3", "too short checksum"],
         # Invalid character in checksum
-        ["de1lg7wt\xff", r"invalid character in checksum: *"],
+        ["de1lg7wt\xff", "invalid character in checksum"],
         # the same, at the far end of the checksum rather than the near
         # one: `bech[-6:]` weakened to `bech[-5:]` still catches the
         # vector above (its invalid byte is the very last character) and
         # misses this one, six characters from the end and not five
-        ["de1\xffqpzry", r"invalid character in checksum: *"],
+        ["de1\xffqpzry", "invalid character in checksum"],
         # checksum calculated with uppercase form of HRP
-        ["A1G7SGD8", r"invalid checksum: *"],
-        ["10a06t8", r"empty HRP: *"],
-        ["1qzzfhee", r"empty HRP: *"],
+        ["A1G7SGD8", "invalid checksum"],
+        ["10a06t8", "empty HRP"],
+        ["1qzzfhee", "empty HRP"],
     ]
 
+    # the whole message and nothing else: a refusal that quoted the
+    # string it was given would repeat a key pasted where an address goes
     for addr, err_msg in invalid_checksum:
-        with pytest.raises(BTClibValueError, match=err_msg):
+        with pytest.raises(BTClibValueError, match=f"^{err_msg}$"):
             decode(addr, BECH32_1_CONST)
 
 
@@ -218,23 +220,23 @@ def test_bech32m() -> None:
             decode(test, BECH32_M_CONST)
 
     invalid_checksum = [
-        ["\x20" + "1xj0phk", r"HRP character out of range: *"],
-        ["\x7f" + "1g6xzxy", r"HRP character out of range: *"],
-        ["\x80" + "1vctc34", r"HRP character out of range: *"],
-        ["qyrz8wqd2c9m", r"no separator character: *"],
-        ["1qyrz8wqd2c9m", r"empty HRP: *"],
-        ["y1b0jsk6g", r"invalid data character: *"],
-        ["lt1igcx5c0", r"invalid data character: *"],
-        ["in1muywd", r"too short checksum: *"],
-        ["mm1crxm3i", r"invalid character in checksum: *"],
-        ["au1s5cgom", r"invalid character in checksum: *"],
-        ["M1VUXWEZ", r"invalid checksum: *"],
-        ["16plkw9", r"empty HRP: *"],
-        ["1p2gdwpf", r"empty HRP: *"],
+        ["\x20" + "1xj0phk", "HRP character out of range"],
+        ["\x7f" + "1g6xzxy", "HRP character out of range"],
+        ["\x80" + "1vctc34", "HRP character out of range"],
+        ["qyrz8wqd2c9m", "no separator character"],
+        ["1qyrz8wqd2c9m", "empty HRP"],
+        ["y1b0jsk6g", "invalid data character"],
+        ["lt1igcx5c0", "invalid data character"],
+        ["in1muywd", "too short checksum"],
+        ["mm1crxm3i", "invalid character in checksum"],
+        ["au1s5cgom", "invalid character in checksum"],
+        ["M1VUXWEZ", "invalid checksum"],
+        ["16plkw9", "empty HRP"],
+        ["1p2gdwpf", "empty HRP"],
     ]
 
     for addr, err_msg in invalid_checksum:
-        with pytest.raises(BTClibValueError, match=err_msg):
+        with pytest.raises(BTClibValueError, match=f"^{err_msg}$"):
             decode(addr, BECH32_M_CONST)
 
 
@@ -267,7 +269,7 @@ def test_a_changed_character_fails_the_checksum(
     mutated = body[:i] + _ALPHABET[value] + body[i + 1 :]
     if mutated == body:
         return
-    with pytest.raises(BTClibValueError, match="invalid checksum: "):
+    with pytest.raises(BTClibValueError, match="^invalid checksum$"):
         decode(f"{hrp}1{mutated}")
 
 
