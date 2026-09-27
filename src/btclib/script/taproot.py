@@ -228,7 +228,18 @@ def leaf_hash(leaf_version: int, script: bytes) -> bytes:
     BIP371's psbt fields key their taproot data by one. `script` is the
     leaf script already serialized, which is the form all three of those
     hold it in.
+
+    The leaf version is a byte whose low bit is the output key's parity
+    in the control block, never the version's: BIP341 hashes
+    `c[0] & 0xfe`, and Bitcoin Core's `TaprootBuilder::Add` asserts it
+    even. An odd one names no leaf any spend can reveal, so it is
+    refused rather than masked or hashed as given.
     """
+    if not is_integer(leaf_version):
+        err_msg = f"invalid leaf version type: {type(leaf_version).__name__}"
+        raise BTClibTypeError(err_msg)
+    if not 0 <= leaf_version <= 0xFE or leaf_version & 1:
+        raise BTClibValueError(f"invalid leaf version: {_message_text(leaf_version)}")
     preimage = leaf_version.to_bytes(1, "big") + var_bytes.serialize(script)
     return tagged_hash(b"TapLeaf", preimage)
 

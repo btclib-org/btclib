@@ -266,13 +266,16 @@ def _serialize_str_command(command: str) -> bytes:
     if command.startswith("OP_SUCCESS"):
         digits = command[10:]
         # the number as parse writes it: `int` also takes a sign, an
-        # underscore, whitespace and leading zeros
-        if not digits.isdigit() or str(int(digits)) != digits:
+        # underscore, whitespace and leading zeros. Read off the text, as
+        # `int` raises a ValueError of its own on more digits than
+        # `sys.get_int_max_str_digits()`
+        if not digits.isdigit() or (len(digits) > 1 and digits[0] == "0"):
             raise BTClibValueError(f"invalid string command: {command}")
-        x = int(digits)
-        if x not in OP_SUCCESS:
-            raise BTClibValueError(f"invalid OP_SUCCESS number: {x}")
-        return x.to_bytes(1, "little")
+        # every OP_SUCCESS number is below 256, so a longer one is refused
+        # without `int` reading it
+        if len(digits) > 3 or int(digits) not in OP_SUCCESS:
+            raise BTClibValueError(f"invalid OP_SUCCESS number: {digits}")
+        return int(digits).to_bytes(1, "little")
     try:
         data = bytes.fromhex(command)
     except ValueError as e:
