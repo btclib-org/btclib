@@ -4,6 +4,8 @@
 
 """Tests for the `btclib.base58` module."""
 
+import array
+
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
@@ -182,6 +184,26 @@ def test_max_length() -> None:
     # str and bytes take the same path
     with pytest.raises(BTClibValueError, match=err_msg):
         decode("1" * (MAX_LENGTH + 1))
+
+
+def test_decode_refuses_a_memoryview_of_the_wrong_shape() -> None:
+    """A strided or wide-format memoryview is refused, not gathered silently.
+
+    `_assert_byte_shaped` -- the check every other `Octets` coercion
+    passes through -- is asked here too, before `len(v)` and before
+    `_b58decode`'s own `bytes(v)`: a strided view is not C-contiguous, and
+    a format-"I" view's `len()` counts elements rather than the octets
+    `bytes()` would go on to gather (issue #2295).
+    """
+    strided = memoryview(b"1" * 40)[::2]
+    with pytest.raises(BTClibValueError, match="invalid octets: non-contiguous"):
+        decode(strided)
+
+    wide = memoryview(array.array("I", [0x31313131] * 3))
+    assert len(wide) == 3
+    assert wide.nbytes == 12
+    with pytest.raises(BTClibValueError, match="invalid octets: memoryview format"):
+        decode(wide)
 
 
 @given(payload=st.binary(max_size=78))

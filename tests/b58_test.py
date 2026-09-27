@@ -102,10 +102,18 @@ def test_prv_key_data_from_wif() -> None:
     with pytest.raises(InvalidPrvKeyError, match="wrong WIF size: 35"):
         b58.prv_key_data_from_wif(badwif)
 
-    # leading/trailing spaces in a str are stripped; a WIF is also read
-    # from bytes, base58's own alphabet excluding the space either way
+    # leading/trailing spaces are stripped from a str and from bytes
+    # alike, coerced through the same `str_from_string` the b32 sibling
+    # uses rather than only when the caller happened to pass a str
+    # (issue #2297)
     wif = "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
-    for alt in (f" {wif}", f"{wif} ", wif.encode("ascii")):
+    for alt in (
+        f" {wif}",
+        f"{wif} ",
+        wif.encode("ascii"),
+        f" {wif}".encode("ascii"),
+        f"{wif} ".encode("ascii"),
+    ):
         assert b58.prv_key_data_from_wif(alt) == b58.prv_key_data_from_wif(wif)
 
     # a mainnet WIF asked for as a testnet one: the prefix is recognised,
@@ -235,6 +243,11 @@ def test_p2sh() -> None:
     script_hash = hash160(script_pub_key)
     assert ("p2sh", script_hash, network) == b58.h160_from_address(address)
     assert ("p2sh", script_hash, network) == b58.h160_from_address(f" {address} ")
+    # padding is stripped from bytes input too, not only from a str
+    # (issue #2297)
+    assert ("p2sh", script_hash, network) == b58.h160_from_address(
+        f" {address} ".encode("ascii")
+    )
 
     assert script_hash.hex() == "4266fc6f2c2861d7fe229b279a79803afca7ba34"
     script_sig: ScriptList = ["OP_HASH160", script_hash.hex(), "OP_EQUAL"]

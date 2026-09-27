@@ -23,6 +23,7 @@ from btclib.utils import (
     int_from_json_number,
     is_octets,
     read_exactly,
+    str_from_string,
 )
 
 random.seed(42)
@@ -389,6 +390,26 @@ def test_magic_message_and_siphash_answer_the_same_for_every_octets_spelling() -
         magic_message(wide)
     with pytest.raises(BTClibValueError, match="invalid octets: memoryview format"):
         siphash(1, 2, wide)
+
+
+def test_str_from_string_refuses_a_memoryview_of_the_wrong_shape() -> None:
+    """`str_from_string` used to call `bytes()` on any memoryview directly.
+
+    The same coercion `bytes_from_octets` applies -- `_assert_byte_shaped`
+    -- now runs here too, before the `bytes(s).decode("ascii")` that used
+    to gather a strided or wide-format view silently (issue #2295).
+    """
+    raw = bytes(range(64))
+    strided = memoryview(raw)[::2]
+    with pytest.raises(BTClibValueError, match="invalid octets: non-contiguous"):
+        str_from_string(strided, "label")
+
+    wide = memoryview(array.array("I", [1, 2]))
+    with pytest.raises(BTClibValueError, match="invalid octets: memoryview format"):
+        str_from_string(wide, "label")
+
+    # a contiguous, format-"B" memoryview is taken, same as any other buffer
+    assert str_from_string(memoryview(b"abc"), "label") == "abc"
 
 
 def test_is_octets_answers_one_octets_not_a_sequence_of_them() -> None:

@@ -211,6 +211,24 @@ A mixed-case, empty, out-of-range or non-ascii HRP now raises
 `BTClibValueError` or `BTClibTypeError`, rather than a string `decode`
 refuses or a bare `UnicodeEncodeError` (closes #2286).
 
+### `base58.decode` and `str_from_string` refuse a memoryview of the wrong shape
+
+- **Both called `bytes()` on any memoryview directly, skipping
+  `_assert_byte_shaped`** (closes #2295): `decode`'s length cap also
+  counted a memoryview's elements, not its octets.
+
+### `base58.encode` and `decode` docstrings state the length asymmetry
+
+- **`encode` is uncapped and `decode` refuses past `MAX_LENGTH`
+  characters** (closes #2296): a payload of roughly 80 bytes or more
+  round-trips through neither on its own, and both docstrings now say so.
+
+### `b58.prv_key_data_from_wif` and `h160_from_address` strip bytes input too
+
+- **Both stripped whitespace only from a `str`** (closes #2297): both now
+  coerce with `str_from_string(...).strip()` first, as
+  `b32.witness_from_address` does.
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
