@@ -116,13 +116,16 @@ def test_bech32() -> None:
         ["1pzry9x0s0muk", "empty HRP"],
         ["x1b4n0q5v", "invalid data character"],
         ["li1dgmt3", "too short checksum"],
-        # Invalid character in checksum
-        ["de1lg7wt\xff", "invalid character in checksum"],
+        # BIP173's "Invalid character in checksum" vector, which the
+        # range check refuses before the alphabet lookup is reached
+        ["de1lg7wt\xff", "data part character out of range"],
+        # the lookup itself, with "b": in range and no bech32 digit
+        ["de1lg7wtb", "invalid character in checksum"],
         # the same, at the far end of the checksum rather than the near
         # one: `bech[-6:]` weakened to `bech[-5:]` still catches the
         # vector above (its invalid byte is the very last character) and
         # misses this one, six characters from the end and not five
-        ["de1\xffqpzry", "invalid character in checksum"],
+        ["de1bqpzry", "invalid character in checksum"],
         # checksum calculated with uppercase form of HRP
         ["A1G7SGD8", "invalid checksum"],
         ["10a06t8", "empty HRP"],
@@ -296,3 +299,68 @@ def test_a_value_that_is_no_5_bit_digit_is_refused() -> None:
     # the boundaries themselves: `< 32` weakened to `<= 32`, or `0 <=`
     # to `-1 <=`, would accept a digit the alphabet has no character for
     assert encode("bc", [31]) != encode("bc", [0])
+
+
+# a valid segwit address of BIP173's, in uppercase, and holding a "K":
+# U+212A KELVIN SIGN, its own uppercase, lowers onto "k"
+_UPPER = "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4"
+
+
+def test_a_character_lowering_onto_the_alphabet_is_refused() -> None:
+    """KELVIN SIGN spelled a second string for one decoded address.
+
+    It passed the case check, being its own uppercase, and was then
+    looked up as the "k" that `str.lower` makes of it.
+    """
+    assert _UPPER.isascii()
+    kelvin = _UPPER.replace("K", "\u212a")
+    assert kelvin.lower() == _UPPER.lower()
+    with pytest.raises(BTClibValueError, match="data part character out of range"):
+        decode(kelvin)
+    assert decode(_UPPER) == decode(_UPPER.lower())
+
+
+@pytest.mark.parametrize(
+    "char",
+    [
+        "\u212a",  # KELVIN SIGN, lowers to "k"
+        "\u0130",  # LATIN CAPITAL LETTER I WITH DOT ABOVE, lowers to two
+        "\u017f",  # LATIN SMALL LETTER LONG S, uppercases to "S"
+        "\u1e9e",  # LATIN CAPITAL LETTER SHARP S, casefolds to "ss"
+        "\x7f",  # DEL, one above the range
+        "\x80",  # one above ASCII
+        " ",  # one below the range
+        "\x00",
+    ],
+)
+@pytest.mark.parametrize("address", [_UPPER, _UPPER.lower()])
+@pytest.mark.parametrize("position", [3, -1])
+def test_a_data_part_character_out_of_range_is_refused_first(
+    char: str, address: str, position: int
+) -> None:
+    """Refused for its range, ahead of the case check and the lookup.
+
+    Position 3 is the first data character and -1 the last checksum
+    one. The case-mapping characters are the ones the case check or the
+    lookup would otherwise diagnose, or, for KELVIN SIGN in the
+    uppercase string, accept.
+    """
+    chars = list(address)
+    chars[position] = char
+    with pytest.raises(BTClibValueError, match="data part character out of range"):
+        decode("".join(chars))
+
+
+@given(
+    char=st.characters(exclude_characters=[chr(c) for c in range(33, 127)]),
+    position=st.integers(min_value=0),
+)
+def test_no_character_outside_33_126_is_a_data_character(
+    char: str, position: int
+) -> None:
+    """The range, over every code point rather than the named ones."""
+    data_part = _UPPER[3:]
+    i = position % len(data_part)
+    mutated = data_part[:i] + char + data_part[i + 1 :]
+    with pytest.raises(BTClibValueError, match="data part character out of range"):
+        decode(f"BC1{mutated}")

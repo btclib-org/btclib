@@ -196,6 +196,19 @@ full year, short month, short day (YYYY-M-D)
   alone. Every one is still a `BTClibValueError`, so an `except` on that
   class is unaffected.
 
+- **`bech32.decode` refuses a data part character outside 33..126 as
+  `data part character out of range`** (closes #2347), and
+  `b32.witness_from_address` and `ScriptPubKey.from_address` with it: any
+  non-ASCII character in `str` input, a space, DEL and the control
+  characters. The refusal comes ahead of the case check and the alphabet
+  lookup, where these inputs raised `mixed case`, `invalid data character`
+  or `invalid character in checksum`. An uppercase address with U+212A
+  KELVIN SIGN in place of `K` decoded as that address, and is refused.
+
+  Act on it if you match on the text of these refusals: match `data part
+  character out of range` as well. It is still a `BTClibValueError`, so an
+  `except` on that class is unaffected.
+
 ## v2026.9.24
 
 ### Breaking changes
