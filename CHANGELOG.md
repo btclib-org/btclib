@@ -410,6 +410,18 @@ btclib-org/.github#1391).
 A test waiting on a `git` or Python child that never exits fails instead of
 hanging the run, and `tests/integration` keeps its own bound (closes #2325).
 
+### A script breaking two rules fails with the code Core gives it
+
+CONST_SCRIPTCODE is asked of each op code as Core's `EvalScript` asks it, and a
+tapscript's pre-scan asks only for an OP_SUCCESSx and a push past the end: a fault
+met earlier answered OP_CODESEPARATOR, PUSH_SIZE or BAD_OPCODE (closes #2341).
+
+### A tapscript with OP_INVALIDOPCODE in a branch not taken spends
+
+Core's pre-scan reads 0xff as any op code that is not an OP_SUCCESSx, and its
+interpreter refuses it only where it executes: btclib refused the spend
+(issue #2341).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

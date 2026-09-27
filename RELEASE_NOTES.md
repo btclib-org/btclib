@@ -166,6 +166,14 @@ full year, short month, short day (YYYY-M-D)
   index, stack_depth)`, and its `args` are those four. v2023.7.12 has no
   `ScriptError`. Act on it by passing a `ScriptErrorCode` after the message
   wherever one is raised.
+- **`btclib.script.engine.script.prepare_script` is gone** (issue #2341),
+  where v2023.7.12 had it as `prepare_script(script, flags, segwit)`. Its
+  OP_CODESEPARATOR check is `assert_const_scriptcode(op_code, flags, segwit)`,
+  asked of one op code. Act on it by calling that for each op code of the
+  script.
+- **`read_push_data` takes no `element_size_limit`** (issue #2341): the limit
+  is `MAX_SCRIPT_ELEMENT_SIZE` in both engines. v2023.7.12 has no
+  `read_push_data`. Act on it by dropping the argument.
 
 ## v2026.9.24
 
