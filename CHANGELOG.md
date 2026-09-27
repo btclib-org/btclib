@@ -499,6 +499,11 @@ no part of the string, and `hex_string` inherits it (closes #2353).
 took U+00A0, U+3000, U+001C and the rest of what `str.isspace` counts
 (closes #2373).
 
+### Dependabot's docker entry takes the seven-day cooldown
+
+One rule for every ecosystem, though dependabot-core dates a docker tag only on
+Docker Hub and the base image is on gcr.io (issue btclib-org/.github#1405).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

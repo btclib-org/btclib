@@ -36,7 +36,8 @@
 # been public a week -- it means the offer comes at most a week after
 # that, rather than at most a month. No ecosystem here tracks anything
 # security-critical, so nothing here wants to be faster than that. The
-# docker entry at the bottom carries no cooldown, and says why
+# docker entry at the bottom declares it too, and says why it holds
+# nothing back there
 version: 2
 updates:
   # every action is pinned to a commit SHA, which nothing but this
@@ -78,11 +79,14 @@ updates:
   # tag beside the digest is what this follows: a pull request here is
   # that tag's newer digest.
   #
-  # No cooldown, because it would be inert: dependabot-core dates a docker
-  # tag only on Docker Hub (registry_tag_release_date, in its
-  # docker/lib/dependabot/docker/update_checker.rb), and on any other
-  # registry -- gcr.io, which this image is on -- it logs that it has no
-  # publication date and proposes the digest with no cooldown applied
+  # The cooldown is every other ecosystem's seven days: one rule for all.
+  # dependabot-core applies it only to a tag it can date, and it dates
+  # only Docker Hub's (registry_tag_release_date, in its
+  # docker/lib/dependabot/docker/update_checker.rb): on any other registry
+  # -- gcr.io, which this image is on -- it logs that it has no publication
+  # date and proposes the digest with no cooldown applied. Declared, it
+  # costs nothing here, and it holds with no edit to this file once
+  # dependabot-core has a date to read
   - package-ecosystem: docker
     directory: /.clusterfuzzlite
     schedule:
@@ -91,3 +95,5 @@ updates:
     groups:
       base-image:
         patterns: ["*"]
+    cooldown:
+      default-days: 7
