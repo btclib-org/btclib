@@ -229,6 +229,12 @@ refuses or a bare `UnicodeEncodeError` (closes #2286).
   coerce with `str_from_string(...).strip()` first, as
   `b32.witness_from_address` does.
 
+### `decode_response` requires an integer id, and reads a null one's error first
+
+`decode_response` requires `is_integer` on a reply's `id`, refusing `true` and
+`1.0` for request id 1 (closes #2298), and reads a `null` id's `error` before
+the id check, JSON-RPC 2.0's answer to an unparsable request (closes #2299).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

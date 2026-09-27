@@ -142,6 +142,18 @@ def test_decode_response_refuses_a_mismatched_id() -> None:
         decode_response(reply(id=2, result="ok"), 1)
 
 
+def test_decode_response_refuses_a_bool_id_equal_under_python_equality() -> None:
+    """`true` is not request id 1, though `True == 1` (issue #2298)."""
+    with pytest.raises(BTClibValueError, match="does not answer request 1"):
+        decode_response(reply(id=True, result="ok"), 1)
+
+
+def test_decode_response_refuses_a_float_id_equal_under_python_equality() -> None:
+    """`1.0` is not request id 1, though `1.0 == 1` (issue #2298)."""
+    with pytest.raises(BTClibValueError, match="does not answer request 1"):
+        decode_response(reply(id=1.0, result="ok"), 1)
+
+
 def test_decode_response_refuses_a_reply_with_neither_result_nor_error() -> None:
     """A JSON-RPC object with neither member is not an answer to anything."""
     with pytest.raises(BTClibValueError, match="neither a result nor an error"):
@@ -162,6 +174,26 @@ def test_decode_response_raises_rpc_error_for_a_bare_error() -> None:
     with pytest.raises(RpcError, match="no such transaction") as exc_info:
         decode_response(line, 1)
     assert exc_info.value.code == 0
+
+
+def test_decode_response_raises_rpc_error_for_a_null_id_error() -> None:
+    """A server that could not parse the request answers with `id: null`.
+
+    JSON-RPC 2.0 names `null` as the id of an error reply to a request
+    the server never got far enough to read an id from, so it is read as
+    the error before the id comparison rejects it as a mismatch
+    (issue #2299).
+    """
+    line = reply(id=None, error={"code": -32700, "message": "Parse error"})
+    with pytest.raises(RpcError, match="Parse error") as exc_info:
+        decode_response(line, 1)
+    assert exc_info.value.code == -32700
+
+
+def test_decode_response_refuses_a_null_id_with_no_error() -> None:
+    """A `null` id with no `error` member is still an ordinary mismatch."""
+    with pytest.raises(BTClibValueError, match="does not answer request 1"):
+        decode_response(reply(id=None, result="ok"), 1)
 
 
 def test_transaction_get_round_trips_the_raw_transaction() -> None:
