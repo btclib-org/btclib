@@ -19,12 +19,12 @@ what the other wrote.
 
 btclib-secp256k1 carries a copy under this same name, over its own
 tests/README.md, whose entries are each pinned to a commit under a
-heading owning one fenced block. What the two copies share is owed to
-the other in the same campaign: the parsing, the `gh` calls, a field's
-spelling, the arguments this takes. What answers to one ledger's own
-shape is not, and the collapsing of identical skip lines below is
-that -- a heading owning several blocks being a shape that README does
-not carry.
+heading owning one fenced block, and bitcoin-node-tests another, over
+its TF2.md. What the copies share is owed to the others in the same
+campaign: the parsing, the `gh` calls, a field's spelling, the
+arguments this takes. What answers to one ledger's own shape is not,
+and the collapsing of identical skip lines below is that -- a heading
+owning several blocks being a shape that README does not carry.
 
 Scope is narrower than the ledger: only entries whose `behind` already
 reads 0 -- the ones a human last confirmed were exactly at upstream's
@@ -34,9 +34,13 @@ commit moves it further, `behind`'s own count in the ledger goes stale
 in a way this script cannot see either, which is the reason it never
 tries to judge relevance, only tip-vs-pinned identity.
 
-A path upstream has renamed or deleted is reported rather than raising:
-it has no commit to name as a tip, and a pin standing on a file that is
-not there any more is the one drift nobody would otherwise notice.
+A path upstream deleted or renamed away reaches this script as ordinary
+drift: the "commits touching a path" call answers with the commit that
+removed it, which is not the pin. Whether a commit changed the file or
+removed it is a reading of that commit this script does not make, so
+its report says the latest commit may have done either. The call
+answers an empty list only for a path the branch it walks never held,
+and that is reported rather than raising, with no tip to name.
 
 An entry pinned to a fork's own pull-request branch rather than to a
 repository's default one names that branch in a `ref` field, which
@@ -44,11 +48,10 @@ repository's default one names that branch in a `ref` field, which
 `sha` parameter -- GitHub's name for it, a branch or a tag as much as a
 commit despite the name. Without it the call resolves against the
 default branch alone and answers an empty list for a path that lives
-only on the named one, which reads as upstream having deleted the file
-regardless of whether the pin is current (ISS 2160): that used to force
-every such pin into a `behind` line this script would never revisit, a
-workaround for entries that were, in fact, at their pin's tip. A `ref`
-line is what lets one be checked instead of merely excused.
+only on the named one, which is reported as a path the default branch
+never held regardless of whether the pin is current (ISS 2160). A `ref`
+line is what lets such a pin be checked at its own branch's tip rather
+than carried as `behind` for want of one.
 
 Shapes a ledger can carry that this script does not attempt: an entry
 with no `commit` at all (chain data self-identified by hash, files
@@ -122,8 +125,8 @@ class Entry:
     is most of them, and present for one standing on a fork's own
     pull-request branch, which the API cannot otherwise find at all
     (ISS 2160): asking it with no `ref` answers an empty list for that
-    path regardless of whether the pin is current, which reads as the
-    path having been deleted upstream.
+    path regardless of whether the pin is current, which is reported as
+    a path the default branch never held.
     """
 
     heading: str
@@ -142,8 +145,8 @@ class Drift:
     latest_date: str
 
     @property
-    def path_is_gone(self) -> bool:
-        """True where upstream has no commit touching the pinned path.
+    def has_no_tip(self) -> bool:
+        """True where no commit on the branch walked touches the pinned path.
 
         The empty `latest_commit` is what says so: there is no tip to
         name, `_latest_commit` having answered None. Reading it through
@@ -234,21 +237,19 @@ def _latest_commit(
 ) -> tuple[str, str] | None:
     """Return the sha and date of the most recent commit touching path.
 
-    None where upstream has no commit touching it at all, which means the
-    path has been renamed or deleted: the sharpest drift there is, a pin
-    naming a file that is not there any more. Answering None rather than
-    unpacking one commit out of an empty list is what lets `report` see
-    it as drift with no tip to name, instead of the run going red on a
-    bare `ValueError` and no issue ever opening -- the one kind of drift
-    nobody would otherwise notice, which is what this workflow exists
-    for.
+    None where no commit on the branch walked touches the path at all,
+    which is a path that branch never held: one deleted or renamed away
+    answers with the commit that removed it instead, and comes back
+    from here as an ordinary tip. Answering None rather than unpacking
+    one commit out of an empty list is what lets `report` name the pin
+    as drift with no tip, instead of the run going red on a bare
+    `ValueError` and no issue ever opening.
 
     `ref` is GitHub's own `sha` parameter on this endpoint -- a branch,
     a tag or a commit to start walking history from, despite the name --
     left off where an `Entry` carries none, which is every pin standing
-    on its repository's default branch: that is what this call has
-    always asked about, and the parameter's own default matches it
-    without this function naming the branch.
+    on its repository's default branch: the parameter's own default
+    matches it without this function naming the branch.
     """
     args = [
         _GH,
@@ -285,11 +286,16 @@ def find_drift(ledger_path: Path) -> tuple[list[Drift], list[str]]:
     for entry in entries:
         latest = _latest_commit(entry.repo, entry.path, entry.ref)
         if latest is None:
-            # a path upstream no longer has: drift with no tip to name
+            # a path the branch walked never held: drift with no tip to name
             drifted.append(Drift(entry, "", ""))
         elif latest[0] != entry.commit:
             drifted.append(Drift(entry, *latest))
     return drifted, skipped
+
+
+def _branch(entry: Entry) -> str:
+    """Name the branch, tag or commit `_latest_commit` walked for an entry."""
+    return f"`{entry.ref}`" if entry.ref else "the default branch"
 
 
 def _issue_body(ledger_path: Path, drifted: list[Drift], skipped: list[str]) -> str:
@@ -299,19 +305,20 @@ def _issue_body(ledger_path: Path, drifted: list[Drift], skipped: list[str]) -> 
         "",
     ]
     for drift in drifted:
-        if drift.path_is_gone:
+        if drift.has_no_tip:
             lines.append(
                 f"- **{drift.entry.heading}**: pinned to"
-                f" `{drift.entry.commit}`, and `{drift.entry.repo}` has no"
-                f" commit touching `{drift.entry.path}` any more -- renamed,"
-                " moved or deleted upstream"
+                f" `{drift.entry.commit}`, and no commit on {_branch(drift.entry)}"
+                f" of `{drift.entry.repo}` touches `{drift.entry.path}` --"
+                " a path that branch never held"
             )
             continue
         lines.append(
             f"- **{drift.entry.heading}**: pinned to `{drift.entry.commit}`,"
-            f" upstream's tip of `{drift.entry.path}` is now"
+            f" the latest commit touching `{drift.entry.path}` is now"
             f" `{drift.latest_commit}` ({drift.latest_date}),"
-            f" `{drift.entry.repo}`"
+            f" `{drift.entry.repo}` -- which may have deleted or renamed"
+            " the file rather than changed it"
         )
     if skipped:
         lines.extend(("", "Not checked by this run, for the reason named:"))
@@ -406,16 +413,18 @@ def main() -> int:
     ledger_path, title = Path(args[0]), args[1]
     drifted, skipped = find_drift(ledger_path)
     for drift in drifted:
-        if drift.path_is_gone:
+        if drift.has_no_tip:
             print(
-                f"GONE: {drift.entry.heading} pinned to"
-                f" {drift.entry.commit}, and {drift.entry.repo} has no"
-                f" commit touching {drift.entry.path} any more"
+                f"NO COMMIT: {drift.entry.heading} pinned to"
+                f" {drift.entry.commit}, and no commit on"
+                f" {_branch(drift.entry)} of {drift.entry.repo} touches"
+                f" {drift.entry.path}"
             )
             continue
         print(
             f"BEHIND: {drift.entry.heading} pinned to {drift.entry.commit},"
-            f" tip is {drift.latest_commit} ({drift.latest_date})"
+            f" latest commit touching it is {drift.latest_commit}"
+            f" ({drift.latest_date}), which may have deleted or renamed it"
         )
     for heading in skipped:
         print(f"SKIPPED: {heading}")

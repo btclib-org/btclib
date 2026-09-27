@@ -53,9 +53,9 @@ class FakeGh:
     """A `subprocess.run` stand-in, answering by which `gh` call this is.
 
     `commits` maps a (repo, path) pair to the sha and date
-    `_latest_commit` should read back, or to None for a path upstream no
-    longer has -- which the api answers with an empty list rather than an
-    error. `open_issue` is the number `_open_issue_number` should report
+    `_latest_commit` should read back, or to None for a path the branch
+    walked never held -- which the api answers with an empty list rather
+    than an error. `open_issue` is the number `_open_issue_number` should report
     open, or None for no issue open. Every call is recorded in `calls`,
     argv and all, so a test can assert what was asked for rather than
     only what came back.
@@ -75,8 +75,8 @@ class FakeGh:
             repo = argv[4].removeprefix("repos/").removesuffix("/commits")
             path = argv[6].removeprefix("path=")
             answer = self.commits[repo, path]
-            # None is what the api answers for a path upstream no longer
-            # has: an empty list, which is a 200 and not an error
+            # None is what the api answers for a path the branch walked
+            # never held: an empty list, which is a 200 and not an error
             if answer is None:
                 return subprocess.CompletedProcess(argv, 0, stdout="[]")
             sha, date = answer
@@ -493,51 +493,99 @@ def test_latest_commit_asks_the_named_ref_when_the_entry_carries_one(
     assert "sha=bip-frost-signing" in call
 
 
-def test_latest_commit_is_none_when_upstream_has_no_commit_for_the_path(
+def test_latest_commit_is_none_for_a_path_the_branch_never_held(
     checker: ModuleType, fake_gh: FakeGh
 ) -> None:
     """An empty answer is None, not an unpacking error.
 
-    `repos/{repo}/commits?path=` answers `[]` with a 200 when upstream
-    has no commit touching that path -- it was renamed, moved or deleted.
-    Unpacking one commit out of that raised `ValueError`, which took
-    `find_drift` down with it and left `report` unreached: a red run and
-    no issue, on the one drift a vendored file nobody re-reads would
-    otherwise hide.
+    `repos/{repo}/commits?path=` answers `[]` with a 200 for a path the
+    branch it walks never held; a path deleted or renamed away answers
+    with the commit that removed it instead. Unpacking one commit out of
+    `[]` raises `ValueError`, which would take `find_drift` down with it
+    and leave `report` unreached: a red run and no issue.
     """
-    fake_gh.commits["btclib-org/btclib", "tests/gone.json"] = None
-    assert checker._latest_commit("btclib-org/btclib", "tests/gone.json") is None
+    fake_gh.commits["btclib-org/btclib", "tests/absent.json"] = None
+    assert checker._latest_commit("btclib-org/btclib", "tests/absent.json") is None
 
 
-def test_find_drift_reports_a_path_upstream_no_longer_has(
+def test_find_drift_reports_a_path_the_branch_never_held(
     checker: ModuleType, fake_gh: FakeGh, tmp_path: Path
 ) -> None:
-    """A pin whose path is gone is drift, and says so rather than a tip."""
+    """A pin with no commit on its branch is drift with no tip to name."""
     path = tmp_path / "README.md"
     path.write_text(
         readme(
             entry(
-                "`gone.json`",
+                "`absent.json`",
                 repo="r",
-                path="gone.json",
+                path="absent.json",
                 commit="old0000  2020-01-01",
                 behind="0",
             )
         ),
         encoding="utf-8",
     )
-    fake_gh.commits["r", "gone.json"] = None
+    fake_gh.commits["r", "absent.json"] = None
 
     drifted, skipped = checker.find_drift(path)
 
     assert skipped == []
     (drift,) = drifted
-    assert drift.path_is_gone
+    assert drift.has_no_tip
     assert (drift.latest_commit, drift.latest_date) == ("", "")
 
     body = checker._issue_body(path, drifted, [])
-    assert "commit touching `gone.json` any more" in body
-    assert "renamed, moved or deleted upstream" in body
+    assert (
+        "no commit on the default branch of `r` touches `absent.json` --"
+        " a path that branch never held"
+    ) in body
+
+
+def test_the_issue_body_names_a_pinned_ref_as_the_branch_never_holding_it(
+    checker: ModuleType,
+) -> None:
+    """A pin carrying a `ref` is named on that branch, not the default one."""
+    entry_ = checker.Entry("`f.json`", "r", "f.json", "old0000", "pr-branch")
+    drift = checker.Drift(entry_, "", "")
+    body = checker._issue_body(Path("README.md"), [drift], [])
+    assert (
+        "no commit on `pr-branch` of `r` touches `f.json` --"
+        " a path that branch never held"
+    ) in body
+
+
+def test_a_removing_commit_is_drift_that_may_be_a_removal(
+    checker: ModuleType, fake_gh: FakeGh, tmp_path: Path
+) -> None:
+    """A deleted pin's latest commit is the deleting one, named as maybe that.
+
+    The api answers a path deleted or renamed away with the commit that
+    removed it, so the drift is an ordinary one with a tip, and the line
+    reporting it says that commit may have removed the file.
+    """
+    path = _write_readme(
+        tmp_path,
+        entry(
+            "`deleted.py`",
+            repo="r",
+            path="deleted.py",
+            commit="old0000  2020-01-01",
+            behind="0",
+        ),
+    )
+    fake_gh.commits["r", "deleted.py"] = ("removing0", "2026-01-01")
+
+    drifted, skipped = checker.find_drift(path)
+
+    assert skipped == []
+    (drift,) = drifted
+    assert not drift.has_no_tip
+    body = checker._issue_body(path, drifted, skipped)
+    assert (
+        "the latest commit touching `deleted.py` is now `removing0`"
+        " (2026-01-01), `r` -- which may have deleted or renamed"
+        " the file rather than changed it"
+    ) in body
 
 
 @pytest.mark.parametrize(
@@ -572,31 +620,34 @@ def test_main_says_how_to_be_called_when_it_is_not(
     assert not captured.out
 
 
-def test_main_says_gone_rather_than_behind_for_a_vanished_path(
+def test_main_says_no_commit_rather_than_behind_for_a_path_never_held(
     checker: ModuleType,
     fake_gh: FakeGh,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Stdout distinguishes a moved pin from one whose path is gone."""
+    """Stdout tells a moved pin from one with no commit on its branch."""
     path = _write_readme(
         tmp_path,
         entry(
-            "`gone.json`",
+            "`absent.json`",
             repo="r",
-            path="gone.json",
+            path="absent.json",
             commit="old0000  2020-01-01",
             behind="0",
         ),
     )
-    fake_gh.commits["r", "gone.json"] = None
+    fake_gh.commits["r", "absent.json"] = None
     monkeypatch.setattr(sys, "argv", ["prog", str(path), "A title", "--dry-run"])
 
     assert checker.main() == 0
 
     out = capsys.readouterr().out
-    assert "GONE: `gone.json` pinned to old0000" in out
+    assert (
+        "NO COMMIT: `absent.json` pinned to old0000, and no commit on"
+        " the default branch of r touches absent.json"
+    ) in out
     assert "BEHIND" not in out
 
 
@@ -631,28 +682,30 @@ def test_main_prints_a_pin_and_a_tip_alike_in_a_prefix_as_two_shas(
     assert checker.main() == 0
 
     out = capsys.readouterr().out
-    assert f"pinned to {_PINNED}, tip is {_TIP} (2026-09-11)" in out
+    assert (
+        f"pinned to {_PINNED}, latest commit touching it is {_TIP} (2026-09-11)"
+    ) in out
 
 
-def test_main_prints_the_pin_of_a_vanished_path_whole(
+def test_main_prints_the_pin_of_a_path_never_held_whole(
     checker: ModuleType,
     fake_gh: FakeGh,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """A GONE line names the pinned commit whole, as a BEHIND line does."""
+    """A NO COMMIT line names the pinned commit whole, as a BEHIND line does."""
     path = _write_readme(
         tmp_path,
-        entry("`gone.py`", repo="r", path="gone.py", commit=_PINNED, behind="0"),
+        entry("`absent.py`", repo="r", path="absent.py", commit=_PINNED, behind="0"),
     )
-    fake_gh.commits["r", "gone.py"] = None
+    fake_gh.commits["r", "absent.py"] = None
     monkeypatch.setattr(sys, "argv", ["prog", str(path), "A title", "--dry-run"])
 
     assert checker.main() == 0
 
-    assert f"GONE: `gone.py` pinned to {_PINNED}," in capsys.readouterr().out
-    drift = checker.Drift(_entry(checker, "`gone.py`", _PINNED), "", "")
+    assert f"NO COMMIT: `absent.py` pinned to {_PINNED}," in capsys.readouterr().out
+    drift = checker.Drift(_entry(checker, "`absent.py`", _PINNED), "", "")
     assert f"`{_PINNED}`" in checker._issue_body(Path("README.md"), [drift], [])
 
 
@@ -860,7 +913,10 @@ def test_main_dry_run_prints_but_never_calls_issue(
     assert checker.main() == 0
 
     out = capsys.readouterr().out
-    assert "BEHIND: `p.json` pinned to old0000, tip is new0000 (2026-01-01)" in out
+    assert (
+        "BEHIND: `p.json` pinned to old0000, latest commit touching it is"
+        " new0000 (2026-01-01), which may have deleted or renamed it"
+    ) in out
     assert "SKIPPED: stale (already documented as behind)" in out
     assert not any(call[1] == "issue" for call in fake_gh.calls)
 
