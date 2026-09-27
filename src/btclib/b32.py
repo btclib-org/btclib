@@ -56,11 +56,11 @@ from collections.abc import Iterable
 
 from btclib.alias import Octets, String
 from btclib.bech32 import decode, encode
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.key import PubKeyData
 from btclib.network import NETWORKS, network_from_key_value, network_from_name
-from btclib.utils import assert_type, bytes_from_octets, str_from_string
+from btclib.utils import assert_type, bytes_from_octets, is_integer, str_from_string
 
 __all__ = [
     "address_from_witness",
@@ -89,17 +89,44 @@ def is_segwit_prefixed(addr: String) -> bool:
 def power_of_2_base_conversion(
     data: Iterable[int], from_bits: int, to_bits: int, pad: bool = True
 ) -> list[int]:
-    """Convert a power-of-two digit sequence to another power-of-two base."""
-    assert_type(pad, bool, "pad")
+    """Convert a power-of-two digit sequence to another power-of-two base.
 
+    Both widths are positive integers and every value is an integer of at
+    most `from_bits` bits, anything else being refused: a wider value
+    would come out as the conversion of a different sequence, `[256]`
+    from 8 to 5 bits as `[0]` does, and a zero `to_bits` would never
+    leave the regrouping loop. A bool is an integer nowhere in this
+    library, here included.
+    """
+    assert_type(pad, bool, "pad")
+    for what, width in (("from_bits", from_bits), ("to_bits", to_bits)):
+        if not is_integer(width):
+            raise BTClibTypeError(f"invalid {what} type: {type(width).__name__}")
+        if width < 1:
+            raise BTClibValueError(f"invalid {what}: {width} < 1")
+    assert_type(data, Iterable, "data")
+
+    values = list(data)
+    for value in values:
+        if not is_integer(value):
+            raise BTClibTypeError(f"invalid value type: {type(value).__name__}")
+        if value < 0 or (value >> from_bits):
+            raise BTClibValueError(f"invalid value: {value}")
+    return _power_of_2_base_conversion(values, from_bits, to_bits, pad)
+
+
+def _power_of_2_base_conversion(
+    data: Iterable[int], from_bits: int, to_bits: int, pad: bool
+) -> list[int]:
+    # the validating wrapper's work, for a caller whose digits are integers
+    # of `from_bits` bits by construction: the octets of a witness program,
+    # and the five-bit digits `bech32.decode` looks up in its alphabet
     acc = 0
     bits = 0
     ret = []
     maxv = (1 << to_bits) - 1
     max_acc = (1 << (from_bits + to_bits - 1)) - 1
     for value in data:
-        if value < 0 or (value >> from_bits):
-            raise BTClibValueError(f"invalid value: {value}")
         acc = ((acc << from_bits) | value) & max_acc
         bits += from_bits
         while bits >= to_bits:
@@ -145,7 +172,7 @@ def bytes_from_witness_program(wit_ver: int, wit_prg: Octets) -> bytes:
 
 def _address_from_witness(wit_ver: int, wit_prg: Octets, hrp: str) -> str:
     wit_prg = bytes_from_witness_program(wit_ver, wit_prg)
-    data = [wit_ver, *power_of_2_base_conversion(wit_prg, 8, 5)]
+    data = [wit_ver, *_power_of_2_base_conversion(wit_prg, 8, 5, True)]
     bytes_ = encode(hrp, data)
     return bytes_.decode("ascii")
 
@@ -176,7 +203,7 @@ def witness_from_address(b32addr: String) -> tuple[int, bytes, str]:
     hrp, data = decode(addr)
 
     wit_ver = data[0]
-    wit_prog = bytes(power_of_2_base_conversion(data[1:], 5, 8, False))
+    wit_prog = bytes(_power_of_2_base_conversion(data[1:], 5, 8, False))
     wit_prog = bytes_from_witness_program(wit_ver, wit_prog)
 
     # check that it is a known segwit address type

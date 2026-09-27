@@ -281,6 +281,12 @@ taken as given goes to `merkle_root_and_mutated_from_hashes` (closes #2300).
 `CONTRIBUTING.md` says so beside `uv run pytest`, and the skip reason of the
 tag-reading tests names the same command (closes #2301).
 
+### `b32.power_of_2_base_conversion` validates its widths and its values
+
+A width that is not a positive integer, or a value that is not `is_integer`,
+raises `BTClibValueError` or `BTClibTypeError`, where a zero `to_bits` looped
+forever and a bool was taken as a digit (closes #2290).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
