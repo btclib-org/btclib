@@ -215,6 +215,36 @@ def test_a_satoshi_amount_that_int_refuses_is_refused_in_kind() -> None:
             valid_sats_amount(other)
 
 
+def test_a_numeric_string_is_accepted_as_the_comment_admits() -> None:
+    """A str is a type the function's own comment calls legitimate.
+
+    The equality check used to refuse every one of them regardless of
+    value -- `int("10") != "10"` -- where a float of the same value
+    passes.
+    """
+    assert valid_sats_amount("10") == 10
+    assert valid_sats_amount("0") == 0
+    assert valid_sats_amount("10", dust=10) == 10
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
+        # exempting str from the equality check does not widen what
+        # int() itself parses: a fractional string is still refused,
+        # now by the constructor rather than by the equality check
+        valid_sats_amount("10.5")
+
+
+def test_a_sats_amount_string_refuses_digit_grouping_underscores() -> None:
+    """`int(str)` accepts Python's own digit-grouping underscore too.
+
+    Exempting `str` from the equality check (above) removed the
+    incidental protection that check gave against `"1_0"`, which `int()`
+    itself parses as ten -- not a value anybody actually wrote.
+    """
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
+        valid_sats_amount("1_0")
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
+        valid_sats_amount("1_000_000")
+
+
 @pytest.mark.parametrize("amount", [1.5, -1.5, Decimal("2.5"), Decimal("-2.5")])
 def test_a_fraction_of_a_satoshi_is_refused_at_either_sign(amount: object) -> None:
     """A negative fraction is refused as a non-integer, not as a range.
@@ -251,3 +281,41 @@ def test_a_non_finite_satoshi_amount_is_refused_in_kind(amount: object) -> None:
     for nan in (float("nan"), Decimal("NaN")):
         with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
             valid_sats_amount(nan)
+
+
+def test_a_float_btc_dust_threshold_is_refused_in_kind() -> None:
+    """A float dust used to leak `decimal.FloatOperation` past this contract.
+
+    It is compared against the parsed amount inside the trap this
+    function itself sets. `valid_sats_amount` already type-checks its own
+    dust threshold; this is the same check.
+    """
+    with pytest.raises(BTClibTypeError, match="non-Decimal BTC dust threshold"):
+        valid_btc_amount("1", dust=0.5)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="non-Decimal BTC dust threshold"):
+        valid_btc_amount("1", dust=1)  # type: ignore[arg-type]
+    assert valid_btc_amount("1", dust=Decimal("0.5")) == 1
+
+
+def test_a_btc_amount_string_refuses_digit_grouping_underscores() -> None:
+    """`Decimal(str)` accepts Python's own digit-grouping underscore.
+
+    `"1_0"` would silently read as ten BTC rather than being refused the
+    way `"1,2"` already is.
+    """
+    with pytest.raises(BTClibValueError, match="invalid BTC amount"):
+        valid_btc_amount("1_0")
+    with pytest.raises(BTClibValueError, match="invalid BTC amount"):
+        valid_btc_amount("1_000_000")
+
+
+@pytest.mark.parametrize("amount", ["-0", "-0.00000000", "-0.0"])
+def test_a_negative_zero_btc_amount_normalizes_the_sign(amount: str) -> None:
+    """`Decimal("-0")` compares equal to zero and passes every check unchanged.
+
+    It carries its sign straight through to the return value unless the
+    sign is cleared on the way out.
+    """
+    btc = valid_btc_amount(amount)
+    assert btc == 0
+    assert not btc.is_signed()
