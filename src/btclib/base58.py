@@ -46,7 +46,12 @@ from __future__ import annotations
 from btclib.alias import Octets, String
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
-from btclib.utils import _assert_byte_shaped, bytes_from_octets, is_integer
+from btclib.utils import (
+    _assert_byte_shaped,
+    _message_text,
+    bytes_from_octets,
+    is_integer,
+)
 
 __all__ = [
     "MAX_LENGTH",
@@ -253,5 +258,5 @@ def decode(v: String, out_size: int | None = None) -> bytes:
         return result
 
     err_msg = "valid checksum, invalid decoded size: "
-    err_msg += f"{len(result)} bytes instead of {out_size}"
+    err_msg += f"{len(result)} bytes instead of {_message_text(out_size)}"
     raise BTClibValueError(err_msg)

@@ -31,6 +31,7 @@ from btclib.hashes import hash256, siphash
 from btclib.tx import OutPoint, TxOut
 from btclib.tx.limits import MAX_TX_OUT_COUNT
 from btclib.utils import (
+    _message_text,
     bytes_from_octets,
     bytesio_from_binarydata,
     is_integer,
@@ -241,7 +242,7 @@ def prevout_scripts_from_utxos(
             prev_out = tx_in.prev_out
             if prev_out not in utxos:
                 err_msg = "unresolved previous output: "
-                err_msg += f"{prev_out.tx_id.hex()}:{prev_out.vout}"
+                err_msg += f"{prev_out.tx_id.hex()}:{_message_text(prev_out.vout)}"
                 raise BTClibValueError(err_msg)
             scripts.append(utxos[prev_out].script_pub_key.script)
     return scripts
@@ -338,7 +339,7 @@ class BasicBlockFilter:
             raise BTClibValueError(err_msg)
 
         if not 0 <= self.element_count <= MAX_FILTER_ELEMENT_COUNT:
-            err_msg = f"invalid element count: {self.element_count}"
+            err_msg = f"invalid element count: {_message_text(self.element_count)}"
             err_msg += f", max is {MAX_FILTER_ELEMENT_COUNT}"
             raise BTClibValueError(err_msg)
 

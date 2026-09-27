@@ -27,7 +27,7 @@ from dataclasses import dataclass
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.tx.tx_out import TxOut
-from btclib.utils import assert_type, is_integer
+from btclib.utils import _message_text, assert_type, is_integer
 
 __all__ = [
     "Coin",
@@ -76,6 +76,6 @@ class Coin:
             err_msg = f"invalid height type: {type(self.height).__name__}"
             raise BTClibTypeError(err_msg)
         if self.height < 0:
-            raise BTClibValueError(f"invalid height: {self.height}")
+            raise BTClibValueError(f"invalid height: {_message_text(self.height)}")
 
         assert_type(self.is_coinbase, bool, "is_coinbase")

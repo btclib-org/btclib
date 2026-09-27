@@ -17,6 +17,7 @@ from btclib.block import BlockHeader
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, magic_message, siphash
 from btclib.utils import (
+    _message_hex,
     _message_text,
     assert_no_trailing,
     bytes_from_octets,
@@ -556,3 +557,39 @@ def test_a_message_describes_an_int_by_int_s_own_methods() -> None:
         str(_UnorderedInt(-5))
     assert _message_text(_UnorderedInt(-5)) == "a negative int of 3 bits"
     assert _message_text(_UnorderedInt(10**5000)) == "an int of 16610 bits"
+
+
+def test_a_hex_message_quotes_an_int_str_can_write() -> None:
+    """Hex where `str()` writes the int, its description where it cannot.
+
+    Hex has no digit limit of its own, so the int `str()` refuses would
+    otherwise be written out in kilobytes (issue #2394).
+    """
+    assert _message_hex(255) == "0xff"
+    assert _message_hex(-255) == "-0xff"
+    assert _message_hex(10**4000) == hex(10**4000)
+    assert _message_hex(10**5000) == "an int of 16610 bits"
+    assert _message_hex(-(10**5000)) == "a negative int of 16610 bits"
+    assert _message_hex(1.5) == "1.5"
+    assert _message_hex(_Unwritable()) == "a _Unwritable str() cannot write"
+
+
+class _UnformattableInt(int):
+    @override
+    def __format__(self, format_spec: str) -> str:
+        raise RuntimeError
+
+    @override
+    def __repr__(self) -> str:
+        raise RuntimeError
+
+
+def test_a_hex_message_reads_an_int_through_int_s_own_methods() -> None:
+    """A subclass overriding what formats it is written all the same."""
+    # the overrides do raise, so a hex message reaching them would too
+    with pytest.raises(RuntimeError):
+        format(_UnformattableInt(255), "#x")
+    with pytest.raises(RuntimeError):
+        repr(_UnformattableInt(255))
+    assert _message_hex(_UnformattableInt(255)) == "0xff"
+    assert _message_hex(_UnformattableInt(10**5000)) == "an int of 16610 bits"

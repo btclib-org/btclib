@@ -40,7 +40,13 @@ from btclib.tx.limits import (
     SEQUENCE_LOCKTIME_TYPE_FLAG,
 )
 from btclib.tx.tx import Tx
-from btclib.utils import assert_type, decode_num, encode_num
+from btclib.utils import (
+    _message_hex,
+    _message_text,
+    assert_type,
+    decode_num,
+    encode_num,
+)
 
 __all__ = [
     "ScriptOp",
@@ -831,18 +837,19 @@ def op_checklocktimeverify(
     if tx.lock_time >= LOCKTIME_THRESHOLD > lock_time:
         err_msg = (
             f"block height lock time {lock_time} against "
-            f"the timestamp lock time {tx.lock_time} of the transaction"
+            f"the timestamp lock time {_message_text(tx.lock_time)} of the transaction"
         )
         raise ScriptError(err_msg, unsatisfied)
     if lock_time >= LOCKTIME_THRESHOLD > tx.lock_time:
         err_msg = (
             f"timestamp lock time {lock_time} against "
-            f"the block height lock time {tx.lock_time} of the transaction"
+            f"the block height lock time {_message_text(tx.lock_time)} of the transaction"
         )
         raise ScriptError(err_msg, unsatisfied)
 
     if lock_time > tx.lock_time:
-        raise ScriptError(f"lock time {lock_time} > {tx.lock_time}", unsatisfied)
+        err_msg = f"lock time {lock_time} > {_message_text(tx.lock_time)}"
+        raise ScriptError(err_msg, unsatisfied)
     if tx.vin[i].sequence == 0xFFFFFFFF:
         raise ScriptError(f"final sequence for input {i}", unsatisfied)
 
@@ -873,7 +880,8 @@ def op_checksequenceverify(
         # CheckSequence answers a bool, as CheckLockTime does
         unsatisfied = ScriptErrorCode.UNSATISFIED_LOCKTIME
         if tx.version < 2:
-            raise ScriptError(f"transaction version {tx.version} < 2", unsatisfied)
+            err_msg = f"transaction version {_message_text(tx.version)} < 2"
+            raise ScriptError(err_msg, unsatisfied)
         if tx.vin[i].sequence & SEQUENCE_LOCKTIME_DISABLE_FLAG:
             err_msg = f"relative lock time disabled for input {i}"
             raise ScriptError(err_msg, unsatisfied)
@@ -883,7 +891,7 @@ def op_checksequenceverify(
         ):
             err_msg = (
                 f"relative lock time unit mismatch: {hex(sequence)} against "
-                f"the sequence {hex(tx.vin[i].sequence)} of input {i}"
+                f"the sequence {_message_hex(tx.vin[i].sequence)} of input {i}"
             )
             raise ScriptError(err_msg, unsatisfied)
         if (

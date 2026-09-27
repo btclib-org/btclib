@@ -315,6 +315,19 @@ def test_time_too_old_compares_the_header_against_the_median_past() -> None:
     )
 
 
+def test_a_median_past_str_cannot_write_is_described() -> None:
+    """The refusal names an int past the digit limit by its bit length.
+
+    `str()` refuses such an int with a ValueError of its own, which the
+    message quoting it would raise instead (issue #2394).
+    """
+    block = block_of("block_1.bin")
+    context = BlockContext(height=1, now=block.header.time, median_time_past=10**5000)
+    err_msg = "not after the median past\\): .* <= an int of 16610 bits"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_contextual(context)
+
+
 def test_bad_diffbits_is_checked_before_time_too_old_and_time_too_new() -> None:
     """Core's own order: bad-diffbits, then time-too-old, then time-too-new.
 

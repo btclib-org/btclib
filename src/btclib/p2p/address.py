@@ -69,6 +69,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.limits import MAX_ADDR_TO_SEND
 from btclib.p2p.payload import Payload
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     bytesio_from_binarydata,
     is_integer,
@@ -211,13 +212,13 @@ def _assert_valid_body(services: int, port: int) -> None:
         err_msg = f"invalid services type: {type(services).__name__}"
         raise BTClibTypeError(err_msg)
     if not 0 <= services <= _MAX_SERVICES:
-        raise BTClibValueError(f"invalid services: {services}")
+        raise BTClibValueError(f"invalid services: {_message_text(services)}")
 
     if not is_integer(port):
         err_msg = f"invalid port type: {type(port).__name__}"
         raise BTClibTypeError(err_msg)
     if not 0 <= port <= _MAX_PORT:
-        raise BTClibValueError(f"invalid port: {port}")
+        raise BTClibValueError(f"invalid port: {_message_text(port)}")
 
 
 @dataclass(frozen=True)
@@ -359,7 +360,9 @@ class TimestampedNetworkAddress:
             err_msg = f"invalid timestamp type: {type(self.timestamp).__name__}"
             raise BTClibTypeError(err_msg)
         if not 0 <= self.timestamp <= _MAX_TIMESTAMP:
-            raise BTClibValueError(f"invalid timestamp: {self.timestamp}")
+            raise BTClibValueError(
+                f"invalid timestamp: {_message_text(self.timestamp)}"
+            )
 
         # the annotation says this cannot happen and `check_validity=False`
         # is why it can, as it is everywhere this library asks a built

@@ -24,7 +24,7 @@ from btclib import var_int
 from btclib._ripemd160 import ripemd160 as pure_python_ripemd160
 from btclib.alias import HashDigestF, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import bytes_from_octets, is_integer, is_octets
+from btclib.utils import _message_text, bytes_from_octets, is_integer, is_octets
 
 __all__ = [
     "hash160",
@@ -136,7 +136,7 @@ def _sip_key_word(value: int, name: str) -> int:
     if not is_integer(value):
         raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
     if not 0 <= value <= _MASK64:
-        raise BTClibValueError(f"{name} out of range: {value}")
+        raise BTClibValueError(f"{name} out of range: {_message_text(value)}")
     return value
 
 
@@ -361,7 +361,7 @@ def merkle_root_from_branch(
     if not is_integer(index):
         raise BTClibTypeError(f"invalid leaf index type: {type(index).__name__}")
     if index < 0:
-        raise BTClibValueError(f"negative leaf index: {index}")
+        raise BTClibValueError(f"negative leaf index: {_message_text(index)}")
 
     # the folds below concatenate these two, which a memoryview has no
     # `__add__` for, and an empty branch returns the leaf as the `bytes`

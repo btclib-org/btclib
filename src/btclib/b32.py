@@ -62,7 +62,13 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.key import PubKeyData
 from btclib.network import NETWORKS, network_from_key_value, network_from_name
-from btclib.utils import assert_type, bytes_from_octets, is_integer, str_from_string
+from btclib.utils import (
+    _message_text,
+    assert_type,
+    bytes_from_octets,
+    is_integer,
+    str_from_string,
+)
 
 __all__ = [
     "address_from_witness",
@@ -105,7 +111,7 @@ def power_of_2_base_conversion(
         if not is_integer(width):
             raise BTClibTypeError(f"invalid {what} type: {type(width).__name__}")
         if width < 1:
-            raise BTClibValueError(f"invalid {what}: {width} < 1")
+            raise BTClibValueError(f"invalid {what}: {_message_text(width)} < 1")
     assert_type(data, Iterable, "data")
 
     values = list(data)
@@ -113,7 +119,7 @@ def power_of_2_base_conversion(
         if not is_integer(value):
             raise BTClibTypeError(f"invalid value type: {type(value).__name__}")
         if value < 0 or (value >> from_bits):
-            raise BTClibValueError(f"invalid value: {value}")
+            raise BTClibValueError(f"invalid value: {_message_text(value)}")
     return _power_of_2_base_conversion(values, from_bits, to_bits, pad)
 
 
@@ -157,7 +163,7 @@ def bytes_from_witness_program(wit_ver: int, wit_prg: Octets) -> bytes:
     """
     if not 0 <= wit_ver < 17:
         err_msg = "invalid witness version: "
-        err_msg += f"{wit_ver} not in 0..16"
+        err_msg += f"{_message_text(wit_ver)} not in 0..16"
         raise BTClibValueError(err_msg)
 
     if wit_ver == 0:

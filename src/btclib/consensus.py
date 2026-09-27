@@ -165,15 +165,16 @@ def subsidy(height: int, halving_interval: int = 210_000) -> int:
     schedule for it.
     """
     from btclib.exceptions import BTClibTypeError, BTClibValueError  # noqa: PLC0415
-    from btclib.utils import is_integer  # noqa: PLC0415
+    from btclib.utils import _message_text, is_integer  # noqa: PLC0415
 
     for name, value in (("height", height), ("halving_interval", halving_interval)):
         if not is_integer(value):
             raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
     if height < 0:
-        raise BTClibValueError(f"invalid height: {height}")
+        raise BTClibValueError(f"invalid height: {_message_text(height)}")
     if halving_interval < 1:
-        raise BTClibValueError(f"invalid halving_interval: {halving_interval}")
+        err_msg = f"invalid halving_interval: {_message_text(halving_interval)}"
+        raise BTClibValueError(err_msg)
 
     halvings = height // halving_interval
     if halvings >= 64:

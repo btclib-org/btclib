@@ -81,6 +81,7 @@ from btclib.p2p.address import (
 from btclib.p2p.limits import MAX_SUBVERSION_LENGTH, PROTOCOL_VERSION
 from btclib.p2p.payload import Payload
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -123,7 +124,7 @@ def _assert_int_range(value: int, low: int, high: int, what: str) -> None:
     if not is_integer(value):
         raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
     if not low <= value <= high:
-        raise BTClibValueError(f"invalid {what}: {value}")
+        raise BTClibValueError(f"invalid {what}: {_message_text(value)}")
 
 
 @dataclass(frozen=True)

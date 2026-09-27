@@ -40,6 +40,7 @@ from btclib.alias import BinaryData
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.payload import Payload
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     bytesio_from_binarydata,
     is_integer,
@@ -86,7 +87,7 @@ class _NoncePayload(Payload):
             err_msg = f"invalid nonce type: {type(self.nonce).__name__}"
             raise BTClibTypeError(err_msg)
         if not 0 <= self.nonce <= _MAX_NONCE:
-            raise BTClibValueError(f"invalid nonce: {self.nonce}")
+            raise BTClibValueError(f"invalid nonce: {_message_text(self.nonce)}")
 
     @override
     def serialize(self, *, check_validity: bool = True) -> bytes:

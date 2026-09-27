@@ -46,7 +46,7 @@ from datetime import datetime
 
 from btclib.consensus import CONSENSUS_PARAMS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import assert_type, is_integer
+from btclib.utils import _message_text, assert_type, is_integer
 
 __all__ = [
     "BIP34_HEIGHT",
@@ -137,7 +137,9 @@ class BlockContext:
                 type_name = type(self.median_time_past).__name__
                 raise BTClibTypeError(f"invalid median_time_past type: {type_name}")
             if self.median_time_past < 0:
-                err_msg = f"invalid median_time_past: {self.median_time_past}"
+                err_msg = (
+                    f"invalid median_time_past: {_message_text(self.median_time_past)}"
+                )
                 raise BTClibValueError(err_msg)
 
         if self.required_bits is not None:
@@ -169,7 +171,7 @@ class BlockContext:
                 err_msg = f"invalid {key} type: {type(value).__name__}"
                 raise BTClibTypeError(err_msg)
             if value < 0:
-                raise BTClibValueError(f"invalid {key}: {value}")
+                raise BTClibValueError(f"invalid {key}: {_message_text(value)}")
 
         assert_type(self.now, datetime, "now")
 

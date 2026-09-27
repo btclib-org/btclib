@@ -30,7 +30,7 @@ from btclib.block.block import merkle_root_and_mutated_from_transactions
 from btclib.block.block_header import BlockHeader
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.tx import Tx
-from btclib.utils import assert_type, is_integer
+from btclib.utils import _message_text, assert_type, is_integer
 
 __all__ = [
     "NONCE_SPACE",
@@ -110,7 +110,7 @@ def mine(header: BlockHeader, max_tries: int = 1 << 20) -> BlockHeader | None:
     if not is_integer(max_tries):
         raise BTClibTypeError(f"invalid max_tries type: {type(max_tries).__name__}")
     if max_tries < 1:
-        raise BTClibValueError(f"invalid max_tries: {max_tries}")
+        raise BTClibValueError(f"invalid max_tries: {_message_text(max_tries)}")
 
     # a copy taken once, not one per nonce: replace() runs assert_valid,
     # and validating the same header a million times is the whole budget

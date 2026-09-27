@@ -49,7 +49,7 @@ from btclib.curves import (
     secp256k1,
 )
 from btclib.exceptions import BTClibValueError
-from btclib.utils import assert_type, bytes_from_octets
+from btclib.utils import _message_text, assert_type, bytes_from_octets
 
 # the bindings' module, imported from their own package; None where they
 # are not installed, which nothing calls: what calls it here is behind
@@ -109,7 +109,7 @@ def xdh(
     ell_a = _ell_from_octets(ell_a, ec)
     ell_b = _ell_from_octets(ell_b, ec)
     if party not in {0, 1}:
-        err_msg = f"invalid party: {party}, not 0 (A) or 1 (B)"
+        err_msg = f"invalid party: {_message_text(party)}, not 0 (A) or 1 (B)"
         raise BTClibValueError(err_msg)
     q = scalar_from_prv_key(prv_key, ec)
 

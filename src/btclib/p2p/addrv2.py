@@ -158,6 +158,7 @@ from btclib.p2p.address import (
 from btclib.p2p.limits import MAX_ADDR_TO_SEND, MAX_ADDRV2_SIZE
 from btclib.p2p.payload import Payload
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -260,7 +261,7 @@ def _assert_int_range(value: int, high: int, what: str) -> None:
     if not is_integer(value):
         raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
     if not 0 <= value <= high:
-        raise BTClibValueError(f"invalid {what}: {value}")
+        raise BTClibValueError(f"invalid {what}: {_message_text(value)}")
 
 
 def _bip155_network_from_int(network_id: int) -> BIP155Network | int:
@@ -468,7 +469,8 @@ def network_address(address: NetworkAddressV2) -> NetworkAddress:
     peer that is not the one that was gossiped.
     """
     if not can_addrv1(address):
-        err_msg = f"not an ip address: network id {int(address.network_id)}"
+        network_id = _message_text(int(address.network_id))
+        err_msg = f"not an ip address: network id {network_id}"
         raise BTClibValueError(err_msg)
     ip = (
         IPv4Address(address.address)

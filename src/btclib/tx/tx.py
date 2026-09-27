@@ -26,6 +26,7 @@ from btclib.tx.limits import MAX_TX_IN_COUNT, MAX_TX_OUT_COUNT
 from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS, TxIn
 from btclib.tx.tx_out import TxOut
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     assert_type,
     bytesio_from_binarydata,
@@ -66,7 +67,7 @@ def _assert_valid_4_byte_field(name: str, value: int) -> None:
     #690).
     """
     if not 0 <= value <= 0xFFFFFFFF:
-        raise BTClibValueError(f"invalid {name}: {value}")
+        raise BTClibValueError(f"invalid {name}: {_message_text(value)}")
 
 
 def _assert_valid_coinbase(vin: Sequence[TxIn], *, is_coinbase: bool) -> None:

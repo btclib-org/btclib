@@ -138,6 +138,7 @@ from btclib.p2p.inventory import _HASH_SIZE, _assert_valid_hash, _sequence_of
 from btclib.p2p.limits import CFCHECKPT_INTERVAL, MAX_GETCFHEADERS_SIZE
 from btclib.p2p.payload import Payload
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -216,7 +217,7 @@ def _assert_valid_type(filter_type: BlockFilterType | int) -> None:
         err_msg = f"invalid filter_type type: {type(filter_type).__name__}"
         raise BTClibTypeError(err_msg)
     if not 0 <= filter_type <= _MAX_TYPE:
-        raise BTClibValueError(f"invalid filter_type: {filter_type}")
+        raise BTClibValueError(f"invalid filter_type: {_message_text(filter_type)}")
 
 
 @dataclass(frozen=True)
@@ -266,7 +267,8 @@ class _FilterRangeRequest(Payload):
             err_msg = f"invalid start_height type: {type(self.start_height).__name__}"
             raise BTClibTypeError(err_msg)
         if not 0 <= self.start_height <= _MAX_HEIGHT:
-            raise BTClibValueError(f"invalid start_height: {self.start_height}")
+            err_msg = f"invalid start_height: {_message_text(self.start_height)}"
+            raise BTClibValueError(err_msg)
 
         _assert_valid_hash(self.stop_hash, "stop_hash length")
 
@@ -386,7 +388,8 @@ class CFilter(Payload):
         keyed by arrived with it.
         """
         if self.filter_type != BlockFilterType.BASIC:
-            err_msg = f"invalid filter_type for a basic filter: {self.filter_type}"
+            err_msg = "invalid filter_type for a basic filter: "
+            err_msg += _message_text(self.filter_type)
             raise BTClibValueError(err_msg)
         return BasicBlockFilter.parse(self.filter_bytes, self.block_hash)
 

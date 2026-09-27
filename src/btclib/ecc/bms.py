@@ -130,6 +130,7 @@ from btclib.hashes import hash160, magic_message
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.network import network_from_name
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     assert_type,
     bytesio_from_binarydata,
@@ -175,7 +176,7 @@ class Sig:
     def assert_valid(self) -> None:
         """Refuse a flag outside 27..42, a curve that is not secp256k1."""
         if self.rf < 27 or self.rf > 42:
-            raise BTClibValueError(f"invalid recovery flag: {self.rf}")
+            raise BTClibValueError(f"invalid recovery flag: {_message_text(self.rf)}")
         self.dsa_sig.assert_valid()
         if self.dsa_sig.ec != secp256k1:
             raise BTClibValueError(f"invalid curve: {self.dsa_sig.ec.name}")

@@ -21,6 +21,7 @@ from btclib.block.proof_of_work import (
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.utils import (
+    _message_hex,
     assert_no_trailing,
     assert_type,
     bytes_from_octets,
@@ -367,7 +368,7 @@ class BlockHeader:
         # and BIP65 activation heights, which is chain state. Core's
         # context-free CheckBlockHeader checks the proof of work alone
         if not -0x80000000 <= self.version <= 0x7FFFFFFF:
-            raise BTClibValueError(f"invalid version: {hex(self.version)}")
+            raise BTClibValueError(f"invalid version: {_message_hex(self.version)}")
 
         # a naive datetime has no instant attached to it: timestamp()
         # would assume the local time zone, so both this check and the
@@ -423,7 +424,7 @@ class BlockHeader:
         # truncation -- a short read yields zero -- which parse() checks
         # by length, where it belongs
         if not 0 <= self.nonce <= 0xFFFFFFFF:
-            raise BTClibValueError(f"invalid nonce: {hex(self.nonce)}")
+            raise BTClibValueError(f"invalid nonce: {_message_hex(self.nonce)}")
 
     def _serialized_size(self) -> int:
         """Return what serialize writes, without writing it.

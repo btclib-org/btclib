@@ -188,7 +188,7 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     if size in sizes:
         return octets
 
-    err_msg = f"invalid size: {size} bytes instead of {out_size}"
+    err_msg = f"invalid size: {size} bytes instead of {_message_text(out_size)}"
     raise BTClibValueError(err_msg)
 
 
@@ -326,11 +326,36 @@ def _message_text(value: object) -> str:
         return str(value)
     except Exception:  # noqa: BLE001
         if isinstance(value, int):
-            # int's own methods, not the value's: a subclass can override
-            # the comparison and bit_length as it overrode __str__
-            sign = "a negative" if int.__lt__(value, 0) else "an"
-            return f"{sign} int of {int.bit_length(value)} bits"
+            return _int_description(value)
         return f"a {type(value).__name__} str() cannot write"
+
+
+def _int_description(value: int) -> str:
+    """Return an int's sign and bit length, the text standing for its digits."""
+    # int's own methods, not the value's: a subclass can override the
+    # comparison and bit_length as it overrode __str__
+    sign = "a negative" if int.__lt__(value, 0) else "an"
+    return f"{sign} int of {int.bit_length(value)} bits"
+
+
+def _message_hex(value: object) -> str:
+    """Return an int in hex for a refusal's message, never raising.
+
+    Hex has no digit limit, so `hex()` writes in kilobytes an int `str()`
+    refuses. Such an int is described as `_message_text` describes it
+    instead, so that one value reads the same way in every refusal, hex
+    or decimal. What is no int is `_message_text`'s to write.
+    """
+    if not isinstance(value, int):
+        return _message_text(value)
+    # int's own repr and format, for the reason _int_description gives:
+    # the repr answers whether str() can write the value, raising
+    # ValueError exactly where str() of a plain int does
+    try:
+        int.__repr__(value)
+    except ValueError:
+        return _int_description(value)
+    return int.__format__(value, "#x")
 
 
 def is_integer(value: Any) -> bool:
@@ -612,7 +637,7 @@ def hex_string(i: Integer) -> str:
     """
     int_ = int_from_integer(i)
     if int_ < 0:
-        raise BTClibValueError(f"negative integer: {int_}")
+        raise BTClibValueError(f"negative integer: {_message_text(int_)}")
     a_str = f"{int_:x}"
     if len(a_str) % 2 != 0:
         a_str = f"0{a_str}"
@@ -703,7 +728,7 @@ def encode_num(i: int) -> bytes:
     if not is_integer(i):
         raise BTClibTypeError(f"non-integer script number: {type(i).__name__}")
     if not _MIN_SCRIPT_NUM <= i <= _MAX_SCRIPT_NUM:
-        err_msg = f"script number out of range: {i}"
+        err_msg = f"script number out of range: {_message_text(i)}"
         err_msg += f", not in [{_MIN_SCRIPT_NUM}, {_MAX_SCRIPT_NUM}]"
         raise BTClibValueError(err_msg)
 

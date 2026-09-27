@@ -600,3 +600,29 @@ def test_a_value_whose_str_raises_is_refused_in_kind() -> None:
     match = f"non-integer satoshi amount: {unwritable}"
     with pytest.raises(BTClibTypeError, match=match):
         valid_sats_amount(_Unwritable())
+
+
+class _UncomparableInt(int):
+    @override
+    def __le__(self, other: object) -> bool:
+        raise RuntimeError
+
+    @override
+    def __ge__(self, other: object) -> bool:
+        raise RuntimeError
+
+
+def test_an_int_is_bounded_through_int_s_own_comparison() -> None:
+    """A subclass overriding the comparison is refused as an amount.
+
+    The bound runs ahead of `str()`, and a comparison of the subclass's
+    own raising would leave as that error instead (issue #2394).
+    """
+    # the overrides do raise, so a bound reaching them would too
+    with pytest.raises(RuntimeError):
+        _ = _UncomparableInt(1) <= 2
+    with pytest.raises(RuntimeError):
+        _ = _UncomparableInt(1) >= 0
+    for value in (_TOO_LONG_TO_WRITE, -_TOO_LONG_TO_WRITE, 21_000_001):
+        with pytest.raises(BTClibValueError, match="invalid BTC amount: "):
+            valid_btc_amount(_UncomparableInt(value))

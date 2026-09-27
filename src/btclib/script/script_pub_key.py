@@ -38,6 +38,7 @@ from btclib.script.limits import MAX_PUBKEYS_PER_MULTISIG
 from btclib.script.script import Script, op_int, push_int, serialize
 from btclib.script.taproot import output_pubkey
 from btclib.utils import (
+    _message_text,
     assert_type,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -770,7 +771,8 @@ class ScriptPubKey(Script):
         if not 0 < n <= MAX_PUBKEYS_PER_MULTISIG:
             raise BTClibValueError(f"invalid n in m-of-n: {n}")
         if not 0 < m <= n:
-            raise BTClibValueError(f"invalid m in m-of-n: {m}-of-{n}")
+            err_msg = f"invalid m in m-of-n: {_message_text(m)}, n being {n}"
+            raise BTClibValueError(err_msg)
 
         # each key asked as `p2pk` above asks it
         for key in keys:

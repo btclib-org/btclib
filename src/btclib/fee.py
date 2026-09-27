@@ -124,8 +124,9 @@ class FeeRate:
             raise BTClibValueError(f"negative fee rate: {rate} sat/kvB")
         # the bound from_sats_per_vbyte holds a quote to, held by the
         # field itself, so that no FeeRate is one nothing can pay -- and
-        # so that its repr and sats_per_vbyte, which read the field
-        # through str(), never meet an int str() refuses
+        # so that neither its repr, which writes the field with repr(),
+        # nor sats_per_vbyte, which reads it through str(), meets an int
+        # past the digit limit both of them refuse
         if self.sats_per_kvbyte > _MAX_SATS_PER_KVBYTE:
             rate = _message_text(self.sats_per_kvbyte)
             raise BTClibValueError(
@@ -169,8 +170,12 @@ class FeeRate:
         assert_type(round_up, bool, "round_up")
         err_msg = f"invalid sat/vB fee rate: {_message_text(sats_per_vbyte)}"
         # an int is bounded as an int, before str() reads it, as
-        # valid_btc_amount bounds its own
-        if isinstance(sats_per_vbyte, int) and abs(sats_per_vbyte) > _MAX_SATOSHI:
+        # valid_btc_amount bounds its own and through the plain int
+        # int.__index__ returns
+        if (
+            isinstance(sats_per_vbyte, int)
+            and abs(int.__index__(sats_per_vbyte)) > _MAX_SATOSHI
+        ):
             raise BTClibValueError(err_msg)
         # finite in any caller's context, so as_integer_ratio below,
         # which raises on a NaN and on an infinity, is never handed one
@@ -274,10 +279,11 @@ class FeeRate:
         if round_up:
             err_msg = f"invalid BTC/kvB fee rate: {_message_text(btc_per_kvbyte)}"
             # an int is bounded as an int, before str() reads it, as
-            # valid_btc_amount bounds its own
-            if isinstance(btc_per_kvbyte, int) and abs(btc_per_kvbyte) > int(
-                _MAX_BITCOIN
-            ):
+            # valid_btc_amount bounds its own and through the plain int
+            # int.__index__ returns
+            if isinstance(btc_per_kvbyte, int) and abs(
+                int.__index__(btc_per_kvbyte)
+            ) > int(_MAX_BITCOIN):
                 raise BTClibValueError(err_msg)
             # finite in any caller's context, so quantize below, which
             # raises on an infinity and passes a NaN through, is never
