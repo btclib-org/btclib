@@ -326,6 +326,17 @@ full year, short month, short day (YYYY-M-D)
 
   Act on it if you build p2sh outputs from scripts that long: `p2wsh` takes
   them, a witness script not being held to the element size.
+- **The amount and fee-rate readers spell a number as Bitcoin Core's
+  `ParseFixedPoint` does** (closes #2378): `valid_btc_amount`,
+  `valid_sats_amount`, `FeeRate.from_sats_per_vbyte` and
+  `FeeRate.from_btc_per_kvbyte`, and what reads an amount through them. A
+  leading zero before another digit (`"01"`, `"00"`, `"01e1"`) and a point
+  without a digit on both sides of it (`".5"`, `"1."`, `".5e1"`) raise
+  `BTClibValueError`, where they were read as the number they spell;
+  `valid_sats_amount` read `"01"` and `"00"`.
+
+  Act on it if you hand these functions such text: write `"1"`, `"0.5"`
+  and `"1.0"`.
 
 ## v2026.9.24
 

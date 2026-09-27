@@ -18,7 +18,7 @@ tautology.
 from __future__ import annotations
 
 import string
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation, localcontext
 from typing import Any
 
 import pytest
@@ -697,3 +697,76 @@ def test_a_fee_rate_exponent_keeps_its_plus(round_up: bool) -> None:
     assert FeeRate.from_sats_per_vbyte("1e+1", round_up=round_up) == rate
     ten_btc = FeeRate.from_btc_per_kvbyte(Decimal("1E+1"), round_up=round_up)
     assert ten_btc == FeeRate(sats_per_kvbyte=1_000_000_000)
+
+
+# what Decimal reads and Bitcoin Core's ParseFixedPoint refuses: a
+# leading zero before another digit, and a point without a digit on both
+# sides of it
+_NOT_FIXED_POINT = ["01", "00", ".5", "1.", ".5e1", "01e1", "-01", "-.5"]
+# a huge exponent ParseFixedPoint's grammar spells and Decimal cannot hold
+_PAST_DECIMAL = "1e" + "9" * 30
+
+
+@pytest.mark.parametrize("round_up", [False, True])
+@pytest.mark.parametrize("quote", [*_NOT_FIXED_POINT, _PAST_DECIMAL])
+def test_a_fee_rate_is_spelled_as_parse_fixed_point_spells_it(
+    quote: str, round_up: bool
+) -> None:
+    """`ParseFixedPoint` is the parser Core reads an RPC amount through."""
+    with pytest.raises(BTClibValueError, match="invalid sat/vB fee rate"):
+        FeeRate.from_sats_per_vbyte(quote, round_up=round_up)
+    with pytest.raises(BTClibValueError, match="invalid BTC"):
+        FeeRate.from_btc_per_kvbyte(quote, round_up=round_up)
+
+
+@pytest.mark.parametrize("round_up", [False, True])
+@pytest.mark.parametrize(
+    "quote, per_vbyte, per_kvbyte",
+    [
+        ("0", 0, 0),
+        ("-0", 0, 0),
+        ("0.5", 500, 50_000_000),
+        ("0e1", 0, 0),
+        ("1e1", 10_000, 1_000_000_000),
+        ("1e+1", 10_000, 1_000_000_000),
+    ],
+)
+def test_what_parse_fixed_point_reads_is_a_fee_rate(
+    quote: str, per_vbyte: int, per_kvbyte: int, round_up: bool
+) -> None:
+    """A lone 0 before a point or an exponent, and a signed zero, are read."""
+    rate = FeeRate.from_sats_per_vbyte(quote, round_up=round_up)
+    assert rate == FeeRate(sats_per_kvbyte=per_vbyte)
+    rate = FeeRate.from_btc_per_kvbyte(quote, round_up=round_up)
+    assert rate == FeeRate(sats_per_kvbyte=per_kvbyte)
+
+
+@pytest.mark.parametrize("round_up", [False, True])
+def test_a_fee_rate_is_refused_in_kind_in_an_untrapping_context(
+    round_up: bool,
+) -> None:
+    """An InvalidOperation the caller does not trap is a NaN, not a raise.
+
+    `Decimal` signals it on an exponent past what it holds, and a NaN
+    handed on would reach `as_integer_ratio` as a bare ValueError.
+    """
+    with localcontext() as ctx:
+        ctx.traps[InvalidOperation] = False
+        with pytest.raises(BTClibValueError, match="invalid sat/vB fee rate: 1e"):
+            FeeRate.from_sats_per_vbyte(_PAST_DECIMAL, round_up=round_up)
+        with pytest.raises(
+            BTClibValueError, match=r"invalid BTC( amount|/kvB fee rate): 1e"
+        ):
+            FeeRate.from_btc_per_kvbyte(_PAST_DECIMAL, round_up=round_up)
+
+
+def test_rounding_past_the_precision_is_refused_in_an_untrapping_context() -> None:
+    """`quantize` signals InvalidOperation on a quote past the precision.
+
+    Untrapped by the caller's context that is a NaN, which the rounding
+    arm refuses as the quote it was given rather than handing it on.
+    """
+    with localcontext() as ctx:
+        ctx.traps[InvalidOperation] = False
+        with pytest.raises(BTClibValueError, match="invalid BTC/kvB fee rate: 1e30"):
+            FeeRate.from_btc_per_kvbyte("1e30", round_up=True)

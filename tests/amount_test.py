@@ -7,7 +7,13 @@
 from __future__ import annotations
 
 import string
-from decimal import Decimal, FloatOperation, getcontext, localcontext
+from decimal import (
+    Decimal,
+    FloatOperation,
+    InvalidOperation,
+    getcontext,
+    localcontext,
+)
 from threading import Thread
 
 import pytest
@@ -374,3 +380,58 @@ def test_the_exponent_keeps_its_plus() -> None:
     assert valid_btc_amount("1e+1") == 10
     assert valid_btc_amount(Decimal("1E+1")) == 10
     assert str(Decimal("1E+1")) == "1E+1"
+
+
+# what Decimal, and for "01" and "00" int too, reads and Bitcoin Core's
+# ParseFixedPoint refuses: a leading zero before another digit, and a
+# point without a digit on both sides of it
+_NOT_FIXED_POINT = ["01", "00", ".5", "1.", ".5e1", "01e1", "-01", "-.5"]
+# a huge exponent ParseFixedPoint's grammar spells and Decimal cannot hold
+_PAST_DECIMAL = "1e" + "9" * 30
+
+
+@pytest.mark.parametrize("amount", _NOT_FIXED_POINT)
+def test_an_amount_is_spelled_as_parse_fixed_point_spells_it(amount: str) -> None:
+    """`ParseFixedPoint` is the parser Core reads an RPC amount through."""
+    with pytest.raises(BTClibValueError, match="invalid BTC amount"):
+        valid_btc_amount(amount)
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
+        valid_sats_amount(amount)
+
+
+@pytest.mark.parametrize(
+    "amount, btc",
+    [
+        ("0", 0),
+        ("-0", 0),
+        ("0.5", Decimal("0.5")),
+        ("0e1", 0),
+        ("1e1", 10),
+        ("1e+1", 10),
+        ("1E-8", Decimal("0.00000001")),
+    ],
+)
+def test_what_parse_fixed_point_reads_is_a_btc_amount(
+    amount: str, btc: Decimal
+) -> None:
+    """A lone 0 before a point or an exponent, and a signed zero, are read."""
+    assert valid_btc_amount(amount) == btc
+
+
+def test_a_lone_zero_is_a_sats_amount() -> None:
+    """`ParseFixedPoint` reads "0" and "-0", and `int` reads both as 0."""
+    assert valid_sats_amount("0") == 0
+    assert valid_sats_amount("-0") == 0
+
+
+@pytest.mark.parametrize("trap", [True, False])
+def test_an_exponent_decimal_cannot_hold_is_refused_in_kind(trap: bool) -> None:
+    """The grammar spells it and `Decimal` signals InvalidOperation on it.
+
+    Untrapped by the caller's context, the signal is a NaN rather than a
+    raise, and the refusal is the same either way.
+    """
+    with localcontext() as ctx:
+        ctx.traps[InvalidOperation] = trap
+        with pytest.raises(BTClibValueError, match="invalid BTC amount"):
+            valid_btc_amount(_PAST_DECIMAL)

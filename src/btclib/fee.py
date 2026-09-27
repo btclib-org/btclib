@@ -44,12 +44,12 @@ forever.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import ROUND_CEILING, Decimal, InvalidOperation
+from decimal import ROUND_CEILING, Decimal, InvalidOperation, localcontext
 from typing import Any
 
 from btclib import var_int
 from btclib.alias import Octets
-from btclib.amount import _number_text, sats_from_btc, valid_sats_amount
+from btclib.amount import _decimal_from_text, sats_from_btc, valid_sats_amount
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script.script_pub_key import is_segwit
 from btclib.script.spendability import is_unspendable
@@ -140,26 +140,9 @@ class FeeRate:
         """
         assert_type(round_up, bool, "round_up")
         err_msg = f"invalid sat/vB fee rate: {sats_per_vbyte}"
-        # str() renders every object there is, and Decimal refuses most
-        # of what it renders with an InvalidOperation -- an
-        # ArithmeticError, which nobody catches around a fee rate.
-        # Accepting Any is what makes that reachable from ordinary
-        # input, "1,2" being how half the world writes a decimal, so the
-        # width of the argument has to be matched by one exception of
-        # this library's rather than one of decimal's
-        text = _number_text(str(sats_per_vbyte), err_msg)
-        try:
-            rate = Decimal(text)
-        except InvalidOperation as e:
-            raise BTClibValueError(err_msg) from e
-        # as_integer_ratio raises OverflowError on an infinity and
-        # ValueError on a NaN, and the first of those is outside this
-        # library's exception contract: both are refused here instead.
-        # The same message as above, because it is the same complaint:
-        # "NaN" parses and is not a rate, "abc" does not parse and is
-        # not a rate either
-        if not rate.is_finite():
-            raise BTClibValueError(err_msg)
+        # finite in any caller's context, so as_integer_ratio below,
+        # which raises on a NaN and on an infinity, is never handed one
+        rate = _decimal_from_text(str(sats_per_vbyte), err_msg)
         # the ratio is exact and reads no decimal context, where
         # multiplying the Decimal by a thousand would round to whatever
         # precision the caller's context happens to carry. A conversion
@@ -236,17 +219,10 @@ class FeeRate:
             raise BTClibValueError(f"invalid BTC/kvB fee rate: {btc_per_kvbyte}")
         if round_up:
             err_msg = f"invalid BTC/kvB fee rate: {btc_per_kvbyte}"
-            text = _number_text(str(btc_per_kvbyte), err_msg)
-            try:
-                rate = Decimal(text)
-            except InvalidOperation as e:
-                raise BTClibValueError(err_msg) from e
-            # is_finite ahead of quantize rather than leaving quantize's
-            # own InvalidOperation to report it: quantize raises that for
-            # an infinity and quietly returns a NaN for one, neither
-            # being the exception this function promises
-            if not rate.is_finite():
-                raise BTClibValueError(err_msg)
+            # finite in any caller's context, so quantize below, which
+            # raises on an infinity and passes a NaN through, is never
+            # handed one
+            rate = _decimal_from_text(str(btc_per_kvbyte), err_msg)
             # ROUND_CEILING rounds toward positive infinity, so a negative
             # quote finer than a satoshi rounds *up to* zero rather than
             # away from it -- accepted as a free-transaction FeeQuote
@@ -257,18 +233,21 @@ class FeeRate:
             # never for one on the wrong side of zero
             if rate < 0:
                 raise BTClibValueError(err_msg)
-            try:
-                # one satoshi in BTC: quantizing to it with ROUND_CEILING
-                # is the whole of "round up" -- sats_from_btc still runs
-                # the canonical range check on what this produces. The
-                # remaining InvalidOperation is a magnitude past this
-                # context's precision, refused rather than left to escape
-                # as a bare ArithmeticError
-                btc_per_kvbyte = rate.quantize(
-                    Decimal("0.00000001"), rounding=ROUND_CEILING
-                )
-            except InvalidOperation as e:
-                raise BTClibValueError(err_msg) from e
+            # one satoshi in BTC: quantizing to it with ROUND_CEILING is
+            # the whole of "round up" -- sats_from_btc still runs the
+            # canonical range check on what this produces. A magnitude
+            # past the context's precision signals InvalidOperation, which
+            # an untrapping caller's context would turn into a NaN: it is
+            # trapped here, and refused rather than left to escape as a
+            # bare ArithmeticError
+            with localcontext() as ctx:
+                ctx.traps[InvalidOperation] = True
+                try:
+                    btc_per_kvbyte = rate.quantize(
+                        Decimal("0.00000001"), rounding=ROUND_CEILING
+                    )
+                except InvalidOperation as e:
+                    raise BTClibValueError(err_msg) from e
         return cls(sats_per_kvbyte=sats_from_btc(btc_per_kvbyte))
 
     @property

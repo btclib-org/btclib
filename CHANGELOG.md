@@ -521,6 +521,12 @@ A spend pushes the redeem script, and Bitcoin Core fails a push that long, so
 the output it built could never be spent. The refusal quotes the length, not
 the script (closes #2381).
 
+### Amount and fee-rate readers take Bitcoin Core's `ParseFixedPoint` grammar
+
+A leading zero before another digit and a point without a digit on both sides
+are refused, "01", ".5", "1.", ".5e1" and "01e1" among them; "0", "0.5", "0e1"
+and "-0" stay (closes #2378).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

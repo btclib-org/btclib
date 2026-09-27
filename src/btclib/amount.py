@@ -17,6 +17,7 @@ Amounts are never negative, here as in the protocol.
 
 from __future__ import annotations
 
+import re
 import string
 from decimal import Decimal, FloatOperation, InvalidOperation, localcontext
 from typing import Any
@@ -64,6 +65,13 @@ _MAX_BITCOIN = Decimal(21_000_000)
 _MAX_SATOSHI = int(_MAX_BITCOIN * _SATOSHI_PER_BITCOIN)
 
 
+# Bitcoin Core's `ParseFixedPoint` grammar: an optional "-", then a lone
+# 0 or a digit string not starting with 0, then optionally "." and at
+# least one digit, then optionally an exponent of at least one digit.
+# `[0-9]` is ASCII in `re` whatever the flags
+_FIXED_POINT = re.compile(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?")
+
+
 def _number_text(text: str, err_msg: str) -> str:
     """Return the text of a number stripped of ASCII whitespace, or refuse it.
 
@@ -72,30 +80,43 @@ def _number_text(text: str, err_msg: str) -> str:
     ZERO) are ten to both. Both strip what `str.isspace` counts, `int`
     all of it but U+001C to U+001F and `Decimal` all of it. Both read the
     digit-grouping underscore of Python's number literals, so "1_0" is
-    ten too, and both read a leading "+". None of that is how anybody
-    writes an amount, and each is a second spelling of one.
+    ten too, and both read a leading "+" and "01". `Decimal` also reads
+    ".5" and "1.". None of that is how anybody writes an amount, and each
+    is a second spelling of one.
 
-    Bitcoin Core's `ParseMoney` strips space, tab, newline, carriage
-    return, vertical tab and form feed, which are `string.whitespace`,
-    and it and `ParseFixedPoint` read ASCII digits alone. So those six
-    are stripped here, and what is left has to be printable ASCII with
-    no underscore: printable because U+001C to U+001F are ASCII, and
-    `Decimal` would strip them. Neither of Core's parsers reads a leading
-    "+", so it is refused too; the one after an exponent's "e" stays,
-    `ParseFixedPoint` reading "1e+1" and `str(Decimal)` writing "1E+1".
-    Everything else is `int`'s or `Decimal`'s to refuse.
-
-    The exponent form stays an amount: `ParseFixedPoint`, which Core's
-    `AmountFromValue` reads an RPC amount through, takes "1e1".
+    What is left once `string.whitespace` is stripped has to be spelled
+    as Bitcoin Core's `ParseFixedPoint` spells a number. That is the
+    parser `AmountFromValue` reads an RPC amount through, and it is why
+    the exponent form, "1e1" and "1e+1", stays an amount. The six
+    characters stripped are the ones Core's `ParseMoney` strips. The
+    grammar of `ParseFixedPoint` is taken and its bounds on the mantissa
+    and the exponent are not.
     """
     text = text.strip(string.whitespace)
-    if (
-        not (text.isascii() and text.isprintable())
-        or "_" in text
-        or text.startswith("+")
-    ):
+    if not _FIXED_POINT.fullmatch(text):
         raise BTClibValueError(err_msg)
     return text
+
+
+def _decimal_from_text(text: str, err_msg: str) -> Decimal:
+    """Return the finite Decimal a number's text spells, or refuse it.
+
+    The grammar `_number_text` holds the text to spells no NaN and no
+    infinity, but it does spell an exponent past what `Decimal` can hold
+    ("1e" and thirty nines). `Decimal` signals InvalidOperation on that,
+    and what the signal does is the caller's context's to say: trapped,
+    it raises an ArithmeticError nobody catches around an amount;
+    untrapped, it returns a NaN. So the conversion runs in a context that
+    traps it, whatever the caller's does, and the refusal is this
+    library's.
+    """
+    text = _number_text(text, err_msg)
+    with localcontext() as ctx:
+        ctx.traps[InvalidOperation] = True
+        try:
+            return Decimal(text)
+        except InvalidOperation as e:
+            raise BTClibValueError(err_msg) from e
 
 
 def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
@@ -119,29 +140,10 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
         # any input that can be converted to str is fine
         amount = "0" if amount is None else str(amount)
         err_msg = f"invalid BTC amount: {amount}"
-        text = _number_text(amount, err_msg)
         # using str in the Decimal constructor avoids the
-        # FloatOperation exception trapped just above.
-        #
-        # str() renders every object there is and Decimal refuses most of
-        # what it renders with an InvalidOperation -- an ArithmeticError,
-        # which nobody catches around an amount and which `except
-        # BTClibValueError` does not catch either. Accepting Any is what
-        # makes it reachable from ordinary input, "1,2" being how half the
-        # world writes a decimal, so the width of the argument has to be
-        # matched by one exception of this library's:
-        # FeeRate.from_sats_per_vbyte answers the same way
-        try:
-            btc = Decimal(text)
-        except InvalidOperation as e:
-            raise BTClibValueError(err_msg) from e
-        # a NaN parses and is no amount, and the range check below is not
-        # what refuses it: an ordering comparison against a NaN raises
-        # InvalidOperation of its own, so "nan" would leave through the
-        # very line meant to bound it. An infinity does compare, and the
-        # range refuses it there
-        if not btc.is_finite():
-            raise BTClibValueError(err_msg)
+        # FloatOperation exception trapped just above; what comes back
+        # is finite, so the range check below compares finite values
+        btc = _decimal_from_text(amount, err_msg)
         if not dust <= btc <= _MAX_BITCOIN:
             raise BTClibValueError(err_msg)
         if btc == btc.quantize(_BITCOIN_PER_SATOSHI):
