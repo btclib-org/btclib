@@ -16,6 +16,8 @@ the first OP_SUCCESS whatever precedes it, while `parse` would raise on
 the byte before ever reaching it (issue #182).
 """
 
+import string
+
 from btclib.exceptions import BTClibValueError
 from btclib.script.script import _assert_ascii_command, _serialize_bytes_command
 
@@ -258,7 +260,7 @@ OP_SUCCESS = [
 def _serialize_str_command(command: str) -> bytes:
     # an op code name matches as script._serialize_str_command matches one
     _assert_ascii_command(command)
-    command = command.strip()
+    command = command.strip(string.whitespace)
     if command in OP_CODES:
         return OP_CODES[command]
     if command.startswith("OP_SUCCESS"):

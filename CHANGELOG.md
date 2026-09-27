@@ -475,6 +475,12 @@ A count above 16 is the one-byte push Core writes, and `p2ms_m_and_keys` reads
 it back, so a p2wsh multisig of 17 to 20 keys, which Core creates, is built and
 classified as p2ms (closes #2348); the bare and p2sh limits are the caller's.
 
+### Script serializers read a string command exactly
+
+`script.serialize` reads `UNKNOWN_OP_CODE_n` only as `parse` writes it, where
+`int` read `UNKNOWN_OP_CODE_1_87` as 0xbb (closes #2361). Both serializers strip
+`string.whitespace`, where `str.strip()` took U+001C to U+001F (closes #2363).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
