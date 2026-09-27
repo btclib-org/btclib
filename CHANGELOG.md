@@ -340,6 +340,12 @@ uv.lock pins, exported with their hashes (closes #2306).
 `witness_sig_op_count` count what an input adds given the output it spends
 (closes #2313); the cost sums them with the legacy count, as Core weighs each.
 
+### `ScriptPubKey.p2ms` and `nulldata` refuse a wrong type as `BTClibTypeError`
+
+`p2ms` refuses an `m` that is not `is_integer`, `True` included, and `keys` that
+are octets or no sequence (closes #2331), and `nulldata` data neither text nor a
+buffer, each of which built a script or raised a `TypeError` or a value error.
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

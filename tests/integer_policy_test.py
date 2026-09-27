@@ -35,7 +35,7 @@ from btclib.exceptions import BTClibEccTypeError, BTClibTypeError
 from btclib.fee import FeeRate, fee_from_vsize
 from btclib.hashes import merkle_root_from_branch, sha256
 from btclib.key import PrvKeyData
-from btclib.script import input_script_sig, sig_hash
+from btclib.script import ScriptPubKey, input_script_sig, sig_hash
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.utils import (
     bytes_from_octets,
@@ -105,6 +105,7 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("base conversion from_bits", lambda v: power_of_2_base_conversion([1], v, 8)),
     ("base conversion to_bits", lambda v: power_of_2_base_conversion([1], 8, v)),
     ("taproot leaf index", lambda v: input_script_sig(None, _SCRIPT_TREE, v)),
+    ("multisig threshold", lambda v: ScriptPubKey.p2ms(v, [PrvKeyData(1).pub])),
     (
         "sig_hash input index",
         lambda v: sig_hash.taproot(_tx(), v, _PREVOUTS, 1, 0, b"", b""),
@@ -125,11 +126,11 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     # reaches it through btclib_ecc's copy, which is that package's to
     # test. These cases are here for the reach of the policy and not as a
     # test apiece. The address builders are not among
-    # them: they take a `PubKeyData`, so a bool is refused by
-    # `bytes_from_octets` on the same terms as any other wrong type, and
-    # `bms.sign` likewise takes a `PrvKeyData` and refuses one through
-    # `assert_type` (issue #1188) -- refusals `key_test.py` holds, not
-    # this census
+    # them: they take a `PubKeyData` and refuse a bool through
+    # `assert_type`, as any other wrong type, and `bms.sign` likewise
+    # takes a `PrvKeyData` and refuses one through `assert_type` (issue
+    # #1188) -- refusals `built_object_contract_test.py` and
+    # `key_test.py` hold, not this census
     ("integer coercion", int_from_integer),
     ("hex string", hex_string),
     ("WIF private key", wif_from_prv_key),

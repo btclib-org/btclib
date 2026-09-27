@@ -505,7 +505,13 @@ def test_script_exports_both_halves_of_every_pair() -> None:
     for name in ("address", "addresses"):
         assert name in btclib.script.__all__
 
-    types = sorted(n[3:] for n in vars(script_pub_key) if n.startswith("is_"))
+    # the module's own `is_` names: `utils.is_integer`, imported there, is
+    # no script type
+    types = sorted(
+        n[3:]
+        for n, v in vars(script_pub_key).items()
+        if n.startswith("is_") and v.__module__ == script_pub_key.__name__
+    )
     assert types  # a typo in the prefix would otherwise pass silently
     for script_type in types:
         for prefix in ("is_", "assert_"):
