@@ -21,7 +21,7 @@ from io import BytesIO
 import pytest
 
 from btclib import var_bytes
-from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p import Message, Reject, RejectCode
 
 _MAINNET = bytes.fromhex("f9beb4d9")
@@ -111,7 +111,7 @@ def test_a_payload_cut_short_is_refused_field_by_field() -> None:
     for i in range(len(octets)):
         if i == no_hash_length:
             continue
-        with pytest.raises((BTClibValueError, BTClibRuntimeError, BTClibTypeError)):
+        with pytest.raises((BTClibValueError, BTClibTypeError)):
             Reject.parse(octets[:i])
 
 

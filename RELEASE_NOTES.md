@@ -153,6 +153,14 @@ full year, short month, short day (YYYY-M-D)
   the delegation to libsecp256k1 off, under its own name, and nothing
   reads the old one. Act on it by renaming the variable wherever it is
   set.
+- **`var_bytes.parse` raises `BTClibValueError` for a truncated or a
+  zero-size field, where it raised `BTClibRuntimeError`** (closes #2289),
+  matching `var_int.parse` and `utils.read_exactly`. Every caller of
+  `var_bytes.parse` is affected, transaction, script and block parsers
+  as well as the p2p ones: `git grep -n 'var_bytes\.parse(' -- src`
+  names each call site. Act on it by catching `BTClibValueError`
+  wherever an `except BTClibRuntimeError` was written around one of
+  them.
 
 ## v2026.9.24
 

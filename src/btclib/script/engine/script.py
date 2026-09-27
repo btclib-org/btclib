@@ -15,7 +15,6 @@ from btclib.ecc.dsa import Sig
 from btclib.exceptions import (
     BTClibEccRuntimeError,
     BTClibEccValueError,
-    BTClibRuntimeError,
     BTClibValueError,
     ScriptError,
 )
@@ -314,17 +313,13 @@ def op_checksig(
         return False
     try:
         signature = fix_signature(signature, flags)
-    except (
-        BTClibValueError,
-        BTClibRuntimeError,
-        BTClibEccValueError,
-        BTClibEccRuntimeError,
-    ):
-        # `Sig.parse` is btclib_ecc's, hence its two classes beside
-        # btclib's. Under any of the three flags, CheckSignatureEncoding is
-        # what failed and Core ends the script; under none of them the lax
-        # parse failed, which is a signature that does not verify and
-        # nothing more
+    except (BTClibValueError, BTClibEccValueError, BTClibEccRuntimeError):
+        # `BTClibValueError` is this function's own two raises (a wrong
+        # sighash type, a high s under LOW_S); `Sig.parse` is
+        # btclib_ecc's, hence its two classes beside btclib's. Under any
+        # of the three flags, CheckSignatureEncoding is what failed and
+        # Core ends the script; under none of them the lax parse failed,
+        # which is a signature that does not verify and nothing more
         if flags & STRICT_DER_FLAGS:
             raise
         return False
