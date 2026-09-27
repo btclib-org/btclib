@@ -17,6 +17,7 @@ tautology.
 
 from __future__ import annotations
 
+import string
 from decimal import Decimal
 from typing import Any
 
@@ -623,3 +624,57 @@ def test_the_var_int_prefix_is_counted() -> None:
     # 8 + 1 + 252 + 148 = 409 vB, and then 8 + 3 + 253 + 148 = 412
     assert dust_threshold(at_the_limit) == 1227
     assert dust_threshold(over_it) == 1236
+
+
+# what str.strip() with no argument also takes and Bitcoin Core's IsSpace
+# does not: NO-BREAK SPACE, IDEOGRAPHIC SPACE, LINE SEPARATOR, and two of
+# the control characters str.isspace counts
+_NON_CORE_SPACES = [chr(c) for c in (0xA0, 0x3000, 0x2028, 0x1C, 0x85)]
+# ten in ARABIC-INDIC and in FULLWIDTH digits, both of which Decimal reads
+# as ten
+_NON_ASCII_TENS = [chr(0x661) + chr(0x660), chr(0xFF11) + chr(0xFF10)]
+
+
+@pytest.mark.parametrize("round_up", [False, True])
+@pytest.mark.parametrize("pad", _NON_CORE_SPACES)
+def test_only_ascii_whitespace_is_stripped_from_a_fee_rate(
+    pad: str, round_up: bool
+) -> None:
+    """ASCII whitespace around a quote is trimmed, and nothing else is."""
+    ws = string.whitespace
+    per_vbyte = FeeRate.from_sats_per_vbyte(f"{ws}10{ws}", round_up=round_up)
+    assert per_vbyte == FeeRate(sats_per_kvbyte=10_000)
+    per_kvbyte = FeeRate.from_btc_per_kvbyte(f"{ws}0.0001{ws}", round_up=round_up)
+    assert per_kvbyte == FeeRate(sats_per_kvbyte=10_000)
+
+    with pytest.raises(BTClibValueError, match="invalid sat/vB fee rate"):
+        FeeRate.from_sats_per_vbyte(f"{pad}10{pad}", round_up=round_up)
+    with pytest.raises(BTClibValueError, match="invalid BTC"):
+        FeeRate.from_btc_per_kvbyte(f"{pad}0.0001{pad}", round_up=round_up)
+
+
+@pytest.mark.parametrize("round_up", [False, True])
+@pytest.mark.parametrize("ten", _NON_ASCII_TENS)
+def test_a_fee_rate_is_read_in_ascii_digits_alone(ten: str, round_up: bool) -> None:
+    """Digits outside ASCII are refused by either constructor."""
+    with pytest.raises(BTClibValueError, match="invalid sat/vB fee rate"):
+        FeeRate.from_sats_per_vbyte(ten, round_up=round_up)
+    with pytest.raises(BTClibValueError, match="invalid BTC"):
+        FeeRate.from_btc_per_kvbyte(ten, round_up=round_up)
+
+
+@pytest.mark.parametrize("round_up", [False, True])
+def test_a_fee_rate_refuses_digit_grouping_underscores(round_up: bool) -> None:
+    """`Decimal(str)` reads "1_0" as ten, which no quote writes."""
+    with pytest.raises(BTClibValueError, match="invalid sat/vB fee rate"):
+        FeeRate.from_sats_per_vbyte("1_0", round_up=round_up)
+    with pytest.raises(BTClibValueError, match="invalid BTC"):
+        FeeRate.from_btc_per_kvbyte("0.000_1", round_up=round_up)
+
+
+def test_the_exponent_form_is_a_fee_rate() -> None:
+    """Core's `ParseFixedPoint` reads "1e1", and so do both constructors."""
+    assert FeeRate.from_sats_per_vbyte("1e1") == FeeRate(sats_per_kvbyte=10_000)
+    assert FeeRate.from_btc_per_kvbyte("1e-4") == FeeRate(sats_per_kvbyte=10_000)
+    rounded = FeeRate.from_btc_per_kvbyte("1e-4", round_up=True)
+    assert rounded == FeeRate(sats_per_kvbyte=10_000)

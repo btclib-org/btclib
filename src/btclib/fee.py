@@ -49,7 +49,7 @@ from typing import Any
 
 from btclib import var_int
 from btclib.alias import Octets
-from btclib.amount import sats_from_btc, valid_sats_amount
+from btclib.amount import _number_text, sats_from_btc, valid_sats_amount
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script.script_pub_key import is_segwit
 from btclib.script.spendability import is_unspendable
@@ -118,9 +118,9 @@ class FeeRate:
         """Return the same rate in sat/kvB from a sat/vB quote.
 
         The quote is a Decimal, an int, a string, or anything else
-        str() renders as a decimal number; a float is read through
-        its repr, so 1.1 is the 1.1 that was written rather than the
-        binary fraction nearest to it. Refused: what does not read as
+        str() renders as a decimal number in ASCII; a float is read
+        through its repr, so 1.1 is the 1.1 that was written rather than
+        the binary fraction nearest to it. Refused: what does not read as
         a decimal number, is not finite, or is not a whole number of
         millisatoshi per virtual byte -- what sat/kvB cannot hold
         exactly -- unless `round_up`.
@@ -147,8 +147,9 @@ class FeeRate:
         # input, "1,2" being how half the world writes a decimal, so the
         # width of the argument has to be matched by one exception of
         # this library's rather than one of decimal's
+        text = _number_text(str(sats_per_vbyte), err_msg)
         try:
-            rate = Decimal(str(sats_per_vbyte))
+            rate = Decimal(text)
         except InvalidOperation as e:
             raise BTClibValueError(err_msg) from e
         # as_integer_ratio raises OverflowError on an infinity and
@@ -235,8 +236,9 @@ class FeeRate:
             raise BTClibValueError(f"invalid BTC/kvB fee rate: {btc_per_kvbyte}")
         if round_up:
             err_msg = f"invalid BTC/kvB fee rate: {btc_per_kvbyte}"
+            text = _number_text(str(btc_per_kvbyte), err_msg)
             try:
-                rate = Decimal(str(btc_per_kvbyte))
+                rate = Decimal(text)
             except InvalidOperation as e:
                 raise BTClibValueError(err_msg) from e
             # is_finite ahead of quantize rather than leaving quantize's

@@ -481,6 +481,12 @@ classified as p2ms (closes #2348); the bare and p2sh limits are the caller's.
 `int` read `UNKNOWN_OP_CODE_1_87` as 0xbb (closes #2361). Both serializers strip
 `string.whitespace`, where `str.strip()` took U+001C to U+001F (closes #2363).
 
+### Amount and fee-rate readers take ASCII digits and ASCII whitespace alone
+
+A digit outside ASCII is refused and only `string.whitespace` stripped, as in
+Bitcoin Core's `ParseMoney`, and both `FeeRate` readers refuse the underscore
+(closes #2360). "1e1" stays an amount, as Core's `ParseFixedPoint` reads it.
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
