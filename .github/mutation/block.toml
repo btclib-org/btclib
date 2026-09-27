@@ -101,22 +101,21 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   but is no longer the `int` `retarget_first_height`'s subtraction wants.
 #
 # `block_header.py`
-# - `assert_valid`'s version range, `0 < self.version <= 0x7FFFFFFF`: the
-#   lower bound was pinned at zero, `0 != self.version` still refusing
-#   only that one value and letting every negative one through; the
-#   upper bound had no vector at 0x7FFFFFFF itself, so `< 0x7FFFFFFF` and
-#   the literal `2147483646` each passed by refusing a version every
-#   other vector in the suite already carries.
+# - `assert_valid`'s version range, `-0x80000000 <= self.version <=
+#   0x7FFFFFFF`: each bound is pinned at its own value and one past it,
+#   since a strict comparison, or a literal one step inward, refuses
+#   only the end itself.
 # - `assert_valid`'s `0 <= self.nonce`: pinned at zero the same way,
 #   `-1 <=` unrefused by any existing vector, all of them non-negative.
 # - `check_validity` defaults on `__init__`, `to_dict`, `from_dict`,
 #   `serialize` and `parse`, and the `if check_validity:` guards in
 #   `to_dict` and `serialize` themselves (`AddNot`) -- the same class
 #   `parsers.toml`'s follow-up names, closed here the way `bms.toml`
-#   closed its own: a negative version is invalid on its
-#   own and needs `signed=True` to survive the round trip below, so one
-#   fixture exercises the checked-vs-bypassed default at every one of
-#   the five entry points at once.
+#   closed its own: a timestamp before genesis is invalid on its own
+#   and still fits the four bytes, beside a negative version that needs
+#   `signed=True` to survive the round trip below, so one fixture
+#   exercises the checked-vs-bypassed default at every one of the five
+#   entry points at once.
 # - `hash`'s own `serialize(check_validity=False)` weakened to `True`:
 #   `True` there would refuse to hash the very header being mined,
 #   before its proof-of-work exists to check.

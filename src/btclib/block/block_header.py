@@ -359,8 +359,14 @@ class BlockHeader:
         """
         self._assert_valid_types()
 
-        # must be a 4-bytes _signed_ integer
-        if not 0 < self.version <= 0x7FFFFFFF:
+        # the range of Core's `CBlockHeader::nVersion`, an int32_t
+        # (src/primitives/block.h), and nothing narrower: zero and negative
+        # versions are as well formed as any other. Refusing a version by
+        # its value is `bad-version` in Core's ContextualCheckBlockHeader
+        # (src/validation.cpp), a consensus rule keyed on the BIP34, BIP66
+        # and BIP65 activation heights, which is chain state. Core's
+        # context-free CheckBlockHeader checks the proof of work alone
+        if not -0x80000000 <= self.version <= 0x7FFFFFFF:
             raise BTClibValueError(f"invalid version: {hex(self.version)}")
 
         # a naive datetime has no instant attached to it: timestamp()

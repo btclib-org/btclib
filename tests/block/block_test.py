@@ -107,17 +107,21 @@ def test_exceptions() -> None:
     header_bytes = block_bytes[:80]
 
     header = BlockHeader.parse(header_bytes)
-    header.version = 0
-    with pytest.raises(BTClibValueError, match="invalid version: "):
-        header.assert_valid()
+    # the int32_t range, both ends and one past each: a bound weakened to
+    # a strict comparison refuses the end itself, and one moved outward
+    # lets through a version the four bytes cannot hold
     header.version = 0x7FFFFFFF + 1
-    with pytest.raises(BTClibValueError, match="invalid version: "):
+    with pytest.raises(BTClibValueError, match="invalid version: 0x80000000"):
         header.assert_valid()
-    # the upper boundary itself, not only past it: `<= 0x7fffffff`
-    # weakened to `<` would refuse the one version every other test
-    # vector already carries, and no vector for it means no signal
-    header.version = 0x7FFFFFFF
-    header.assert_valid()
+    header.version = -0x80000000 - 1
+    with pytest.raises(BTClibValueError, match="invalid version: -0x80000001"):
+        header.assert_valid()
+    # zero and below are Core's contextual bad-version, not a range check
+    # (issue #2309): each round-trips through the signed four bytes
+    for version in (0x7FFFFFFF, -0x80000000, 0, -1):
+        header.version = version
+        header.assert_valid()
+        assert BlockHeader.parse(header.serialize()) == header
 
     header = BlockHeader.parse(header_bytes)
     # a nonce below zero, not only one past the top: `0 <=` loosened to
@@ -265,48 +269,48 @@ def test_parse_reads_the_timestamp_field_unsigned() -> None:
 def test_check_validity_defaults_to_true_everywhere_it_appears() -> None:
     """`__init__`, `to_dict`, `serialize`, `from_dict`, `parse`: five guards.
 
-    One field breaks two rules at once and is reused throughout: a
-    negative version fails `assert_valid` (`0 < version`) and needs
-    `signed=True` to survive `serialize` and `parse` without an
-    `OverflowError` or a silently different number coming back --
-    `to_bytes`/`from_bytes` weakened to `signed=False` would raise on
-    the way out and misread on the way back respectively.
+    One header is reused throughout: its timestamp, a second before
+    genesis, fails `assert_valid` and still fits the four bytes, so the
+    bypassed path round-trips it. Its version is negative and valid, so
+    `to_bytes`/`from_bytes` weakened to `signed=False` would raise on the
+    way out and misread on the way back respectively.
     """
+    before_genesis = datetime(2009, 1, 3, 18, 15, 4, tzinfo=UTC)
     header = BlockHeader(
         -1,
         bytes(32),
         bytes(32),
-        datetime(2009, 1, 9, 2, 54, 25, tzinfo=UTC),
+        before_genesis,
         bytes.fromhex("1d00ffff"),
         0,
         check_validity=False,
     )
 
-    with pytest.raises(BTClibValueError, match="invalid version: -0x1"):
+    with pytest.raises(BTClibValueError, match=r"invalid timestamp \(before genesis\)"):
         BlockHeader(
             -1,
             bytes(32),
             bytes(32),
-            datetime(2009, 1, 9, 2, 54, 25, tzinfo=UTC),
+            before_genesis,
             bytes.fromhex("1d00ffff"),
             0,
         )
 
-    with pytest.raises(BTClibValueError, match="invalid version: -0x1"):
+    with pytest.raises(BTClibValueError, match=r"invalid timestamp \(before genesis\)"):
         header.to_dict()
     as_dict = header.to_dict(check_validity=False)
     assert as_dict["version"] == -1
 
-    with pytest.raises(BTClibValueError, match="invalid version: -0x1"):
+    with pytest.raises(BTClibValueError, match=r"invalid timestamp \(before genesis\)"):
         header.serialize()
     as_bytes = header.serialize(check_validity=False)
     assert as_bytes[:4] == (-1).to_bytes(4, "little", signed=True)
 
-    with pytest.raises(BTClibValueError, match="invalid version: -0x1"):
+    with pytest.raises(BTClibValueError, match=r"invalid timestamp \(before genesis\)"):
         BlockHeader.from_dict(as_dict)
     assert BlockHeader.from_dict(as_dict, check_validity=False) == header
 
-    with pytest.raises(BTClibValueError, match="invalid version: -0x1"):
+    with pytest.raises(BTClibValueError, match=r"invalid timestamp \(before genesis\)"):
         BlockHeader.parse(as_bytes)
     assert BlockHeader.parse(as_bytes, check_validity=False) == header
 
@@ -349,31 +353,32 @@ def test_block_check_validity_defaults_to_true_everywhere_it_appears() -> None:
     """
     coinbase, missing_outputs = _coinbase_and_a_transaction_missing_its_outputs()
     header = BlockHeader(
-        0,  # invalid on its own, so the header dict/from_dict calls below
-        # cannot pass by accident
+        1,
         bytes(32),
         bytes(32),
-        datetime(2009, 1, 9, 2, 54, 25, tzinfo=UTC),
+        # invalid on its own, so the header dict/from_dict calls below
+        # cannot pass by accident: a second before genesis
+        datetime(2009, 1, 3, 18, 15, 4, tzinfo=UTC),
         bytes.fromhex("1d00ffff"),
         0,
         check_validity=False,
     )
     block = Block(header, [coinbase, missing_outputs], check_validity=False)
 
-    with pytest.raises(BTClibValueError, match="invalid version: "):
+    with pytest.raises(BTClibValueError, match=r"invalid timestamp \(before genesis\)"):
         Block(header, [coinbase, missing_outputs])
 
-    with pytest.raises(BTClibValueError, match="invalid version: "):
+    with pytest.raises(BTClibValueError, match=r"invalid timestamp \(before genesis\)"):
         block.to_dict()
     as_dict = block.to_dict(check_validity=False)
-    assert as_dict["header"]["version"] == 0
+    assert as_dict["header"]["version"] == 1
     assert as_dict["transactions"][1]["vout"] == []
 
-    with pytest.raises(BTClibValueError, match="invalid version: "):
+    with pytest.raises(BTClibValueError, match=r"invalid timestamp \(before genesis\)"):
         block.serialize()
     assert block.serialize(check_validity=False)
 
-    with pytest.raises(BTClibValueError, match="invalid version: "):
+    with pytest.raises(BTClibValueError, match=r"invalid timestamp \(before genesis\)"):
         Block.from_dict(as_dict)
     assert Block.from_dict(as_dict, check_validity=False) == block
 

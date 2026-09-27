@@ -292,6 +292,12 @@ forever and a bool was taken as a digit (closes #2290).
 A `bitcoind` that stops answering fails the test waiting on it instead of
 hanging the run, and `pytest-timeout` joins the `harness` group (closes #2310).
 
+### `BlockHeader.assert_valid` accepts every version an `int32_t` holds
+
+A version of zero or below raised "invalid version", where Bitcoin Core refuses
+it only as `bad-version`, a check keyed on the chain's activation heights and
+not reached from the header alone (closes #2309).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
