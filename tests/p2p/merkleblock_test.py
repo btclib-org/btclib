@@ -13,6 +13,7 @@ of each other, not the walk.
 """
 
 from dataclasses import FrozenInstanceError, replace
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -133,19 +134,20 @@ def test_check_validity_reaches_both_fields_and_can_be_turned_off() -> None:
     """`check_validity=False` reaches both fields, and stays off on parse."""
     block = _load("block_1.bin")
     tree = _tree_of(block, 0)
-    # version=0 is refused (must be > 0) without changing the header's
-    # width, which is what lets the unchecked round trip below still hold
+    # a timestamp a second before genesis is refused without changing the
+    # header's width, which is what lets the unchecked round trip below
+    # still hold
     bad_header = BlockHeader(
-        0,
+        block.header.version,
         block.header.previous_block_hash,
         block.header.merkle_root,
-        block.header.time,
+        datetime(2009, 1, 3, 18, 15, 4, tzinfo=UTC),
         block.header.bits,
         block.header.nonce,
         check_validity=False,
     )
 
-    with pytest.raises(BTClibValueError, match="invalid version"):
+    with pytest.raises(BTClibValueError, match=r"invalid timestamp \(before genesis\)"):
         MerkleBlock(bad_header, tree, check_validity=True)
 
     # unchecked construction takes the fields as given, and still
