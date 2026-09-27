@@ -422,6 +422,12 @@ Core's pre-scan reads 0xff as any op code that is not an OP_SUCCESSx, and its
 interpreter refuses it only where it executes: btclib refused the spend
 (issue #2341).
 
+### `script.taproot` asks the internal key and the script tree it is handed
+
+`output_pubkey`, `input_script_sig` and `ScriptPubKey.p2tr` refuse a key neither
+None nor a `PubKeyData` (closes #2334), each name taking a tree a malformed one,
+`[]` too (closes #2339), and `script.serialize` a command of no script type.
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

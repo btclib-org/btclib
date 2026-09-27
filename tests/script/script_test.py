@@ -12,7 +12,7 @@ import pytest
 from typing_extensions import override
 
 from btclib.alias import ScriptList
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import (
     Script,
     op_int,
@@ -110,6 +110,19 @@ def test_serialize_bytes_command() -> None:
     assert len(serialize([b])) == length + 2
     b = b"\x0a" * (length + 1)
     assert len(serialize([b])) == (length + 1) + 3
+
+
+def test_a_command_of_no_script_type_is_refused_as_a_type() -> None:
+    """What is neither an int, a str nor a buffer is no command.
+
+    The buffer arm is the last one `serialize` tries, and it met a float
+    or a None with `len` and a builtin TypeError. The tapscript
+    serializer shares the arm, and `taproot_test.py` drives it from a
+    leaf.
+    """
+    for not_a_command in (1.5, None, [b"\x00"]):
+        with pytest.raises(BTClibTypeError, match="invalid script command type: "):
+            serialize([not_a_command])  # type: ignore[list-item]
 
 
 def test_a_data_command_is_never_a_numeric_op_code() -> None:

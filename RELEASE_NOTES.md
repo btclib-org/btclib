@@ -174,6 +174,14 @@ full year, short month, short day (YYYY-M-D)
 - **`read_push_data` takes no `element_size_limit`** (issue #2341): the limit
   is `MAX_SCRIPT_ELEMENT_SIZE` in both engines. v2023.7.12 has no
   `read_push_data`. Act on it by dropping the argument.
+- **A taproot script tree is None where there is none, its nodes are
+  lists and its leaves are tuples** (closes #2339).
+  `taproot.output_pubkey`, `output_prvkey` and `ScriptPubKey.p2tr`
+  refuse `[]`, which v2023.7.12 took for no tree; those three,
+  `input_script_sig` and `tree_helper` refuse a leaf written
+  `[0xC0, script]` and a node written as a tuple, both of which
+  v2023.7.12 took. Act on it by passing None for no tree,
+  `(0xC0, script)` for a leaf and a list for every node.
 
 ## v2026.9.24
 

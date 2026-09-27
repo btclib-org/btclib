@@ -365,8 +365,9 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
         # the internal coordinates: no public parameter takes them from a
         # caller, `curves` converting to them and back
         "JacPoint",
-        # a nested structure whose wrong values are its leaves', and its
-        # leaves are Octets and int
+        # a nested structure, whose wrong values are a node of no tree's
+        # shape and a leaf's own: `built_object_contract_test.py` and
+        # `script/taproot_test.py` build them by hand
         "TaprootScriptTree",
     }
     assert in_alias_py & annotated <= set(_WRONG_TYPE) | without_a_wrong_value

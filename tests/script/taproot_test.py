@@ -657,6 +657,98 @@ def test_unspendable_script() -> None:
         output_pubkey()
 
 
+_LEAF: TaprootScriptTree = [(0xC0, ["OP_1"])]
+
+
+@pytest.mark.parametrize(
+    "tree",
+    [
+        pytest.param(1.5, id="a float"),
+        pytest.param(None, id="None"),
+        pytest.param("x", id="a str"),
+        pytest.param((0xC0, ["OP_1"]), id="a leaf with no list around it"),
+        pytest.param(((0xC0, ["OP_1"]),), id="a tuple for a node"),
+        pytest.param([1.5], id="a float for a leaf"),
+        pytest.param([(0xC0,)], id="a 1-tuple for a leaf"),
+        pytest.param([(0xC0, ["OP_1"], b"")], id="a 3-tuple for a leaf"),
+        pytest.param([[0xC0, ["OP_1"]]], id="a list for a leaf"),
+        pytest.param([(1.5, ["OP_1"])], id="a float leaf version"),
+        pytest.param([(0xC0, 5)], id="an int for a script"),
+        pytest.param([(0xC0, [1.5])], id="a float command"),
+        pytest.param([_LEAF, None], id="None for a subtree"),
+        pytest.param([(0xC0, ["OP_1"]), (0xC0, ["OP_1"])], id="leaves for subtrees"),
+    ],
+)
+def test_a_tree_of_the_wrong_type_is_refused_as_a_type(tree: Any) -> None:
+    """Every node is asked its shape before it is walked (issue #2339).
+
+    Each of these left as a builtin TypeError or ValueError, from the
+    `len`, the unpacking or the `&=` that met it first, but two: the int
+    for a script, which `serialize` refused already, and the list for a
+    leaf, which built a script path, being a pair that unpacks.
+    """
+    # the three callers are handed it as a subtree, None being no tree
+    # at the top
+    for call in (
+        lambda: tree_helper(tree),
+        lambda: output_pubkey(None, [_LEAF, tree]),
+        lambda: output_prvkey(1, [_LEAF, tree]),
+        lambda: input_script_sig(None, [_LEAF, tree], 0),
+    ):
+        with pytest.raises(BTClibTypeError):
+            call()
+
+
+@pytest.mark.parametrize(
+    "tree",
+    [
+        pytest.param([], id="an empty list"),
+        pytest.param([_LEAF, _LEAF, _LEAF], id="three subtrees"),
+        pytest.param([(0x100, ["OP_1"])], id="a leaf version above a byte"),
+        pytest.param([(-2, ["OP_1"])], id="a negative leaf version"),
+    ],
+)
+def test_a_tree_of_the_wrong_shape_is_refused_as_a_value(
+    tree: TaprootScriptTree,
+) -> None:
+    """A list of a length no node has, and a leaf version of no byte.
+
+    The first was taken for no tree at all by `output_pubkey`, and an
+    IndexError from `tree_helper`; the third subtree was dropped from
+    the root with no error; and the mask read 0x100 as leaf version 0x00
+    and -2 as 0xFE.
+    """
+    for call in (
+        lambda: tree_helper(tree),
+        lambda: output_pubkey(None, tree),
+        lambda: output_prvkey(1, tree),
+        lambda: input_script_sig(None, tree, 0),
+    ):
+        with pytest.raises(BTClibValueError):
+            call()
+
+
+def test_none_is_the_only_absent_internal_key_or_tree() -> None:
+    """A falsy value of a wrong type is no missing one (issue #2334).
+
+    `b""` beside a tree was replaced by BIP341's unspendable point with
+    no error, and alone refused as "missing data"; 0 for a tree was
+    the key path.
+    """
+    pub_key = PrvKeyData(1).pub
+    not_keys: tuple[Any, ...] = (b"", 0, [], bytes(33), pub_key.sec)
+    for not_a_key in not_keys:
+        with pytest.raises(BTClibTypeError, match="invalid internal_pubkey type: "):
+            output_pubkey(not_a_key, _LEAF)
+        with pytest.raises(BTClibTypeError, match="invalid internal_pubkey type: "):
+            input_script_sig(not_a_key, _LEAF, 0)
+    for not_a_tree in (0, b"", ""):
+        with pytest.raises(BTClibTypeError, match="invalid script tree type: "):
+            output_pubkey(pub_key, not_a_tree)  # type: ignore[arg-type]
+        with pytest.raises(BTClibTypeError, match="invalid script tree type: "):
+            output_prvkey(1, not_a_tree)  # type: ignore[arg-type]
+
+
 def test_control_block() -> None:
     """Verify input_script_sig's control block passes the BIP341 check."""
     script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
@@ -725,14 +817,18 @@ def test_the_two_output_prvkeys_are_one_tweak() -> None:
 # the vector's scriptTree, not a tree: nested json lists of
 # {"leafVersion": ..., "script": ...} objects, hence Any in and a real
 # TaprootScriptTree out -- each leaf a tuple, the one shape the alias
-# names, not a two-element list that happens to unpack the same way
-def convert_script_tree(script_tree: Any) -> TaprootScriptTree:
+# names, not a two-element list that happens to unpack the same way --
+# and None for a json null, which is how `output_pubkey` is told there
+# is no tree
+def convert_script_tree(script_tree: Any) -> TaprootScriptTree | None:
     """Convert a vector's scriptTree json into a TaprootScriptTree."""
-    if isinstance(script_tree, list):
-        return [convert_script_tree(x) for x in script_tree]
-    if isinstance(script_tree, dict):
-        return [(script_tree["leafVersion"], parse(script_tree["script"]))]
-    return []
+    return None if script_tree is None else _convert_node(script_tree)
+
+
+def _convert_node(node: Any) -> TaprootScriptTree:
+    if isinstance(node, list):
+        return [_convert_node(x) for x in node]
+    return [(node["leafVersion"], parse(node["script"]))]
 
 
 @pytest.mark.parametrize(

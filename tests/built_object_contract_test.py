@@ -8,9 +8,10 @@ CONTRIBUTING.md's "Every public function validates its inputs" is driven
 automatically by `input_validation_test.py`, over the functions whose every
 required parameter is a library input type, and by hand in
 `bool_contract_test.py`, over the ones that answer a `bool`. Neither
-reaches a function whose parameter is a `CmpctBlock`, a `PubKeyData` or a
-sequence of transactions: no vocabulary of wrong values builds one, so a
-fixture has to, and issue #856 is where that ceiling is written down.
+reaches a function whose parameter is a `CmpctBlock`, a `PubKeyData`, a
+taproot script tree or a sequence of transactions: no vocabulary of wrong
+values builds one, so a fixture has to, and issue #856 is where that
+ceiling is written down.
 
 `check_validity=False` is why this family is worth a gate of its own.
 CONTRIBUTING.md's "it says *do not check now*, not *this object is exempt
@@ -41,7 +42,13 @@ from btclib.block import Block
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.p2p import CmpctBlock, PrefilledTransaction, reconstruct
-from btclib.script import ScriptPubKey
+from btclib.script import (
+    ScriptPubKey,
+    TaprootScriptTree,
+    input_script_sig,
+    output_pubkey,
+)
+from btclib.script.taproot import tree_helper
 
 # the block after genesis, for the one case here whose argument is a p2p
 # message: a `CmpctBlock` needs a header that is one, and a header cannot
@@ -67,12 +74,18 @@ _PUB_KEY = PrvKeyData(1).pub
 _BAD_PREFIX = PubKeyData(b"\x05" + _PUB_KEY.sec[1:], check_validity=False)
 
 
+# a taproot script tree of one leaf; an empty list is a list, the type a
+# tree is, and no tree
+_TREE: TaprootScriptTree = [(0xC0, ["OP_1"])]
+
+
 def _p2ms_1_of_1(key: PubKeyData) -> ScriptPubKey:
     """`ScriptPubKey.p2ms` driven at one of its keys."""
     return ScriptPubKey.p2ms(1, [key])
 
 
-# a value of no type any of these positions declares
+# a value of no type any of these positions declares, None aside at a
+# position whose case declares it
 _WRONG_TYPES = (None, 1.5)
 
 
@@ -85,6 +98,9 @@ class _Case:
     args: tuple[Any, ...]
     # position -> a wrong value of the type that position declares
     wrong_values: dict[int, Any]
+    # the positions where None is declared: an internal key or a tree
+    # that is absent, and not a wrong type
+    none_declared: frozenset[int] = frozenset()
 
 
 _CASES = (
@@ -116,6 +132,29 @@ _CASES = (
         # a threshold above the key count, and a sequence of no keys
         {0: 2, 1: []},
     ),
+    _Case("script.taproot.tree_helper", tree_helper, (_TREE,), {0: []}),
+    _Case(
+        "script.taproot.output_pubkey",
+        output_pubkey,
+        (_PUB_KEY, _TREE),
+        {0: _BAD_PREFIX, 1: []},
+        frozenset({0, 1}),
+    ),
+    _Case(
+        "script.taproot.input_script_sig",
+        input_script_sig,
+        (_PUB_KEY, _TREE, 0),
+        # a leaf index past the tree's one leaf
+        {0: _BAD_PREFIX, 1: [], 2: 1},
+        frozenset({0}),
+    ),
+    _Case(
+        "script.ScriptPubKey.p2tr",
+        ScriptPubKey.p2tr,
+        (_PUB_KEY, _TREE, "mainnet"),
+        {0: _BAD_PREFIX, 1: [], 2: "no such network"},
+        frozenset({0, 1}),
+    ),
 )
 
 _IDS = tuple(case.label for case in _CASES)
@@ -143,6 +182,8 @@ def test_a_wrong_type_leaves_as_a_btclib_type_error(case: _Case) -> None:
     """The first rule, one position at a time, the others left valid."""
     for position in range(len(case.args)):
         for wrong in _WRONG_TYPES:
+            if wrong is None and position in case.none_declared:
+                continue
             with pytest.raises(BTClibTypeError):
                 _driven(case, position, wrong)()
 

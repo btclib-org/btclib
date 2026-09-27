@@ -36,6 +36,7 @@ from btclib.fee import FeeRate, fee_from_vsize
 from btclib.hashes import merkle_root_from_branch, sha256
 from btclib.key import PrvKeyData
 from btclib.script import ScriptPubKey, input_script_sig, sig_hash
+from btclib.script.taproot import tree_helper
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.utils import (
     bytes_from_octets,
@@ -105,6 +106,7 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("base conversion from_bits", lambda v: power_of_2_base_conversion([1], v, 8)),
     ("base conversion to_bits", lambda v: power_of_2_base_conversion([1], 8, v)),
     ("taproot leaf index", lambda v: input_script_sig(None, _SCRIPT_TREE, v)),
+    ("taproot leaf version", lambda v: tree_helper([(v, ["OP_1"])])),
     ("multisig threshold", lambda v: ScriptPubKey.p2ms(v, [PrvKeyData(1).pub])),
     (
         "sig_hash input index",
@@ -219,6 +221,7 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert power_of_2_base_conversion([1], 1, 8) == [128]
     assert power_of_2_base_conversion([1], 8, 1) == [0, 0, 0, 0, 0, 0, 0, 1]
     assert input_script_sig(None, _SCRIPT_TREE, 0)[0] == ["OP_1"]
+    assert tree_helper([(0xC0, ["OP_1"])])[0][0][0] == (0xC0, ["OP_1"])
     assert len(sig_hash.taproot(_tx(), 0, _PREVOUTS, 1, 0, b"", b"")) == 32
     assert encode_num(1) == b"\x01"
     assert merkle_root_from_branch(b"\x00" * 32, [], 0, sha256) == b"\x00" * 32
