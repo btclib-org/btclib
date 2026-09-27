@@ -6,10 +6,12 @@
 
 import array
 import random
+from decimal import Decimal
 from io import BytesIO
 
 import pytest
 
+from btclib.block import BlockHeader
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, magic_message, siphash
 from btclib.utils import (
@@ -241,10 +243,10 @@ def test_a_json_number_is_a_whole_one_or_it_is_an_error() -> None:
     assert int_from_json_number(1, "version") == 1
     assert int_from_json_number(1.0, "version") == 1
     assert int_from_json_number(-1.0, "version") == -1
-    assert int_from_json_number("1", "version") == 1
+    assert int_from_json_number(Decimal(2), "version") == 2
 
-    for fractional in (1.5, -0.5, float("nan"), float("inf")):
-        with pytest.raises(BTClibValueError, match="invalid version: "):
+    for fractional in (1.5, -0.5, float("nan"), float("inf"), Decimal("1.5")):
+        with pytest.raises(BTClibValueError, match="invalid version: not a whole"):
             int_from_json_number(fractional, "version")
 
     # a bool decodes out of json's `true` and `int(True)` is 1
@@ -254,9 +256,7 @@ def test_a_json_number_is_a_whole_one_or_it_is_an_error() -> None:
 
     # and what is no number at all, this taking Any: neither error was
     # btclib's, and one of them was not even a ValueError
-    with pytest.raises(BTClibValueError, match="invalid version: "):
-        int_from_json_number("not a number", "version")
-    for not_a_number in (None, object(), [1]):
+    for not_a_number in (None, object(), [1], "not a number", 1j):
         with pytest.raises(BTClibTypeError, match="invalid version type: "):
             int_from_json_number(not_a_number, "version")
 
@@ -485,3 +485,21 @@ def test_is_octets_answers_one_octets_not_a_sequence_of_them() -> None:
         assert is_octets(one)
     for many in ([b"\x00"], (b"\x00", b"\x01"), []):
         assert not is_octets(many)
+
+
+_NON_ASCII_ONE = chr(0x661)  # ARABIC-INDIC DIGIT ONE, which int reads as 1
+
+
+@pytest.mark.parametrize(
+    "text", ["1", " 1 ", "+1", "1_0", _NON_ASCII_ONE, b"1", bytearray(b"1")]
+)
+def test_a_json_number_is_no_string(text: str | bytes) -> None:
+    """A json number decodes to no str and no bytes, which `int` reads as text.
+
+    Refused by type, so nothing of the text reaches the message.
+    """
+    with pytest.raises(BTClibTypeError, match="invalid version type: ") as e:
+        int_from_json_number(text, "version")
+    assert "1" not in str(e.value)
+    with pytest.raises(BTClibTypeError, match="invalid nonce type: "):
+        BlockHeader(nonce=text, check_validity=False)  # type: ignore[arg-type]
