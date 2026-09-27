@@ -42,6 +42,7 @@ from btclib.script import (
     type_and_payload,
 )
 from btclib.script import script as script_module
+from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.script import ERROR_COMMAND
 from btclib.script.script_pub_key import (
     _script_from,
@@ -436,6 +437,23 @@ def test_p2sh() -> None:
     err_msg = "invalid redeem script hash length marker: "
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2sh(script_pub_key[:1] + b"\x40" + script_pub_key[2:])
+
+
+def test_p2sh_redeem_script_size() -> None:
+    """A redeem script is pushed to spend, so it is at most one element.
+
+    Bitcoin Core fails a push longer than MAX_SCRIPT_ELEMENT_SIZE, so 520
+    bytes is the longest redeem script a p2sh output can be spent with.
+    """
+    redeem_script = b"\x51" * MAX_SCRIPT_ELEMENT_SIZE
+    expected = serialize(["OP_HASH160", hash160(redeem_script), "OP_EQUAL"])
+    assert ScriptPubKey.p2sh(redeem_script).script == expected
+    # the length is the bytes', not the hex string's
+    assert ScriptPubKey.p2sh(redeem_script.hex()).script == expected
+
+    err_msg = "redeem script exceeds size limit: 521 > 520"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        ScriptPubKey.p2sh(redeem_script + b"\x51")
 
 
 def test_p2wsh() -> None:
