@@ -920,8 +920,9 @@ def _script_from(script_pub_key: Octets | ScriptPubKey) -> bytes:
     # codecs raise their own, and a string that reaches them is decoded
     # before it is checked, so it may fail on a plain one from underneath
     except ValueError as e:
-        err_msg = f"neither a script nor an address: '{script_pub_key}'"
-        raise BTClibValueError(err_msg) from e
+        # nothing of the string is quoted, as it may be a key pasted where
+        # an output goes; the decoder's refusal, chained, says what failed
+        raise BTClibValueError("neither a script nor an address") from e
 
 
 def script_from_script_pub_key(script_pub_key: Octets | ScriptPubKey) -> bytes:
