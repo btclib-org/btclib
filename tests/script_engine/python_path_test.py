@@ -133,11 +133,13 @@ def test_verify_answers_false_for_what_cannot_be_parsed(*, delegated: bool) -> N
     answer False for what they decline. Whichever it is, the interpreter
     loop must see False.
 
-    The vectors above never reach this: DER strictness is enforced
-    earlier, by `fix_signature` under any of DERSIG, LOW_S and STRICTENC,
-    so by the time the engine verifies, the encoding has been ruled on.
-    So the contract is asserted here, and against both arms rather than
-    the one this installation happens to have.
+    DER strictness is enforced earlier, by `fix_signature` under any of
+    DERSIG, LOW_S and STRICTENC, so by the time the engine verifies, the
+    encoding has been ruled on -- the encoding only, as in Core's
+    IsValidSignatureEncoding, so a strict encoding of an r or an s no
+    signature has does reach an adapter. The contract is asserted here,
+    and against both arms rather than the one this installation happens
+    to have.
     """
     if (
         delegated and not is_libsecp256k1_serving()
@@ -162,6 +164,15 @@ def test_verify_answers_false_for_what_cannot_be_parsed(*, delegated: bool) -> N
     # and a public key that is not a point: 0x02 with x = 0
     minimal_der = bytes.fromhex("3006020101020101")
     assert not engine_script.dsa_verify(msg_hash, b"\x02" + b"\x00" * 32, minimal_der)
+    # and a strict encoding of r = n, which only its value refuses
+    n = bytes.fromhex(
+        "00fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"
+    )
+    r_is_n = b"\x30\x26\x02\x21" + n + b"\x02\x01\x01"
+    generator = bytes.fromhex(
+        "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+    )
+    assert not engine_script.dsa_verify(msg_hash, generator, r_is_n)
 
     # the same two refusals of the tapscript adapter: an x that is no
     # x-coordinate, and a signature of the wrong length

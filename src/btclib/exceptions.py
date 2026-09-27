@@ -45,6 +45,9 @@ caller acts on, and reading them back out of a message is what the field
 spares them, so a caller after one of them still names the specific
 class rather than the base.
 
+`ScriptErrorCode` is the one name here that is no exception: it is the
+type of `ScriptError`'s `code`, defined beside the class that carries it.
+
 Each of those hands every constructor argument to
 `BaseException.__init__` and composes its message in `__str__`, which is
 what `subprocess.CalledProcessError` and `UnicodeDecodeError` do, and
@@ -66,6 +69,8 @@ it. `str` is the message it always was.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from enum import IntEnum
 from typing import Any
 
 from btclib_ecc.exceptions import (
@@ -99,6 +104,7 @@ __all__ = [
     "NotAPrvKeyError",
     "RpcError",
     "ScriptError",
+    "ScriptErrorCode",
     "SignerError",
     "SignerNotFoundError",
 ]
@@ -306,24 +312,225 @@ class IncompleteMessageError(BTClibRuntimeError):
         return f"{self.args[0]}: {self.missing} more bytes wanted"
 
 
-class ScriptError(BTClibValueError):
-    """A script verification failure, and where in the script it happened.
+class ScriptErrorCode(IntEnum):
+    """Which of Bitcoin Core's script errors a `ScriptError` is.
 
-    Only the two interpreter loops know the index of the command being
-    executed and the depth of the stack; the op code implementations,
-    which are handed the stack alone, do not. They raise a plain
-    BTClibValueError with what went wrong, and the loop re-raises it as
-    this, adding where. A BTClibValueError still, so that code catching
-    that keeps catching this.
+    Core's `ScriptError_t` (src/script/script_error.h), member for member
+    and in its order, so a value is the integer Core gives the same
+    error. The names drop Core's `SCRIPT_ERR_` prefix, as `ScriptFlag`
+    drops `SCRIPT_VERIFY_`. `SCRIPT_ERR_ERROR_COUNT` is Core's array
+    bound and not an error, so it is no member: `len(ScriptErrorCode)` is
+    its value.
+
+    `description` is the text Core's `ScriptErrorString`
+    (src/script/script_error.cpp) returns for the code, which is what
+    Core's own messages quote -- `mempool-script-verify-flag-failed
+    (<text>)` among them.
     """
 
-    def __init__(self, message: str, index: int, stack_depth: int) -> None:
+    OK = 0
+    UNKNOWN_ERROR = 1
+    EVAL_FALSE = 2
+    OP_RETURN = 3
+    SCRIPTNUM = 4
+
+    # max sizes
+    SCRIPT_SIZE = 5
+    PUSH_SIZE = 6
+    OP_COUNT = 7
+    STACK_SIZE = 8
+    SIG_COUNT = 9
+    PUBKEY_COUNT = 10
+
+    # failed verify operations
+    VERIFY = 11
+    EQUALVERIFY = 12
+    CHECKMULTISIGVERIFY = 13
+    CHECKSIGVERIFY = 14
+    NUMEQUALVERIFY = 15
+
+    # logical, format and canonical errors
+    BAD_OPCODE = 16
+    DISABLED_OPCODE = 17
+    INVALID_STACK_OPERATION = 18
+    INVALID_ALTSTACK_OPERATION = 19
+    UNBALANCED_CONDITIONAL = 20
+
+    # CHECKLOCKTIMEVERIFY and CHECKSEQUENCEVERIFY
+    NEGATIVE_LOCKTIME = 21
+    UNSATISFIED_LOCKTIME = 22
+
+    # malleability
+    SIG_HASHTYPE = 23
+    SIG_DER = 24
+    MINIMALDATA = 25
+    SIG_PUSHONLY = 26
+    SIG_HIGH_S = 27
+    SIG_NULLDUMMY = 28
+    PUBKEYTYPE = 29
+    CLEANSTACK = 30
+    MINIMALIF = 31
+    SIG_NULLFAIL = 32
+
+    # soft-fork safeness
+    DISCOURAGE_UPGRADABLE_NOPS = 33
+    DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM = 34
+    DISCOURAGE_UPGRADABLE_TAPROOT_VERSION = 35
+    DISCOURAGE_OP_SUCCESS = 36
+    DISCOURAGE_UPGRADABLE_PUBKEYTYPE = 37
+
+    # segregated witness
+    WITNESS_PROGRAM_WRONG_LENGTH = 38
+    WITNESS_PROGRAM_WITNESS_EMPTY = 39
+    WITNESS_PROGRAM_MISMATCH = 40
+    WITNESS_MALLEATED = 41
+    WITNESS_MALLEATED_P2SH = 42
+    WITNESS_UNEXPECTED = 43
+    WITNESS_PUBKEYTYPE = 44
+
+    # taproot
+    SCHNORR_SIG_SIZE = 45
+    SCHNORR_SIG_HASHTYPE = 46
+    SCHNORR_SIG = 47
+    TAPROOT_WRONG_CONTROL_SIZE = 48
+    TAPSCRIPT_VALIDATION_WEIGHT = 49
+    TAPSCRIPT_CHECKMULTISIG = 50
+    TAPSCRIPT_MINIMALIF = 51
+    TAPSCRIPT_EMPTY_PUBKEY = 52
+
+    # constant script code
+    OP_CODESEPARATOR = 53
+    SIG_FINDANDDELETE = 54
+
+    @property
+    def description(self) -> str:
+        """Core's `ScriptErrorString` for this code."""
+        return _SCRIPT_ERROR_STRINGS[self]
+
+
+# Core's ScriptErrorString, case for case; UNKNOWN_ERROR is the case that
+# breaks out of the switch to the "unknown error" after it
+_SCRIPT_ERROR_STRINGS: Mapping[ScriptErrorCode, str] = {
+    ScriptErrorCode.OK: "No error",
+    ScriptErrorCode.UNKNOWN_ERROR: "unknown error",
+    ScriptErrorCode.EVAL_FALSE: (
+        "Script evaluated without error but finished with a false/empty top "
+        "stack element"
+    ),
+    ScriptErrorCode.OP_RETURN: "OP_RETURN was encountered",
+    ScriptErrorCode.SCRIPTNUM: "Script number overflowed or is non-minimally encoded",
+    ScriptErrorCode.SCRIPT_SIZE: "Script is too big",
+    ScriptErrorCode.PUSH_SIZE: "Push value size limit exceeded",
+    ScriptErrorCode.OP_COUNT: "Operation limit exceeded",
+    ScriptErrorCode.STACK_SIZE: "Stack size limit exceeded",
+    ScriptErrorCode.SIG_COUNT: "Signature count negative or greater than pubkey count",
+    ScriptErrorCode.PUBKEY_COUNT: "Pubkey count negative or limit exceeded",
+    ScriptErrorCode.VERIFY: "Script failed an OP_VERIFY operation",
+    ScriptErrorCode.EQUALVERIFY: "Script failed an OP_EQUALVERIFY operation",
+    ScriptErrorCode.CHECKMULTISIGVERIFY: (
+        "Script failed an OP_CHECKMULTISIGVERIFY operation"
+    ),
+    ScriptErrorCode.CHECKSIGVERIFY: "Script failed an OP_CHECKSIGVERIFY operation",
+    ScriptErrorCode.NUMEQUALVERIFY: "Script failed an OP_NUMEQUALVERIFY operation",
+    ScriptErrorCode.BAD_OPCODE: "Opcode missing or not understood",
+    ScriptErrorCode.DISABLED_OPCODE: "Attempted to use a disabled opcode",
+    ScriptErrorCode.INVALID_STACK_OPERATION: (
+        "Operation not valid with the current stack size"
+    ),
+    ScriptErrorCode.INVALID_ALTSTACK_OPERATION: (
+        "Operation not valid with the current altstack size"
+    ),
+    ScriptErrorCode.UNBALANCED_CONDITIONAL: "Invalid OP_IF construction",
+    ScriptErrorCode.NEGATIVE_LOCKTIME: "Negative locktime",
+    ScriptErrorCode.UNSATISFIED_LOCKTIME: "Locktime requirement not satisfied",
+    ScriptErrorCode.SIG_HASHTYPE: "Signature hash type missing or not understood",
+    ScriptErrorCode.SIG_DER: "Non-canonical DER signature",
+    ScriptErrorCode.MINIMALDATA: "Data push larger than necessary",
+    ScriptErrorCode.SIG_PUSHONLY: "Only push operators allowed in signatures",
+    ScriptErrorCode.SIG_HIGH_S: (
+        "Non-canonical signature: S value is unnecessarily high"
+    ),
+    ScriptErrorCode.SIG_NULLDUMMY: "Dummy CHECKMULTISIG argument must be zero",
+    ScriptErrorCode.PUBKEYTYPE: "Public key is neither compressed or uncompressed",
+    ScriptErrorCode.CLEANSTACK: "Stack size must be exactly one after execution",
+    ScriptErrorCode.MINIMALIF: "OP_IF/NOTIF argument must be minimal",
+    ScriptErrorCode.SIG_NULLFAIL: (
+        "Signature must be zero for failed CHECK(MULTI)SIG operation"
+    ),
+    ScriptErrorCode.DISCOURAGE_UPGRADABLE_NOPS: "NOPx reserved for soft-fork upgrades",
+    ScriptErrorCode.DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM: (
+        "Witness version reserved for soft-fork upgrades"
+    ),
+    ScriptErrorCode.DISCOURAGE_UPGRADABLE_TAPROOT_VERSION: (
+        "Taproot version reserved for soft-fork upgrades"
+    ),
+    ScriptErrorCode.DISCOURAGE_OP_SUCCESS: "OP_SUCCESSx reserved for soft-fork upgrades",
+    ScriptErrorCode.DISCOURAGE_UPGRADABLE_PUBKEYTYPE: (
+        "Public key version reserved for soft-fork upgrades"
+    ),
+    ScriptErrorCode.WITNESS_PROGRAM_WRONG_LENGTH: "Witness program has incorrect length",
+    ScriptErrorCode.WITNESS_PROGRAM_WITNESS_EMPTY: (
+        "Witness program was passed an empty witness"
+    ),
+    ScriptErrorCode.WITNESS_PROGRAM_MISMATCH: "Witness program hash mismatch",
+    ScriptErrorCode.WITNESS_MALLEATED: "Witness requires empty scriptSig",
+    ScriptErrorCode.WITNESS_MALLEATED_P2SH: (
+        "Witness requires only-redeemscript scriptSig"
+    ),
+    ScriptErrorCode.WITNESS_UNEXPECTED: "Witness provided for non-witness script",
+    ScriptErrorCode.WITNESS_PUBKEYTYPE: "Using non-compressed keys in segwit",
+    ScriptErrorCode.SCHNORR_SIG_SIZE: "Invalid Schnorr signature size",
+    ScriptErrorCode.SCHNORR_SIG_HASHTYPE: "Invalid Schnorr signature hash type",
+    ScriptErrorCode.SCHNORR_SIG: "Invalid Schnorr signature",
+    ScriptErrorCode.TAPROOT_WRONG_CONTROL_SIZE: "Invalid Taproot control block size",
+    ScriptErrorCode.TAPSCRIPT_VALIDATION_WEIGHT: (
+        "Too much signature validation relative to witness weight"
+    ),
+    ScriptErrorCode.TAPSCRIPT_CHECKMULTISIG: (
+        "OP_CHECKMULTISIG(VERIFY) is not available in tapscript"
+    ),
+    ScriptErrorCode.TAPSCRIPT_MINIMALIF: (
+        "OP_IF/NOTIF argument must be minimal in tapscript"
+    ),
+    ScriptErrorCode.TAPSCRIPT_EMPTY_PUBKEY: "Empty public key in tapscript",
+    ScriptErrorCode.OP_CODESEPARATOR: "Using OP_CODESEPARATOR in non-witness script",
+    ScriptErrorCode.SIG_FINDANDDELETE: "Signature is found in scriptCode",
+}
+
+
+class ScriptError(BTClibValueError):
+    """A script verification failure: which one, and where it happened.
+
+    `code` is the failure as Bitcoin Core names it, a `ScriptErrorCode`,
+    so a caller tells one refusal from another without reading the
+    message, and quotes Core's own text for it through
+    `code.description`.
+
+    `index` and `stack_depth` are where, and only the two interpreter
+    loops know them: the op code implementations, handed the stack alone,
+    raise with the code and no position, and the loop re-raises adding
+    it. A refusal outside the loops -- a witness program that does not
+    match, a stack left unclean at the end -- has no command to point at,
+    and carries None for both. A BTClibValueError still, so that code
+    catching that keeps catching this.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        code: ScriptErrorCode,
+        index: int | None = None,
+        stack_depth: int | None = None,
+    ) -> None:
+        self.code = code
         self.index = index
         self.stack_depth = stack_depth
-        super().__init__(message, index, stack_depth)
+        super().__init__(message, code, index, stack_depth)
 
     @override
     def __str__(self) -> str:
+        if self.index is None:
+            return str(self.args[0])
         where = f"command {self.index}, stack depth {self.stack_depth}"
         return f"{self.args[0]} ({where})"
 

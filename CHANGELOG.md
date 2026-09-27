@@ -346,6 +346,45 @@ uv.lock pins, exported with their hashes (closes #2306).
 are octets or no sequence (closes #2331), and `nulldata` data neither text nor a
 buffer, each of which built a script or raised a `TypeError` or a value error.
 
+### `ScriptError` names its failure by Bitcoin Core's `ScriptError_t`
+
+Every refusal of `verify_input` carries a `ScriptErrorCode` as `code`, whose
+`description` is Core's `ScriptErrorString` (closes #2314), and each vector of
+`script_tests.json` is held to the error it expects, not to any failure.
+
+### A p2sh witness input's script_sig is the push of its redeem script alone
+
+Core's `WITNESS_MALLEATED_P2SH`, consensus with BIP141: a signed spend with a
+push ahead of the redeem script verified (issue #2314).
+
+### A taproot signature is 64 bytes, or 65 with a hash type
+
+Core's `SCHNORR_SIG_SIZE`: a valid signature with bytes after its 64th verified
+on those 64, on the key path and the script path alike (issue #2314).
+
+### `fix_signature` asks strict DER of the encoding and not of the values
+
+An r or an s no signature can have ended the script, where Core's
+`IsValidSignatureEncoding` reads the encoding alone, its 73-byte cap included,
+and the signature then fails to verify: DERSIG refused a spend (issue #2314).
+
+### `op_checksig` asks an empty signature what it asks any other first
+
+As Core's `EvalChecksigPreTapscript`: an empty one was a false check before
+FindAndDelete and the key's encoding ran, so `CHECKSIG NOT` spent a script
+CONST_SCRIPTCODE, STRICTENC or WITNESS_PUBKEYTYPE refuses (closes #2332).
+
+### CONST_SCRIPTCODE refuses a signature check only where it runs
+
+A signature check in the script_sig was refused wherever it sat, where Core's
+error is FindAndDelete's in the executed op code, which `op_checksig` now runs
+ahead of every other check: one in a branch not taken spends (issue #2332).
+
+### An OP_SUCCESSx in a tapscript forgives an oversized witness element
+
+Core's `ExecuteWitnessScript` scans for one before measuring the witness stack:
+a spend with an element over 520 bytes was refused (issue #2314).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

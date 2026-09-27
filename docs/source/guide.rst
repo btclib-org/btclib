@@ -467,7 +467,17 @@ output you have already signed over is not yours to edit:
 >>> tampered.vin[0].script_witness = signed.vin[0].script_witness
 >>> verify_transaction([prevout], tampered)
 Traceback (most recent call last):
-btclib.exceptions.BTClibValueError: false top stack element
+btclib.exceptions.ScriptError: false top stack element
+
+The refusal is a :class:`~btclib.exceptions.ScriptError`, and its ``code``
+is the error Bitcoin Core gives the same spend, with Core's own words for it:
+
+>>> from btclib.exceptions import ScriptError
+>>> try:
+...     verify_transaction([prevout], tampered)
+... except ScriptError as error:
+...     print(error.code.name, "--", error.code.description)
+EVAL_FALSE -- Script evaluated without error but finished with a false/empty top stack element
 
 Signatures on their own
 -----------------------

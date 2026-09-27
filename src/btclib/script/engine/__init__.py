@@ -6,9 +6,9 @@
 
 from __future__ import annotations
 
-from btclib.alias import Command, ScriptType
+from btclib.alias import ScriptType
 from btclib.consensus import WITNESS_SCALE_FACTOR
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
 from btclib.hashes import sha256
 from btclib.script.engine import tapscript
 from btclib.script.engine.flags import (
@@ -19,13 +19,13 @@ from btclib.script.engine.flags import (
     to_script_flags,
 )
 from btclib.script.engine.script import verify_script as verify_script_legacy
-from btclib.script.engine.script_op_codes import _MAX_NUM_SIZE, _to_num
+from btclib.script.engine.script_op_codes import _MAX_NUM_SIZE, _to_num, op_verify
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
-from btclib.script.script import op_code_spans, parse, serialize
+from btclib.script.script import op_code_spans, serialize
 from btclib.script.script_pub_key import is_p2sh, is_segwit, type_and_payload
 from btclib.script.sig_hash import PrecomputedTxData
 from btclib.script.sig_ops import p2sh_sig_op_count, witness_sig_op_count
-from btclib.script.taproot import check_output_pubkey
+from btclib.script.taproot import MAX_TREE_DEPTH, check_output_pubkey
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
@@ -66,13 +66,27 @@ def taproot_unwrap_script(
     to by the output key, and check_output_pubkey is what verifies that
     merkle proof. Returns the stack without the two, leaving the
     caller's list untouched.
+
+    The refusals are Core's two: a control block of a size no tree depth
+    gives is TAPROOT_WRONG_CONTROL_SIZE, and one that proves nothing --
+    an internal key that is no point included -- is
+    WITNESS_PROGRAM_MISMATCH.
     """
     pub_key = type_and_payload(script)[1]
     script_bytes = stack[-2]
     control = stack[-1]
 
-    if not check_output_pubkey(pub_key, script_bytes, control):
-        raise BTClibValueError("invalid taproot control block")
+    m, remainder = divmod(len(control) - 33, 32)
+    if not 0 <= m <= MAX_TREE_DEPTH or remainder:
+        err_msg = f"taproot control block of {len(control)} bytes"
+        raise ScriptError(err_msg, ScriptErrorCode.TAPROOT_WRONG_CONTROL_SIZE)
+    mismatch = ScriptErrorCode.WITNESS_PROGRAM_MISMATCH
+    try:
+        committed = check_output_pubkey(pub_key, script_bytes, control)
+    except BTClibValueError as e:
+        raise ScriptError(str(e), mismatch) from e
+    if not committed:
+        raise ScriptError("invalid taproot control block", mismatch)
 
     leaf_version = stack[-1][0] & 0xFE
 
@@ -131,10 +145,11 @@ def validate_push_only(script_sig: bytes) -> None:
             err_msg = (
                 f"non-push op code in the script_sig: {op_code:#04x} at byte {start}"
             )
-            raise BTClibValueError(err_msg)
+            raise ScriptError(err_msg, ScriptErrorCode.SIG_PUSHONLY)
         consumed = stop
     if consumed != len(script_sig):
-        raise BTClibValueError(f"unreadable push in the script_sig at byte {consumed}")
+        err_msg = f"unreadable push in the script_sig at byte {consumed}"
+        raise ScriptError(err_msg, ScriptErrorCode.SIG_PUSHONLY)
 
 
 # Core's IsPayToAnchor, spelled as the whole script because that is how
@@ -143,39 +158,6 @@ def validate_push_only(script_sig: bytes) -> None:
 # one witness program shape that is neither defined by a BIP this engine
 # implements nor upgrade room to be discouraged from
 PAY_TO_ANCHOR = b"\x51\x02\x4e\x73"
-
-
-def _check_script_sig_policy(script_sig: bytes, script_flags: ScriptFlag) -> None:
-    """Refuse the script_sig shapes SIGPUSHONLY and CONST_SCRIPTCODE ban."""
-    if ScriptFlag.SIGPUSHONLY in script_flags:
-        validate_push_only(script_sig)
-    if ScriptFlag.CONST_SCRIPTCODE in script_flags:
-        # the four op codes Core's CONST_SCRIPTCODE watches through
-        # FindAndDelete: a signature check carried in the script_sig
-        # takes the script_sig as its own script code, which is exactly
-        # where its signatures sit. Refused up front and as a class,
-        # wherever it sits and whether or not it executes, which is
-        # stricter than Core in one direction and short in another.
-        # Stricter: Core's error is inside the executed branch. Short:
-        # the in-loop rule closes nothing else, `op_checksig` returning
-        # early on an empty signature, on a lax encoding under no
-        # strict-DER flag and on a bad public key under no STRICTENC,
-        # all before it builds a script code to delete from -- where
-        # Core deletes and errors before reading the signature at all.
-        # So a script_pub_key of that shape keeps the gap this closes
-        # for the script_sig
-        op_checks = (
-            "OP_CHECKSIG",
-            "OP_CHECKSIGVERIFY",
-            "OP_CHECKMULTISIG",
-            "OP_CHECKMULTISIGVERIFY",
-        )
-        # parsed here and only here: the push-only walk above reads the
-        # bytes, so under no flag but this one is a parse of the
-        # script_sig needed at all
-        for x in parse(script_sig):
-            if x in op_checks:
-                raise BTClibValueError(f"signature check in the script_sig: {x}")
 
 
 def _verify_taproot(
@@ -199,7 +181,8 @@ def _verify_taproot(
     # the annex counts towards the budget, hence the order (BIP342)
     annex, stack = taproot_get_annex(witness)
     if len(stack) == 0:
-        raise BTClibValueError("empty taproot witness stack")
+        err_msg = "empty taproot witness stack"
+        raise ScriptError(err_msg, ScriptErrorCode.WITNESS_PROGRAM_WITNESS_EMPTY)
     if len(stack) == 1:
         tapscript.verify_key_path(
             script, stack, prevouts, tx, i, annex, precomputed, hash_types
@@ -212,7 +195,9 @@ def _verify_taproot(
         # how to run it: BIP342's upgrade room, and refused only where
         # the caller says it does not want to relay one
         if ScriptFlag.DISCOURAGE_UPGRADABLE_TAPROOT_VERSION in script_flags:
-            raise BTClibValueError(f"upgradable taproot leaf version {leaf_version:#x}")
+            err_msg = f"upgradable taproot leaf version {leaf_version:#x}"
+            code = ScriptErrorCode.DISCOURAGE_UPGRADABLE_TAPROOT_VERSION
+            raise ScriptError(err_msg, code)
         return
     tapscript.verify_script_path_vc0(
         script_bytes,
@@ -245,12 +230,18 @@ def _verify_witness_v0(
     carries it as the last witness element -- and runs against the rest
     of the witness stack. The one-element rule at the end is BIP141
     consensus, not the CLEANSTACK flag: it lives here as Core's lives in
-    ExecuteWitnessScript, whatever the caller's flags say.
+    ExecuteWitnessScript, whatever the caller's flags say, and so does
+    the order of the checks around the run.
     """
     # a list of its own: the interpreter pops what it consumes, and the
     # witness stack is an immutable tuple anyway
     stack = list(witness.stack)
+    mismatch = ScriptErrorCode.WITNESS_PROGRAM_MISMATCH
     if script_type == "p2wpkh":
+        # a signature and a public key, and nothing else: Core's
+        # `stack.size() != 2`
+        if len(stack) != 2:
+            raise ScriptError(f"{len(stack)} p2wpkh witness elements", mismatch)
         # serialization of p2wpkh:
         # OP_DUP OP_HASH160 payload OP_EQUALVERIFY OP_CHECKSIG
         script = b"v\xa9\x14" + payload + b"\x88\xac"
@@ -259,20 +250,21 @@ def _verify_witness_v0(
         # Core's WITNESS_PROGRAM_WITNESS_EMPTY, and the guard the taproot
         # arm already has. Without it the empty stack is an IndexError
         # out of `stack[-1]`, i.e. malformed input leaving through
-        # something other than BTClibValueError
+        # something other than a ScriptError
         if not stack:
-            raise BTClibValueError("empty p2wsh witness stack")
-        if any(len(x) > MAX_SCRIPT_ELEMENT_SIZE for x in stack[:-1]):
-            err_msg = (
-                f"witness stack element longer than {MAX_SCRIPT_ELEMENT_SIZE} bytes"
-            )
-            raise BTClibValueError(err_msg)
+            err_msg = "empty p2wsh witness stack"
+            raise ScriptError(err_msg, ScriptErrorCode.WITNESS_PROGRAM_WITNESS_EMPTY)
         script = stack[-1]
         if payload != sha256(script):
-            raise BTClibValueError("invalid witness script sha256")
+            raise ScriptError("invalid witness script sha256", mismatch)
         stack = stack[:-1]
     else:
-        raise BTClibValueError(f"invalid segwit v0 script type: {script_type}")
+        err_msg = f"invalid segwit v0 script type: {script_type}"
+        raise ScriptError(err_msg, ScriptErrorCode.WITNESS_PROGRAM_WRONG_LENGTH)
+
+    if any(len(x) > MAX_SCRIPT_ELEMENT_SIZE for x in stack):
+        err_msg = f"witness stack element longer than {MAX_SCRIPT_ELEMENT_SIZE} bytes"
+        raise ScriptError(err_msg, ScriptErrorCode.PUSH_SIZE)
 
     verify_script_legacy(
         script,
@@ -282,14 +274,16 @@ def _verify_witness_v0(
         i,
         script_flags,
         True,
-        True,
+        False,
         precomputed,
         hash_types,
     )
-    # final above popped the one element the script must leave, so any
-    # residue is Core's stack.size() != 1
-    if stack:
-        raise BTClibValueError(f"{len(stack)} elements left on the stack")
+    # the size first, as Core has it, so an empty stack is CLEANSTACK
+    # and not EVAL_FALSE
+    if len(stack) != 1:
+        err_msg = f"{len(stack)} elements left on the stack"
+        raise ScriptError(err_msg, ScriptErrorCode.CLEANSTACK)
+    op_verify(stack, [], script_flags, ScriptErrorCode.EVAL_FALSE)
 
 
 def _verify_witness_program(
@@ -370,7 +364,9 @@ def _verify_witness_program(
     # not know better, which is what makes them upgrade room, and
     # refused only where the caller says it does not want to relay one
     if ScriptFlag.DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM in script_flags:
-        raise BTClibValueError(f"upgradable witness program: version {segwit_version}")
+        err_msg = f"upgradable witness program: version {segwit_version}"
+        code = ScriptErrorCode.DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM
+        raise ScriptError(err_msg, code)
 
 
 def verify_input(
@@ -411,10 +407,14 @@ def verify_input(
     CLEANSTACK check -- and the witness arms live behind
     ``_verify_witness_program``, as they live behind Core's
     VerifyWitnessProgram.
+
+    A refusal is a ScriptError, its `code` the ScriptErrorCode Core's
+    VerifyScript fails with for the same input.
     """
     script_flags = to_script_flags(flags)
     script_sig = tx.vin[i].script_sig
-    _check_script_sig_policy(script_sig, script_flags)
+    if ScriptFlag.SIGPUSHONLY in script_flags:
+        validate_push_only(script_sig)
 
     stack: list[bytes] = []
     verify_script_legacy(
@@ -472,11 +472,16 @@ def verify_input(
     # both under the flag, where Core keeps them: they are the
     # malleability rules BIP141 came with, so a caller not enforcing
     # BIP141 is not owed them and reads the script_pub_key alone
-    if ScriptFlag.WITNESS in script_flags:
-        if segwit_version + 1 and tx.vin[i].script_sig and not p2sh:
-            raise BTClibValueError("non-empty script_sig for a native segwit input")
-        if not (segwit_version + 1) and tx.vin[i].script_witness:
-            raise BTClibValueError("witness for a non-segwit input")
+    if ScriptFlag.WITNESS in script_flags and segwit_version + 1:
+        if not p2sh and script_sig:
+            err_msg = "non-empty script_sig for a native segwit input"
+            raise ScriptError(err_msg, ScriptErrorCode.WITNESS_MALLEATED)
+        # the p2sh arm's own malleation: anything but the one push of the
+        # redeem script, in Core's encoding of that push, which is what
+        # `serialize` writes for a bytes command
+        if p2sh and script_sig != serialize([script]):
+            err_msg = "script_sig other than the push of the redeem script"
+            raise ScriptError(err_msg, ScriptErrorCode.WITNESS_MALLEATED_P2SH)
 
     if segwit_version + 1:
         _verify_witness_program(
@@ -499,7 +504,12 @@ def verify_input(
         return
 
     if stack and ScriptFlag.CLEANSTACK in script_flags:
-        raise BTClibValueError(f"{len(stack)} elements left on the stack")
+        err_msg = f"{len(stack)} elements left on the stack"
+        raise ScriptError(err_msg, ScriptErrorCode.CLEANSTACK)
+    # after CLEANSTACK, where Core asks it
+    if ScriptFlag.WITNESS in script_flags and tx.vin[i].script_witness:
+        err_msg = "witness for a non-segwit input"
+        raise ScriptError(err_msg, ScriptErrorCode.WITNESS_UNEXPECTED)
 
 
 def verify_amounts(prevouts: list[TxOut], tx: Tx) -> None:

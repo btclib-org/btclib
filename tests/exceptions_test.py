@@ -36,6 +36,7 @@ from btclib.exceptions import (
     HttpError,
     RpcError,
     ScriptError,
+    ScriptErrorCode,
     SignerError,
 )
 from tests import defined_by_btclib_ecc
@@ -83,11 +84,20 @@ CASES = [
         id="SignerError-without-code",
     ),
     pytest.param(
-        ScriptError("unbalanced conditional", 3, 2),
-        ("unbalanced conditional", 3, 2),
+        ScriptError(
+            "unbalanced conditional", ScriptErrorCode.UNBALANCED_CONDITIONAL, 3, 2
+        ),
+        ("unbalanced conditional", ScriptErrorCode.UNBALANCED_CONDITIONAL, 3, 2),
         "unbalanced conditional (command 3, stack depth 2)",
-        {"index": 3, "stack_depth": 2},
+        {"code": ScriptErrorCode.UNBALANCED_CONDITIONAL, "index": 3, "stack_depth": 2},
         id="ScriptError",
+    ),
+    pytest.param(
+        ScriptError("2 elements left on the stack", ScriptErrorCode.CLEANSTACK),
+        ("2 elements left on the stack", ScriptErrorCode.CLEANSTACK, None, None),
+        "2 elements left on the stack",
+        {"code": ScriptErrorCode.CLEANSTACK, "index": None, "stack_depth": None},
+        id="ScriptError-without-position",
     ),
 ]
 
@@ -180,7 +190,8 @@ def test_every_exception_of_the_module_is_one_base_to_catch() -> None:
     `BTClibUserWarning` is the exception, and the assertion says which way:
     a warning is filtered, not caught, so it stays out of the class an
     `except` names. The classes btclib_ecc defines, bound here again,
-    are the other: they are that package's base, not this one.
+    are the other: they are that package's base, not this one. And
+    `ScriptErrorCode` is no exception at all, but `ScriptError`'s field.
     """
     classes = [
         getattr(exceptions, name)
@@ -193,6 +204,9 @@ def test_every_exception_of_the_module_is_one_base_to_catch() -> None:
     assert warnings == [BTClibUserWarning]
 
     for cls in classes:
+        if cls is ScriptErrorCode:
+            assert not issubclass(cls, BaseException)
+            continue
         if cls is BTClibUserWarning:
             assert not issubclass(cls, BTClibException)
             continue
@@ -243,6 +257,21 @@ def test_the_base_carries_no_behaviour_of_its_own() -> None:
     assert str(error) == "bad"
     assert error.args == ("bad",)
     assert type(pickle.loads(pickle.dumps(error))) is BTClibValueError  # noqa: S301
+
+
+def test_script_error_code_is_numbered_as_core_numbers_it() -> None:
+    """From zero and with no hole, as ScriptError_t, and each with its text.
+
+    Core's enum names no value but the first, so its members count up
+    from `SCRIPT_ERR_OK = 0` in declaration order. A value skipped here,
+    or one repeated -- an alias, which iteration leaves out -- breaks
+    the sequence. `description` is a lookup, so a code without an entry
+    would be a KeyError.
+    """
+    assert [code.value for code in ScriptErrorCode] == list(range(len(ScriptErrorCode)))
+    assert ScriptErrorCode.OK.description == "No error"
+    assert ScriptErrorCode.UNKNOWN_ERROR.description == "unknown error"
+    assert all(code.description for code in ScriptErrorCode)
 
 
 def _raise_http_error() -> None:
