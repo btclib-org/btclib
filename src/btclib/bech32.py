@@ -155,27 +155,30 @@ def _decode(bech: String) -> tuple[str, list[int], list[int]]:
     # intended -- b32.witness_from_address enforces it, and the module
     # docstring there lists it among the rules b32 adds on top
 
+    # no refusal quotes `text`: what reaches an address decoder can be a
+    # private key pasted in the wrong field, and an exception message is
+    # what ends up in a log
     pos = text.rfind("1")  # find the separator between hrp and data
     if pos == -1:
-        raise BTClibValueError(f"no separator character: {text}")
+        raise BTClibValueError("no separator character")
     if pos == 0:
-        raise BTClibValueError(f"empty HRP: {text}")
+        raise BTClibValueError("empty HRP")
     if pos + 7 > len(text):
-        raise BTClibValueError(f"too short checksum: {text}")
+        raise BTClibValueError("too short checksum")
 
     if not _hrp_in_range(text[:pos]):
-        raise BTClibValueError(f"HRP character out of range: {text}")
+        raise BTClibValueError("HRP character out of range")
     if text.lower() != text and text.upper() != text:
-        raise BTClibValueError(f"mixed case: {text}")
+        raise BTClibValueError("mixed case")
 
     text = text.lower()
     hrp = text[:pos]
 
     indices = [_INDEX_OF.get(x, -1) for x in text[pos + 1 :]]
     if -1 in indices[-6:]:
-        raise BTClibValueError(f"invalid character in checksum: {text}")
+        raise BTClibValueError("invalid character in checksum")
     if -1 in indices:
-        raise BTClibValueError(f"invalid data character: {text}")
+        raise BTClibValueError("invalid data character")
     data = indices
 
     return hrp, data[:-6], data[-6:]
@@ -191,7 +194,7 @@ def decode(bech: String, m: int | None = None) -> tuple[str, list[int]]:
     m = _m_from_wit_ver(data) if m is None else m
     if _verify_checksum(hrp, data + checksum, m):
         return hrp, data
-    raise BTClibValueError(f"invalid checksum: {bech!r}")
+    raise BTClibValueError("invalid checksum")
 
 
 def encode(hrp: str, data: list[int], m: int | None = None) -> bytes:

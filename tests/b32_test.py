@@ -44,7 +44,7 @@ from btclib.curves import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.key import PrvKeyData, PubKeyData
-from btclib.script import op_int, output_pubkey, serialize
+from btclib.script import ScriptPubKey, op_int, output_pubkey, serialize
 
 
 def test_has_segwit_prefix() -> None:
@@ -123,23 +123,23 @@ def test_invalid_address() -> None:
             "tc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq5zuyut",
             "invalid hrp: ",
         ),
-        ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5", "invalid checksum: "),
+        ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5", "invalid checksum"),
         (
             "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqh2y7hd",
-            "invalid checksum: ",
+            "invalid checksum",
         ),
         (
             "tb1z0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqglt7rf",
-            "invalid checksum: ",
+            "invalid checksum",
         ),
         (
             "BC1S0XLXVLHEMJA6C4DQV22UAPCTQUPFHLXM9H8Z3K2E72Q4K9HCZ7VQ54WELL",
-            "invalid checksum: ",
+            "invalid checksum",
         ),
-        ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kemeawh", "invalid checksum: "),
+        ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kemeawh", "invalid checksum"),
         (
             "tb1q0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq24jc47",
-            "invalid checksum: ",
+            "invalid checksum",
         ),
         (
             "bc1p38j9r5y49hruaue7wxjce0updqjuyyx0kh56v8s25huc6995vvpql3jow4",
@@ -149,12 +149,12 @@ def test_invalid_address() -> None:
             "BC130XLXVLHEMJA6C4DQV22UAPCTQUPFHLXM9H8Z3K2E72Q4K9HCZ7VQ7ZWS8R",
             "invalid witness version: ",
         ),
-        ("BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2", "invalid checksum: "),
+        ("BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2", "invalid checksum"),
         ("bc1pw5dgrnzv", "invalid size: "),
-        ("bc1rw5uspcuh", "invalid checksum: "),
+        ("bc1rw5uspcuh", "invalid checksum"),
         (
             "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
-            "invalid checksum: ",
+            "invalid checksum",
         ),
         (
             "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7v8n0nx0muaewav253zgeav",
@@ -163,11 +163,11 @@ def test_invalid_address() -> None:
         ("BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P", "invalid size: "),
         (
             "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",
-            "mixed case: ",
+            "mixed case",
         ),
         (
             "tb1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq47Zagq",
-            "mixed case: ",
+            "mixed case",
         ),
         (
             "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7v07qwwzcrf",
@@ -175,7 +175,7 @@ def test_invalid_address() -> None:
         ),
         (
             "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",
-            "invalid checksum: ",
+            "invalid checksum",
         ),
         (
             "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
@@ -195,6 +195,18 @@ def test_invalid_address() -> None:
     for address, err_msg in invalid_addresses:
         with pytest.raises(BTClibValueError, match=err_msg):
             b32.witness_from_address(address)
+
+
+def test_a_refused_address_is_not_quoted() -> None:
+    """A key pasted where an address belongs is not repeated by the refusal.
+
+    The reproduction issue #2344 was filed with: a WIF behind "bc1", whose
+    last character is the last "1", so the checksum is too short.
+    """
+    wif = "L4rK1yDtCWekvXuE6oXD9jCYfFNV2cWRpVuPLBcCU2z8TrisoyY1"
+    for decoder in (b32.witness_from_address, ScriptPubKey.from_address):
+        with pytest.raises(BTClibValueError, match="^too short checksum$"):
+            decoder(f"bc1{wif}")
 
 
 def test_invalid_address_enc() -> None:

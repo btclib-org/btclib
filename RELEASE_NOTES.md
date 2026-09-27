@@ -183,6 +183,19 @@ full year, short month, short day (YYYY-M-D)
   v2023.7.12 took. Act on it by passing None for no tree,
   `(0xC0, script)` for a leaf and a list for every node.
 
+- **`bech32.decode`'s refusals do not quote the string they refuse**
+  (closes #2344), nor do `b32.witness_from_address` and
+  `ScriptPubKey.from_address`, which pass them on. Each raises its bare
+  category where it raised `<category>: <input>`: `no separator
+  character`, `empty HRP`, `too short checksum`, `HRP character out of
+  range`, `mixed case`, `invalid character in checksum` and `invalid data
+  character`. The checksum refusal raises `invalid checksum` where it
+  raised `invalid checksum: '<input>'`.
+
+  Act on it if you match on the text of a refusal: match the category
+  alone. Every one is still a `BTClibValueError`, so an `except` on that
+  class is unaffected.
+
 ## v2026.9.24
 
 ### Breaking changes

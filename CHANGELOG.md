@@ -428,6 +428,12 @@ interpreter refuses it only where it executes: btclib refused the spend
 None nor a `PubKeyData` (closes #2334), each name taking a tree a malformed one,
 `[]` too (closes #2339), and `script.serialize` a command of no script type.
 
+### `bech32.decode` refuses a string without quoting it
+
+Each refusal says what is wrong, a missing separator or an invalid checksum,
+where it repeated the whole string, so that a private key pasted where an
+address goes came back in the exception (closes #2344).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
