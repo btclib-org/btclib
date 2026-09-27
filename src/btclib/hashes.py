@@ -289,24 +289,27 @@ def merkle_root_and_mutated(
 ) -> tuple[bytes, bool]:
     """Return the merkle tree root, and whether the tree is mutated.
 
-    The merkle tree is a binary tree constructed with the provided list
-    of binary data as bottom level, then recursively going up one level
-    by hashing every hash value pair in the current level, until a
-    single value (root) is obtained.
+    The merkle tree is a binary tree whose bottom level is the provided
+    list of binary data with each item hashed first, then recursively
+    going up one level by hashing every hash value pair in the current
+    level, until a single value (root) is obtained.
 
     See merkle_root_and_mutated_from_hashes for the mutation flag, and
-    for the variant taking a bottom level of hashes.
+    for the variant taking a bottom level of hashes as given.
     """
     return merkle_root_and_mutated_from_hashes([hf(item) for item in data], hf)
 
 
 def merkle_root(data: Sequence[bytes], hf: HashDigestF) -> bytes:
-    """Return the merkle tree root of a list of binary hashes.
+    """Return the merkle root of a list of binary data, hashing each item first.
 
-    The merkle tree is a binary tree constructed with the provided list
-    of binary data as bottom level, then recursively going up one level
-    by hashing every hash value pair in the current level, until a
-    single value (root) is obtained.
+    The merkle tree is a binary tree whose bottom level is the provided
+    list of binary data with each item hashed first, then recursively
+    going up one level by hashing every hash value pair in the current
+    level, until a single value (root) is obtained. A list of values
+    that are hashes already is hashed once more here:
+    merkle_root_and_mutated_from_hashes takes them as given, in internal
+    byte order.
 
     The root alone does not tell whether the list is the CVE-2012-2459
     mutation of a shorter one; whoever validates a block must use
@@ -326,16 +329,17 @@ def merkle_root_from_branch(
 
     The verifier's side of merkle_root_and_mutated_from_hashes: given a
     leaf, the siblings met on the way up and the leaf's position, this is
-    the root the tree must have had. Equal to a header's merkle_root, the
-    leaf was in that block -- the arithmetic behind Core's
+    the root the tree must have had. Equal to the root a header commits
+    to, the leaf was in that block -- the arithmetic behind Core's
     verifytxoutproof, and behind every light client.
 
     `index` is the leaf's position in the bottom level; its bits say
     left child or right child at each step, lowest bit first. `branch`
     holds one sibling per level, bottom-up. Both are what they are in the
-    tree, so both are in internal byte order, as this module's other
-    The merkle functions are: btclib.block.merkle_proof is the entry point
-    taking the reversed order that a txid and a header are displayed in.
+    tree, so both are in internal byte order, as are the other merkle
+    functions of this module; btclib.block.merkle_proof is the entry
+    point taking the reversed order that a txid and a header are
+    displayed in.
 
     A branch is evidence only together with the header that carries the
     root, and only about the tree: proving that a leaf is *a
