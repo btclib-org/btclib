@@ -551,6 +551,11 @@ A value `str()` cannot write, such as an int past its digit limit, is refused
 as this library's error and named by bit length or type; `FeeRate` refuses a
 rate above MAX_MONEY sat/vB, so its repr never meets one (closes #2389).
 
+### `script.toml`'s header says which test file quotes which script-size limit
+
+tests/b32_test.py quotes the witness-script message alone, where
+tests/script and tests/b58_test.py quote both (closes #2395).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

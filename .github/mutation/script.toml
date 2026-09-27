@@ -20,9 +20,9 @@
 # below does not read, so each would stand as a survivor of this profile.
 # The two caps are held instead by the boundary tests that quote them,
 # `redeem script exceeds size limit: 521 > 520` and `witness script
-# exceeds size limit: 10001 > 10000`, both in tests/script and in
-# tests/b58_test.py and tests/b32_test.py. What the file would add is
-# asked with a configuration naming it alone:
+# exceeds size limit: 10001 > 10000`. tests/script and tests/b58_test.py
+# quote both; tests/b32_test.py quotes the witness-script one alone. What
+# the file would add is asked with a configuration naming it alone:
 #
 #   cosmic-ray init <that configuration> <session.sqlite>
 module-path = [
