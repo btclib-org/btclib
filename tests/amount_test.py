@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import string
 from decimal import Decimal, FloatOperation, getcontext, localcontext
 from threading import Thread
 
@@ -319,3 +320,41 @@ def test_a_negative_zero_btc_amount_normalizes_the_sign(amount: str) -> None:
     btc = valid_btc_amount(amount)
     assert btc == 0
     assert not btc.is_signed()
+
+
+# what str.strip() with no argument also takes and Bitcoin Core's IsSpace
+# does not: NO-BREAK SPACE, IDEOGRAPHIC SPACE, LINE SEPARATOR, and two of
+# the control characters str.isspace counts
+_NON_CORE_SPACES = [chr(c) for c in (0xA0, 0x3000, 0x2028, 0x1C, 0x85)]
+# ten in ARABIC-INDIC and in FULLWIDTH digits, both of which int and
+# Decimal read as ten
+_NON_ASCII_TENS = [chr(0x661) + chr(0x660), chr(0xFF11) + chr(0xFF10)]
+
+
+@pytest.mark.parametrize("pad", _NON_CORE_SPACES)
+def test_only_ascii_whitespace_is_stripped_from_an_amount(pad: str) -> None:
+    """ASCII whitespace around an amount is trimmed, and nothing else is."""
+    ws = string.whitespace
+    assert valid_btc_amount(f"{ws}10{ws}") == 10
+    assert valid_sats_amount(f"{ws}10{ws}") == 10
+
+    with pytest.raises(BTClibValueError, match="invalid BTC amount"):
+        valid_btc_amount(f"{pad}10{pad}")
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
+        valid_sats_amount(f"{pad}10{pad}")
+
+
+@pytest.mark.parametrize("ten", _NON_ASCII_TENS)
+def test_an_amount_is_read_in_ascii_digits_alone(ten: str) -> None:
+    """Digits outside ASCII are refused, as both of Core's amount parsers do."""
+    with pytest.raises(BTClibValueError, match="invalid BTC amount"):
+        valid_btc_amount(ten)
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
+        valid_sats_amount(ten)
+
+
+def test_the_exponent_form_is_a_btc_amount() -> None:
+    """Core's `ParseFixedPoint` reads "1e1", and so does this."""
+    assert valid_btc_amount("1e1") == 10
+    assert valid_btc_amount("1E-8") == Decimal("0.00000001")
+    assert sats_from_btc("1e-8") == 1  # type: ignore[arg-type]

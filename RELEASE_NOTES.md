@@ -263,6 +263,20 @@ full year, short month, short day (YYYY-M-D)
   Act on either if you catch `OverflowError` from `script.serialize`, or write
   a string command other than as `parse` does: each refusal is a
   `BTClibValueError`.
+- **The amount and fee-rate readers read ASCII digits and strip ASCII
+  whitespace alone** (closes #2360): `valid_btc_amount`,
+  `valid_sats_amount`, `FeeRate.from_sats_per_vbyte` and
+  `FeeRate.from_btc_per_kvbyte`, and what reads an amount through them,
+  `sats_from_btc`, `btc_from_sats` and `TxOut.from_dict` among them. A
+  string written in digits outside ASCII, U+0661 U+0660 or U+FF11 U+FF10
+  for ten among them, or padded with a character `str.isspace` counts
+  beyond space, tab, newline, carriage return, vertical tab and form feed,
+  is refused with `BTClibValueError`. So is an underscore in a
+  `from_sats_per_vbyte` quote, or in a `from_btc_per_kvbyte` one with
+  `round_up`, where it read as the digits around it.
+
+  Act on it if you hand these functions such text: convert the digits to
+  ASCII and strip the padding first.
 
 ## v2026.9.24
 

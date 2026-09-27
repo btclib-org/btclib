@@ -17,6 +17,7 @@ Amounts are never negative, here as in the protocol.
 
 from __future__ import annotations
 
+import string
 from decimal import Decimal, FloatOperation, InvalidOperation, localcontext
 from typing import Any
 
@@ -63,11 +64,39 @@ _MAX_BITCOIN = Decimal(21_000_000)
 _MAX_SATOSHI = int(_MAX_BITCOIN * _SATOSHI_PER_BITCOIN)
 
 
+def _number_text(text: str, err_msg: str) -> str:
+    """Return the text of a number stripped of ASCII whitespace, or refuse it.
+
+    `int` and `Decimal` read every Unicode decimal digit, so U+0661
+    U+0660 (ARABIC-INDIC ONE, ZERO) and U+FF11 U+FF10 (FULLWIDTH ONE,
+    ZERO) are ten to both. Both strip what `str.isspace` counts, `int`
+    all of it but U+001C to U+001F and `Decimal` all of it. Both read the
+    digit-grouping underscore of Python's number literals, so "1_0" is
+    ten too. None of that is how anybody writes an amount, and each is a
+    second spelling of one.
+
+    Bitcoin Core's `ParseMoney` strips space, tab, newline, carriage
+    return, vertical tab and form feed, which are `string.whitespace`,
+    and it and `ParseFixedPoint` read ASCII digits alone. So those six
+    are stripped here, and what is left has to be printable ASCII with
+    no underscore: printable because U+001C to U+001F are ASCII, and
+    `Decimal` would strip them. Everything else is `int`'s or
+    `Decimal`'s to refuse.
+
+    The exponent form stays an amount: `ParseFixedPoint`, which Core's
+    `AmountFromValue` reads an RPC amount through, takes "1e1".
+    """
+    text = text.strip(string.whitespace)
+    if not (text.isascii() and text.isprintable()) or "_" in text:
+        raise BTClibValueError(err_msg)
+    return text
+
+
 def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
     """Return the BTC amount as a Decimal, refusing what no output holds.
 
     None reads as zero, and anything str() renders as a decimal number
-    is accepted. Refused: an amount below `dust` or above the 21
+    in ASCII is accepted. Refused: an amount below `dust` or above the 21
     million cap, and one with more than 8 decimals, no output being
     able to carry a fraction of a satoshi.
     """
@@ -84,11 +113,7 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
         # any input that can be converted to str is fine
         amount = "0" if amount is None else str(amount)
         err_msg = f"invalid BTC amount: {amount}"
-        # Decimal(str) accepts the digit-grouping underscore Python's own
-        # number literals do -- "1_0" would parse as ten -- which is not a
-        # decimal number anybody actually wrote
-        if "_" in amount:
-            raise BTClibValueError(err_msg)
+        text = _number_text(amount, err_msg)
         # using str in the Decimal constructor avoids the
         # FloatOperation exception trapped just above.
         #
@@ -101,7 +126,7 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
         # matched by one exception of this library's:
         # FeeRate.from_sats_per_vbyte answers the same way
         try:
-            btc = Decimal(amount)
+            btc = Decimal(text)
         except InvalidOperation as e:
             raise BTClibValueError(err_msg) from e
         # a NaN parses and is no amount, and the range check below is not
@@ -142,12 +167,9 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     # one satoshi rather than a caller error
     if not is_integer(dust):
         raise BTClibTypeError(f"non-integer satoshi dust threshold: {dust}")
-    # int(str), like Decimal(str) in valid_btc_amount, accepts the
-    # digit-grouping underscore Python's own number literals do --
-    # "1_0" would parse as ten -- which is not an integer anybody
-    # actually wrote
-    if isinstance(amount, str) and "_" in amount:
-        raise BTClibValueError(f"invalid satoshi amount: {amount}")
+    text = amount
+    if isinstance(amount, str):
+        text = _number_text(amount, f"invalid satoshi amount: {amount}")
     # any input that can be converted to int is fine -- and int() refuses
     # what it cannot convert with a bare ValueError ("abc", b"\x01"), a
     # bare TypeError (a list), or a bare OverflowError (an infinity, where
@@ -158,7 +180,7 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     # Each is answered with this library's counterpart of the builtin it
     # was, so what a caller catches does not shrink
     try:
-        sats = 0 if amount is None else int(amount)
+        sats = 0 if amount is None else int(text)
     except (ValueError, OverflowError) as e:
         raise BTClibValueError(f"invalid satoshi amount: {amount}") from e
     except TypeError as e:
