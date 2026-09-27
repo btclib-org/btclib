@@ -15,9 +15,11 @@ from decimal import (
     getcontext,
     localcontext,
 )
+from fractions import Fraction
 from threading import Thread
 
 import pytest
+from typing_extensions import override
 
 from btclib.amount import (
     btc_from_sats,
@@ -516,3 +518,85 @@ def test_a_dust_threshold_at_either_end_is_an_amount() -> None:
     assert valid_btc_amount("21000000", dust=Decimal(21_000_000)) == 21_000_000
     assert valid_sats_amount(0, dust=0) == 0
     assert valid_sats_amount(2_100_000_000_000_000, dust=2_100_000_000_000_000) > 0
+
+
+# an int str() refuses to write, past 4300 digits (issue #2389)
+_TOO_LONG_TO_WRITE = 10**5000
+
+
+@pytest.mark.parametrize(
+    "sign", [pytest.param(1, id="positive"), pytest.param(-1, id="negative")]
+)
+def test_an_int_too_long_to_write_is_refused_in_kind(sign: int) -> None:
+    """Refused as an amount, described by its bit length and not its digits."""
+    value = sign * _TOO_LONG_TO_WRITE
+    with pytest.raises(BTClibValueError, match=r"invalid BTC amount: .*16610 bits$"):
+        valid_btc_amount(value)
+    with pytest.raises(BTClibValueError, match=r"invalid BTC amount: .*16610 bits$"):
+        sats_from_btc(value)  # type: ignore[arg-type]
+    match = r"invalid satoshi amount: .*16610 bits$"
+    with pytest.raises(BTClibValueError, match=match):
+        valid_sats_amount(value)
+    with pytest.raises(BTClibValueError, match=match):
+        btc_from_sats(value)
+
+
+def test_an_int_amount_in_range_still_reads() -> None:
+    """The int bound runs ahead of `str()` and admits every int in range."""
+    assert valid_btc_amount(21_000_000) == 21_000_000
+    assert valid_btc_amount(0) == 0
+    with pytest.raises(BTClibValueError, match="invalid BTC amount: 21000001$"):
+        valid_btc_amount(21_000_001)
+    with pytest.raises(BTClibValueError, match="invalid BTC amount: -1$"):
+        valid_btc_amount(-1)
+
+
+# a Fraction str() refuses to write, whether the numerator or the
+# denominator is past 4300 digits (issue #2389)
+_UNWRITABLE_FRACTIONS = [
+    pytest.param(Fraction(_TOO_LONG_TO_WRITE), id="+big"),
+    pytest.param(Fraction(-_TOO_LONG_TO_WRITE), id="-big"),
+    pytest.param(Fraction(1, _TOO_LONG_TO_WRITE), id="+1/big"),
+    pytest.param(Fraction(-1, _TOO_LONG_TO_WRITE), id="-1/big"),
+]
+
+
+@pytest.mark.parametrize("value", _UNWRITABLE_FRACTIONS)
+def test_a_value_str_cannot_write_is_refused_in_kind(value: Fraction) -> None:
+    """Every amount refusal names its type where `str()` raises on it."""
+    unwritable = r"a Fraction str\(\) cannot write$"
+    with pytest.raises(BTClibValueError, match=f"invalid BTC amount: {unwritable}"):
+        valid_btc_amount(value)
+    with pytest.raises(BTClibValueError, match=f"invalid BTC amount: {unwritable}"):
+        sats_from_btc(value)  # type: ignore[arg-type]
+    match = f"non-Decimal BTC dust threshold: {unwritable}"
+    with pytest.raises(BTClibTypeError, match=match):
+        valid_btc_amount("1", dust=value)  # type: ignore[arg-type]
+    match = f"non-integer satoshi dust threshold: {unwritable}"
+    with pytest.raises(BTClibTypeError, match=match):
+        valid_sats_amount(1, dust=value)  # type: ignore[arg-type]
+    # a whole Fraction is an amount out of range, and a fraction of one
+    # a non-integer amount
+    match = f"(invalid|non-integer) satoshi amount: {unwritable}"
+    with pytest.raises((BTClibValueError, BTClibTypeError), match=match):
+        valid_sats_amount(value)
+    with pytest.raises((BTClibValueError, BTClibTypeError), match=match):
+        btc_from_sats(value)  # type: ignore[arg-type]
+
+
+class _Unwritable:
+    @override
+    def __str__(self) -> str:
+        raise RuntimeError
+
+
+def test_a_value_whose_str_raises_is_refused_in_kind() -> None:
+    """A caller's own `__str__` raising anything is this library's refusal."""
+    unwritable = r"a _Unwritable str\(\) cannot write$"
+    with pytest.raises(BTClibValueError, match=f"invalid BTC amount: {unwritable}"):
+        valid_btc_amount(_Unwritable())
+    with pytest.raises(BTClibValueError, match=f"invalid BTC amount: {unwritable}"):
+        sats_from_btc(_Unwritable())  # type: ignore[arg-type]
+    match = f"non-integer satoshi amount: {unwritable}"
+    with pytest.raises(BTClibTypeError, match=match):
+        valid_sats_amount(_Unwritable())

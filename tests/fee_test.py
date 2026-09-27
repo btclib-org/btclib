@@ -26,11 +26,13 @@ from decimal import (
     Rounded,
     localcontext,
 )
+from fractions import Fraction
 from typing import Any
 
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
+from typing_extensions import override
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.fee import (
@@ -936,3 +938,137 @@ def test_sats_per_vbyte_prints_as_normalize_does(
     rate = FeeRate(sats_per_kvbyte=sats_per_kvbyte).sats_per_vbyte
     assert str(rate) == per_vbyte
     assert str(rate) == str(Decimal(sats_per_kvbyte).scaleb(-3).normalize())
+
+
+# an int str() refuses to write, past 4300 digits (issue #2389)
+_TOO_LONG_TO_WRITE = 10**5000
+
+
+@pytest.mark.parametrize("round_up", [False, True])
+@pytest.mark.parametrize(
+    "sign", [pytest.param(1, id="positive"), pytest.param(-1, id="negative")]
+)
+def test_a_quote_too_long_to_write_is_refused_in_kind(
+    sign: int, round_up: bool
+) -> None:
+    """Refused as a rate, described by its bit length and not its digits."""
+    value = sign * _TOO_LONG_TO_WRITE
+    with pytest.raises(
+        BTClibValueError, match=r"invalid sat/vB fee rate: .*16610 bits$"
+    ):
+        FeeRate.from_sats_per_vbyte(value, round_up=round_up)
+    with pytest.raises(
+        BTClibValueError, match=r"invalid BTC(/kvB fee rate| amount): .*bits$"
+    ):
+        FeeRate.from_btc_per_kvbyte(value, round_up=round_up)
+
+
+def test_a_fee_rate_field_too_long_to_write_is_refused_in_kind() -> None:
+    """Either sign, and no FeeRate is built for a repr to meet."""
+    match = r"fee rate above MAX_MONEY per virtual byte: an int of 16610 bits sat/kvB"
+    with pytest.raises(BTClibValueError, match=match):
+        FeeRate(sats_per_kvbyte=_TOO_LONG_TO_WRITE)
+    match = r"negative fee rate: a negative int of 16610 bits sat/kvB"
+    with pytest.raises(BTClibValueError, match=match):
+        FeeRate(sats_per_kvbyte=-_TOO_LONG_TO_WRITE)
+
+
+def test_a_fee_rate_field_is_bounded_at_max_money_per_vbyte() -> None:
+    """The bound `from_sats_per_vbyte` holds a quote to, held by the field."""
+    top = FeeRate(sats_per_kvbyte=2_100_000_000_000_000_000)
+    assert top == FeeRate.from_sats_per_vbyte("2100000000000000")
+    assert top.sats_per_vbyte == Decimal("2.1E+15")
+    assert repr(top) == "FeeRate(sats_per_kvbyte=2100000000000000000)"
+    with pytest.raises(BTClibValueError, match="above MAX_MONEY per virtual byte"):
+        FeeRate(sats_per_kvbyte=2_100_000_000_000_000_001)
+
+
+def test_a_size_too_long_to_write_is_refused_in_kind() -> None:
+    """`fee_from_vsize` and `package_fee` describe it by its bit length."""
+    rate = FeeRate(sats_per_kvbyte=1000)
+    match = "negative virtual size: a negative int of 16610 bits"
+    with pytest.raises(BTClibValueError, match=match):
+        fee_from_vsize(-_TOO_LONG_TO_WRITE, rate)
+    match = "negative ancestor virtual size: a negative int of 16610 bits"
+    with pytest.raises(BTClibValueError, match=match):
+        package_fee(1, rate, ancestor_vsize=-_TOO_LONG_TO_WRITE)
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount: an int of"):
+        package_fee(1, rate, ancestor_fee=_TOO_LONG_TO_WRITE)
+
+
+# a Fraction str() refuses to write, whether the numerator or the
+# denominator is past 4300 digits (issue #2389)
+_UNWRITABLE_FRACTIONS = [
+    pytest.param(Fraction(_TOO_LONG_TO_WRITE), id="+big"),
+    pytest.param(Fraction(-_TOO_LONG_TO_WRITE), id="-big"),
+    pytest.param(Fraction(1, _TOO_LONG_TO_WRITE), id="+1/big"),
+    pytest.param(Fraction(-1, _TOO_LONG_TO_WRITE), id="-1/big"),
+]
+_UNWRITABLE = r"a Fraction str\(\) cannot write$"
+
+
+@pytest.mark.parametrize("round_up", [False, True])
+@pytest.mark.parametrize("value", _UNWRITABLE_FRACTIONS)
+def test_a_quote_str_cannot_write_is_refused_in_kind(
+    value: Fraction, round_up: bool
+) -> None:
+    """Both readers name its type where `str()` raises on it."""
+    match = f"invalid sat/vB fee rate: {_UNWRITABLE}"
+    with pytest.raises(BTClibValueError, match=match):
+        FeeRate.from_sats_per_vbyte(value, round_up=round_up)
+    match = f"invalid BTC(/kvB fee rate| amount): {_UNWRITABLE}"
+    with pytest.raises(BTClibValueError, match=match):
+        FeeRate.from_btc_per_kvbyte(value, round_up=round_up)
+
+
+@pytest.mark.parametrize("value", _UNWRITABLE_FRACTIONS)
+def test_a_size_or_field_str_cannot_write_is_refused_in_kind(value: Fraction) -> None:
+    """A non-integer rate, size or ancestor size is named by its type."""
+    rate = FeeRate(sats_per_kvbyte=1000)
+    match = f"non-integer sat/kvB fee rate: {_UNWRITABLE}"
+    with pytest.raises(BTClibTypeError, match=match):
+        FeeRate(sats_per_kvbyte=value)  # type: ignore[arg-type]
+    match = f"non-integer virtual size: {_UNWRITABLE}"
+    with pytest.raises(BTClibTypeError, match=match):
+        fee_from_vsize(value, rate)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match=match):
+        package_fee(value, rate)  # type: ignore[arg-type]
+    match = f"non-integer ancestor virtual size: {_UNWRITABLE}"
+    with pytest.raises(BTClibTypeError, match=match):
+        package_fee(1, rate, ancestor_vsize=value)  # type: ignore[arg-type]
+    match = f"(invalid|non-integer) satoshi amount: {_UNWRITABLE}"
+    with pytest.raises((BTClibValueError, BTClibTypeError), match=match):
+        package_fee(1, rate, ancestor_fee=value)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("round_up", [False, True])
+def test_an_int_quote_is_bounded_at_the_cap_on_either_side(round_up: bool) -> None:
+    """The int bound ahead of `str()` sits exactly at MAX_MONEY."""
+    top = FeeRate.from_sats_per_vbyte(2_100_000_000_000_000, round_up=round_up)
+    assert top == FeeRate(sats_per_kvbyte=2_100_000_000_000_000_000)
+    match = "invalid sat/vB fee rate: 2100000000000001$"
+    with pytest.raises(BTClibValueError, match=match):
+        FeeRate.from_sats_per_vbyte(2_100_000_000_000_001, round_up=round_up)
+    top = FeeRate.from_btc_per_kvbyte(21_000_000, round_up=round_up)
+    assert top == FeeRate(sats_per_kvbyte=2_100_000_000_000_000)
+    match = "invalid BTC(/kvB fee rate| amount): 21000001$"
+    with pytest.raises(BTClibValueError, match=match):
+        FeeRate.from_btc_per_kvbyte(21_000_001, round_up=round_up)
+
+
+class _Unwritable:
+    @override
+    def __str__(self) -> str:
+        raise RuntimeError
+
+
+@pytest.mark.parametrize("round_up", [False, True])
+def test_a_quote_whose_str_raises_is_refused_in_kind(round_up: bool) -> None:
+    """A caller's own `__str__` raising anything is this library's refusal."""
+    unwritable = r"a _Unwritable str\(\) cannot write$"
+    match = f"invalid sat/vB fee rate: {unwritable}"
+    with pytest.raises(BTClibValueError, match=match):
+        FeeRate.from_sats_per_vbyte(_Unwritable(), round_up=round_up)
+    match = f"invalid BTC(/kvB fee rate| amount): {unwritable}"
+    with pytest.raises(BTClibValueError, match=match):
+        FeeRate.from_btc_per_kvbyte(_Unwritable(), round_up=round_up)
