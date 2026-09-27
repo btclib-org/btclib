@@ -59,7 +59,7 @@ from ipaddress import IPv4Address, IPv6Address
 
 import pytest
 
-from btclib import var_int
+from btclib import var_bytes, var_int
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p import (
     AddrV2,
@@ -288,11 +288,9 @@ def test_a_core_network_id_and_address(
     [
         (BIP155Network.IPV4, 4),
         (BIP155Network.IPV6, 16),
-        (BIP155Network.TORV2, 10),
         (BIP155Network.TORV3, 32),
         (BIP155Network.I2P, 32),
         (BIP155Network.CJDNS, 16),
-        (BIP155Network.YGGDRASIL, 16),
     ],
     ids=lambda value: getattr(value, "name", value),
 )
@@ -301,10 +299,8 @@ def test_the_length_bip155_fixes_for_each_id(
 ) -> None:
     """BIP155's table, transcribed here and enforced by `assert_valid`.
 
-    `TORV2` and `YGGDRASIL` are held to it as well, and their lengths
-    come from the BIP and from nothing else: Core drops a `TORV2`
-    address through its unknown-id path and has no `YGGDRASIL` at all,
-    so it enforces a length for neither.
+    For the ids Core's `SetNetFromBIP155Network` has a case for; `TORV2`
+    and `YGGDRASIL` are the next test's.
     """
     entry = NetworkAddressV2(0, 0, network_id, bytes(size), 8333)
     assert entry.serialize() == NetworkAddressV2.parse(entry.serialize()).serialize()
@@ -312,6 +308,48 @@ def test_the_length_bip155_fixes_for_each_id(
     for wrong in (size - 1, size + 1):
         with pytest.raises(BTClibValueError, match="invalid address length"):
             NetworkAddressV2(0, 0, network_id, bytes(wrong), 8333)
+
+
+@pytest.mark.parametrize(
+    "network_id, size",
+    [
+        (BIP155Network.TORV2, 32),
+        (BIP155Network.TORV2, 10),
+        (BIP155Network.TORV2, 0),
+        (BIP155Network.YGGDRASIL, 4),
+        (BIP155Network.YGGDRASIL, 16),
+        (BIP155Network.YGGDRASIL, MAX_ADDRV2_SIZE),
+    ],
+    ids=lambda value: getattr(value, "name", value),
+)
+def test_torv2_and_yggdrasil_are_held_to_no_length_but_the_bound(
+    network_id: BIP155Network, size: int
+) -> None:
+    """Core reads either at any length and drops it, keeping the message.
+
+    BIP155's table gives `TORV2` ten octets and `YGGDRASIL` sixteen, but
+    `SetNetFromBIP155Network` has no case for either id, so an address
+    under one of them takes the unknown-id path at whatever length it
+    carries -- `s.ignore(address_size)` in `UnserializeV2Stream` -- and
+    the entries after it are read. Refusing a length here would refuse a
+    message Core accepts.
+    """
+    octets = _entry(f"{network_id:02x}" + var_bytes.serialize(bytes(size)).hex())
+    entry = NetworkAddressV2.parse(octets)
+
+    assert entry.network_id == network_id
+    assert entry.address == bytes(size)
+    assert entry.serialize() == octets
+
+    # and inside a message, with a known entry after it
+    payload = b"\x02" + octets + _entry("010401020304")
+    addr = AddrV2.parse(payload)
+    assert addr.addresses[1].network_id == BIP155Network.IPV4
+    assert addr.serialize() == payload
+
+    # the bound is still the bound, as it is for every id
+    with pytest.raises(BTClibValueError, match="invalid address length"):
+        NetworkAddressV2(0, 0, network_id, bytes(MAX_ADDRV2_SIZE + 1), 0)
 
 
 def test_an_unknown_network_id_round_trips() -> None:
@@ -345,8 +383,8 @@ def test_an_unknown_network_id_is_held_to_no_length_but_the_bound() -> None:
     """No table entry, so nothing to disagree with: only `MAX_ADDRV2_SIZE`.
 
     Which is BIP155's "irrespective of the network ID" read the other
-    way round -- the bound applies to every id, and the table applies to
-    the ones it names.
+    way round -- the bound applies to every id, and the module's length
+    table applies to the ones it names.
     """
     for size in (0, 1, MAX_ADDRV2_SIZE):
         entry = NetworkAddressV2(0, 0, 0xAA, bytes(size), 0)
@@ -387,11 +425,9 @@ def test_the_address_bound_is_checked_off_the_length_field() -> None:
     [
         (BIP155Network.IPV4, 5, 4),  # Core: "IPv4 address with length 5"
         (BIP155Network.IPV6, 4, 16),  # Core: "IPv6 address with length 4"
-        (BIP155Network.TORV2, 9, 10),
         (BIP155Network.TORV3, 0, 32),  # Core: "TORv3 address with length 0"
         (BIP155Network.I2P, 3, 32),  # Core: "I2P address with length 3"
         (BIP155Network.CJDNS, 1, 16),  # Core: "CJDNS address with length 1"
-        (BIP155Network.YGGDRASIL, 4, 16),
     ],
     ids=lambda value: getattr(value, "name", value),
 )
@@ -403,14 +439,12 @@ def test_a_known_id_with_the_wrong_length_is_refused(
     "Clients SHOULD reject messages that contain addresses that have a
     different length than specified in this table for a specific network
     ID, as these are meaningless" -- and `SetNetFromBIP155Network` raises
-    `std::ios_base::failure` for each id it knows, where an *unknown* id
-    a few lines below it returns false and is dropped. Ignoring the entry
-    is what this codec cannot do: a message one address shorter than it
-    arrived does not serialize back.
+    `std::ios_base::failure` for each id it has a case for, where any
+    other id a few lines below it returns false and is dropped. Ignoring
+    the entry is what this codec cannot do: a message one address shorter
+    than it arrived does not serialize back.
 
-    The lengths are Core's own cases where it has one. `TORV2` and
-    `YGGDRASIL` are the two it refuses nothing for, so those two are
-    held to BIP155's table and to nothing else.
+    The lengths are Core's own cases.
     """
     octets = _entry(f"{network_id:02x}{wrong:02x}" + "00" * wrong)
 
