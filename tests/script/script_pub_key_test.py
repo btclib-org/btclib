@@ -48,6 +48,7 @@ from btclib.script.script_pub_key import (
     assert_nulldata,
     assert_segwit,
     is_segwit,
+    p2ms_m_and_keys,
     script_from_script_pub_key,
 )
 from tests import load, vector_id
@@ -569,7 +570,7 @@ def test_p2ms_1() -> None:
     err_msg = "invalid n in m-of-n: "
     with pytest.raises(BTClibValueError, match=err_msg):
         # pylance cannot grok the following line
-        ScriptPubKey.p2ms(4, [PubKeyData(pub_key0)] * 17)
+        ScriptPubKey.p2ms(4, [PubKeyData(pub_key0)] * 21)
     err_msg = "invalid m in m-of-n: "
     with pytest.raises(BTClibValueError, match=err_msg):
         ScriptPubKey.p2ms(0, pub_keys)
@@ -1163,11 +1164,97 @@ def test_p2ms_refuses_what_its_markers_cannot_mean() -> None:
         assert_p2ms(bytes([0x51, 33, *key, 0xB1, 0xAE]))
 
     # OP_18 does not exist, and 0x62 -- OP_VER -- is where it would be:
-    # 18 keys is past the 16 a p2ms may pay to, so the window has an
-    # upper end and not only an ordering against m
+    # 18 is written as a push, so an op code count has an upper end at 16
+    # and not only an ordering against m
     err_msg = "invalid m-of-n: 1-of-18"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2ms(bytes([0x51, 33, *key, 0x62, 0xAE]))
+
+
+def test_p2ms_counts_are_written_as_core_writes_them() -> None:
+    """Every n-of-n from 1 to 20 keys, as rpc_createmultisig.py checks it.
+
+    Core's functional test compares `createmultisig`'s redeem script with
+    `keys_to_multisig_script`, one key repeated n times, for every n up
+    to MAX_PUBKEYS_PER_MULTISIG: its `CScript` writes a count up to 16 as
+    OP_1..OP_16 and one above as the one-byte push of the number. The
+    expected bytes are built here from that rule and not from `push_int`.
+    """
+    key = bytes_from_point(mult(1))
+    for n in range(1, 21):
+        count = bytes([0x50 + n]) if n <= 16 else bytes([0x01, n])
+        expected = count + bytes([33, *key]) * n + count + b"\xae"
+        keys = [PubKeyData(key)] * n
+        script_pub_key = ScriptPubKey.p2ms(n, keys, lexicographic_sorting=False)
+        assert script_pub_key.script == expected
+        assert script_pub_key.type == "p2ms"
+        assert p2ms_m_and_keys(expected) == (n, [key] * n)
+
+
+def test_p2ms_16_of_20_is_the_address_core_creates() -> None:
+    """A 16-of-20 in a p2wsh is Core's own `createmultisig` output.
+
+    The address is what bitcoind v31.1.0 answered to `createmultisig` over
+    these keys with address type bech32 (issue #2348), and its descriptor
+    is `wsh(multi(16,...))`: Core's `ParseScript` bounds the keys of a
+    multi() by MAX_PUBKEYS_PER_MULTISIG in every context. A key more is
+    refused by the builder, and a count of 21 pushed is refused by the
+    parser.
+    """
+    keys = [PrvKeyData(i, network="regtest").pub for i in range(1, 21)]
+    redeem_script = ScriptPubKey.p2ms(16, keys, lexicographic_sorting=False).script
+    assert redeem_script[0] == 0x60
+    assert redeem_script[-3:] == b"\x01\x14\xae"
+    addr = "bcrt1qluzr8trg8f0eptz2j30pd2ff562udd22wm6nfdjxstlvesd44s2s9uahgz"
+    assert ScriptPubKey.p2wsh(redeem_script, "regtest").address == addr
+    m, pub_keys = p2ms_m_and_keys(redeem_script)
+    assert m == 16
+    assert pub_keys == [key.sec for key in keys]
+
+    extra = PrvKeyData(21, network="regtest").pub
+    with pytest.raises(BTClibValueError, match="invalid n in m-of-n: 21"):
+        ScriptPubKey.p2ms(16, [*keys, extra])
+    twenty_one = redeem_script[:-3] + bytes([33, *extra.sec, 0x01, 21, 0xAE])
+    with pytest.raises(BTClibValueError, match="invalid m-of-n: 16-of-21"):
+        assert_p2ms(twenty_one)
+
+
+def test_p2ms_count_is_read_in_its_minimal_form_only() -> None:
+    """A count has one encoding, and the other one is refused.
+
+    Up to 16 it is the op code, so a push of 16 is not a p2ms, and above
+    16 it is the push, so the byte where OP_17 would be is not one either:
+    Core's MatchMultisig takes each count as a minimal number. A pushed
+    threshold is read as the pushed count is.
+    """
+    key = bytes([33, *bytes_from_point(mult(1))])
+
+    err_msg = "invalid m-of-n: 1-of-16"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2ms(b"\x51" + key * 16 + b"\x01\x10\xae")
+    err_msg = "invalid m in m-of-n: 16"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2ms(b"\x01\x10" + key * 16 + b"\x60\xae")
+    # 0x61 is OP_NOP, one past OP_16
+    err_msg = "invalid m in m-of-n: 17"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2ms(b"\x61" + key * 17 + b"\x01\x11\xae")
+
+    seventeen = b"\x01\x11" + key * 17 + b"\x01\x11\xae"
+    assert p2ms_m_and_keys(seventeen)[0] == 17
+    err_msg = "invalid m-of-n: 17-of-16"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2ms(b"\x01\x11" + key * 16 + b"\x60\xae")
+
+    # a key whose last byte is 0x01 ahead of an OP_n count: the 0x01 is
+    # read as the pushed form's only where the count is no OP_1..OP_16
+    one_last = next(
+        sec
+        for sec in (bytes_from_point(mult(i)) for i in range(1, 1000))
+        if sec[-1] == 0x01
+    )
+    script_pub_key = serialize(["OP_1", one_last, "OP_1", "OP_CHECKMULTISIG"])
+    assert p2ms_m_and_keys(script_pub_key) == (1, [one_last])
 
 
 def test_a_leading_op_code_is_compared_for_equality() -> None:

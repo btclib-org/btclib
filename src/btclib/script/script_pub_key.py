@@ -33,7 +33,8 @@ from btclib.network import (
     normalized_network_name,
     validated_network_name,
 )
-from btclib.script.script import Script, op_int, serialize
+from btclib.script.limits import MAX_PUBKEYS_PER_MULTISIG
+from btclib.script.script import Script, op_int, push_int, serialize
 from btclib.script.taproot import output_pubkey
 from btclib.utils import (
     assert_type,
@@ -109,10 +110,20 @@ def address(script_pub_key: Octets, network: str = "mainnet") -> str:
     return ""
 
 
+# how OP_CHECKMULTISIG's two counts are written: a count up to 16 is its
+# OP_1..OP_16 op code, and one above it is the one-byte push of the
+# number. Each is the minimal encoding of the counts in its window, which
+# is what Core's MatchMultisig (script/solver.cpp) asks of both counts, up
+# to MAX_PUBKEYS_PER_MULTISIG
+_OP_N_COUNTS = range(1, 17)
+_PUSHED_COUNTS = range(17, MAX_PUBKEYS_PER_MULTISIG + 1)
+
+
 def p2ms_m_and_keys(script_pub_key: Octets) -> tuple[int, list[bytes]]:
     """Return the threshold and the pub keys of a p2ms script_pub_key.
 
-    The bounds are checked -- 0 < m <= n < 17 -- and each key is read as
+    The bounds are checked -- 0 < m <= n <= MAX_PUBKEYS_PER_MULTISIG,
+    each count written as `push_int` writes it -- and each key is read as
     a push of the declared length and then parsed as a public key: a
     push that is not one is what makes the bytes not a p2ms, which is the
     answer `is_p2ms` gives.
@@ -135,14 +146,23 @@ def p2ms_m_and_keys(script_pub_key: Octets) -> tuple[int, list[bytes]]:
         raise BTClibValueError(f"invalid p2ms length {length}")
     if script_pub_key[-1] != 0xAE:
         raise BTClibValueError("missing final OP_CHECKMULTISIG")
-    m = script_pub_key[0] - 80
-    if not 0 < m < 17:
+    if script_pub_key[0] == 0x01:
+        m, start, counts = script_pub_key[1], 2, _PUSHED_COUNTS
+    else:
+        m, start, counts = script_pub_key[0] - 80, 1, _OP_N_COUNTS
+    if m not in counts:
         raise BTClibValueError(f"invalid m in m-of-n: {m}")
-    n = script_pub_key[-2] - 80
-    if not m <= n < 17:
+    # read from the end, so the byte before the count says which form it
+    # is only where the count is not an OP_1..OP_16: an OP_n after a key
+    # whose last byte is 0x01 is still an OP_n
+    if script_pub_key[-3] == 0x01 and script_pub_key[-2] - 80 not in _OP_N_COUNTS:
+        n, end, counts = script_pub_key[-2], -3, _PUSHED_COUNTS
+    else:
+        n, end, counts = script_pub_key[-2] - 80, -2, _OP_N_COUNTS
+    if n not in counts or n < m:
         raise BTClibValueError(f"invalid m-of-n: {m}-of-{n}")
 
-    stream = bytesio_from_binarydata(script_pub_key[1:-2])
+    stream = bytesio_from_binarydata(script_pub_key[start:end])
     pub_keys = [var_bytes.parse(stream) for _ in range(n)]
 
     if stream.read(1):
@@ -711,6 +731,16 @@ class ScriptPubKey(Script):
     ) -> ScriptPubKey:
         """Return the m-of-n multi-sig ScriptPubKey of the provided keys.
 
+        n runs to MAX_PUBKEYS_PER_MULTISIG, OP_CHECKMULTISIG's own limit,
+        with a count past 16 pushed as Core's CScript writes it. That is
+        every m-of-n the op code executes, not every one standard where
+        the script ends up: Core's policy relays a bare multisig of at most
+        three keys, and a p2sh redeem script is pushed, so it is at most
+        MAX_SCRIPT_ELEMENT_SIZE bytes. The script is the same bytes as an
+        output, a redeem script or a witness script, so the bound of each
+        context is its caller's, as Core's descriptor parser applies one
+        per context.
+
         BIP67 endorses lexicographic sorting of compressed public keys.
 
         Sorting uncompressed keys (leading 0x04 byte) would
@@ -736,7 +766,7 @@ class ScriptPubKey(Script):
         assert_type(lexicographic_sorting, bool, "lexicographic_sorting")
 
         n = len(keys)
-        if not 0 < n < 17:
+        if not 0 < n <= MAX_PUBKEYS_PER_MULTISIG:
             raise BTClibValueError(f"invalid n in m-of-n: {n}")
         if not 0 < m <= n:
             raise BTClibValueError(f"invalid m in m-of-n: {m}-of-{n}")
@@ -770,7 +800,7 @@ class ScriptPubKey(Script):
             # compressed or not -- see #267.
             pub_keys = sorted(pub_keys)
 
-        script = serialize([op_int(m), *pub_keys, op_int(n), "OP_CHECKMULTISIG"])
+        script = serialize([push_int(m), *pub_keys, push_int(n), "OP_CHECKMULTISIG"])
         return cls(script, network, check_validity=check_validity)
 
     @classmethod

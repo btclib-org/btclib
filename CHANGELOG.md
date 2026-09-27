@@ -469,6 +469,12 @@ its length is refused in `assert_valid`'s words, where each arm had its own.
 Every name taking a tree refuses one whose leaf no control block can prove, as
 Core's `TaprootBuilder` does, where it built an output key (closes #2343).
 
+### `ScriptPubKey.p2ms` takes up to 20 keys, as OP_CHECKMULTISIG does
+
+A count above 16 is the one-byte push Core writes, and `p2ms_m_and_keys` reads
+it back, so a p2wsh multisig of 17 to 20 keys, which Core creates, is built and
+classified as p2ms (closes #2348); the bare and p2sh limits are the caller's.
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
