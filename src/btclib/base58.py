@@ -46,7 +46,7 @@ from __future__ import annotations
 from btclib.alias import Octets, String
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
-from btclib.utils import bytes_from_octets, is_integer
+from btclib.utils import _assert_byte_shaped, bytes_from_octets, is_integer
 
 __all__ = [
     "MAX_LENGTH",
@@ -130,7 +130,11 @@ def _b58encode(v: bytes) -> bytes:
 
 
 def encode(v: Octets, in_size: int | None = None) -> bytes:
-    """Encode a bytes-like object using Base58Check."""
+    """Encode a bytes-like object using Base58Check.
+
+    Uncapped: a payload of roughly 80 bytes or more encodes to a string
+    longer than `MAX_LENGTH`, which `decode` then refuses (issue #2296).
+    """
     v = bytes_from_octets(v, in_size)
     h256 = hash256(v)
     # the concatenation a memoryview has no operator for: what makes it
@@ -189,6 +193,10 @@ def decode(v: String, out_size: int | None = None) -> bytes:
     """Decode a Base58Check encoded bytes-like object or ASCII string.
 
     Optionally, it also ensures required output size.
+
+    Capped at `MAX_LENGTH` characters, unlike `encode`: a string `encode`
+    wrote from a payload of roughly 80 bytes or more is refused here
+    (issue #2296).
     """
     if isinstance(v, str):
         # do not trim spaces.
@@ -210,6 +218,13 @@ def decode(v: String, out_size: int | None = None) -> bytes:
         # takes them
         err_msg = f"invalid base58 string type: {type(v).__name__}"  # type: ignore[unreachable]
         raise BTClibTypeError(err_msg)
+
+    # a strided memoryview or one whose format is not "B" is refused here,
+    # before len(v) is read: for either, len() counts elements rather than
+    # the octets bytes(v) would go on to gather, so the cap below would
+    # bound the wrong quantity and _b58decode's own bytes(v) would gather
+    # more octets than the caller's own len() reported (issue #2295)
+    _assert_byte_shaped(v)
 
     if len(v) > MAX_LENGTH:
         err_msg = f"too many base58 characters: {len(v)}, max is {MAX_LENGTH}"

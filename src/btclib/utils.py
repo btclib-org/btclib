@@ -216,6 +216,11 @@ def str_from_string(s: String, what: str) -> str:
         err_msg = f"invalid {what} type: {type(s).__name__}"  # type: ignore[unreachable]
         raise BTClibTypeError(err_msg)
 
+    # a strided memoryview or one whose format is not "B" is refused here
+    # rather than gathered by bytes(s) below, for the same reason
+    # bytes_from_octets refuses one instead of copying it (issue #2295)
+    _assert_byte_shaped(s)
+
     try:
         return bytes(s).decode("ascii")
     except UnicodeDecodeError as e:

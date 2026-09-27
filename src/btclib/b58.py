@@ -33,7 +33,7 @@ from btclib.exceptions import BTClibValueError, InvalidPrvKeyError, NotAPrvKeyEr
 from btclib.hashes import hash160, sha256
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.network import network_from_key_value, network_from_name
-from btclib.utils import assert_type, bytes_from_octets
+from btclib.utils import assert_type, bytes_from_octets, str_from_string
 
 __all__ = [
     "address_from_h160",
@@ -150,8 +150,10 @@ def prv_key_data_from_wif(
     # it is the one non-bool this position takes
     if compressed is not None:
         assert_type(compressed, bool, "compressed")
-    if isinstance(wif, str):
-        wif = wif.strip()
+    # coerced before stripping, as b32.witness_from_address does, so that
+    # surrounding whitespace is trimmed from bytes input too rather than
+    # only from a caller that happened to pass a str (issue #2297)
+    wif = str_from_string(wif, "WIF").strip()
 
     # only a value no WIF has is re-classed: a wrong type leaves b58decode
     # as the BTClibTypeError it is, that being the caller's own mistake
@@ -203,8 +205,10 @@ def address_from_h160(
 
 def h160_from_address(b58addr: String) -> tuple[ScriptType, bytes, str]:
     """Return the payload from a base58 address."""
-    if isinstance(b58addr, str):
-        b58addr = b58addr.strip()
+    # coerced before stripping, as b32.witness_from_address does, so that
+    # surrounding whitespace is trimmed from bytes input too rather than
+    # only from a caller that happened to pass a str (issue #2297)
+    b58addr = str_from_string(b58addr, "address").strip()
     payload = b58decode(b58addr, 21)
     prefix = payload[:1]
 
