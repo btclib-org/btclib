@@ -217,6 +217,21 @@ full year, short month, short day (YYYY-M-D)
   the colon. It is still a `BTClibValueError`, so an `except` on that
   class is unaffected.
 
+- **The address, WIF, base64 signature and ip decoders strip ASCII
+  whitespace alone** (closes #2349): `b32.witness_from_address`,
+  `b32.is_segwit_prefixed`, `b58.h160_from_address`,
+  `b58.prv_key_data_from_wif`, `bms.Sig.b64decode`, `bms.sign`'s `addr`
+  and `NetworkAddress`'s `ip`, and what reads its input through them,
+  `ScriptPubKey.from_address` and `bms.verify` among them. A string padded
+  with U+00A0, U+3000, U+2028, U+001C or another character `str.isspace`
+  counts beyond space, tab, newline, carriage return, vertical tab and
+  form feed is refused with `BTClibValueError`, where it was taken for the
+  value it wraps, and `is_segwit_prefixed` answers False where that
+  padding leads.
+
+  Act on it if you hand these functions text padded that way: strip it
+  first.
+
 ## v2026.9.24
 
 ### Breaking changes

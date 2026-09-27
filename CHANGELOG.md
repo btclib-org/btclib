@@ -446,6 +446,12 @@ What is neither the hex of a script nor an address is refused as `neither a
 script nor an address`, the decoder's refusal chained as the cause, where the
 string was quoted, a private key pasted there included (closes #2350).
 
+### Address, WIF, signature and ip decoders strip ASCII whitespace alone
+
+`str.strip()` with no argument also takes U+00A0, U+3000 and the rest of what
+`str.isspace` counts; `string.whitespace` is Bitcoin Core's `IsSpace`
+(closes #2349).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

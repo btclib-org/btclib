@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import string
+
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
@@ -389,3 +391,24 @@ def test_round_trip_wif(prv_key: int, compressed: bool) -> None:
     wif = b58.wif_from_prv_key(prv_key, "mainnet", compressed)
     data = b58.prv_key_data_from_wif(wif)
     assert (data.q, data.network, data.compressed) == (prv_key, "mainnet", compressed)
+
+
+# what str.strip() with no argument also takes and Bitcoin Core's IsSpace
+# does not: NO-BREAK SPACE, IDEOGRAPHIC SPACE, LINE SEPARATOR, and two of
+# the control characters str.isspace counts
+_NON_CORE_SPACES = [chr(c) for c in (0xA0, 0x3000, 0x2028, 0x1C, 0x85)]
+
+
+@pytest.mark.parametrize("pad", _NON_CORE_SPACES)
+def test_only_ascii_whitespace_is_stripped_from_an_address_or_a_wif(pad: str) -> None:
+    """ASCII whitespace around a base58 string is trimmed, nothing else is."""
+    addr = "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2"
+    wif = "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"
+    ws = string.whitespace
+    assert b58.h160_from_address(f"{ws}{addr}{ws}") == b58.h160_from_address(addr)
+    assert b58.prv_key_data_from_wif(f"{ws}{wif}{ws}") == b58.prv_key_data_from_wif(wif)
+
+    with pytest.raises(BTClibValueError):
+        b58.h160_from_address(f"{pad}{addr}{pad}")
+    with pytest.raises(BTClibValueError):
+        b58.prv_key_data_from_wif(f"{pad}{wif}{pad}")

@@ -55,6 +55,7 @@ constructor in the other, exactly and for every value, and
 
 from __future__ import annotations
 
+import string
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import IntFlag
@@ -167,7 +168,9 @@ def _ipv6_from_ip_address(ip: IPAddress) -> IPv6Address:
     # outright, where the whole point of the mapping is that a v4 address
     # is a value this structure carries
     try:
-        parsed = ip_address(ip.strip())
+        # ASCII whitespace alone, for the reason `utils.str_from_string`
+        # gives
+        parsed = ip_address(ip.strip(string.whitespace))
     except ValueError as e:
         raise BTClibValueError(f"invalid ip: {e}") from e
     return _ipv6_from_ip_address(parsed)

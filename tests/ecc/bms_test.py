@@ -17,6 +17,7 @@ from __future__ import annotations
 import base64
 import contextlib
 import dataclasses
+import string
 from collections.abc import Callable
 from hashlib import sha256
 from typing import Any
@@ -1237,3 +1238,35 @@ def test_verify_tells_a_malformed_argument_from_a_signature_that_fails() -> None
 
     # and a message that is not the one signed
     assert not bms.verify(b"another message", addr, sig)
+
+
+# what str.strip() with no argument also takes and Bitcoin Core's IsSpace
+# does not: NO-BREAK SPACE, IDEOGRAPHIC SPACE, LINE SEPARATOR, and two of
+# the control characters str.isspace counts
+_NON_CORE_SPACES = [chr(c) for c in (0xA0, 0x3000, 0x2028, 0x1C, 0x85)]
+
+
+@pytest.mark.parametrize("pad", _NON_CORE_SPACES)
+def test_only_ascii_whitespace_is_stripped_from_a_signature_or_an_address(
+    pad: str,
+) -> None:
+    """ASCII whitespace around a base64 signature or an address is trimmed.
+
+    Nothing else is: `Sig.b64decode`, `sign`'s `addr` and `verify` refuse
+    the other spaces, a signature padded with them being no base64.
+    """
+    msg = b"test message"
+    wif, addr = bms.gen_keys()
+    prv_key = b58.prv_key_data_from_wif(wif)
+    sig = bms.sign(msg, prv_key).b64encode()
+    ws = string.whitespace
+    assert bms.Sig.b64decode(f"{ws}{sig}{ws}") == bms.Sig.b64decode(sig)
+    assert bms.sign(msg, prv_key, f"{ws}{addr}{ws}") == bms.sign(msg, prv_key)
+    assert bms.verify(msg, addr, f"{ws}{sig}{ws}")
+
+    with pytest.raises(BTClibValueError):
+        bms.Sig.b64decode(f"{pad}{sig}{pad}")
+    with pytest.raises(BTClibValueError):
+        bms.sign(msg, prv_key, f"{pad}{addr}{pad}")
+    with pytest.raises(BTClibValueError, match="invalid base64 encoding: "):
+        bms.verify(msg, addr, f"{pad}{sig}{pad}")

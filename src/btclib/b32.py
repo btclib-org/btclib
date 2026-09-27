@@ -52,6 +52,7 @@ with the following modifications:
 
 from __future__ import annotations
 
+import string
 from collections.abc import Iterable
 
 from btclib.alias import Octets, String
@@ -82,7 +83,7 @@ def is_segwit_prefixed(addr: String) -> bool:
     The prefix alone -- hrp and the 1 separator -- is read; whether the
     rest decodes is witness_from_address's answer.
     """
-    str_addr = str_from_string(addr, "address").strip().lower()
+    str_addr = str_from_string(addr, "address").strip(string.whitespace).lower()
     return any(str_addr.startswith(f"{net.hrp}1") for net in NETWORKS.values())
 
 
@@ -193,7 +194,7 @@ def witness_from_address(b32addr: String) -> tuple[int, bytes, str]:
     # the coercion before the length, which is a fact about characters:
     # `len` of what is neither text nor bytes is a TypeError about a
     # builtin, where the codec below would have named the argument
-    addr = str_from_string(b32addr, "address").strip()
+    addr = str_from_string(b32addr, "address").strip(string.whitespace)
 
     # the 90-character bound is address semantics, deliberately not
     # enforced by the bech32 codec (Lightning strings exceed it)

@@ -34,6 +34,8 @@ with the following modifications:
 
 from __future__ import annotations
 
+import string
+
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
@@ -472,3 +474,26 @@ def test_a_changed_character_is_not_an_address(
         return
     with pytest.raises(BTClibValueError):
         b32.witness_from_address(f"bc1{mutated}")
+
+
+# what str.strip() with no argument also takes and Bitcoin Core's IsSpace
+# does not: NO-BREAK SPACE, IDEOGRAPHIC SPACE, LINE SEPARATOR, and two of
+# the control characters str.isspace counts
+_NON_CORE_SPACES = [chr(c) for c in (0xA0, 0x3000, 0x2028, 0x1C, 0x85)]
+
+
+@pytest.mark.parametrize("pad", _NON_CORE_SPACES)
+def test_only_ascii_whitespace_is_stripped_from_an_address(pad: str) -> None:
+    """ASCII whitespace around an address is trimmed, and nothing else is."""
+    addr = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"
+    ascii_padded = f"{string.whitespace}{addr}{string.whitespace}"
+    assert b32.is_segwit_prefixed(ascii_padded)
+    assert b32.witness_from_address(ascii_padded) == b32.witness_from_address(addr)
+    assert ScriptPubKey.from_address(ascii_padded) == ScriptPubKey.from_address(addr)
+
+    padded = f"{pad}{addr}{pad}"
+    assert not b32.is_segwit_prefixed(padded)
+    with pytest.raises(BTClibValueError):
+        b32.witness_from_address(padded)
+    with pytest.raises(BTClibValueError):
+        ScriptPubKey.from_address(padded)
