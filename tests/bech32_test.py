@@ -44,6 +44,7 @@ from btclib.bech32 import (
     _TAPS,
     BECH32_1_CONST,
     BECH32_M_CONST,
+    _create_checksum,
     decode,
     encode,
 )
@@ -100,14 +101,12 @@ def test_bech32() -> None:
         )
 
     invalid_checksum = [
+        # \x20 and \x7f are the boundary itself, one character below and
+        # one above BIP173's HRP range [33-126]: `32 < ord(x) < 127`
+        # weakened at either end to `<=` would accept them
         ["\x20" + " 1nwldj5", r"HRP character out of range: *"],
         ["\x7f" + "1axkwrx", r"HRP character out of range: *"],
         ["\x80" + "1eym55h", r"HRP character out of range: *"],
-        # the boundary itself, not \x20/\x7f/\x80 (all far outside it):
-        # `47 < ord(x) < 123` weakened at either end to `<=` still
-        # refuses those three and would accept "/" (47) or "{" (123)
-        ["/1nwldj5", r"HRP character out of range: *"],
-        ["{1axkwrx", r"HRP character out of range: *"],
         # mixed case where lowering it does not sort below the original:
         # `bech.lower() != bech` weakened to `< bech` is false here (the
         # raised "u" sorts above the "U" it replaces), and the `and`
@@ -133,6 +132,52 @@ def test_bech32() -> None:
     for addr, err_msg in invalid_checksum:
         with pytest.raises(BTClibValueError, match=err_msg):
             decode(addr, BECH32_1_CONST)
+
+
+def test_hrp_range_matches_bip173() -> None:
+    """The HRP range is BIP173's [33-126], past letters, digits and "1".
+
+    Reproduces the ISS 2287 evidence: a correctly checksummed string
+    whose HRP sits outside `_decode`'s old 48..122 window and inside
+    BIP173's actual [33-126] used to be refused. "!" (33) and "~" (126)
+    are that range's own boundary; "/" (47) and "{" (123) are the old
+    boundary's, now ordinary interior characters.
+    """
+    for hrp in ("!", "~", "/", "{"):
+        data = [0]
+        checksum = _create_checksum(hrp, data, BECH32_1_CONST)
+        s = f"{hrp}1" + "".join(_ALPHABET[d] for d in data + checksum)
+        assert decode(s, BECH32_1_CONST) == (hrp, data)
+        assert encode(hrp, data, BECH32_1_CONST) == s.encode("ascii")
+
+
+def test_encode_validates_hrp() -> None:
+    """`encode` refuses an HRP `decode` would refuse, rather than writing it.
+
+    Reproduces the ISS 2286 evidence: a mixed-case, empty, out-of-range
+    or non-ascii HRP used to reach `str.encode("ascii")` unchecked, the
+    non-ascii one leaking a bare `UnicodeEncodeError` rather than a
+    `BTClibValueError`.
+    """
+    with pytest.raises(BTClibTypeError, match="invalid HRP type: int"):
+        encode(123, [0])  # type: ignore[arg-type]
+
+    with pytest.raises(BTClibValueError, match="empty HRP"):
+        encode("", [0, 1, 2])
+
+    with pytest.raises(BTClibValueError, match="HRP character out of range: *"):
+        encode("b c", [0])
+
+    # non-ascii: 'é' is above BIP173's range, so this never reaches
+    # `str.encode("ascii")` at all
+    with pytest.raises(BTClibValueError, match="HRP character out of range: *"):
+        encode("bé", [0])
+
+    # every data digit `_ALPHABET` can write is lowercase, so an
+    # all-uppercase HRP paired with a data digit that is a letter -- as
+    # here -- would write a string `decode` refuses as mixed case
+    with pytest.raises(BTClibValueError, match="HRP is not lowercase: *"):
+        encode("BC", [0, 1, 2])
 
 
 def test_bech32_insertion_issue() -> None:

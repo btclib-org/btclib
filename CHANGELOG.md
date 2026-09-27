@@ -199,6 +199,18 @@ asks for its own; RELEASE_NOTES.md says what changes (issue #2282).
 An issue filed from a review may now say the fix where one is known;
 the filing bar stands as it was (issue btclib-org/.github#1378).
 
+### `bech32._decode`'s HRP range matches BIP173's [33-126]
+
+The check admitted characters 48..122 only; BIP173 puts the range at
+33..126, so a correctly checksummed string with an HRP outside 48..122
+was refused (closes #2287).
+
+### `bech32.encode` validates the HRP before writing it
+
+A mixed-case, empty, out-of-range or non-ascii HRP now raises
+`BTClibValueError` or `BTClibTypeError`, rather than a string `decode`
+refuses or a bare `UnicodeEncodeError` (closes #2286).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
