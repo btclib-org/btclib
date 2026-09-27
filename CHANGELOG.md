@@ -493,6 +493,12 @@ Bitcoin Core's `ParseMoney`, and both `FeeRate` readers refuse the underscore
 and `strip()` let non-ASCII whitespace pad either spelling. The refusal quotes
 no part of the string, and `hex_string` inherits it (closes #2353).
 
+### A network name is stripped of ASCII whitespace alone
+
+`normalized_network_name` strips `string.whitespace`, where `str.strip()` also
+took U+00A0, U+3000, U+001C and the rest of what `str.isspace` counts
+(closes #2373).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

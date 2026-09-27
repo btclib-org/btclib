@@ -46,6 +46,7 @@ It is still `btclib.network.datadir` for a caller who wants the path.
 from __future__ import annotations
 
 import json
+import string
 from collections.abc import Mapping
 from dataclasses import dataclass, fields
 from pathlib import Path
@@ -593,15 +594,19 @@ def normalized_network_name(network: Any) -> Any:
     it to refuse: the refusal belongs to `validated_network_name`, and a
     caller wanting one calls that.
     """
-    return network.strip().lower() if isinstance(network, str) else network
+    if not isinstance(network, str):
+        return network
+    # ASCII whitespace alone, for the reason `utils.str_from_string` gives
+    return network.strip(string.whitespace).lower()
 
 
 def validated_network_name(network: str) -> str:
     """Return the name of a network, normalized, or refuse it.
 
-    `strip().lower()` is the tolerance issue #216 decided to keep, and the
-    reason `alias.NetworkName` is not the annotation of a `network`
-    parameter: the set accepted is wider than the spellings it names.
+    Whitespace around the name and its case are the tolerance issue #216
+    decided to keep, and the reason `alias.NetworkName` is not the
+    annotation of a `network` parameter: the set accepted is wider than
+    the spellings it names. The whitespace is `string.whitespace` alone.
 
     What a caller keeping the name rather than the `Network` reaches
     for; `network_from_name` is this function and the lookup after it.
@@ -617,7 +622,7 @@ def validated_network_name(network: str) -> str:
 
 
 def network_from_name(network: str = "mainnet") -> Network:
-    """Return the Network a name names, in any case and spaced how it likes.
+    """Return the Network a name names, in any case, ASCII whitespace around.
 
     The one place a `network: str` becomes a `Network`, and what every
     caller of a network name should reach for rather than indexing

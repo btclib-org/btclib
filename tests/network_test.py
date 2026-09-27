@@ -4,6 +4,7 @@
 
 """Tests for the `btclib.network` module."""
 
+import string
 from dataclasses import fields
 from typing import Any, get_args
 
@@ -25,6 +26,7 @@ from btclib.network import (
     network_type_from_xkeyversion,
     networks_from_key_value,
     networks_from_xkeyversion,
+    normalized_network_name,
     xprvversions_from_network,
     xpubversion_from_xprvversion,
     xpubversions_from_network,
@@ -455,3 +457,22 @@ def test_the_flag_still_switches_the_check_off() -> None:
     err_msg = "invalid genesis_block length: 1 bytes instead of 32"
     with pytest.raises(BTClibValueError, match=err_msg):
         invalid.to_dict()
+
+
+def test_a_network_name_is_stripped_of_ascii_whitespace_alone() -> None:
+    """`string.whitespace`, Bitcoin Core's IsSpace set (issue #2373).
+
+    `str.strip()` also removes U+00A0, U+3000, U+2028 and U+001C..U+001F,
+    which `str.isspace` counts, so a name padded with them was taken for
+    the name it wraps.
+    """
+    padded = string.whitespace + "MainNet" + string.whitespace
+    assert normalized_network_name(padded) == "mainnet"
+    assert network_from_name(padded) is NETWORKS["mainnet"]
+
+    for c in ("\xa0", "\u3000", "\u2028", "\x1c", "\x1d", "\x1e", "\x1f"):
+        for name in (c + "mainnet", "mainnet" + c):
+            # a normalization refuses nothing, and leaves the padding be
+            assert normalized_network_name(name) == name
+            with pytest.raises(BTClibValueError, match="^unknown network: "):
+                network_from_name(name)

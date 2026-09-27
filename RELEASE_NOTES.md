@@ -293,6 +293,16 @@ full year, short month, short day (YYYY-M-D)
   refusal: pass ASCII hex digits, and match `invalid hex integer` alone.
   It is still a `BTClibValueError`, so an `except` on that class is
   unaffected.
+- **A network name is stripped of ASCII whitespace alone** (closes #2373).
+  `network.validated_network_name`, `network.network_from_name` and every
+  `network: str` parameter that reads its name through them refuse a name
+  padded with U+00A0, U+3000, U+2028, U+001C or another character
+  `str.isspace` counts beyond space, tab, newline, carriage return, vertical
+  tab and form feed, with `unknown network`, where it was taken for the name it
+  wraps. `network.normalized_network_name` refuses nothing and leaves that
+  padding in place.
+
+  Act on it if you pass network names padded that way: strip them first.
 
 ## v2026.9.24
 

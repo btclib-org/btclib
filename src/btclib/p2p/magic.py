@@ -45,7 +45,7 @@ on the way in, client_errors on the way out".
 
 On the way out there is nothing to translate, and that is by
 construction rather than by luck. `network.validated_network_name` is
-what the name goes through first -- the `strip().lower()` tolerance
+what the name goes through first -- the whitespace-and-case tolerance
 issue #216 decided every `network: str` parameter keeps -- so what
 reaches `chain_from_network` is a key of `NETWORKS`, and every one of
 those is a chain Core has. What could raise the package's class is
@@ -76,9 +76,9 @@ def magic_from_network(network: str = "mainnet") -> bytes:
 
     The four octets every message on that network begins with, from
     Bitcoin Core's `pchMessageStart` per chain. `network` is a `NETWORKS`
-    name in any case and spaced how it likes, as everywhere a network is
-    named; signet's answer is the *default* signet's, another signet
-    being identified by its challenge rather than by a name, and
+    name in any case and with ASCII whitespace around it, as everywhere a
+    network is named; signet's answer is the *default* signet's, another
+    signet being identified by its challenge rather than by a name, and
     `magic_from_signet_challenge` is what answers for that one.
 
     A name no network has leaves as a `BTClibValueError` and a value that
