@@ -171,7 +171,8 @@ jobs:
     # job after the call above, so a language the called workflow's own
     # matrix adds is covered without touching this, and
     # `needs.analyze.result` is what the step reads for analyze's own rows
-    # where the listing still shows them unfinished
+    # where the listing still shows them unfinished, and what fails the
+    # step on its own where it is neither success nor skipped
     needs: [analyze]
     # not success(): a job whose dependencies failed is skipped, and a
     # skipped check reports "skipped", which a rule naming this context
@@ -206,9 +207,10 @@ jobs:
       # the run's own listing instead reads what actually happened, at
       # the price of a step per workflow rather than one shared with
       # test.yml's aggregate, `needs` reaching nothing outside its own
-      # workflow. The step reads that result for a row the listing still
-      # shows unfinished and for nothing else: a row the listing shows
-      # concluded is judged on its conclusion whatever the result says
+      # workflow. The step reads that result beside the listing and not in
+      # its place: a result neither "success" nor "skipped" fails it
+      # whatever the listing shows, and a row the listing shows concluded
+      # is judged on its conclusion whatever the result says
       #
       # under the call above, the listing carries the called workflow's
       # rows under a name this job's own id prefixes -- reusable-codeql.yml's
@@ -243,20 +245,6 @@ jobs:
           ANALYZE_RESULT: ${{ needs.analyze.result }}
         run: |
           set -euo pipefail
-          # `.status` beside the conclusion so that an unfinished job says
-          # which kind it is: queued and running are one word to
-          # `.conclusion` and two facts to a reader of the log
-          jobs=$(gh api --paginate \
-            "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" \
-            --jq '.jobs[] | "\(.conclusion // "unfinished")\t\(.status)\t\(.name)"')
-          # printed before it is judged: the job whose purpose is to be
-          # trusted is the one that has to be able to say what it saw
-          printf '%s\n' "${jobs}"
-          # awk and not grep: a tab in a grep pattern is one
-          # implementation's extension and a literal "t" in another's,
-          # where awk's field separator is POSIX
-          bad=$(printf '%s\n' "${jobs}" |
-            awk -F'\t' '$1 != "success" && $1 != "skipped" && $1 != "unfinished"')
           # a row of analyze's that the listing still shows unfinished is
           # accepted where analyze's own result is success or skipped:
           # `needs` does not let this job start before analyze concludes,
@@ -270,10 +258,42 @@ jobs:
           case "${ANALYZE_RESULT}" in
             success | skipped) prefix="analyze / " ;;
           esac
-          lagging=$(printf '%s\n' "${jobs}" | awk -F'\t' -v p="${prefix}" \
-            '$1 == "unfinished" && p != "" && index($3, p) == 1')
+          # such a row is read again, up to three times ten seconds apart,
+          # before it is accepted: analyze's result is not the listing's
+          # equal, `needs` having missed matrix cells that died in *Set up
+          # job* (btclib-org/btclib#1001), and a row that concludes between
+          # reads is judged below on its conclusion. Only a row this step
+          # would tolerate is waited for, which is a row whose job's result
+          # is success or skipped; a listing with no such row is read once
+          # (btclib-org/.github#1416)
+          reads=0
+          while :; do
+            # `.status` beside the conclusion so that an unfinished job
+            # says which kind it is: queued and running are one word to
+            # `.conclusion` and two facts to a reader of the log
+            jobs=$(gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" \
+              --jq '.jobs[] | "\(.conclusion // "unfinished")\t\(.status)\t\(.name)"')
+            lagging=$(printf '%s\n' "${jobs}" | awk -F'\t' -v p="${prefix}" \
+              '$1 == "unfinished" && p != "" && index($3, p) == 1')
+            if [ -z "${lagging}" ] || [ "${reads}" -eq 3 ]; then
+              break
+            fi
+            reads=$((reads + 1))
+            echo "listed unfinished, read again in 10 s (${reads} of 3):"
+            printf '%s\n' "${lagging}"
+            sleep 10
+          done
+          # printed before it is judged: the job whose purpose is to be
+          # trusted is the one that has to be able to say what it saw
+          printf '%s\n' "${jobs}"
+          # awk and not grep: a tab in a grep pattern is one
+          # implementation's extension and a literal "t" in another's,
+          # where awk's field separator is POSIX
+          bad=$(printf '%s\n' "${jobs}" |
+            awk -F'\t' '$1 != "success" && $1 != "skipped" && $1 != "unfinished"')
           if [ -n "${lagging}" ]; then
-            echo "listed unfinished, accepted as analyze's (${ANALYZE_RESULT}):"
+            echo "still listed unfinished, accepted as analyze's (${ANALYZE_RESULT}):"
             printf '%s\n' "${lagging}"
           fi
           counted=$(printf '%s\n' "${jobs}" | awk -F'\t' -v p="${prefix}" \
@@ -289,6 +309,19 @@ jobs:
             printf '\n'
           }
           verdict=0
+          # analyze's own result is judged beside the listing and not only
+          # through it: a failure `needs` reports with no row of analyze's
+          # listed as failed, or with its rows missing, is still a failure
+          # (btclib-org/.github#1424). This turns a pass into a fail and
+          # never the reverse, so the judgements of the listing below lose
+          # nothing
+          case "${ANALYZE_RESULT}" in
+            success | skipped) ;;
+            *)
+              annotate "analyze's own result is '${ANALYZE_RESULT}'" ""
+              verdict=1
+              ;;
+          esac
           if [ -n "${bad}" ]; then
             annotate "these jobs of the run did not succeed:" "${bad}"
             verdict=1
