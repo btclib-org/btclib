@@ -21,6 +21,7 @@ else in this library parses the format (issue #1188).
 
 from __future__ import annotations
 
+import string
 from typing import Literal
 
 from btclib import b32
@@ -153,7 +154,7 @@ def prv_key_data_from_wif(
     # coerced before stripping, as b32.witness_from_address does, so that
     # surrounding whitespace is trimmed from bytes input too rather than
     # only from a caller that happened to pass a str (issue #2297)
-    wif = str_from_string(wif, "WIF").strip()
+    wif = str_from_string(wif, "WIF").strip(string.whitespace)
 
     # only a value no WIF has is re-classed: a wrong type leaves b58decode
     # as the BTClibTypeError it is, that being the caller's own mistake
@@ -208,7 +209,7 @@ def h160_from_address(b58addr: String) -> tuple[ScriptType, bytes, str]:
     # coerced before stripping, as b32.witness_from_address does, so that
     # surrounding whitespace is trimmed from bytes input too rather than
     # only from a caller that happened to pass a str (issue #2297)
-    b58addr = str_from_string(b58addr, "address").strip()
+    b58addr = str_from_string(b58addr, "address").strip(string.whitespace)
     payload = b58decode(b58addr, 21)
     prefix = payload[:1]
 

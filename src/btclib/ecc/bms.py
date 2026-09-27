@@ -112,6 +112,7 @@ from __future__ import annotations
 
 import base64
 import secrets
+import string
 from dataclasses import dataclass
 from hashlib import sha256
 
@@ -253,7 +254,7 @@ class Sig:
         # method (issue #814). Stripping then covers what came as bytes
         # as well as what came as text: the whitespace around a copied
         # and pasted signature is the one laxity worth tolerating
-        text = str_from_string(data, "base64 signature").strip()
+        text = str_from_string(data, "base64 signature").strip(string.whitespace)
         try:
             data_bin = text.encode("ascii")
             data_decoded = base64.b64decode(data_bin, validate=True)
@@ -319,7 +320,7 @@ def sign(msg: Octets, prv_key: PrvKeyData, addr: String | None = None) -> Sig:
     )
 
     if addr is not None:
-        addr = str_from_string(addr, "address").strip()
+        addr = str_from_string(addr, "address").strip(string.whitespace)
 
     # finally, calculate the recovery flag
     if addr is None or addr == p2pkh(pub_key):

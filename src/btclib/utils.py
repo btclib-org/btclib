@@ -205,6 +205,12 @@ def str_from_string(s: String, what: str) -> str:
     Nothing is stripped and nothing is lowered: which of those is right
     is the caller's to know, a message to be signed being the one String
     whose blanks are part of it.
+
+    A caller that strips passes `string.whitespace`, the six characters
+    of Bitcoin Core's `IsSpace`. `str.strip()` with no argument also
+    takes U+00A0, U+3000, U+2028, U+001C and every other character
+    `str.isspace` counts, so a string padded with them would be taken
+    for the value it wraps.
     """
     if isinstance(s, str):
         return s

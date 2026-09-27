@@ -36,6 +36,7 @@ src/protocol.h and src/netaddress.cpp.
 
 from __future__ import annotations
 
+import string
 from dataclasses import FrozenInstanceError, replace
 from io import BytesIO
 from ipaddress import IPv4Address, IPv6Address
@@ -483,3 +484,19 @@ def test_the_flag_still_switches_the_check_off() -> None:
     assert invalid.serialize(check_validity=False)[:4] == b"\x01\x00\x00\x00"
     with pytest.raises(BTClibTypeError, match="invalid timestamp type: bool"):
         invalid.serialize()
+
+
+# what str.strip() with no argument also takes and Bitcoin Core's IsSpace
+# does not: NO-BREAK SPACE, IDEOGRAPHIC SPACE, LINE SEPARATOR, and two of
+# the control characters str.isspace counts
+_NON_CORE_SPACES = [chr(c) for c in (0xA0, 0x3000, 0x2028, 0x1C, 0x85)]
+
+
+@pytest.mark.parametrize("pad", _NON_CORE_SPACES)
+def test_only_ascii_whitespace_is_stripped_from_an_ip(pad: str) -> None:
+    """ASCII whitespace around an ip is trimmed, and nothing else is."""
+    ip = "10.0.0.1"
+    ws = string.whitespace
+    assert NetworkAddress(ip=f"{ws}{ip}{ws}") == NetworkAddress(ip=ip)
+    with pytest.raises(BTClibValueError, match="invalid ip: "):
+        NetworkAddress(ip=f"{pad}{ip}{pad}")
