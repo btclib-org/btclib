@@ -10,6 +10,7 @@ import string
 from decimal import (
     Decimal,
     FloatOperation,
+    Inexact,
     InvalidOperation,
     getcontext,
     localcontext,
@@ -435,3 +436,83 @@ def test_an_exponent_decimal_cannot_hold_is_refused_in_kind(trap: bool) -> None:
         ctx.traps[InvalidOperation] = trap
         with pytest.raises(BTClibValueError, match="invalid BTC amount"):
             valid_btc_amount(_PAST_DECIMAL)
+
+
+# the reproductions of issue #2387: a caller's context decides nothing
+@pytest.mark.parametrize("trap", [True, False])
+def test_a_low_precision_changes_no_amount(trap: bool) -> None:
+    """At ten digits an amount near the cap is past the quantize's reach.
+
+    Trapped, the quantize raised a bare InvalidOperation; untrapped, it
+    gave a NaN and an amount of one decimal was refused as having too
+    many; and the product in `btc_from_sats` rounded to ten digits.
+    """
+    with localcontext() as ctx:
+        ctx.prec = 10
+        ctx.traps[InvalidOperation] = trap
+        assert valid_btc_amount("20999999.5") == Decimal("20999999.5")
+        assert sats_from_btc(Decimal("20999999.12345678")) == 2_099_999_912_345_678
+        assert btc_from_sats(2_099_999_912_345_678) == Decimal("20999999.12345678")
+        assert btc_from_sats(2_100_000_000_000_000) == 21_000_000
+        with pytest.raises(BTClibValueError, match="too many decimals"):
+            valid_btc_amount("20999999.123456789")
+
+
+def test_a_trapped_inexact_changes_no_amount() -> None:
+    """No amount in range is rounded, so `Inexact` is never signalled."""
+    with localcontext() as ctx:
+        ctx.traps[Inexact] = True
+        assert sats_from_btc(Decimal("20999999.12345678")) == 2_099_999_912_345_678
+        assert btc_from_sats(1) == Decimal("0.00000001")
+
+
+def test_a_long_spelling_is_returned_as_parsed() -> None:
+    """The sign of a zero is cleared without rounding to any precision."""
+    spelled = "1." + "0" * 40
+    assert str(valid_btc_amount(spelled)) == spelled
+    assert str(valid_btc_amount("-0.00000000")) == "0E-8"
+
+
+# the review's cases for issue #2387: a dust threshold is an amount, and
+# a negative one admitted amounts _CONTEXT's precision cannot quantize
+@pytest.mark.parametrize(
+    "amount, dust",
+    [
+        ("-100000000", Decimal("-1e9")),
+        ("-1000000000000", Decimal("-1e20")),
+        ("-50000000", Decimal("-1e9")),
+        ("1", Decimal("NaN")),
+        ("1", Decimal("sNaN")),
+        ("1", Decimal("Infinity")),
+        ("1", Decimal("-0.00000001")),
+        ("1", Decimal("21000000.00000001")),
+    ],
+)
+def test_a_btc_dust_threshold_is_an_amount(amount: str, dust: Decimal) -> None:
+    """Not finite, negative or above the cap, it is refused in kind."""
+    with pytest.raises(BTClibValueError, match="invalid BTC dust threshold"):
+        valid_btc_amount(amount, dust=dust)
+
+
+@pytest.mark.parametrize(
+    "dust",
+    [
+        -1,
+        -(10**9),
+        2_100_000_000_000_001,
+        pytest.param(10**5000, id="10**5000"),
+    ],
+)
+def test_a_sats_dust_threshold_is_an_amount(dust: int) -> None:
+    """Negative or above the cap, it is refused, and the message quotes none."""
+    with pytest.raises(BTClibValueError, match="invalid satoshi dust threshold$"):
+        valid_sats_amount(-5, dust=dust)
+
+
+def test_a_dust_threshold_at_either_end_is_an_amount() -> None:
+    """Zero and the cap are thresholds, the cap admitting the cap alone."""
+    assert valid_btc_amount("0", dust=Decimal(0)) == 0
+    assert valid_btc_amount("-0", dust=Decimal("-0")) == 0
+    assert valid_btc_amount("21000000", dust=Decimal(21_000_000)) == 21_000_000
+    assert valid_sats_amount(0, dust=0) == 0
+    assert valid_sats_amount(2_100_000_000_000_000, dust=2_100_000_000_000_000) > 0

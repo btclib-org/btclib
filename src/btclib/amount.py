@@ -19,7 +19,16 @@ from __future__ import annotations
 
 import re
 import string
-from decimal import Decimal, FloatOperation, InvalidOperation, localcontext
+from decimal import (
+    MAX_EMAX,
+    MIN_EMIN,
+    ROUND_HALF_EVEN,
+    Context,
+    Decimal,
+    FloatOperation,
+    InvalidOperation,
+    localcontext,
+)
 from typing import Any
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -31,13 +40,6 @@ __all__ = [
     "valid_btc_amount",
     "valid_sats_amount",
 ]
-
-# The two functions below doing Decimal algebra trap FloatOperation in a
-# local context, not in the process-wide one at import time:
-# getcontext().traps[FloatOperation] = True would change the Decimal
-# semantics of the unrelated code of any application merely importing
-# btclib; moreover, the current context is thread-local, so the trap the
-# functions rely on would be absent in any thread created elsewhere.
 
 # do not import _SATOSHI_PER_BITCOIN and _BITCOIN_PER_SATOSHI
 # instead, better use sats_from_btc and btc_from_sats
@@ -63,6 +65,43 @@ _BITCOIN_PER_SATOSHI = Decimal("0.00000001")
 # paragraph above belongs to both of them
 _MAX_BITCOIN = Decimal(21_000_000)
 _MAX_SATOSHI = int(_MAX_BITCOIN * _SATOSHI_PER_BITCOIN)
+
+# The context this module's Decimal arithmetic runs in, and
+# FeeRate.from_btc_per_kvbyte's rounding with it: built here rather than
+# copied from the caller's, whose precision and traps are the
+# application's and would otherwise decide what an amount is: a lower
+# precision makes quantize signal InvalidOperation on an amount in range
+# and rounds a product silently, and a trapped Inexact makes the
+# rounding round_up exists for raise. Set on a local context, never on
+# the process-wide one, which would change the Decimal semantics of any
+# application merely importing btclib, and which is thread-local anyway.
+#
+# The precision is what an amount in range needs to be exact. The range
+# runs from a dust threshold to MAX_MONEY, and the threshold is itself
+# refused outside zero to MAX_MONEY, so an amount in range is at most
+# _MAX_SATOSHI satoshi in magnitude: a quantize to one satoshi, a
+# product by _SATOSHI_PER_BITCOIN and a product of a satoshi count by
+# _BITCOIN_PER_SATOSHI all have a value of at most as many significant
+# digits as _MAX_SATOSHI. What needs more is out of range:
+# valid_btc_amount, sats_from_btc and btc_from_sats refuse it before
+# the operation, and from_btc_per_kvbyte's rounding, which runs ahead of
+# any range check, turns the InvalidOperation its quantize signals into
+# a refusal of its own. The exponent limits are the widest there are, and
+# every field is spelled out, since one left unset is copied from the
+# process-wide DefaultContext. FloatOperation is trapped so that no
+# float reaches the arithmetic unnoticed, InvalidOperation so that the
+# signal is a raise and not a NaN; Inexact is not, a rounding being
+# round_up's whole purpose
+_CONTEXT = Context(
+    prec=len(str(_MAX_SATOSHI)),
+    rounding=ROUND_HALF_EVEN,
+    Emin=MIN_EMIN,
+    Emax=MAX_EMAX,
+    capitals=1,
+    clamp=0,
+    flags=[],
+    traps=[FloatOperation, InvalidOperation],
+)
 
 
 # Bitcoin Core's `ParseFixedPoint` grammar: an optional "-", then a lone
@@ -104,15 +143,11 @@ def _decimal_from_text(text: str, err_msg: str) -> Decimal:
     The grammar `_number_text` holds the text to spells no NaN and no
     infinity, but it does spell an exponent past what `Decimal` can hold
     ("1e" and thirty nines). `Decimal` signals InvalidOperation on that,
-    and what the signal does is the caller's context's to say: trapped,
-    it raises an ArithmeticError nobody catches around an amount;
-    untrapped, it returns a NaN. So the conversion runs in a context that
-    traps it, whatever the caller's does, and the refusal is this
-    library's.
+    which `_CONTEXT` traps, so the refusal is this library's whatever the
+    caller's context does with the signal.
     """
     text = _number_text(text, err_msg)
-    with localcontext() as ctx:
-        ctx.traps[InvalidOperation] = True
+    with localcontext(_CONTEXT):
         try:
             return Decimal(text)
         except InvalidOperation as e:
@@ -125,44 +160,56 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
     None reads as zero, and anything str() renders as a decimal number
     in ASCII is accepted. Refused: an amount below `dust` or above the 21
     million cap, and one with more than 8 decimals, no output being
-    able to carry a fraction of a satoshi.
+    able to carry a fraction of a satoshi. `dust` is an amount too, so
+    one that is not finite, is negative or is above the cap is refused.
     """
     # dust is compared against the parsed amount inside the FloatOperation
-    # trap this function sets below, so a float dust trips that trap and
-    # leaks a bare decimal.FloatOperation instead of this library's own
-    # exception contract. It is type-checked here, by name and not by
-    # attempting a conversion, the same way valid_sats_amount type-checks
-    # its own dust threshold
+    # trap _CONTEXT sets, so a float dust trips that trap and leaks a bare
+    # decimal.FloatOperation instead of this library's own exception
+    # contract. It is type-checked here, by name and not by attempting a
+    # conversion, the same way valid_sats_amount type-checks its own dust
+    # threshold
     if not isinstance(dust, Decimal):
         raise BTClibTypeError(f"non-Decimal BTC dust threshold: {dust}")
-    with localcontext() as ctx:
-        ctx.traps[FloatOperation] = True
+    # a threshold is an amount, and bounding it is what bounds the range
+    # below to amounts _CONTEXT holds exactly: a negative one would admit
+    # a negative amount of any magnitude. is_finite goes first, a NaN
+    # signalling InvalidOperation on the comparisons after it
+    if not (dust.is_finite() and 0 <= dust <= _MAX_BITCOIN):
+        raise BTClibValueError("invalid BTC dust threshold")
+    with localcontext(_CONTEXT):
         # any input that can be converted to str is fine
         amount = "0" if amount is None else str(amount)
         err_msg = f"invalid BTC amount: {amount}"
         # using str in the Decimal constructor avoids the
-        # FloatOperation exception trapped just above; what comes back
-        # is finite, so the range check below compares finite values
+        # FloatOperation exception _CONTEXT traps; what comes back is
+        # finite, so the range check below compares finite values
         btc = _decimal_from_text(amount, err_msg)
         if not dust <= btc <= _MAX_BITCOIN:
             raise BTClibValueError(err_msg)
+        # in range, so the quantize is exact at _CONTEXT's precision
         if btc == btc.quantize(_BITCOIN_PER_SATOSHI):
             # a signed zero ("-0", "-0.00000000") compares equal to zero
-            # and passes every check above unchanged; unary plus clears
-            # the sign of a zero result and leaves every other value,
-            # exponent included, exactly as parsed
-            return +btc
+            # and passes every check above unchanged; copy_abs clears its
+            # sign, reading no context, and every other value is returned
+            # exactly as parsed, exponent included
+            return btc.copy_abs() if btc.is_zero() else btc
         raise BTClibValueError(f"too many decimals for a BTC amount: {amount}")
 
 
 def sats_from_btc(amount: Decimal) -> int:
     """Return the satoshi equivalent of the provided BTC amount."""
     btc = valid_btc_amount(amount)
-    return int(btc * _SATOSHI_PER_BITCOIN)
+    with localcontext(_CONTEXT):
+        return int(btc * _SATOSHI_PER_BITCOIN)
 
 
 def valid_sats_amount(amount: Any, dust: int = 0) -> int:
-    """Return the satoshi amount as int, if valid and not less than dust."""
+    """Return the satoshi amount as int, if valid and not less than dust.
+
+    `dust` is an amount too, so one that is negative or is above the cap
+    is refused.
+    """
     # a bool is an int in Python, so True reached the conversion below as
     # the number one and `int(True) == True` let it through the equality
     # check as well: refused by name, for the reason is_integer gives --
@@ -175,6 +222,11 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     # one satoshi rather than a caller error
     if not is_integer(dust):
         raise BTClibTypeError(f"non-integer satoshi dust threshold: {dust}")
+    # bounded as valid_btc_amount bounds its own, so that the two keep one
+    # contract; the message quotes no value, an int past 4300 digits
+    # being one str() refuses
+    if not 0 <= dust <= _MAX_SATOSHI:
+        raise BTClibValueError("invalid satoshi dust threshold")
     text = amount
     if isinstance(amount, str):
         text = _number_text(amount, f"invalid satoshi amount: {amount}")
@@ -211,8 +263,7 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
 def btc_from_sats(amount: int) -> Decimal:
     """Return the BTC Decimal equivalent of the provided satoshi amount."""
     sats = valid_sats_amount(amount)
-    with localcontext() as ctx:
-        ctx.traps[FloatOperation] = True
+    with localcontext(_CONTEXT):
         # normalize() strips the rightmost trailing zeros
         # and produces canonical values for attributes of an equivalence class
         return (sats * _BITCOIN_PER_SATOSHI).normalize()

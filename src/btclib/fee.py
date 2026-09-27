@@ -49,7 +49,13 @@ from typing import Any
 
 from btclib import var_int
 from btclib.alias import Octets
-from btclib.amount import _decimal_from_text, sats_from_btc, valid_sats_amount
+from btclib.amount import (
+    _CONTEXT,
+    _MAX_SATOSHI,
+    _decimal_from_text,
+    sats_from_btc,
+    valid_sats_amount,
+)
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script.script_pub_key import is_segwit
 from btclib.script.spendability import is_unspendable
@@ -121,9 +127,16 @@ class FeeRate:
         str() renders as a decimal number in ASCII; a float is read
         through its repr, so 1.1 is the 1.1 that was written rather than
         the binary fraction nearest to it. Refused: what does not read as
-        a decimal number, is not finite, or is not a whole number of
-        millisatoshi per virtual byte -- what sat/kvB cannot hold
-        exactly -- unless `round_up`.
+        a decimal number, is not finite, is above MAX_MONEY satoshi per
+        virtual byte, or is not a whole number of millisatoshi per
+        virtual byte -- what sat/kvB cannot hold exactly -- unless
+        `round_up`.
+
+        MAX_MONEY per virtual byte is a validity bound, not a policy
+        one: no fee exceeds MAX_MONEY and no transaction is smaller than
+        a virtual byte, so a higher rate is one nothing can pay. Bitcoin
+        Core's `ParseFeeRate` refuses from 1 BTC/kvB, which is its RPC's
+        policy and is left to the caller.
 
         `round_up`, off by default, is for a quote a caller did not
         state but a backend answered: refusing an ordinary explorer
@@ -143,6 +156,28 @@ class FeeRate:
         # finite in any caller's context, so as_integer_ratio below,
         # which raises on a NaN and on an infinity, is never handed one
         rate = _decimal_from_text(str(sats_per_vbyte), err_msg)
+        # both ends of the exponent are settled here, ahead of
+        # as_integer_ratio, which builds an int of as many digits as the
+        # exponent is large: "1e10000000" and "1e-10000000" are short
+        # strings. Neither test reads a context, and each costs the same
+        # whatever the exponent. The upper bound compares with MAX_MONEY
+        # exactly, below -MAX_MONEY included, a negative rate being
+        # refused anyway
+        if rate.copy_abs() > _MAX_SATOSHI:
+            raise BTClibValueError(err_msg)
+        # a nonzero rate whose leading digit is below the third decimal is
+        # under one millisatoshi per virtual byte in magnitude: refused as
+        # too fine, and with round_up rounded up to one millisatoshi --
+        # the answers the remainder below gives, without the denominator
+        if not rate.is_zero() and rate.adjusted() < -3:
+            if not round_up:
+                raise BTClibValueError(
+                    "sat/vB fee rate finer than a millisatoshi per virtual byte: "
+                    f"{sats_per_vbyte}"
+                )
+            if rate < 0:
+                raise BTClibValueError(f"negative sat/vB fee rate: {sats_per_vbyte}")
+            return cls(sats_per_kvbyte=1)
         # the ratio is exact and reads no decimal context, where
         # multiplying the Decimal by a thousand would round to whatever
         # precision the caller's context happens to carry. A conversion
@@ -235,13 +270,12 @@ class FeeRate:
                 raise BTClibValueError(err_msg)
             # one satoshi in BTC: quantizing to it with ROUND_CEILING is
             # the whole of "round up" -- sats_from_btc still runs the
-            # canonical range check on what this produces. A magnitude
-            # past the context's precision signals InvalidOperation, which
-            # an untrapping caller's context would turn into a NaN: it is
-            # trapped here, and refused rather than left to escape as a
-            # bare ArithmeticError
-            with localcontext() as ctx:
-                ctx.traps[InvalidOperation] = True
+            # canonical range check on what this produces. In amount's
+            # _CONTEXT, not the caller's: its precision holds any quote up
+            # to the cap exactly, and a quote needing more is above the
+            # cap, where the quantize's trapped InvalidOperation refuses
+            # it; its Inexact is untrapped, the rounding being the point
+            with localcontext(_CONTEXT):
                 try:
                     btc_per_kvbyte = rate.quantize(
                         Decimal("0.00000001"), rounding=ROUND_CEILING
@@ -259,13 +293,20 @@ class FeeRate:
         hold, and handing back 1.1000000000000001 would undo the
         conversion that refused to truncate on the way in.
         """
-        whole, milli_sats = divmod(self.sats_per_kvbyte, _VBYTES_PER_KVBYTE)
-        # built from its digits rather than by dividing two Decimals,
-        # which rounds to the ambient context precision: what a caller
-        # has set that to is no business of a fee rate.
-        # normalize() strips the trailing zeros, as btc_from_sats does,
-        # so that equal rates print the same way
-        return Decimal(f"{whole}.{milli_sats:03d}").normalize()
+        # built from its digits rather than by dividing two Decimals or
+        # calling normalize(), both of which round to the ambient
+        # context's precision: what a caller has set that to is no
+        # business of a fee rate, and a FeeRate built directly has no
+        # bound a library-owned precision could be sized for. The
+        # trailing zeros are stripped into the exponent, which is what
+        # normalize() does, so that equal rates print the same way;
+        # Decimal(str) is exact and reads no context
+        if not self.sats_per_kvbyte:
+            return Decimal(0)
+        digits = str(self.sats_per_kvbyte)
+        coefficient = digits.rstrip("0")
+        exponent = len(digits) - len(coefficient) - 3
+        return Decimal(f"{coefficient}E{exponent}")
 
 
 def fee_from_vsize(vsize: int, fee_rate: FeeRate) -> int:

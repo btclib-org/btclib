@@ -355,6 +355,13 @@ full year, short month, short day (YYYY-M-D)
   Bitcoin Core relays a p2wsh spend only while its witness script is at
   most 3600 bytes, its `MAX_STANDARD_P2WSH_SCRIPT_SIZE`, a policy limit
   btclib does not apply.
+- **`FeeRate.from_sats_per_vbyte` refuses a rate above MAX_MONEY satoshi
+  per virtual byte** (closes #2385), with `BTClibValueError`, where it
+  built the `FeeRate`: no fee exceeds MAX_MONEY and no transaction is
+  under a virtual byte, so nothing can pay such a rate.
+
+  Act on it if your code can pass a rate that large: catch
+  `BTClibValueError` there.
 
 ## v2026.9.24
 

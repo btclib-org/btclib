@@ -18,10 +18,19 @@ tautology.
 from __future__ import annotations
 
 import string
-from decimal import Decimal, InvalidOperation, localcontext
+from decimal import (
+    Decimal,
+    DecimalException,
+    Inexact,
+    InvalidOperation,
+    Rounded,
+    localcontext,
+)
 from typing import Any
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.fee import (
@@ -770,3 +779,160 @@ def test_rounding_past_the_precision_is_refused_in_an_untrapping_context() -> No
         ctx.traps[InvalidOperation] = False
         with pytest.raises(BTClibValueError, match="invalid BTC/kvB fee rate: 1e30"):
             FeeRate.from_btc_per_kvbyte("1e30", round_up=True)
+
+
+# MAX_MONEY in satoshi, written out rather than imported so that the
+# bound under test is not the constant it is checked against
+_MAX_MONEY = 2_100_000_000_000_000
+
+
+def _reference_from_sats_per_vbyte(text: str, round_up: bool) -> int | str:
+    """Return the sat/kvB, or the refusal's message, as the divmod reads it.
+
+    `from_sats_per_vbyte`'s arithmetic with no bound ahead of it: inside
+    the bounds the two agree.
+    """
+    rate = Decimal(text)
+    numerator, denominator = rate.as_integer_ratio()
+    sats_per_kvbyte, remainder = divmod(numerator * 1000, denominator)
+    if remainder:
+        if not round_up:
+            return f"sat/vB fee rate finer than a millisatoshi per virtual byte: {text}"
+        if rate < 0:
+            return f"negative sat/vB fee rate: {text}"
+        sats_per_kvbyte += 1
+    if sats_per_kvbyte < 0:
+        return f"negative fee rate: {sats_per_kvbyte} sat/kvB"
+    return sats_per_kvbyte
+
+
+def _from_sats_per_vbyte(text: str, round_up: bool) -> int | str:
+    try:
+        return FeeRate.from_sats_per_vbyte(text, round_up=round_up).sats_per_kvbyte
+    except BTClibValueError as e:
+        return str(e)
+
+
+@given(
+    st.integers(-(10**18), 10**18),
+    st.integers(-24, 3),
+    st.booleans(),
+)
+def test_a_rate_inside_the_bounds_reads_as_the_divmod_reads_it(
+    coefficient: int, exponent: int, round_up: bool
+) -> None:
+    """The bounds change no answer for a rate of magnitude up to MAX_MONEY.
+
+    Below one millisatoshi per virtual byte included, where the check on
+    the exponent answers ahead of the divmod: refused as too fine, or with
+    `round_up` one millisatoshi per virtual byte, or refused as negative.
+    """
+    rate = Decimal(coefficient).scaleb(exponent)
+    if rate.copy_abs() > _MAX_MONEY:
+        return
+    text = str(rate)
+    expected = _reference_from_sats_per_vbyte(text, round_up)
+    assert _from_sats_per_vbyte(text, round_up) == expected
+
+
+@pytest.mark.parametrize("round_up", [False, True])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "0",
+        "0.001",
+        "0.0009999",
+        "0.0001",
+        "-0.0001",
+        "-0.001",
+        "1e-4",
+        "0.0010001",
+        "2100000000000000",
+        "-2100000000000000",
+        "2099999999999999.999",
+    ],
+)
+def test_the_edges_of_the_bounds_read_as_the_divmod_reads_them(
+    text: str, round_up: bool
+) -> None:
+    """One millisatoshi and MAX_MONEY per virtual byte, either side."""
+    expected = _reference_from_sats_per_vbyte(text, round_up)
+    assert _from_sats_per_vbyte(text, round_up) == expected
+
+
+@pytest.mark.parametrize("round_up", [False, True])
+@pytest.mark.parametrize(
+    "text", ["2100000000000000.001", "2.1e15000", "1e16", "-1e16", "-2100000000000001"]
+)
+def test_a_rate_above_max_money_per_vbyte_is_refused(text: str, round_up: bool) -> None:
+    """No fee exceeds MAX_MONEY and no transaction is under one vbyte."""
+    with pytest.raises(BTClibValueError, match="invalid sat/vB fee rate: "):
+        FeeRate.from_sats_per_vbyte(text, round_up=round_up)
+
+
+# the reproductions of issue #2385: an int of ten million digits is some
+# seconds of arithmetic, and the check on the exponent is microseconds.
+# The timeout is what fails a regression, pytest-timeout interrupting at
+# the first bytecode after the big-int arithmetic returns
+@pytest.mark.timeout(5)
+@pytest.mark.parametrize("round_up", [False, True])
+def test_a_large_exponent_is_decided_without_the_big_int(round_up: bool) -> None:
+    """Neither end of the exponent reaches `as_integer_ratio`."""
+    with pytest.raises(BTClibValueError, match="invalid sat/vB fee rate: "):
+        FeeRate.from_sats_per_vbyte("1e10000000", round_up=round_up)
+    tiny = "1e-10000000"
+    if round_up:
+        rate = FeeRate.from_sats_per_vbyte(tiny, round_up=round_up)
+        assert rate == FeeRate(sats_per_kvbyte=1)
+    else:
+        with pytest.raises(BTClibValueError, match="finer than a millisatoshi"):
+            FeeRate.from_sats_per_vbyte(tiny, round_up=round_up)
+
+
+# the reproductions of issue #2387: a caller's context decides nothing
+@pytest.mark.parametrize("trap", [Inexact, Rounded])
+def test_round_up_rounds_whatever_the_caller_traps(
+    trap: type[DecimalException],
+) -> None:
+    """The rounding is `round_up`'s purpose, and `Inexact` is not trapped."""
+    with localcontext() as ctx:
+        ctx.traps[trap] = True
+        rate = FeeRate.from_btc_per_kvbyte("0.000000011", round_up=True)
+        assert rate == FeeRate(sats_per_kvbyte=2)
+        rate = FeeRate.from_btc_per_kvbyte("20999999.123456781", round_up=True)
+        assert rate == FeeRate(sats_per_kvbyte=2_099_999_912_345_679)
+
+
+@pytest.mark.parametrize("trap", [True, False])
+def test_a_low_precision_changes_no_fee_rate(trap: bool) -> None:
+    """At ten digits the quantize and the product would be inexact."""
+    with localcontext() as ctx:
+        ctx.prec = 10
+        ctx.traps[InvalidOperation] = trap
+        rate = FeeRate.from_btc_per_kvbyte("20999999.123456781", round_up=True)
+        assert rate == FeeRate(sats_per_kvbyte=2_099_999_912_345_679)
+        rate = FeeRate.from_btc_per_kvbyte("20999999.12345678")
+        assert rate == FeeRate(sats_per_kvbyte=2_099_999_912_345_678)
+        big = FeeRate(sats_per_kvbyte=2_099_999_912_345_678_123)
+        assert big.sats_per_vbyte == Decimal("2099999912345678.123")
+
+
+@pytest.mark.parametrize(
+    "sats_per_kvbyte, per_vbyte",
+    [
+        (0, "0"),
+        (1, "0.001"),
+        (1500, "1.5"),
+        (10_000, "1E+1"),
+        (1_000, "1"),
+        (123_450, "123.45"),
+        (2_099_999_912_345_678_123, "2099999912345678.123"),
+    ],
+)
+def test_sats_per_vbyte_prints_as_normalize_does(
+    sats_per_kvbyte: int, per_vbyte: str
+) -> None:
+    """The trailing zeros go into the exponent, as `normalize()` puts them."""
+    rate = FeeRate(sats_per_kvbyte=sats_per_kvbyte).sats_per_vbyte
+    assert str(rate) == per_vbyte
+    assert str(rate) == str(Decimal(sats_per_kvbyte).scaleb(-3).normalize())

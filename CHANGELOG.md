@@ -539,6 +539,12 @@ A lagging row is read again up to three times, 10 s apart, before it is
 accepted (issue btclib-org/.github#1416), and a `needs.analyze.result` neither
 `success` nor `skipped` fails the step (issue btclib-org/.github#1424).
 
+### Amount arithmetic runs in btclib's own context, and sat/vB rates are bounded
+
+A caller's decimal precision and traps change no amount or rate, and a dust
+threshold outside zero to MAX_MONEY is refused (closes #2387). A rate above
+MAX_MONEY sat/vB is refused, and no exponent builds a huge int (closes #2385).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
