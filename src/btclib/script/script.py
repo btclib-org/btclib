@@ -26,6 +26,7 @@ and refused by their own rules.
 
 from __future__ import annotations
 
+import string
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from functools import cached_property
@@ -314,6 +315,16 @@ OP_CODE_NAME_FROM_INT = {
 # decimal number and a non-minimal push as a minimal one.
 ERROR_COMMAND = "[error]"
 
+# The name parse gives a byte it neither reads as a push nor finds in
+# OP_CODE_NAME_FROM_INT, and the one spelling serialize reads back as that
+# byte: looked up exactly, as an op code name is, where `int` also reads
+# "1_87", "+187" and "0187", and a number naming another byte or none
+_BYTE_FROM_UNKNOWN_OP_CODE_NAME = {
+    f"UNKNOWN_OP_CODE_{i}": i.to_bytes(1, "big")
+    for i in range(256)
+    if not 0 < i <= 78 and i not in OP_CODE_NAME_FROM_INT
+}
+
 
 def op_int(i: int) -> str:
     """Name the one-byte op code that pushes the number i, -1 to 16.
@@ -369,8 +380,8 @@ def _serialize_int_command(command: int) -> bytes:
 
 
 def _assert_ascii_command(command: str) -> None:
-    # ahead of `strip`, which strips Unicode whitespace too, and of anything
-    # reading a number: `int` takes any Unicode decimal digit
+    # ahead of anything reading a number: `str.isdigit` and `int` take
+    # any Unicode decimal digit
     if not command.isascii():
         raise BTClibValueError("non-ASCII string command")
 
@@ -381,9 +392,12 @@ def _serialize_str_command(command: str) -> bytes:
     # I and U+017F onto S, so a case mapping would look a name that is no
     # op code's up as one. Hex data is read in either case
     _assert_ascii_command(command)
-    command = command.strip()
+    # `string.whitespace`, for the reason `str_from_string` gives
+    command = command.strip(string.whitespace)
     if command in BYTE_FROM_OP_CODE_NAME:
         return BYTE_FROM_OP_CODE_NAME[command]
+    if command in _BYTE_FROM_UNKNOWN_OP_CODE_NAME:
+        return _BYTE_FROM_UNKNOWN_OP_CODE_NAME[command]
     try:
         data = bytes.fromhex(command)
     except ValueError as e:
@@ -462,10 +476,13 @@ def serialize(script: Sequence[Command]) -> bytes:
     An integer is encoded as the number it pushes -- with a warning
     where a one-byte op code means the same, and a refusal outside the
     int64 a script number is -- a string is an upper-case op code name,
-    an UNKNOWN_OP_CODE_n byte, or hex data, and bytes are data; data is
-    always the minimal push operator, per BIP62. What parse returns
-    round-trips, ERROR_COMMAND excepted, that marker being a place in
-    the bytes rather than an instruction.
+    an UNKNOWN_OP_CODE_n byte spelled as parse spells it, or hex data,
+    and bytes are data; data is always the minimal push operator, per
+    BIP62. What parse returns round-trips, ERROR_COMMAND excepted, that
+    marker being a place in the bytes rather than an instruction.
+
+    A string command is ASCII, and `string.whitespace` around it is
+    ignored.
 
     The minimal *operator* and not the minimal *command*: data is data,
     so the bytes 0x01 are pushed with a length of one and not with OP_1,
@@ -499,13 +516,7 @@ def serialize(script: Sequence[Command]) -> bytes:
         if isinstance(command, int):
             r.append(_serialize_int_command(command))
         elif isinstance(command, str):
-            # ahead of the UNKNOWN_OP_CODE_n branch, whose `int` reads any
-            # Unicode decimal digit and strips Unicode whitespace
-            _assert_ascii_command(command)
-            if "UNKNOWN_OP_CODE_" in command:
-                r.append(int(command[16:]).to_bytes(1, "big"))
-            else:
-                r.append(_serialize_str_command(command))
+            r.append(_serialize_str_command(command))
         else:  # must be bytes
             r.append(_serialize_bytes_command(command))
     return b"".join(r)

@@ -247,6 +247,23 @@ full year, short month, short day (YYYY-M-D)
   Act on it by writing op code names upper-case. Each of these refusals is a
   `BTClibValueError`.
 
+- **`script.serialize` reads an `UNKNOWN_OP_CODE_n` command only as `parse`
+  writes it** (closes #2361). A number written with an underscore, a `+` or a
+  leading zero, or naming a byte that has an op code, raises `invalid string
+  command: <command>`, where it was read as a byte. So does a negative number,
+  one above 255, a name followed by no digits and a name with more than
+  whitespace ahead of it, where each raised a bare `ValueError` or
+  `OverflowError`.
+
+- **`script.serialize` and `taproot.serialize` strip ASCII whitespace alone
+  around a string command** (closes #2363). A command padded with U+001C to
+  U+001F raises `invalid string command: <command>`, where it was taken for
+  the command it wraps.
+
+  Act on either if you catch `OverflowError` from `script.serialize`, or write
+  a string command other than as `parse` does: each refusal is a
+  `BTClibValueError`.
+
 ## v2026.9.24
 
 ### Breaking changes

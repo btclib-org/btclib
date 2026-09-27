@@ -13,6 +13,7 @@ tests/_data/README.md pins the revision of each.
 """
 
 import re
+import string
 from collections.abc import Callable
 from typing import Any
 
@@ -1000,6 +1001,22 @@ def test_op_success_is_spelled_as_parse_writes_it() -> None:
         err_msg = f"^invalid string command: {re.escape(command)}$"
         with pytest.raises(BTClibValueError, match=err_msg):
             serialize([command, b"\x01"])
+
+
+def test_a_string_command_is_stripped_of_ascii_whitespace_alone() -> None:
+    """`string.whitespace`, Bitcoin Core's IsSpace set (issue #2363).
+
+    `str.strip()` also removes U+001C..U+001F, which `str.isspace`
+    counts, so OP_IF between U+001C and U+001F serialized as OP_IF.
+    """
+    for command in ("OP_IF", "OP_SUCCESS80", "AB"):
+        padded = string.whitespace + command + string.whitespace
+        assert serialize([padded, b"\x01"]) == serialize([command, b"\x01"])
+        for c in "\x1c\x1d\x1e\x1f":
+            with pytest.raises(BTClibValueError, match="^invalid string command: "):
+                serialize([c + command, b"\x01"])
+            with pytest.raises(BTClibValueError, match="^invalid string command: "):
+                serialize([command + c, b"\x01"])
 
 
 def test_op_success_is_followed_by_bytes_however_they_are_held() -> None:

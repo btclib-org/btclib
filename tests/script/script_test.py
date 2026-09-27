@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import re
+import string
 from typing import Any
 
 import pytest
@@ -233,6 +235,58 @@ def test_an_op_code_name_is_matched_as_parse_writes_it() -> None:
 
     # hex data is data, and read in either case
     assert serialize(["ab"]) == serialize(["AB"]) == b"\x01\xab"
+
+
+def test_an_unknown_op_code_is_read_as_parse_writes_it() -> None:
+    """UNKNOWN_OP_CODE_n is looked up, never read with `int` (issue #2361).
+
+    `int` read "1_87", "+187" and "0187" as 187, "118" as OP_DUP's byte
+    and "16" as a push's, and let a bare ValueError out of "zz" and an
+    OverflowError out of "999" and "-1"; the name was found anywhere in the
+    string, so "xxUNKNOWN_OP_CODE_187" was a ValueError too.
+    """
+    # the name of every byte is read back exactly where parse writes it
+    for i in range(256):
+        name = f"UNKNOWN_OP_CODE_{i}"
+        if parse(bytes([i])) == [name]:
+            assert serialize([name]) == bytes([i])
+        else:
+            with pytest.raises(
+                BTClibValueError, match=f"^invalid string command: {name}$"
+            ):
+                serialize([name])
+
+    for command in (
+        "UNKNOWN_OP_CODE_1_87",
+        "UNKNOWN_OP_CODE_+187",
+        "UNKNOWN_OP_CODE_0187",
+        "UNKNOWN_OP_CODE_ 187",
+        "UNKNOWN_OP_CODE_-1",
+        "UNKNOWN_OP_CODE_256",
+        "UNKNOWN_OP_CODE_999",
+        "UNKNOWN_OP_CODE_zz",
+        "UNKNOWN_OP_CODE_",
+        "xxUNKNOWN_OP_CODE_187",
+    ):
+        err_msg = f"^invalid string command: {re.escape(command)}$"
+        with pytest.raises(BTClibValueError, match=err_msg):
+            serialize([command])
+
+
+def test_a_string_command_is_stripped_of_ascii_whitespace_alone() -> None:
+    """`string.whitespace`, Bitcoin Core's IsSpace set (issue #2363).
+
+    `str.strip()` also removes U+001C..U+001F, which `str.isspace`
+    counts, so OP_IF between U+001C and U+001F serialized as OP_IF.
+    """
+    for command in ("OP_IF", "UNKNOWN_OP_CODE_187", "AB"):
+        padded = string.whitespace + command + string.whitespace
+        assert serialize([padded]) == serialize([command])
+        for c in "\x1c\x1d\x1e\x1f":
+            with pytest.raises(BTClibValueError, match="^invalid string command: "):
+                serialize([c + command])
+            with pytest.raises(BTClibValueError, match="^invalid string command: "):
+                serialize([command + c])
 
 
 def test_pushdata4_and_the_only_length_left_to_refuse() -> None:
