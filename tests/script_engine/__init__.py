@@ -4,9 +4,6 @@
 
 """Btclib.script.engine non-regression tests."""
 
-import warnings
-
-from btclib.exceptions import BTClibUserWarning
 from btclib.script.script import BYTE_FROM_OP_CODE_NAME, serialize
 
 
@@ -16,17 +13,17 @@ def parse_script(bitcoin_core_script: str) -> str:
     for y in bitcoin_core_script.split():
         if y[:2] == "0x":
             script_pub_key += y[2:]
-        elif y[1:].isdigit():
-            # a vector spelling a number in [-1, 16] as a decimal is
-            # asking for the data push, not for the op code that means
-            # the same, so the suggestion serialize() emits is noise
-            # here. It is silenced at the one call that provokes it, and
-            # by category: with filterwarnings = ["error"] anything else
-            # any vector raises still fails the suite, which a
-            # simplefilter("ignore") around the loop did not
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", BTClibUserWarning)
-                script_pub_key += serialize([int(y)]).hex()
+        elif y.removeprefix("-").isdigit():
+            # a decimal is Core's `CScript() << int64`, which writes -1 and
+            # 1..16 as the op codes OP_1NEGATE and OP_1..OP_16 and any other
+            # number as its minimal push: "16 0x021234" is a version-16
+            # witness program, and a push of 0x10 in front of it is not
+            n = int(y)
+            if n == -1 or 1 <= n <= 16:
+                name = "OP_1NEGATE" if n == -1 else f"OP_{n}"
+                script_pub_key += BYTE_FROM_OP_CODE_NAME[name].hex()
+            else:
+                script_pub_key += serialize([n]).hex()
         elif y[0] == "'" and y[-1] == "'":
             script_pub_key += serialize([bytes(y[1:-1], "ascii")]).hex()
         else:

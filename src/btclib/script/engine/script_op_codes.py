@@ -14,10 +14,12 @@ restated on each:
   be pushed at 5 bytes and is refused only when an op code consumes it
   again -- Core's asymmetry, kept deliberately
 - a pop from a stack too short raises IndexError, which the loop
-  reports as a stack underflow, and every other refusal is a
-  BTClibValueError; the loop turns both into a ScriptError carrying
-  the index of the failing command. The op codes that check the depth
-  themselves do so only where popping would not fail on its own.
+  reports as Core's INVALID_STACK_OPERATION, and every other refusal
+  is a ScriptError carrying the ScriptErrorCode Core fails with at the
+  same place; the loop re-raises both with the index of the failing
+  command added. The op codes that check the depth themselves do so
+  only where popping would not fail on its own, or where the altstack
+  is the one short: an IndexError cannot say which stack it came from.
 """
 
 from __future__ import annotations
@@ -27,7 +29,7 @@ from io import BytesIO
 from typing import NoReturn
 
 from btclib.alias import ScriptList
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import ScriptError, ScriptErrorCode
 from btclib.hashes import hash160, hash256, ripemd160, sha1, sha256
 from btclib.script.engine.flags import ScriptFlag
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_STACK_SIZE
@@ -121,14 +123,18 @@ _MAX_LOCK_TIME_NUM_SIZE = 5
 
 def _to_num(element: bytes, flags: ScriptFlag, max_size: int) -> int:
     minimaldata = ScriptFlag.MINIMALDATA in flags
+    # both refusals are Core's scriptnum_error, which EvalScript catches
+    # as SCRIPT_ERR_SCRIPTNUM
     if len(element) > max_size:
-        raise BTClibValueError(f"number longer than {max_size} bytes: {len(element)}")
+        err_msg = f"number longer than {max_size} bytes: {len(element)}"
+        raise ScriptError(err_msg, ScriptErrorCode.SCRIPTNUM)
     x = decode_num(element)
     # one comparison covers every non-minimal spelling, negative zero
     # included: `encode_num` writes zero as the empty vector, so `80` and
     # `00` are both something it does not write
     if minimaldata and encode_num(x) != element:
-        raise BTClibValueError(f"non-minimal encoding of {x}: {element.hex()}")
+        err_msg = f"non-minimal encoding of {x}: {element.hex()}"
+        raise ScriptError(err_msg, ScriptErrorCode.SCRIPTNUM)
     return x
 
 
@@ -160,8 +166,9 @@ ScriptOp = Callable[[list[bytes], list[bytes], ScriptFlag], ScriptList | None]
 def assert_stack_size(stack: list[bytes], altstack: list[bytes]) -> None:
     """Enforce Core's MAX_STACK_SIZE on the two stacks together."""
     if len(stack) + len(altstack) > MAX_STACK_SIZE:
-        raise BTClibValueError(
-            f"more than {MAX_STACK_SIZE} stack elements: {len(stack)} + {len(altstack)}"
+        raise ScriptError(
+            f"more than {MAX_STACK_SIZE} stack elements: {len(stack)} + {len(altstack)}",
+            ScriptErrorCode.STACK_SIZE,
         )
 
 
@@ -179,13 +186,15 @@ def assert_minimal_push(
     if ScriptFlag.MINIMALDATA not in flags:
         return
     if (len(data) == 1 and (data[0] == 129 or 0 < data[0] <= 16)) or len(data) == 0:
-        raise BTClibValueError(
+        raise ScriptError(
             f"non-minimal push: OP_0, OP_1NEGATE, or OP_1-OP_16 "
-            f"should have been used for {data.hex()!r}"
+            f"should have been used for {data.hex()!r}",
+            ScriptErrorCode.MINIMALDATA,
         )
     if serialize([data])[0] != op_code:
-        raise BTClibValueError(
-            f"non-minimal push of {len(data)} bytes with op code {hex(op_code)}"
+        raise ScriptError(
+            f"non-minimal push of {len(data)} bytes with op code {hex(op_code)}",
+            ScriptErrorCode.MINIMALDATA,
         )
 
 
@@ -228,15 +237,15 @@ def read_push_data(
         length_bytes = s.read(size)
         if len(length_bytes) != size:
             err_msg = f"pushdata length short of {size} bytes: {len(length_bytes)}"
-            raise BTClibValueError(err_msg)
+            raise ScriptError(err_msg, ScriptErrorCode.BAD_OPCODE)
         data_length = int.from_bytes(length_bytes, byteorder="little")
     data = s.read(data_length)
     if len(data) != data_length:
         err_msg = f"pushdata of {data_length} bytes, {len(data)} in the script"
-        raise BTClibValueError(err_msg)
+        raise ScriptError(err_msg, ScriptErrorCode.BAD_OPCODE)
     if element_size_limit is not None and data_length > element_size_limit:
         err_msg = f"pushdata longer than {element_size_limit} bytes: {data_length}"
-        raise BTClibValueError(err_msg)
+        raise ScriptError(err_msg, ScriptErrorCode.PUSH_SIZE)
     if skip_execution:
         return
     assert_minimal_push(data, op_code, flags, serialize)
@@ -245,7 +254,20 @@ def read_push_data(
 
 def unknown_op_code(op: str) -> NoReturn:
     """Reject a named op code the interpreter does not implement."""
-    raise BTClibValueError(f"unknown op code: {op}")
+    raise ScriptError(f"unknown op code: {op}", ScriptErrorCode.BAD_OPCODE)
+
+
+def _assert_minimal_if(
+    stack: list[bytes], flags: ScriptFlag, segwit_version: int, op: str
+) -> None:
+    if segwit_version == 1:
+        code = ScriptErrorCode.TAPSCRIPT_MINIMALIF
+    elif segwit_version == 0 and ScriptFlag.MINIMALIF in flags:
+        code = ScriptErrorCode.MINIMALIF
+    else:
+        return
+    if stack[-1] not in {b"", b"\x01"}:
+        raise ScriptError(f"non-minimal {op} condition: {stack[-1].hex()}", code)
 
 
 def op_if(
@@ -261,17 +283,14 @@ def op_if(
     minimal-condition rule -- the empty element or 0x01, nothing else
     -- is consensus in tapscript per BIP342 and opt-in through the
     MINIMALIF flag in segwit v0; a legacy script takes any element as
-    its condition.
+    its condition. Core names the two refusals apart,
+    TAPSCRIPT_MINIMALIF and MINIMALIF.
     """
     if not all(condition_stack):
         condition_stack.append(False)
         return
 
-    minimalif = segwit_version == 1 or (
-        segwit_version == 0 and ScriptFlag.MINIMALIF in flags
-    )
-    if minimalif and stack[-1] not in {b"", b"\x01"}:
-        raise BTClibValueError(f"non-minimal OP_IF condition: {stack[-1].hex()}")
+    _assert_minimal_if(stack, flags, segwit_version, "OP_IF")
     condition = _to_bool(stack.pop())
 
     condition_stack.append(condition)
@@ -292,11 +311,7 @@ def op_notif(
         condition_stack.append(False)
         return
 
-    minimalif = segwit_version == 1 or (
-        segwit_version == 0 and ScriptFlag.MINIMALIF in flags
-    )
-    if minimalif and stack[-1] not in {b"", b"\x01"}:
-        raise BTClibValueError(f"non-minimal OP_NOTIF condition: {stack[-1].hex()}")
+    _assert_minimal_if(stack, flags, segwit_version, "OP_NOTIF")
     condition = _to_bool(stack.pop())
 
     condition_stack.append(not condition)
@@ -310,7 +325,8 @@ def op_else(condition_stack: list[bool]) -> None:
     back on, and this keeps that.
     """
     if len(condition_stack) == 1:
-        raise BTClibValueError("OP_ELSE without OP_IF or OP_NOTIF")
+        err_msg = "OP_ELSE without OP_IF or OP_NOTIF"
+        raise ScriptError(err_msg, ScriptErrorCode.UNBALANCED_CONDITIONAL)
     condition_stack[-1] = not condition_stack[-1]
 
 
@@ -321,7 +337,8 @@ def op_endif(condition_stack: list[bool]) -> None:
     # leaves `all([])` True, so an OP_ENDIF arriving before its OP_IF let the
     # rest of the script run as if the branch had closed
     if len(condition_stack) == 1:
-        raise BTClibValueError("OP_ENDIF without OP_IF or OP_NOTIF")
+        err_msg = "OP_ENDIF without OP_IF or OP_NOTIF"
+        raise ScriptError(err_msg, ScriptErrorCode.UNBALANCED_CONDITIONAL)
     condition_stack.pop()
 
 
@@ -337,8 +354,9 @@ def assert_balanced_if(condition_stack: list[bool]) -> None:
     to zero and Core rejects it.
     """
     if len(condition_stack) != 1:
-        raise BTClibValueError(
-            f"unbalanced conditional: {len(condition_stack) - 1} left open"
+        raise ScriptError(
+            f"unbalanced conditional: {len(condition_stack) - 1} left open",
+            ScriptErrorCode.UNBALANCED_CONDITIONAL,
         )
 
 
@@ -351,7 +369,7 @@ def op_nop(flags: ScriptFlag) -> None:
     did to OP_NOP2 and OP_NOP3.
     """
     if ScriptFlag.DISCOURAGE_UPGRADABLE_NOPS in flags:
-        raise BTClibValueError("upgradable NOP")
+        raise ScriptError("upgradable NOP", ScriptErrorCode.DISCOURAGE_UPGRADABLE_NOPS)
 
 
 def op_dup(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
@@ -362,7 +380,8 @@ def op_dup(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None
 def op_2dup(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Push copies of the top two stack elements, keeping their order."""
     if len(stack) < 2:
-        raise BTClibValueError("OP_2DUP on a stack of less than 2 elements")
+        err_msg = "OP_2DUP on a stack of less than 2 elements"
+        raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     stack.extend(stack[-2:])
 
 
@@ -387,15 +406,25 @@ def op_1negate(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> 
     stack.append(encode_num(-1))
 
 
-def op_verify(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
-    """Pop the top element and fail the script if it is false."""
+def op_verify(
+    stack: list[bytes],
+    altstack: list[bytes],
+    flags: ScriptFlag,
+    code: ScriptErrorCode = ScriptErrorCode.VERIFY,
+) -> None:
+    """Pop the top element and fail the script if it is false.
+
+    `code` is what the failure is, and it is not always VERIFY: Core
+    names the ``*VERIFY`` op codes this completes each with its own
+    code, and the end of a script failing on a false element EVAL_FALSE.
+    """
     if not _to_bool(stack.pop()):
-        raise BTClibValueError("false top stack element")
+        raise ScriptError("false top stack element", code)
 
 
 def op_return(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Fail the script unconditionally, leaving the stack as it is."""
-    raise BTClibValueError("OP_RETURN")
+    raise ScriptError("OP_RETURN", ScriptErrorCode.OP_RETURN)
 
 
 def op_equal(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
@@ -661,6 +690,9 @@ def op_fromaltstack(
     stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
 ) -> None:
     """Move the top altstack element back onto the stack."""
+    if not altstack:
+        err_msg = "OP_FROMALTSTACK on an empty altstack"
+        raise ScriptError(err_msg, ScriptErrorCode.INVALID_ALTSTACK_OPERATION)
     stack.append(altstack.pop())
 
 
@@ -699,7 +731,8 @@ def op_pick(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> Non
     """
     n = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if n < 0:
-        raise BTClibValueError(f"negative OP_PICK depth: {n}")
+        err_msg = f"negative OP_PICK depth: {n}"
+        raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     stack.append(stack[-n - 1])
 
 
@@ -711,9 +744,11 @@ def op_roll(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> Non
     """
     n = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if n < 0:
-        raise BTClibValueError(f"negative OP_ROLL depth: {n}")
+        err_msg = f"negative OP_ROLL depth: {n}"
+        raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     if len(stack) < n + 1:
-        raise BTClibValueError(f"OP_ROLL depth {n} on a stack of {len(stack)} elements")
+        err_msg = f"OP_ROLL depth {n} on a stack of {len(stack)} elements"
+        raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     if n == 0:
         return
     new_stack = stack[: -n - 1] + stack[-n:] + [stack[-n - 1]]
@@ -739,21 +774,24 @@ def op_tuck(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> Non
 def op_3dup(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Push copies of the top three stack elements, keeping their order."""
     if len(stack) < 3:
-        raise BTClibValueError("OP_3DUP on a stack of less than 3 elements")
+        err_msg = "OP_3DUP on a stack of less than 3 elements"
+        raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     stack.extend(stack[-3:])
 
 
 def op_2over(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Push copies of the third and fourth elements, keeping their order."""
     if len(stack) < 4:
-        raise BTClibValueError("OP_2OVER on a stack of less than 4 elements")
+        err_msg = "OP_2OVER on a stack of less than 4 elements"
+        raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     stack.extend(stack[-4:-2])
 
 
 def op_2rot(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Move the fifth and sixth elements to the top, keeping their order."""
     if len(stack) < 6:
-        raise BTClibValueError("OP_2ROT on a stack of less than 6 elements")
+        err_msg = "OP_2ROT on a stack of less than 6 elements"
+        raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     x6 = stack.pop()
     x5 = stack.pop()
     x4 = stack.pop()
@@ -785,27 +823,34 @@ def op_checklocktimeverify(
     if ScriptFlag.CHECKLOCKTIMEVERIFY not in flags:
         return
     if not stack:
-        raise BTClibValueError("OP_CHECKLOCKTIMEVERIFY on an empty stack")
+        err_msg = "OP_CHECKLOCKTIMEVERIFY on an empty stack"
+        raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     lock_time = _to_num(stack[-1], flags, _MAX_LOCK_TIME_NUM_SIZE)
     if lock_time < 0:
-        raise BTClibValueError(f"negative lock time: {lock_time}")
+        err_msg = f"negative lock time: {lock_time}"
+        raise ScriptError(err_msg, ScriptErrorCode.NEGATIVE_LOCKTIME)
 
+    # every refusal below is Core's one UNSATISFIED_LOCKTIME, CheckLockTime
+    # answering a bool
+    unsatisfied = ScriptErrorCode.UNSATISFIED_LOCKTIME
     # different lock time type
     if tx.lock_time >= LOCKTIME_THRESHOLD > lock_time:
-        raise BTClibValueError(
+        err_msg = (
             f"block height lock time {lock_time} against "
             f"the timestamp lock time {tx.lock_time} of the transaction"
         )
+        raise ScriptError(err_msg, unsatisfied)
     if lock_time >= LOCKTIME_THRESHOLD > tx.lock_time:
-        raise BTClibValueError(
+        err_msg = (
             f"timestamp lock time {lock_time} against "
             f"the block height lock time {tx.lock_time} of the transaction"
         )
+        raise ScriptError(err_msg, unsatisfied)
 
     if lock_time > tx.lock_time:
-        raise BTClibValueError(f"lock time {lock_time} > {tx.lock_time}")
+        raise ScriptError(f"lock time {lock_time} > {tx.lock_time}", unsatisfied)
     if tx.vin[i].sequence == 0xFFFFFFFF:
-        raise BTClibValueError(f"final sequence for input {i}")
+        raise ScriptError(f"final sequence for input {i}", unsatisfied)
 
 
 def op_checksequenceverify(
@@ -824,28 +869,35 @@ def op_checksequenceverify(
     if ScriptFlag.CHECKSEQUENCEVERIFY not in flags:
         return
     if not stack:
-        raise BTClibValueError("OP_CHECKSEQUENCEVERIFY on an empty stack")
+        err_msg = "OP_CHECKSEQUENCEVERIFY on an empty stack"
+        raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     sequence = _to_num(stack[-1], flags, _MAX_LOCK_TIME_NUM_SIZE)
     if sequence < 0:
-        raise BTClibValueError(f"negative sequence: {sequence}")
+        err_msg = f"negative sequence: {sequence}"
+        raise ScriptError(err_msg, ScriptErrorCode.NEGATIVE_LOCKTIME)
     if not sequence & SEQUENCE_LOCKTIME_DISABLE_FLAG:
+        # CheckSequence answers a bool, as CheckLockTime does
+        unsatisfied = ScriptErrorCode.UNSATISFIED_LOCKTIME
         if tx.version < 2:
-            raise BTClibValueError(f"transaction version {tx.version} < 2")
+            raise ScriptError(f"transaction version {tx.version} < 2", unsatisfied)
         if tx.vin[i].sequence & SEQUENCE_LOCKTIME_DISABLE_FLAG:
-            raise BTClibValueError(f"relative lock time disabled for input {i}")
+            err_msg = f"relative lock time disabled for input {i}"
+            raise ScriptError(err_msg, unsatisfied)
         if (
             sequence & SEQUENCE_LOCKTIME_TYPE_FLAG
             != tx.vin[i].sequence & SEQUENCE_LOCKTIME_TYPE_FLAG
         ):
-            raise BTClibValueError(
+            err_msg = (
                 f"relative lock time unit mismatch: {hex(sequence)} against "
                 f"the sequence {hex(tx.vin[i].sequence)} of input {i}"
             )
+            raise ScriptError(err_msg, unsatisfied)
         if (
             sequence & SEQUENCE_LOCKTIME_MASK
             > tx.vin[i].sequence & SEQUENCE_LOCKTIME_MASK
         ):
-            raise BTClibValueError(
+            err_msg = (
                 f"relative lock time {sequence & SEQUENCE_LOCKTIME_MASK} > "
                 f"{tx.vin[i].sequence & SEQUENCE_LOCKTIME_MASK}"
             )
+            raise ScriptError(err_msg, unsatisfied)

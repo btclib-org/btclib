@@ -17,6 +17,7 @@ from btclib.exceptions import (
     BTClibEccValueError,
     BTClibValueError,
     ScriptError,
+    ScriptErrorCode,
 )
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
@@ -53,8 +54,10 @@ from btclib.utils import assert_type, bytesio_from_binarydata, encode_num
 __all__ = [
     "DISABLED_OP_CODES",
     "EVALUATED_WHEN_UNEXECUTED",
+    "MAX_DER_SIGNATURE_SIZE",
     "OPERATIONS",
     "STRICT_DER_FLAGS",
+    "VERIFY_CODES",
     "assert_not_disabled",
     "assert_nulldummy",
     "assert_nullfail",
@@ -140,6 +143,11 @@ def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
 # sloppy encoding
 STRICT_DER_FLAGS = ScriptFlag.DERSIG | ScriptFlag.LOW_S | ScriptFlag.STRICTENC
 
+# IsValidSignatureEncoding's `sig.size() > 73`, the hash type included:
+# the one rule of that function the strict parse does not make, r and s
+# being read at whatever size their lengths announce
+MAX_DER_SIGNATURE_SIZE = 73
+
 
 def _read_der_lax_integer(der: bytes, pos: int) -> tuple[int, int]:
     """Read the integer at pos as Core's lax parser does: (value, next pos).
@@ -208,10 +216,19 @@ def fix_signature(signature: bytes, flags: ScriptFlag) -> bytes:
     encoding, read by Core's own lax parser, is re-serialized strict when
     no flag wants it refused, and a high s is negated when no flag wants
     it refused.
+
+    The refusals come in the order of Core's CheckSignatureEncoding --
+    the encoding, then a high s, then the hash type -- and each carries
+    the code Core fails with. The encoding is all SIG_DER asks about, as
+    in Core's IsValidSignatureEncoding: an r or an s that no signature
+    can have is a signature that fails to verify, and the script goes on.
+    That function's rules are the strict parse's but for one, its size
+    cap, which is checked here first as Core checks it first.
     """
+    if flags & STRICT_DER_FLAGS and len(signature) > MAX_DER_SIGNATURE_SIZE:
+        err_msg = f"signature of {len(signature)} bytes, hash type included"
+        raise ScriptError(err_msg, ScriptErrorCode.SIG_DER)
     signature_suffix = signature[-1:]
-    if ScriptFlag.STRICTENC in flags and signature_suffix[0] not in SIG_HASH_TYPES:
-        raise BTClibValueError(f"invalid sighash type: {hex(signature_suffix[0])}")
     signature = signature[:-1]
     if not flags & STRICT_DER_FLAGS:
         signature = Sig(*_parse_der_lax(signature)).serialize()
@@ -219,38 +236,49 @@ def fix_signature(signature: bytes, flags: ScriptFlag) -> bytes:
     # a lax encoding was normalized already, and one that was not has to be
     # refused here rather than reach the bindings, which answer a parse
     # failure the way they answer a wrong signature
-    sig = Sig.parse(signature)
-    if sig.s > sig.ec.n // 2:
+    try:
+        sig = Sig.parse(signature, check_validity=False)
+    except (BTClibEccValueError, BTClibEccRuntimeError) as e:
+        raise ScriptError(str(e), ScriptErrorCode.SIG_DER) from e
+    # high as Core's CheckLowS reads it: its lax parse zeroes a signature
+    # whose r or s is not below n, and a zero s is not high
+    if sig.r < sig.ec.n and sig.ec.n // 2 < sig.s < sig.ec.n:
         # Core's SCRIPT_ERR_SIG_HIGH_S, an error under LOW_S alone: without
         # it a high s is not merely tolerated but normalized away, so
         # leaving it for the bindings to refuse would report a signature
         # that does not verify where Core reports one that does
         if ScriptFlag.LOW_S in flags:
-            raise BTClibValueError(f"high s: {hex(sig.s)}")
-        signature = Sig(sig.r, sig.ec.n - sig.s).serialize()
+            raise ScriptError(f"high s: {hex(sig.s)}", ScriptErrorCode.SIG_HIGH_S)
+        sig = Sig(sig.r, sig.ec.n - sig.s, check_validity=False)
+        signature = sig.serialize(check_validity=False)
+    if ScriptFlag.STRICTENC in flags and signature_suffix[0] not in SIG_HASH_TYPES:
+        err_msg = f"invalid sighash type: {hex(signature_suffix[0])}"
+        raise ScriptError(err_msg, ScriptErrorCode.SIG_HASHTYPE)
     return signature + signature_suffix
 
 
 def check_pub_key(pub_key: bytes, segwit: bool, flags: ScriptFlag) -> bool:
     """Answer whether the public key is well-formed enough to verify with.
 
-    Core's CheckPubKeyEncoding, split the way Core splits it: a wrong
-    length or prefix returns False, which op_checksig turns into a
-    failed signature check rather than a script error, while the two
+    Core's CheckPubKeyEncoding, split the way Core splits it: the two
     flags that make the encoding itself the offence raise -- STRICTENC
-    for a hybrid 0x06/0x07 prefix, WITNESS_PUBKEYTYPE for an
-    uncompressed key in a segwit script.
+    for a key neither compressed nor uncompressed, hybrid included, and
+    WITNESS_PUBKEYTYPE for a key not compressed in a segwit script --
+    and otherwise a wrong length or prefix returns False, which
+    op_checksig turns into a failed signature check rather than a script
+    error. A 65-byte hybrid key is well-formed where STRICTENC is off,
+    consensus verifying with it.
     """
     assert_type(segwit, bool, "segwit")
-    if not pub_key:
-        return False
-    if pub_key[0] in {4, 6, 7}:
-        if pub_key[0] in {6, 7} and ScriptFlag.STRICTENC in flags:
-            raise BTClibValueError(f"hybrid public key prefix: {hex(pub_key[0])}")
-        if segwit and ScriptFlag.WITNESS_PUBKEYTYPE in flags:
-            raise BTClibValueError("uncompressed public key in a segwit script")
-        return len(pub_key) == 65
-    return len(pub_key) == 33 if pub_key[0] in {2, 3} else False
+    compressed = len(pub_key) == 33 and pub_key[0] in {2, 3}
+    uncompressed = len(pub_key) == 65 and pub_key[0] == 4
+    if ScriptFlag.STRICTENC in flags and not (compressed or uncompressed):
+        err_msg = f"public key neither compressed nor uncompressed: {pub_key.hex()}"
+        raise ScriptError(err_msg, ScriptErrorCode.PUBKEYTYPE)
+    if segwit and ScriptFlag.WITNESS_PUBKEYTYPE in flags and not compressed:
+        err_msg = f"public key not compressed in a segwit script: {pub_key.hex()}"
+        raise ScriptError(err_msg, ScriptErrorCode.WITNESS_PUBKEYTYPE)
+    return compressed or (len(pub_key) == 65 and pub_key[0] in {4, 6, 7})
 
 
 def find_and_delete(script: bytes, target: bytes) -> tuple[bytes, int]:
@@ -327,7 +355,8 @@ def calculate_script_code(
             # carries the signature checked against it is the case the
             # flag exists to make unspendable
             if found and const_scriptcode:
-                raise BTClibValueError("signature found in the script code")
+                err_msg = "signature found in the script code"
+                raise ScriptError(err_msg, ScriptErrorCode.SIG_FINDANDDELETE)
 
     return script_code
 
@@ -352,7 +381,13 @@ def op_checksig(
     empty signature, one that fails to verify, or a key or encoding
     refused under lax rules are all False, and an error only where a
     flag makes the encoding the offence -- DERSIG/LOW_S/STRICTENC for
-    the signature, STRICTENC/WITNESS_PUBKEYTYPE for the key.
+    the signature, STRICTENC/WITNESS_PUBKEYTYPE for the key,
+    CONST_SCRIPTCODE for a signature the script code carries.
+
+    The checks are Core's EvalChecksigPreTapscript, in its order and for
+    an empty signature too: FindAndDelete first, then the signature's
+    encoding, then the key's, so an empty signature beside a key a flag
+    refuses is that key's error and not a False.
 
     `signatures` is what FindAndDelete removes from a pre-segwit
     script code: the whole set under check when called from
@@ -366,25 +401,31 @@ def op_checksig(
     be a hash type at all.
     """
     assert_type(segwit, bool, "segwit")
-    if not signature:
-        return False
-    try:
-        signature = fix_signature(signature, flags)
-    except (BTClibValueError, BTClibEccValueError, BTClibEccRuntimeError):
-        # `BTClibValueError` is this function's own two raises (a wrong
-        # sighash type, a high s under LOW_S); `Sig.parse` is
-        # btclib_ecc's, hence its two classes beside btclib's. Under any
-        # of the three flags, CheckSignatureEncoding is what failed and
-        # Core ends the script; under none of them the lax parse failed,
-        # which is a signature that does not verify and nothing more
-        if flags & STRICT_DER_FLAGS:
-            raise
-        return False
+    script_code = calculate_script_code(
+        script_bytes,
+        codesep_offset,
+        signatures,
+        ScriptFlag.CONST_SCRIPTCODE in flags,
+        segwit,
+    )
+    # empty where there is nothing to verify: an empty signature, or one
+    # whose lax parse failed
+    fixed = b""
+    if signature:
+        try:
+            fixed = fix_signature(signature, flags)
+        except (BTClibValueError, BTClibEccValueError, BTClibEccRuntimeError):
+            # under any of the three flags the refusal is fix_signature's
+            # ScriptError, CheckSignatureEncoding having failed, and Core
+            # ends the script; under none of them the lax parse failed,
+            # which raises btclib's class or btclib_ecc's two and is a
+            # signature that does not verify and nothing more
+            if flags & STRICT_DER_FLAGS:
+                raise
 
-    if not check_pub_key(pub_key, segwit, flags):
-        if ScriptFlag.STRICTENC in flags:
-            raise BTClibValueError(f"invalid public key: {pub_key.hex()}")
+    if not check_pub_key(pub_key, segwit, flags) or not fixed:
         return False
+    signature = fixed
 
     if hash_types is not None:
         # after the two encoding gates and before the verification: what
@@ -394,13 +435,6 @@ def op_checksig(
         # only on success would leave out the very element under check
         hash_types.append(signature[-1])
 
-    script_code = calculate_script_code(
-        script_bytes,
-        codesep_offset,
-        signatures,
-        ScriptFlag.CONST_SCRIPTCODE in flags,
-        segwit,
-    )
     if segwit:
         msg_hash = sig_hash.segwit_v0(
             script_code, tx, i, signature[-1], prevout_value, precomputed
@@ -416,7 +450,8 @@ def op_checksig(
 def op_code_name(op_code: int) -> str:
     """Name an op code, rather than answer a missing key with a KeyError."""
     if op_code not in OP_CODE_NAME_FROM_INT:
-        raise BTClibValueError(f"unknown op code: {hex(op_code)}")
+        err_msg = f"unknown op code: {hex(op_code)}"
+        raise ScriptError(err_msg, ScriptErrorCode.BAD_OPCODE)
     return OP_CODE_NAME_FROM_INT[op_code]
 
 
@@ -437,13 +472,15 @@ def assert_nullfail(
     """
     assert_type(verified, bool, "verified")
     if ScriptFlag.NULLFAIL in flags and not verified and any(signatures):
-        raise BTClibValueError(f"non-empty signature for a failed {op}")
+        err_msg = f"non-empty signature for a failed {op}"
+        raise ScriptError(err_msg, ScriptErrorCode.SIG_NULLFAIL)
 
 
 def assert_nulldummy(dummy: bytes, flags: ScriptFlag) -> None:
     """Reject a non-empty dummy, the element OP_CHECKMULTISIG pops too many."""
     if dummy != b"" and ScriptFlag.NULLDUMMY in flags:
-        raise BTClibValueError("non-empty OP_CHECKMULTISIG dummy element")
+        err_msg = "non-empty OP_CHECKMULTISIG dummy element"
+        raise ScriptError(err_msg, ScriptErrorCode.SIG_NULLDUMMY)
 
 
 def assert_pub_key_num(pub_key_num: int) -> None:
@@ -457,7 +494,8 @@ def assert_pub_key_num(pub_key_num: int) -> None:
     Core ends it.
     """
     if not 0 <= pub_key_num <= MAX_PUBKEYS_PER_MULTISIG:
-        raise BTClibValueError(f"invalid number of public keys: {pub_key_num}")
+        err_msg = f"invalid number of public keys: {pub_key_num}"
+        raise ScriptError(err_msg, ScriptErrorCode.PUBKEY_COUNT)
 
 
 def assert_signature_num(signature_num: int, pub_key_num: int) -> None:
@@ -466,9 +504,8 @@ def assert_signature_num(signature_num: int, pub_key_num: int) -> None:
     Core's SCRIPT_ERR_SIG_COUNT, negative for the same reason as above.
     """
     if not 0 <= signature_num <= pub_key_num:
-        raise BTClibValueError(
-            f"{signature_num} signatures for {pub_key_num} public keys"
-        )
+        err_msg = f"{signature_num} signatures for {pub_key_num} public keys"
+        raise ScriptError(err_msg, ScriptErrorCode.SIG_COUNT)
 
 
 def script_op_count(count: int, increment: int) -> int:
@@ -479,7 +516,8 @@ def script_op_count(count: int, increment: int) -> int:
     """
     count += increment
     if count > MAX_OPS_PER_SCRIPT:
-        raise BTClibValueError(f"more than {MAX_OPS_PER_SCRIPT} op codes: {count}")
+        err_msg = f"more than {MAX_OPS_PER_SCRIPT} op codes: {count}"
+        raise ScriptError(err_msg, ScriptErrorCode.OP_COUNT)
     return count
 
 
@@ -534,7 +572,8 @@ DISABLED_OP_CODES = frozenset(
 def assert_not_disabled(op_code: int) -> None:
     """Reject an op code disabled by CVE-2010-5137, executed or not."""
     if op_code in DISABLED_OP_CODES:
-        raise BTClibValueError(f"disabled op code: {op_code_name(op_code)}")
+        err_msg = f"disabled op code: {op_code_name(op_code)}"
+        raise ScriptError(err_msg, ScriptErrorCode.DISABLED_OPCODE)
 
 
 def prepare_script(script: ScriptList, flags: ScriptFlag, segwit: bool) -> None:
@@ -551,7 +590,8 @@ def prepare_script(script: ScriptList, flags: ScriptFlag, segwit: bool) -> None:
         and ScriptFlag.CONST_SCRIPTCODE in flags
         and not segwit
     ):
-        raise BTClibValueError("OP_CODESEPARATOR in a non-segwit script")
+        err_msg = "OP_CODESEPARATOR in a non-segwit script"
+        raise ScriptError(err_msg, ScriptErrorCode.OP_CODESEPARATOR)
 
 
 # what one signature can drive: every entry takes (stack, altstack,
@@ -615,6 +655,17 @@ OPERATIONS: Mapping[str, ScriptOp] = {
 }
 
 
+# the code each *VERIFY op code fails with, which is the trailing
+# OP_VERIFY's failure: every one of them runs as its two halves, and
+# Core names the failure after the whole
+VERIFY_CODES: Mapping[str, ScriptErrorCode] = {
+    "OP_EQUALVERIFY": ScriptErrorCode.EQUALVERIFY,
+    "OP_NUMEQUALVERIFY": ScriptErrorCode.NUMEQUALVERIFY,
+    "OP_CHECKSIGVERIFY": ScriptErrorCode.CHECKSIGVERIFY,
+    "OP_CHECKMULTISIGVERIFY": ScriptErrorCode.CHECKMULTISIGVERIFY,
+}
+
+
 # what the OPERATIONS table cannot hold, read against Core's EvalScript:
 # the op codes needing the engine's own state, and the pushes matched by
 # shape rather than by name
@@ -647,6 +698,9 @@ def _run_ops(  # noqa: C901, PLR0912
     op_code_num = 0
     codesep_offset = 0
     script_index = -1
+    # what the next OP_VERIFY fails with: VERIFY, unless a *VERIFY op code
+    # has just injected it
+    verify_code = ScriptErrorCode.VERIFY
     s = bytesio_from_binarydata(script_bytes)
     while True:
         script_index += 1
@@ -757,9 +811,13 @@ def _run_ops(  # noqa: C901, PLR0912
             pass
         elif "OP_NOP" in op:
             script_op_codes.op_nop(flags)
+        elif op == "OP_VERIFY":
+            script_op_codes.op_verify(stack, altstack, flags, verify_code)
+            verify_code = ScriptErrorCode.VERIFY
         elif op in OPERATIONS:
             r = OPERATIONS[op](stack, altstack, flags)
             if r:
+                verify_code = VERIFY_CODES.get(op, ScriptErrorCode.VERIFY)
                 script_index -= len(r)
                 op_code_num -= len(r)
                 s = bytesio_from_binarydata(serialize_script(r) + s.read())
@@ -782,12 +840,14 @@ def verify_script(
     """Execute the script over the caller's stack, as Core's EvalScript.
 
     The stack is mutated in place, which is how the callers chain
-    scripts: script_sig leaves what script_pub_key then reads. Any
-    refusal -- a BTClibValueError out of an op code, an IndexError out
-    of a pop on a short stack -- is re-raised as ScriptError carrying
-    the index of the failing command and the stack depth. With `final`
-    the script must end on a non-empty stack with a true top element,
-    which is the caller saying no script runs after this one.
+    scripts: script_sig leaves what script_pub_key then reads. A refusal
+    inside the loop -- an op code's ScriptError, an IndexError out of a
+    pop on a short stack -- is re-raised as ScriptError carrying the
+    index of the failing command and the stack depth, the code of the
+    first and INVALID_STACK_OPERATION for the second. With `final` the
+    script must end on a non-empty stack with a true top element, which
+    is the caller saying no script runs after this one, and Core's
+    EVAL_FALSE where it does not.
 
     `hash_types` is `verify_input`'s collector, threaded through to
     `op_checksig`; chaining scripts over one stack is chaining them
@@ -795,7 +855,7 @@ def verify_script(
     """
     if len(script_bytes) > MAX_SCRIPT_SIZE:
         err_msg = f"script longer than {MAX_SCRIPT_SIZE} bytes: {len(script_bytes)}"
-        raise BTClibValueError(err_msg)
+        raise ScriptError(err_msg, ScriptErrorCode.SCRIPT_SIZE)
 
     script = parse(script_bytes)
     prepare_script(script, flags, segwit)
@@ -838,20 +898,28 @@ def verify_script(
             script_index_ref,
             hash_types,
         )
-    # btclib_ecc's refusal beside btclib's: a signature or a key the
-    # loop hands to it is refused by that package's own class
+    except ScriptError as e:
+        raise ScriptError(e.args[0], e.code, script_index_ref[0], len(stack)) from e
+    # any other refusal is Core's `catch (...)`, UNKNOWN_ERROR: btclib's
+    # class and btclib_ecc's, the one a signature or a key handed to that
+    # package is refused by
     except (BTClibValueError, BTClibEccValueError) as e:
-        raise ScriptError(str(e), script_index_ref[0], len(stack)) from e
+        code = ScriptErrorCode.UNKNOWN_ERROR
+        raise ScriptError(str(e), code, script_index_ref[0], len(stack)) from e
     except IndexError as e:
-        # what the loop indexes and pops is the stack and the altstack,
-        # so an IndexError out of it is an underflow; the chained
-        # exception is there for the cases in which it is not
-        raise ScriptError("stack underflow", script_index_ref[0], len(stack)) from e
+        # the altstack's one pop checks its depth first, so an IndexError
+        # out of the loop is the stack's underflow; the chained exception
+        # is there for the cases in which it is not
+        code = ScriptErrorCode.INVALID_STACK_OPERATION
+        raise ScriptError(
+            "stack underflow", code, script_index_ref[0], len(stack)
+        ) from e
 
     script_op_codes.assert_stack_size(stack, altstack)
     script_op_codes.assert_balanced_if(condition_stack)
 
     if final:
         if not stack:
-            raise BTClibValueError("empty stack at the end of the script")
-        script_op_codes.op_verify(stack, [], flags)
+            err_msg = "empty stack at the end of the script"
+            raise ScriptError(err_msg, ScriptErrorCode.EVAL_FALSE)
+        script_op_codes.op_verify(stack, [], flags, ScriptErrorCode.EVAL_FALSE)

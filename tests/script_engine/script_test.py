@@ -16,7 +16,12 @@ import pytest
 from btclib.alias import TaprootScriptTree
 from btclib.ecc import ssa
 from btclib.ecc.dsa import Sig, sign_
-from btclib.exceptions import BTClibEccValueError, BTClibValueError, ScriptError
+from btclib.exceptions import (
+    BTClibEccValueError,
+    BTClibValueError,
+    ScriptError,
+    ScriptErrorCode,
+)
 from btclib.hashes import hash160, sha256
 from btclib.key import PrvKeyData
 from btclib.script import ScriptPubKey, sig_hash
@@ -24,10 +29,12 @@ from btclib.script.engine import (
     ALL_FLAGS,
     NO_FLAGS,
     ScriptFlag,
+    tapscript,
     validate_push_only,
     verify_input,
     verify_transaction,
 )
+from btclib.script.engine import script as legacy_engine
 from btclib.script.engine.script import (
     DISABLED_OP_CODES,
     calculate_script_code,
@@ -71,7 +78,19 @@ class ScriptVector(NamedTuple):
     # was misvalidated, which is exactly how long that would have lasted
     # (issue #145)
     flags: str
-    valid: bool
+    # Core's expected_scripterror, as script_tests.cpp's `script_errors`
+    # table names it: "OK" for a vector that verifies
+    error: str
+
+
+def script_error_code(name: str) -> ScriptErrorCode:
+    """Read a vector's expected_scripterror as the code it names.
+
+    script_tests.cpp's `script_errors` table spells a code as its
+    `ScriptError_t` name without `SCRIPT_ERR_`, which is the member's
+    name here, but for one: SIG_NULLFAIL is "NULLFAIL" there.
+    """
+    return ScriptErrorCode["SIG_NULLFAIL" if name == "NULLFAIL" else name]
 
 
 SCRIPT_FLAG = "#SCRIPT#"
@@ -145,9 +164,7 @@ def script_vectors() -> list[Any]:
             stack = stack[:-1]
 
         stack, script_pub_key = taproot_placeholders(stack, x[i + 1])
-        vector = ScriptVector(
-            stack, amount, x[i], script_pub_key, x[i + 2], x[i + 3] == "OK"
-        )
+        vector = ScriptVector(stack, amount, x[i], script_pub_key, x[i + 2], x[i + 3])
         # the trailing comment of the vector says what it is testing; most
         # vectors carry none, and vector_id falls back to the script itself
         comment = x[i + 4] if len(x) > i + 4 else ""
@@ -159,7 +176,11 @@ def script_vectors() -> list[Any]:
 
 @pytest.mark.parametrize("vector", script_vectors())
 def test_script(vector: ScriptVector) -> None:
-    """Run each Core vector through verify_input, expecting its verdict."""
+    """Run each Core vector through verify_input, expecting its error.
+
+    The code, and not only the verdict: a refusal for another reason than
+    Core's is a vector that passed for the wrong reason.
+    """
 
     def verify() -> None:
         coinbase_input = TxIn(
@@ -189,19 +210,19 @@ def test_script(vector: ScriptVector) -> None:
 
         verify_input([coinbase_output], spending, 0, vector.flags)
 
-    if vector.valid:
+    code = script_error_code(vector.error)
+    if code is ScriptErrorCode.OK:
         verify()
     else:
-        # BTClibValueError, not Exception: a vector expecting a failure gets
-        # one from anything that raises, the harness included, and
+        # ScriptError, not Exception: a vector expecting a failure gets one
+        # from anything that raises, the harness included, and
         # `parse_script` raises KeyError on an op code name btclib does not
-        # know. That is how the DISABLED_OPCODE vectors below passed while the
-        # rule they test was missing -- the names were unknown, the scripts
-        # were never built, and no engine ever saw them. Everything the engine
-        # refuses is a BTClibValueError, ScriptError included, so a KeyError is
-        # now a red test
-        with pytest.raises(BTClibValueError):
+        # know. That is how the DISABLED_OPCODE vectors passed while the rule
+        # they test was missing -- the names were unknown, the scripts were
+        # never built, and no engine ever saw them
+        with pytest.raises(ScriptError) as exc_info:
             verify()
+        assert exc_info.value.code is code, str(exc_info.value)
 
 
 def test_script_error_says_what_and_where() -> None:
@@ -411,8 +432,9 @@ def test_fix_signature_asks_for_strict_der_as_one_mask() -> None:
         ScriptFlag.DERSIG | ScriptFlag.STRICTENC,
         ScriptFlag.DERSIG | ScriptFlag.LOW_S,
     ):
-        with pytest.raises(BTClibEccValueError, match="padding"):
+        with pytest.raises(ScriptError, match="padding") as exc_info:
             fix_signature(signature, flags)
+        assert exc_info.value.code is ScriptErrorCode.SIG_DER
 
     # with none of the three it is normalized instead, which is what stands
     # in for Core's lax parser: one byte shorter, and the same signature
@@ -437,8 +459,9 @@ def test_fix_signature_high_s() -> None:
     assert low.s < low.ec.n // 2
     high_s = Sig(low.r, low.ec.n - low.s).serialize() + signature[-1:]
 
-    with pytest.raises(BTClibValueError, match="high s"):
+    with pytest.raises(ScriptError, match="high s") as exc_info:
         fix_signature(high_s, ScriptFlag.LOW_S)
+    assert exc_info.value.code is ScriptErrorCode.SIG_HIGH_S
     assert fix_signature(high_s, ScriptFlag.DERSIG) == low.serialize() + signature[-1:]
 
 
@@ -482,8 +505,9 @@ def test_fix_signature_reads_core_lax_der(name: str) -> None:
     der = LAX_DER_BASE
     lax = lax_encodings(der)[name] + b"\x01"
     assert fix_signature(lax, NO_FLAGS) == der + b"\x01"
-    with pytest.raises(BTClibEccValueError):
+    with pytest.raises(ScriptError) as exc_info:
         fix_signature(lax, ScriptFlag.DERSIG)
+    assert exc_info.value.code is ScriptErrorCode.SIG_DER
 
 
 def test_fix_signature_refuses_what_core_lax_der_refuses() -> None:
@@ -1021,8 +1045,11 @@ def test_lax_der_verifies_without_dersig(name: str) -> None:
     tx.vin[0].script_sig = serialize([lax_encodings(der)[name] + b"\x01"])
 
     verify_input([prevout], tx, 0, "")
-    with pytest.raises(ScriptError, match="invalid DER"):
+    # the code and not a message: a lax encoding past 73 bytes is refused
+    # by the size cap before the strict parse reads it, as in Core
+    with pytest.raises(ScriptError) as exc_info:
         verify_input([prevout], tx, 0, "DERSIG")
+    assert exc_info.value.code is ScriptErrorCode.SIG_DER
 
 
 def test_p2wsh_codeseparator_cut_is_what_the_signature_commits_to() -> None:
@@ -1098,32 +1125,71 @@ def test_wrapped_p2wsh_codeseparator_cuts_the_same_script() -> None:
         verify_input(prevouts, tx, 0, ALL_FLAGS)
 
 
-@pytest.mark.parametrize(
-    "op_code",
-    ["OP_CHECKSIG", "OP_CHECKSIGVERIFY", "OP_CHECKMULTISIG", "OP_CHECKMULTISIGVERIFY"],
-)
-def test_const_scriptcode_refuses_signature_checks(op_code: str) -> None:
-    """CONST_SCRIPTCODE refuses every signature-check op in a script_sig.
+# a signature and a public key the four op codes below are handed, as
+# pushes of the script_sig that also carries the op code: its own script
+# code, then, and one holding the signature
+_FAD_SIG = b"\x30" * 9
+_FAD_PUB = b"\x02" + b"\x01" * 32
 
-    Core watches all four through one rule -- FindAndDelete of the signature
-    from the script code, an error on a match under the flag, before the
-    signature is read at all -- so the class is one list of four names here,
-    and a name missing from it is a rule that does not run rather than a rule
-    that fails. Which is what the vendored vectors cannot say: OP_CHECKSIG is
-    the only one of the four they carry in a script_sig under the flag, so
-    OP_CHECKSIGVERIFY, OP_CHECKMULTISIG and OP_CHECKMULTISIGVERIFY rest on this
-    test alone.
+
+@pytest.mark.parametrize(
+    "script_sig",
+    [
+        [_FAD_SIG, _FAD_PUB, "OP_CHECKSIG"],
+        [_FAD_SIG, _FAD_PUB, "OP_CHECKSIGVERIFY"],
+        ["OP_0", _FAD_SIG, "OP_1", _FAD_PUB, "OP_1", "OP_CHECKMULTISIG"],
+        ["OP_0", _FAD_SIG, "OP_1", _FAD_PUB, "OP_1", "OP_CHECKMULTISIGVERIFY"],
+    ],
+    ids=[
+        "OP_CHECKSIG",
+        "OP_CHECKSIGVERIFY",
+        "OP_CHECKMULTISIG",
+        "OP_CHECKMULTISIGVERIFY",
+    ],
+)
+def test_const_scriptcode_refuses_signature_checks(script_sig: list[Any]) -> None:
+    """CONST_SCRIPTCODE refuses a signature its script code holds, all four ops.
+
+    Core's rule is FindAndDelete of the signature from the script code, an
+    error on a match under the flag, before the signature or the key is
+    read: a signature check executed in a script_sig is where it matches,
+    that script_sig being the script code. The vendored vectors carry
+    OP_CHECKSIG alone in a script_sig under the flag, so the other three
+    rest on this test.
     """
     prevout = TxOut(1000, ScriptPubKey(""))
-    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), serialize([op_code]), 1, Witness([]))
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), serialize(script_sig), 1, Witness([]))
     tx = Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
-    with pytest.raises(BTClibValueError, match="signature check in the script_sig"):
+    with pytest.raises(ScriptError) as exc_info:
         verify_input([prevout], tx, 0, ScriptFlag.CONST_SCRIPTCODE)
+    assert exc_info.value.code is ScriptErrorCode.SIG_FINDANDDELETE
 
-    # without the flag the same input reaches the interpreter and
-    # underflows the empty stack instead: the refusal above is the flag's
-    with pytest.raises(BTClibValueError, match="stack underflow"):
+    # without the flag the signature merely fails to verify: the refusal
+    # above is the flag's
+    with pytest.raises(ScriptError) as exc_info:
         verify_input([prevout], tx, 0, NO_FLAGS)
+    assert exc_info.value.code is not ScriptErrorCode.SIG_FINDANDDELETE
+
+
+def test_const_scriptcode_leaves_an_unexecuted_signature_check_alone() -> None:
+    """A signature check in a branch nothing takes is no FindAndDelete.
+
+    Core's error is inside the executed op code, so a script_sig holding
+    one where it never runs spends under the flag.
+    """
+    script_sig: list[Any] = [
+        "OP_0",
+        "OP_IF",
+        _FAD_SIG,
+        _FAD_PUB,
+        "OP_CHECKSIG",
+        "OP_ENDIF",
+        "OP_1",
+    ]
+    prevout = TxOut(1000, ScriptPubKey(""))
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), serialize(script_sig), 1, Witness([]))
+    tx = Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
+    verify_input([prevout], tx, 0, ScriptFlag.CONST_SCRIPTCODE)
 
 
 def test_a_truncated_script_sig_is_not_push_only() -> None:
@@ -1362,3 +1428,245 @@ def test_hash_types_report_every_signature_the_interpreter_checked() -> None:
     verify_input(prevouts, tx, 1, ALL_FLAGS, hash_types=hash_types)
     assert hash_types[-1] == sig_hash.NONE
     assert len(hash_types) == 5
+
+
+@pytest.mark.parametrize(
+    "script, extra_witness, code",
+    [
+        (["OP_1", "OP_1", "OP_1", "OP_CHECKMULTISIG"], (), "TAPSCRIPT_CHECKMULTISIG"),
+        (["OP_IF", "OP_1", "OP_ENDIF"], ("02",), "TAPSCRIPT_MINIMALIF"),
+        (["OP_0", "OP_0", "OP_CHECKSIG"], (), "TAPSCRIPT_EMPTY_PUBKEY"),
+        (["OP_1", "OP_2", "OP_EQUALVERIFY"], (), "EQUALVERIFY"),
+        (["OP_0", "OP_VERIFY", "OP_1"], (), "VERIFY"),
+        (["OP_0"], (), "EVAL_FALSE"),
+        (["OP_DROP"], ("01",), "CLEANSTACK"),
+        (["OP_1", "OP_1"], (), "CLEANSTACK"),
+    ],
+    ids=[
+        "checkmultisig",
+        "minimalif",
+        "empty public key",
+        "equalverify",
+        "verify",
+        "false",
+        "empty stack",
+        "two elements",
+    ],
+)
+def test_a_tapscript_refusal_carries_core_s_code(
+    script: list[Any], extra_witness: tuple[str, ...], code: str
+) -> None:
+    """Tapscript's own codes, which script_tests.json spends almost none of.
+
+    Its TAPSCRIPT rows reach TAPSCRIPT_EMPTY_PUBKEY alone. The last two
+    are the order of Core's ExecuteWitnessScript: the size of the stack
+    first, so an empty one is CLEANSTACK and not EVAL_FALSE.
+    """
+    prevouts, tx = taproot_script_spend(script, 0, 1, extra_witness)
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+    assert exc_info.value.code is ScriptErrorCode[code]
+
+
+def test_a_control_block_of_no_tree_s_size_is_its_own_code() -> None:
+    """Core's TAPROOT_WRONG_CONTROL_SIZE, ahead of any merkle proof.
+
+    A byte short of the smallest block, and one past the last node of a
+    block that fits, are no depth at all; `check_output_pubkey` is asked
+    only about a block of a size some tree gives.
+    """
+    prevouts, tx = taproot_script_spend(["OP_1"], 0, 1)
+    tap_script, control = tx.vin[0].script_witness.stack
+    for wrong in (control[:-1], control + b"\x00"):
+        tx.vin[0].script_witness = Witness([tap_script, wrong])
+        with pytest.raises(ScriptError) as exc_info:
+            verify_input(prevouts, tx, 0, ALL_FLAGS)
+        assert exc_info.value.code is ScriptErrorCode.TAPROOT_WRONG_CONTROL_SIZE
+
+    # the right size and the wrong proof: another leaf's control block
+    tx.vin[0].script_witness = Witness([tap_script, control[:1] + bytes(32)])
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+    assert exc_info.value.code is ScriptErrorCode.WITNESS_PROGRAM_MISMATCH
+
+
+def _refuse_without_a_code(
+    stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
+) -> None:
+    raise BTClibValueError("a refusal nobody gave a code")
+
+
+def test_a_refusal_without_a_code_is_core_s_unknown_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """What reaches a loop as anything but a ScriptError is UNKNOWN_ERROR.
+
+    Core's EvalScript ends in `catch (...)`, answering UNKNOWN_ERROR for
+    any exception that is not a script number's; the two loops end the
+    same way, and nothing the engine raises today reaches that arm, so
+    an op code is made to.
+    """
+    monkeypatch.setitem(legacy_engine.OPERATIONS, "OP_DUP", _refuse_without_a_code)
+    tx = Tx(check_validity=False)
+    with pytest.raises(ScriptError, match="nobody gave") as exc_info:
+        verify_script(b"\x51\x76", [], 0, tx, 0, NO_FLAGS, False)
+    assert exc_info.value.code is ScriptErrorCode.UNKNOWN_ERROR
+    assert exc_info.value.index == 1
+
+    monkeypatch.setitem(tapscript.OPERATIONS, "OP_DUP", _refuse_without_a_code)
+    prevouts, tx = taproot_script_spend(["OP_1", "OP_DUP"], 0, 1)
+    with pytest.raises(ScriptError, match="nobody gave") as exc_info:
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+    assert exc_info.value.code is ScriptErrorCode.UNKNOWN_ERROR
+    assert exc_info.value.index == 1
+
+
+def test_a_strict_der_signature_that_cannot_verify_is_a_false_check() -> None:
+    """Strict DER is all SIG_DER asks, as Core's IsValidSignatureEncoding.
+
+    The signature is script_tests.json's "P2PK NOT with invalid hybrid
+    pubkey": strict DER, with an r that is no x-coordinate. Core parses
+    it, fails to verify it and pushes false, so `CHECKSIG NOT` spends it
+    under DERSIG, and NULLFAIL is what refuses it -- where refusing it as
+    an encoding refused a spend DERSIG, a consensus rule, accepts.
+    """
+    sig = bytes.fromhex(
+        "30440220035d554e3153c04950c9993f41c496607a8e24093db0595be7bf875cf64fcf1f"
+        "02204731c8c4e5daf15e706cec19cdd8f2c5b1d05490e11dab8465ed426569b6e92101"
+    )
+    pub_key = PrvKeyData(1).pub.sec
+    prevouts = [TxOut(0, ScriptPubKey(serialize([pub_key, "OP_CHECKSIG", "OP_NOT"])))]
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), serialize([sig]), 0xFFFFFFFF)
+    tx = Tx(1, 0, [tx_in], [TxOut(0, ScriptPubKey(""))])
+
+    verify_input(prevouts, tx, 0, "DERSIG")
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(prevouts, tx, 0, "P2SH,DERSIG,NULLFAIL")
+    assert exc_info.value.code is ScriptErrorCode.SIG_NULLFAIL
+
+    # strict DER in every rule but the size: a 34-byte r makes 74 bytes
+    # with the hash type, over IsValidSignatureEncoding's 73, and that is
+    # SIG_DER under DERSIG -- the one rule the strict parse does not make.
+    # Under no strict-DER flag the lax parse reads it, overflowing r, and
+    # the check is false
+    r = b"\x01" + bytes(33)
+    s = b"\x00\x80" + bytes(31)
+    body = b"\x02" + bytes([len(r)]) + r + b"\x02" + bytes([len(s)]) + s
+    too_long = b"\x30" + bytes([len(body)]) + body + b"\x01"
+    assert len(too_long) == 74
+    tx.vin[0].script_sig = serialize([too_long])
+    verify_input(prevouts, tx, 0, NO_FLAGS)
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(prevouts, tx, 0, "DERSIG")
+    assert exc_info.value.code is ScriptErrorCode.SIG_DER
+
+
+@pytest.mark.parametrize("size", [0, 63, 66, 71])
+def test_a_taproot_signature_of_another_size_is_refused(size: int) -> None:
+    """A BIP340 signature is 64 bytes, or 65 with a hash type: SCHNORR_SIG_SIZE.
+
+    The bytes past the 65th are what the size check is for: without it
+    a valid 64-byte signature with junk after it verified on its first
+    64, and a key-path spend Core refuses was valid here.
+    """
+    with pytest.raises(ScriptError) as exc_info:
+        tapscript.get_hashtype(bytes(size))
+    assert exc_info.value.code is ScriptErrorCode.SCHNORR_SIG_SIZE
+
+    q = output_pubkey(PrvKeyData(1).pub)[0]
+    prevout = TxOut(100_000, ScriptPubKey(serialize(["OP_1", q])))
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF)
+    tx = Tx(2, 0, [tx_in], [TxOut(90_000, ScriptPubKey(serialize(["OP_1", q])))])
+    msg_hash = sig_hash.taproot(tx, 0, [prevout], sig_hash.DEFAULT, 0, b"", b"")
+    sig = ssa.sign_(msg_hash, output_prvkey(1)).serialize()
+    tx.vin[0].script_witness = Witness([sig])
+    verify_input([prevout], tx, 0, ALL_FLAGS)
+
+    tx.vin[0].script_witness = Witness([(sig + bytes(size))[:size]])
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input([prevout], tx, 0, ALL_FLAGS)
+    assert exc_info.value.code is ScriptErrorCode.SCHNORR_SIG_SIZE
+
+
+def test_a_p2sh_witness_script_sig_is_the_redeem_script_push_alone() -> None:
+    """Core's WITNESS_MALLEATED_P2SH, a consensus rule with BIP141.
+
+    The witness program in a p2sh input takes a script_sig that is one
+    push of the redeem script and nothing else. A signed spend with a
+    push ahead of it verified here, the witness answering for itself.
+    """
+    pub_key = PrvKeyData(1).pub.sec
+    redeem_script = b"\x00\x14" + hash160(pub_key)
+    prevout = TxOut(100_000, ScriptPubKey.p2sh(redeem_script))
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), serialize([redeem_script]), 0xFFFFFFFF)
+    tx = Tx(2, 0, [tx_in], [TxOut(90_000, ScriptPubKey(""))])
+    script_code = serialize(
+        ["OP_DUP", "OP_HASH160", hash160(pub_key), "OP_EQUALVERIFY", "OP_CHECKSIG"]
+    )
+    msg_hash = sig_hash.segwit_v0(script_code, tx, 0, sig_hash.ALL, 100_000)
+    sig = sign_(msg_hash, 1).serialize() + sig_hash.ALL.to_bytes(1, "big")
+    tx.vin[0].script_witness = Witness([sig, pub_key])
+    verify_input([prevout], tx, 0)
+
+    tx.vin[0].script_sig = serialize(["OP_11", redeem_script])
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input([prevout], tx, 0)
+    assert exc_info.value.code is ScriptErrorCode.WITNESS_MALLEATED_P2SH
+
+
+@pytest.mark.parametrize(
+    "script_pub_key, flags, code",
+    [
+        (
+            ["OP_0", "OP_DROP", "sec", "OP_CHECKSIG", "OP_NOT"],
+            "CONST_SCRIPTCODE",
+            "SIG_FINDANDDELETE",
+        ),
+        (["hybrid", "OP_CHECKSIG", "OP_NOT"], "STRICTENC", "PUBKEYTYPE"),
+    ],
+    ids=["findanddelete", "strictenc"],
+)
+def test_an_empty_signature_is_asked_what_any_other_is(
+    script_pub_key: list[Any], flags: str, code: str
+) -> None:
+    """Core's EvalChecksigPreTapscript runs its checks before verifying.
+
+    FindAndDelete, the signature's encoding and the key's, and for an
+    empty signature as for any other: `CScript() << vchSig` is OP_0 for
+    an empty one, which a script code can hold, and a key a flag refuses
+    is refused whatever the signature beside it. Answering False first
+    let `CHECKSIG NOT` spend both, the flag notwithstanding.
+    """
+    sec = PrvKeyData(1).pub.sec
+    keys = {"sec": sec, "hybrid": b"\x06" + sec[1:] + bytes(32)}
+    script = [keys.get(x, x) for x in script_pub_key]
+    prevouts = [TxOut(0, ScriptPubKey(serialize(script)))]
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), serialize(["OP_0"]), 0xFFFFFFFF)
+    tx = Tx(1, 0, [tx_in], [TxOut(0, ScriptPubKey(""))])
+
+    verify_input(prevouts, tx, 0, NO_FLAGS)
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(prevouts, tx, 0, flags)
+    assert exc_info.value.code is ScriptErrorCode[code]
+
+
+@pytest.mark.parametrize("size", [520, 521])
+def test_an_op_success_forgives_an_oversized_witness_element(size: int) -> None:
+    """Core's pre-scan answers for an OP_SUCCESSx before the element sizes.
+
+    ExecuteWitnessScript scans a tapscript for one first, and "OP_SUCCESSx
+    processing overrides everything, including stack element size limits":
+    a witness element over 520 bytes spends a script holding one. Without
+    one it is PUSH_SIZE.
+    """
+    element = ("00" * size,)
+    prevouts, tx = taproot_script_spend(["OP_SUCCESS80", b""], 0, 1, element)
+    verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+    prevouts, tx = taproot_script_spend(["OP_DROP", "OP_1"], 0, 1, element)
+    if size <= MAX_SCRIPT_ELEMENT_SIZE:
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+    else:
+        with pytest.raises(ScriptError) as exc_info:
+            verify_input(prevouts, tx, 0, ALL_FLAGS)
+        assert exc_info.value.code is ScriptErrorCode.PUSH_SIZE

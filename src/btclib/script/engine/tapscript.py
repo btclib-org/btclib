@@ -12,13 +12,19 @@ from btclib import var_bytes
 from btclib.alias import ScriptList
 from btclib.curves import is_libsecp256k1_serving
 from btclib.ecc import ssa
-from btclib.exceptions import BTClibEccValueError, BTClibValueError, ScriptError
+from btclib.exceptions import (
+    BTClibEccValueError,
+    BTClibValueError,
+    ScriptError,
+    ScriptErrorCode,
+)
 from btclib.hashes import tagged_hash
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import ScriptFlag
 from btclib.script.engine.script import (
     EVALUATED_WHEN_UNEXECUTED,
+    VERIFY_CODES,
     _assert_bytes_arguments,
 )
 from btclib.script.engine.script_op_codes import ScriptOp
@@ -66,7 +72,7 @@ def ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     The bindings raise a ValueError on a signature or x-only public key
     that libsecp256k1 refuses to parse, and `ssa.verify_` answers False
     for the same; the caller treats either as a failed verification and
-    raises BTClibValueError itself.
+    raises Core's SCHNORR_SIG itself.
 
     `bytes` and nothing wider, as in `engine.script.dsa_verify` and for
     its reason.
@@ -86,16 +92,57 @@ def get_hashtype(signature: bytes) -> int:
 
     A 64-byte signature is SIGHASH_DEFAULT; a 65th byte carries the
     type and must not spell the default explicitly, the two encodings
-    of one meaning being a malleability.
+    of one meaning being a malleability. Any other size is no BIP340
+    signature at all, Core's SCHNORR_SIG_SIZE, and is refused before a
+    type is read off it.
     """
+    if len(signature) not in (64, 65):
+        err_msg = f"taproot signature of {len(signature)} bytes"
+        raise ScriptError(err_msg, ScriptErrorCode.SCHNORR_SIG_SIZE)
     sighash_type = 0  # all
     if len(signature) == 65:
         sighash_type = signature[-1]
         if sighash_type == 0:
-            raise BTClibValueError(
-                "explicit SIGHASH_DEFAULT: a 64-byte signature is required"
+            raise ScriptError(
+                "explicit SIGHASH_DEFAULT: a 64-byte signature is required",
+                ScriptErrorCode.SCHNORR_SIG_HASHTYPE,
             )
     return sighash_type
+
+
+def _check_schnorr_signature(
+    signature: bytes,
+    pub_key: bytes,
+    tx: Tx,
+    i: int,
+    prevouts: list[TxOut],
+    ext_flag: int,
+    annex: bytes,
+    ext: bytes,
+    precomputed: PrecomputedTxData | None,
+    hash_types: list[int] | None,
+) -> None:
+    """Refuse a BIP340 signature: Core's CheckSchnorrSignature.
+
+    The size and the explicit default are get_hashtype's; a hash type
+    the sig_hash refuses -- one BIP341 does not define, SIGHASH_SINGLE
+    with no output at the input's index -- is SCHNORR_SIG_HASHTYPE, as
+    Core's SignatureHashSchnorr failing is, and a signature that does
+    not verify is SCHNORR_SIG.
+    """
+    sighash_type = get_hashtype(signature)
+    if hash_types is not None:
+        hash_types.append(sighash_type)
+    try:
+        msg_hash = sig_hash.taproot(
+            tx, i, prevouts, sighash_type, ext_flag, annex, ext, precomputed
+        )
+    except BTClibValueError as e:
+        raise ScriptError(str(e), ScriptErrorCode.SCHNORR_SIG_HASHTYPE) from e
+    if not ssa_verify(msg_hash, pub_key, signature[:64]):
+        path = "script" if ext_flag else "key"
+        err_msg = f"invalid signature for the taproot {path} path"
+        raise ScriptError(err_msg, ScriptErrorCode.SCHNORR_SIG)
 
 
 def op_checksigadd(
@@ -126,24 +173,16 @@ def verify_key_path(
     """Verify a taproot key-path spend, per BIP341.
 
     The single witness element is a BIP340 signature by the output key
-    itself over the taproot sig_hash with no script committed to; a
-    signature that does not verify is the only refusal, get_hashtype's
-    aside.
+    itself over the taproot sig_hash with no script committed to, and
+    `_check_schnorr_signature` has the refusals.
 
     `hash_types` is `verify_input`'s collector; the one element of the
     stack is the one signature to report.
     """
-    sighash_type = get_hashtype(stack[0])
-    if hash_types is not None:
-        hash_types.append(sighash_type)
-    signature = stack[0][:64]
     pub_key = type_and_payload(script_pub_key)[1]
-    msg_hash = sig_hash.taproot(
-        tx, i, prevouts, sighash_type, 0, annex, b"", precomputed
+    _check_schnorr_signature(
+        stack[0], pub_key, tx, i, prevouts, 0, annex, b"", precomputed, hash_types
     )
-
-    if not ssa_verify(msg_hash, pub_key, signature[:64]):
-        raise BTClibValueError("invalid signature for the taproot key path")
 
 
 def op_checksig(
@@ -163,14 +202,15 @@ def op_checksig(
 
     Pops public key and signature, pushes the result, and returns what
     is left of the sigops budget, every non-empty signature costing 50
-    whether or not it verifies. The refusals are BIP342's: an empty
-    public key, an exhausted budget, and a non-empty signature that
-    does not verify -- where the legacy op code pushes False, tapscript
-    fails the script, its NULLFAIL being consensus. A key neither empty
-    nor 32 bytes verifies nothing and succeeds, which is the upgrade
-    room, refused only under DISCOURAGE_UPGRADABLE_PUBKEYTYPE. The
-    message hash commits to the tapleaf and to the last executed
-    OP_CODESEPARATOR through the BIP341 extension.
+    whether or not it verifies. The refusals are BIP342's, in the order
+    of Core's EvalChecksigTapscript: an exhausted budget, an empty
+    public key, and a non-empty signature that does not verify -- where
+    the legacy op code pushes False, tapscript fails the script, its
+    NULLFAIL being consensus. A key neither empty nor 32 bytes verifies
+    nothing and succeeds, which is the upgrade room, refused only under
+    DISCOURAGE_UPGRADABLE_PUBKEYTYPE. The message hash commits to the
+    tapleaf and to the last executed OP_CODESEPARATOR through the BIP341
+    extension.
 
     `hash_types` is `verify_input`'s collector, appended to where the
     hash type is read: an empty signature is not one, and neither is
@@ -178,32 +218,38 @@ def op_checksig(
     """
     pub_key = stack.pop()
     signature = stack.pop()
-    if len(pub_key) == 0:
-        raise BTClibValueError("empty public key")
     if signature:
         budget -= 50
         if budget < 0:
-            raise BTClibValueError("exhausted sigops budget")
+            err_msg = "exhausted sigops budget"
+            raise ScriptError(err_msg, ScriptErrorCode.TAPSCRIPT_VALIDATION_WEIGHT)
+    if len(pub_key) == 0:
+        raise ScriptError("empty public key", ScriptErrorCode.TAPSCRIPT_EMPTY_PUBKEY)
     if len(pub_key) == 32:
         if signature:
-            sighash_type = get_hashtype(signature)
-            if hash_types is not None:
-                hash_types.append(sighash_type)
             preimage = b"\xc0"
             preimage += var_bytes.serialize(script_bytes)
             tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
             ext = tapleaf_hash + b"\x00" + codesep_pos.to_bytes(4, "little")
-            msg_hash = sig_hash.taproot(
-                tx, i, prevouts, sighash_type, 1, annex, ext, precomputed
+            _check_schnorr_signature(
+                signature,
+                pub_key,
+                tx,
+                i,
+                prevouts,
+                1,
+                annex,
+                ext,
+                precomputed,
+                hash_types,
             )
-            if not ssa_verify(msg_hash, pub_key, signature[:64]):
-                raise BTClibValueError("invalid signature for the taproot script path")
     # a key neither empty nor 32 bytes is a public key version BIP342 left
     # to a future soft fork: nothing is verified and the check succeeds,
     # which is the upgrade room, and the sigops budget was charged above
     # because Core charges it for a passing upgradable key too
     elif ScriptFlag.DISCOURAGE_UPGRADABLE_PUBKEYTYPE in flags:
-        raise BTClibValueError(f"upgradable public key type: {len(pub_key)} bytes")
+        err_msg = f"upgradable public key type: {len(pub_key)} bytes"
+        raise ScriptError(err_msg, ScriptErrorCode.DISCOURAGE_UPGRADABLE_PUBKEYTYPE)
     stack.append(encode_num(int(bool(signature))))
     return budget
 
@@ -298,6 +344,8 @@ def _run_ops(  # noqa: C901, PLR0912
     """
     codesep_pos = 0xFFFFFFFF
     script_index = -1
+    # script.py's `_run_ops` has the reason
+    verify_code = ScriptErrorCode.VERIFY
     s = bytesio_from_binarydata(script_bytes)
     while True:
         script_index += 1
@@ -366,11 +414,20 @@ def _run_ops(  # noqa: C901, PLR0912
             pass
         elif "OP_NOP" in op:
             script_op_codes.op_nop(flags)
+        elif op == "OP_VERIFY":
+            script_op_codes.op_verify(stack, altstack, flags, verify_code)
+            verify_code = ScriptErrorCode.VERIFY
         elif op in OPERATIONS:
             r = OPERATIONS[op](stack, altstack, flags)
             if r:
+                verify_code = VERIFY_CODES.get(op, ScriptErrorCode.VERIFY)
                 script_index -= len(r)
                 s = bytesio_from_binarydata(serialize_script(r) + s.read())
+        elif op in {"OP_CHECKMULTISIG", "OP_CHECKMULTISIGVERIFY"}:
+            # named, and refused under a code of their own: BIP342 took
+            # them out for OP_CHECKSIGADD
+            err_msg = f"{op} in a tapscript"
+            raise ScriptError(err_msg, ScriptErrorCode.TAPSCRIPT_CHECKMULTISIG)
         else:
             script_op_codes.unknown_op_code(op)
 
@@ -395,15 +452,12 @@ def verify_script_path_vc0(
     success before anything runs, MINIMALIF as consensus, and the
     CHECKMULTISIGs gone in favour of OP_CHECKSIGADD. Refusals leave as
     ScriptError, as they do from the legacy loop, and the script must
-    end with exactly one true element on the stack.
+    end with exactly one true element on the stack. The checks before
+    and after the loop are Core's ExecuteWitnessScript, in its order.
 
     `hash_types` is `verify_input`'s collector, threaded to
     `op_checksig` as the legacy loop threads it to its own.
     """
-    if any(len(x) > MAX_SCRIPT_ELEMENT_SIZE for x in stack):
-        err_msg = f"witness stack element longer than {MAX_SCRIPT_ELEMENT_SIZE} bytes"
-        raise BTClibValueError(err_msg)
-
     script = parse(script_bytes, exit_on_op_success=True)
 
     if script == ["OP_SUCCESS"]:
@@ -411,8 +465,14 @@ def verify_script_path_vc0(
         # then a spend of anything it appears in: refused only where the
         # caller says it does not want to relay one
         if ScriptFlag.DISCOURAGE_OP_SUCCESS in flags:
-            raise BTClibValueError("upgradable OP_SUCCESS op code")
+            err_msg = "upgradable OP_SUCCESS op code"
+            raise ScriptError(err_msg, ScriptErrorCode.DISCOURAGE_OP_SUCCESS)
         return
+
+    script_op_codes.assert_stack_size(stack, [])
+    if any(len(x) > MAX_SCRIPT_ELEMENT_SIZE for x in stack):
+        err_msg = f"witness stack element longer than {MAX_SCRIPT_ELEMENT_SIZE} bytes"
+        raise ScriptError(err_msg, ScriptErrorCode.PUSH_SIZE)
 
     altstack: list[bytes] = []
     condition_stack: list[bool] = [True]
@@ -434,21 +494,23 @@ def verify_script_path_vc0(
             script_index_ref,
             hash_types,
         )
-    # btclib_ecc's refusal beside btclib's: a signature or a key the
-    # loop hands to it is refused by that package's own class
+    # the three arms are script.py's verify_script's, and so is the reason
+    except ScriptError as e:
+        raise ScriptError(e.args[0], e.code, script_index_ref[0], len(stack)) from e
     except (BTClibValueError, BTClibEccValueError) as e:
-        raise ScriptError(str(e), script_index_ref[0], len(stack)) from e
+        code = ScriptErrorCode.UNKNOWN_ERROR
+        raise ScriptError(str(e), code, script_index_ref[0], len(stack)) from e
     except IndexError as e:
-        # what the loop indexes and pops is the stack and the altstack,
-        # so an IndexError out of it is an underflow; the chained
-        # exception is there for the cases in which it is not
-        raise ScriptError("stack underflow", script_index_ref[0], len(stack)) from e
+        code = ScriptErrorCode.INVALID_STACK_OPERATION
+        raise ScriptError(
+            "stack underflow", code, script_index_ref[0], len(stack)
+        ) from e
 
     script_op_codes.assert_balanced_if(condition_stack)
 
-    if not stack:
-        raise BTClibValueError("empty stack at the end of the script")
-    script_op_codes.op_verify(stack, [], flags)
-
-    if stack:
-        raise BTClibValueError(f"{len(stack)} elements left on the stack")
+    # BIP342's one true element, and the size first: Core's order, so an
+    # empty stack is CLEANSTACK and not EVAL_FALSE
+    if len(stack) != 1:
+        err_msg = f"{len(stack)} elements left on the stack"
+        raise ScriptError(err_msg, ScriptErrorCode.CLEANSTACK)
+    script_op_codes.op_verify(stack, [], flags, ScriptErrorCode.EVAL_FALSE)

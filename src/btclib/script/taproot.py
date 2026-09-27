@@ -39,6 +39,8 @@ from btclib.exceptions import (
     BTClibEccValueError,
     BTClibTypeError,
     BTClibValueError,
+    ScriptError,
+    ScriptErrorCode,
 )
 from btclib.hashes import tagged_hash
 from btclib.key import _HYBRID_PREFIXES, PubKeyData
@@ -147,11 +149,11 @@ def _read_push_data(s: BytesIO, i: int) -> bytes:
         size = 2 ** (i - 76)
         y = s.read(size)
         if len(y) != size:
-            raise BTClibValueError("Invalid pushdata length")
+            raise ScriptError("Invalid pushdata length", ScriptErrorCode.BAD_OPCODE)
         data_length = int.from_bytes(y, byteorder="little")
     data = s.read(data_length)
     if len(data) != data_length:
-        raise BTClibValueError("Invalid pushdata length")
+        raise ScriptError("Invalid pushdata length", ScriptErrorCode.BAD_OPCODE)
     return data
 
 
@@ -165,6 +167,11 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
     marker ["OP_SUCCESS"], which is Core's pre-scan. An element over
     520 bytes is refused only by a parse that meets no OP_SUCCESSx,
     one anywhere making the script valid.
+
+    Each refusal is a ScriptError with the code Core's script
+    interpreter gives it, the parse being the engine's pre-scan: a push
+    running past the end and an unknown op code are BAD_OPCODE, an
+    oversized element PUSH_SIZE.
 
     A `bool` and nothing else, which is the line
     `tests/built_object_contract_test.py` draws: this flag decides *what
@@ -202,9 +209,10 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
         elif i in OP_CODE_NAMES:  # OP_CODE
             r.append(OP_CODE_NAMES[i])
         else:
-            raise BTClibValueError(f"unknown op code: {hex(i)}")
+            err_msg = f"unknown op code: {hex(i)}"
+            raise ScriptError(err_msg, ScriptErrorCode.BAD_OPCODE)
     if invalid_element_size:
-        raise BTClibValueError("Invalid pushdata length")
+        raise ScriptError("Invalid pushdata length", ScriptErrorCode.PUSH_SIZE)
     return r
 
 

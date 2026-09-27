@@ -161,6 +161,11 @@ full year, short month, short day (YYYY-M-D)
   names each call site. Act on it by catching `BTClibValueError`
   wherever an `except BTClibRuntimeError` was written around one of
   them.
+- **`ScriptError` takes its `code` second, as `ScriptError(message, code,
+  index=None, stack_depth=None)`** (closes #2314), where it took `(message,
+  index, stack_depth)`, and its `args` are those four. v2023.7.12 has no
+  `ScriptError`. Act on it by passing a `ScriptErrorCode` after the message
+  wherever one is raised.
 
 ## v2026.9.24
 
