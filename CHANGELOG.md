@@ -458,6 +458,12 @@ Upper-case ASCII: `str.upper` maps U+0131 onto `I`, so `op_` U+0131 `f` was
 OP_IF, and `taproot.serialize` wrote `op_success80` without refusing what
 follows it. An OP_SUCCESS number is ASCII digits (closes #2352).
 
+### `script.taproot` asks the internal key `assert_valid` above the arm split
+
+A key built with `check_validity=False` on a network no name has is refused on
+both arms, where the bindings took it (closes #2342), and a SEC prefix wrong for
+its length is refused in `assert_valid`'s words, where each arm had its own.
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

@@ -339,12 +339,20 @@ def _output_pubkey_and_internal_key(
         # this function takes would otherwise be `pip install`'s
         # decision rather than btclib's (issue #1227). key.py's
         # paragraph on `_HYBRID_PREFIXES` is why the answer is refusal.
-        # A key built with `check_validity=False` reaches here carrying
-        # one, `assert_valid` being what would otherwise have refused it
+        # Asked ahead of `assert_valid` below, which refuses the prefix
+        # too, so that the sentence names it as hybrid
         if sec[0] in _HYBRID_PREFIXES:
             raise BTClibValueError(
                 f"invalid internal public key: hybrid SEC prefix {sec[0]:#04x}"
             )
+        # `check_validity=False` is "do not check now" and not an
+        # exemption (CONTRIBUTING.md), so the key is asked here, above the
+        # arm split: a length, a prefix and a network name, no point
+        # lifted, so the bindings arm still hands `tweak_add` octets
+        # nothing has proved (issue 887). The network is the field only
+        # the Python arm reads, `point` going through `curve`, and asked
+        # here it is refused on both arms rather than on that one alone
+        internal_pubkey.assert_valid()
         key_data = internal_pubkey
     else:
         h_str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
@@ -433,12 +441,13 @@ def _tweaked_pubkey(pub_key: PubKeyData, h: bytes) -> tuple[bytes, int]:
             # Anything else carries more than an x. An uncompressed key's
             # y is unproven for the same reason as its x, and a valid x
             # with a y that is not its own is refused here too, where
-            # naming the x would name the half that is right; and
-            # a key built unchecked carries any prefix at either
-            # length, a prefix being the fault of neither coordinate.
+            # naming the x would name the half that is right.
             # `check_output_pubkey`'s arm already says that in these
-            # words, its refusal being one it cannot decompose either
-            if not (pub_key.is_compressed and pub_key.sec[0] in (0x02, 0x03)):
+            # words, its refusal being one it cannot decompose either.
+            # The prefix is not in question by here: the output key's
+            # caller has asked `assert_valid`, and the merkle root's
+            # writes 02 itself
+            if not pub_key.is_compressed:
                 raise BTClibValueError(f"invalid internal public key: {e}") from e
             x_Q = int.from_bytes(pub_key.sec[1:33], "big")
             raise BTClibValueError(f"invalid x-coordinate: '{hex_string(x_Q)}'") from e

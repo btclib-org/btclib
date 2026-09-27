@@ -200,43 +200,35 @@ _Q = mult(_PRV_KEY)
 _X = _Q[0].to_bytes(32, "big")
 _Y = _Q[1].to_bytes(32, "big")
 
-# name -> (the call, whether the two arms are held to its wording too).
+# name -> the call, the two arms held to its class and its wording.
 # Both taproot entries carry `PubKeyData(..., check_validity=False)`'s
 # unproven octets to whichever arm answers next -- issue #887 -- so a
 # refusal one arm makes and the other does not is this table's reason
 # to exist, not an edge case of it.
 #
-# "bool private key" and "hybrid internal key" are held to the message
-# as well as the class: both refusals run in a shared precondition
-# above the arm split -- `int_from_integer` for the first (issue
-# #1206), `_output_pubkey_and_internal_key`'s own hybrid check for the
-# second (issue #1227) -- so the two arms never see the input until
-# after the one btclib sentence has already fired.
-#
-# "bad-prefix internal key" is held to the class alone. `0x05 || x` is a
-# SEC length with no SEC prefix, the fault of neither coordinate, and
-# a `PubKeyData` built unchecked leaves it unproven for
-# `_tweaked_pubkey`'s own parse
-# to refuse (issue #887): the bindings arm learns of it from
-# `tweak_add`'s bare `ValueError`, the Python one from `PubKeyData.
-# point`'s lift, and neither call can say what the other would have
-# said. `tests/script/taproot_test.py`'s own
-# `test_the_tweak_names_no_half_of_a_sec_it_cannot_blame` holds this
-# input to the class alone for the same reason (issues #1214, #1218);
-# `dsa.py`'s own rule is that the discrimination is the bindings' but
-# the hierarchy has to be btclib's, and this is the general form of
-# that rule applied here rather than an exception to it.
-_REFUSALS: dict[str, tuple[Callable[[], object], bool]] = {
-    "bool private key": (lambda: dsa.sign(_MSG_HASH, True), True),
-    "hybrid internal key": (
-        lambda: output_pubkey(
-            PubKeyData(bytes([0x06]) + _X + _Y, check_validity=False)
-        ),
-        True,
+# The wording as well as the class, because each refusal runs in a
+# shared precondition above the arm split -- `int_from_integer` for the
+# bool (issue #1206), and for the internal keys
+# `_output_pubkey_and_internal_key`'s own hybrid check (issue #1227) and
+# then `PubKeyData.assert_valid`, which refuses `0x05 || x` as a prefix
+# no compressed SEC key has and a network no name has (issue #2342) --
+# so the two arms never see the input until after the one btclib
+# sentence has already fired. `tests/script/taproot_test.py`'s
+# `test_the_tweak_names_no_half_of_a_sec_it_cannot_blame` holds the
+# class alone for the input that does reach the arms, a y that is not
+# its x's, which `assert_valid` does not lift a point to see (issues
+# #1214, #1218); `dsa.py`'s own rule is that the discrimination is the
+# bindings' but the hierarchy has to be btclib's.
+_REFUSALS: dict[str, Callable[[], object]] = {
+    "bool private key": lambda: dsa.sign(_MSG_HASH, True),
+    "hybrid internal key": lambda: output_pubkey(
+        PubKeyData(bytes([0x06]) + _X + _Y, check_validity=False)
     ),
-    "bad-prefix internal key": (
-        lambda: output_pubkey(PubKeyData(bytes([0x05]) + _X, check_validity=False)),
-        False,
+    "bad-prefix internal key": lambda: output_pubkey(
+        PubKeyData(bytes([0x05]) + _X, check_validity=False)
+    ),
+    "unknown-network internal key": lambda: output_pubkey(
+        PubKeyData(bytes([0x02]) + _X, network="nonet", check_validity=False)
     ),
 }
 
@@ -290,6 +282,15 @@ print(json.dumps({{
             PubKeyData(bytes.fromhex({bad_prefix_sec!r}), check_validity=False)
         )
     ),
+    "unknown-network internal key": refused(
+        lambda: output_pubkey(
+            PubKeyData(
+                bytes.fromhex({compressed_sec!r}),
+                network="nonet",
+                check_validity=False,
+            )
+        )
+    ),
 }}))
 """
 
@@ -300,6 +301,7 @@ def _refusal_child_answers() -> dict[str, Any]:
         msg_hash=_MSG_HASH,
         hybrid_sec=(bytes([0x06]) + _X + _Y).hex(),
         bad_prefix_sec=(bytes([0x05]) + _X).hex(),
+        compressed_sec=(bytes([0x02]) + _X).hex(),
     )
     completed = subprocess.run(  # noqa: S603
         [sys.executable, "-c", source],
@@ -336,22 +338,18 @@ def test_the_two_arms_refuse_the_same_inputs() -> None:
     the question those two do not: given an input, do the two arms
     refuse it the same way.
 
-    `_REFUSALS` names the inputs and, per input, whether the two arms
-    are held to its wording -- the comment above the table says which
-    and why. Every entry is refused here, with the bindings in reach,
+    `_REFUSALS` names the inputs, and the two arms are held to each
+    one's wording -- the comment above the table says why they can be.
+    Every entry is refused here, with the bindings in reach,
     before the child runs, so a table entry that stopped refusing would
     fail this half rather than silently comparing two successes.
     """
-    local = {name: _locally_refused(call) for name, (call, _) in _REFUSALS.items()}
+    local = {name: _locally_refused(call) for name, call in _REFUSALS.items()}
 
     answers = _refusal_child_answers()
     assert answers["dispatch"] is False
 
-    for name, (_, compare_message) in _REFUSALS.items():
+    for name in _REFUSALS:
         got = answers[name]
         assert got is not None, f"{name}: the no-bindings arm did not refuse"
-        child_cls, child_msg = got
-        local_cls, local_msg = local[name]
-        assert child_cls == local_cls, name
-        if compare_message:
-            assert child_msg == local_msg, name
+        assert got == list(local[name]), name

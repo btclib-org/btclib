@@ -31,6 +31,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.number_theory import mod_sqrt_var
 from btclib.script import (
+    ScriptPubKey,
     TaprootScriptTree,
     Witness,
     check_output_pubkey,
@@ -479,27 +480,14 @@ def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
 ) -> None:
     """A sec whose fault is not its x is refused without naming one.
 
-    Marked: the first assertion of each pair is the delegated arm's own
-    message, so with no bindings installed there is no such arm to reach
-    and nothing to compare the second against.
+    Marked: the first assertion is the delegated arm's own message, so
+    with no bindings installed there is no such arm to reach and nothing
+    to compare the second against.
 
-    `PubKeyData(check_validity=False)` leaves the octets unproven for the
-    reason the arm itself does: `assert_valid`, which checks a length and
-    a prefix, is what `check_validity=False` skips, so what reaches
-    `tweak_add` can be wrong in more than one place. The arm names the x
-    only where the x is the only place left, which these three are not:
-
-    - `04 || x || y`, a good x and a y that is not its own. The x is the
-      half that is right, and naming it would be false.
-    - `05 || x`, a SEC length and no SEC prefix, which is the fault of
-      neither coordinate.
-    - `02 || x || y`, a compressed prefix at the uncompressed length,
-      where the two disagree and neither is wrong on its own.
-
-    The last two are here because they are the two halves of what the
-    arm reads to decide -- a length and a prefix -- and without them
-    dropping either half would leave this suite green while the arm
-    named a valid x.
+    `04 || x || y`, a good x and a y that is not its own, passes
+    `assert_valid`, which reads a length and a prefix and lifts no point,
+    and so reaches `tweak_add` unproven. The x is the half that is right,
+    and naming it would be false.
 
     The two arms agree on the class here rather than on the sentence.
     With no bindings the refusal is the lift `PubKeyData.point` performs,
@@ -509,18 +497,62 @@ def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
     Q = mult(7)
     x = Q[0].to_bytes(32, "big")
     y_not_x_s = ((Q[1] + 1) % secp256k1.p).to_bytes(32, "big")
-    for sec, python_msg in (
-        (b"\x04" + x + y_not_x_s, "point not on curve"),
-        (b"\x05" + x, "not a point: prefix 0x05"),
-        (b"\x02" + x + Q[1].to_bytes(32, "big"), "invalid size for compressed point"),
-    ):
-        key = PubKeyData(sec, check_validity=False)
-        with pytest.raises(BTClibValueError, match="invalid internal public key"):
+    key = PubKeyData(b"\x04" + x + y_not_x_s, check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid internal public key"):
+        output_pubkey(key)
+    with monkeypatch.context() as no_bindings:
+        no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
+        with pytest.raises(BTClibValueError, match="point not on curve"):
             output_pubkey(key)
+
+
+@pytest.mark.parametrize(
+    "key, err_msg",
+    [
+        pytest.param(
+            PubKeyData(b"\x05" + mult(7)[0].to_bytes(32, "big"), check_validity=False),
+            "invalid compressed SEC prefix: 0x05",
+            id="a SEC length with no SEC prefix",
+        ),
+        pytest.param(
+            PubKeyData(
+                b"\x02"
+                + mult(7)[0].to_bytes(32, "big")
+                + mult(7)[1].to_bytes(32, "big"),
+                check_validity=False,
+            ),
+            "invalid uncompressed SEC prefix: 0x02",
+            id="a compressed prefix at the uncompressed length",
+        ),
+        pytest.param(
+            PubKeyData(PrvKeyData(7).pub.sec, network="nonet", check_validity=False),
+            "unknown network: 'nonet'",
+            id="an unknown network",
+        ),
+    ],
+)
+def test_an_unchecked_internal_key_is_asked_above_the_arm_split(
+    key: PubKeyData, err_msg: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`assert_valid` runs before either arm, so both refuse in its words.
+
+    The network is the case that decided it (issue #2342): the bindings
+    arm reads `sec` alone and took a key on a network no name has, which
+    the Python arm refused from `PubKeyData.point` through `curve`. The
+    prefix and the length were refused on both arms already, each in
+    its own parse's words.
+    """
+    for call in (
+        lambda: output_pubkey(key),
+        lambda: input_script_sig(key, [(0xC0, ["OP_1"])], 0),
+        lambda: ScriptPubKey.p2tr(key),
+    ):
+        with pytest.raises(BTClibValueError, match=err_msg):
+            call()
         with monkeypatch.context() as no_bindings:
             no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
-            with pytest.raises(BTClibValueError, match=python_msg):
-                output_pubkey(key)
+            with pytest.raises(BTClibValueError, match=err_msg):
+                call()
 
 
 @needs_bindings
