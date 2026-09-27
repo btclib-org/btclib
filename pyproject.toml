@@ -588,8 +588,14 @@ filterwarnings = ["error"]
 # instead of holding the job until its timeout-minutes. The bound sits
 # several times above the slowest test measured, on CI's slowest runners
 # and on a loaded local machine, because a bound that fires on a slow
-# runner is a red with nothing wrong. `--durations=8` above prints the
-# slowest tests of every CI job, and the local measurement is
+# runner is a red with nothing wrong. Measured 2026-09-27: the slowest
+# test on CI, block_test.py's
+# test_the_length_and_weight_caps_are_reachable_not_only_crossable, took
+# under 38 s on windows-latest under 3.11 (deps-latest run 36324037465,
+# dispatched on main), and the slowest locally, a tapscript-bigmulti
+# vector of python_path_test.py, under 28 s on a macOS machine at a
+# one-minute load average between 40 and 55. `--durations=8` above prints
+# the slowest tests of every CI job, and the local measurement is
 #
 #     uv run pytest --durations=0 --durations-min=0
 #
