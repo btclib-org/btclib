@@ -442,6 +442,89 @@ def test_fix_signature_high_s() -> None:
     assert fix_signature(high_s, ScriptFlag.DERSIG) == low.serialize() + signature[-1:]
 
 
+def lax_encodings(der: bytes) -> dict[str, bytes]:
+    """Re-encode a strict DER signature the ways Core's lax parser reads.
+
+    Each is an encoding a regtest node of Core v31.1.0 mined below its
+    DERSIG activation height, moved out for the run, and refused with
+    SIG_DER above it.
+    """
+    r_end = 4 + der[3]
+    return {
+        "sequence length one too many": der[:1] + bytes([der[1] + 1]) + der[2:],
+        "sequence length zero": der[:1] + b"\x00" + der[2:],
+        "sequence length in long form 81": der[:1] + b"\x81" + der[1:],
+        "sequence length in long form 80": der[:1] + b"\x80" + der[2:],
+        "r length in long form 81": der[:3] + b"\x81" + der[3:],
+        "r length in long form 83 00 00": der[:3] + b"\x83\x00\x00" + der[3:],
+        "s length in long form 82 00": (
+            der[: r_end + 1] + b"\x82\x00" + der[r_end + 1 :]
+        ),
+        "a byte after s inside the sequence": (
+            der[:1] + bytes([der[1] + 1]) + der[2:] + b"\x00"
+        ),
+    }
+
+
+# a strict encoding without padding, r and s being 31 octets each
+LAX_DER_BASE = Sig(2**247 - 1, 2**247 - 1).serialize()
+
+
+@pytest.mark.parametrize("name", list(lax_encodings(LAX_DER_BASE)))
+def test_fix_signature_reads_core_lax_der(name: str) -> None:
+    """With no flag asking for strict DER, what Core's lax parser reads is read.
+
+    `CPubKey::Verify` parses with `ecdsa_signature_parse_der_lax`, which
+    skips the sequence length and reads a length octet with its top bit
+    set as X.690's long form; each encoding here is the strict one
+    re-serialized, and refused under DERSIG as Core refuses it.
+    """
+    der = LAX_DER_BASE
+    lax = lax_encodings(der)[name] + b"\x01"
+    assert fix_signature(lax, NO_FLAGS) == der + b"\x01"
+    with pytest.raises(BTClibEccValueError):
+        fix_signature(lax, ScriptFlag.DERSIG)
+
+
+def test_fix_signature_refuses_what_core_lax_der_refuses() -> None:
+    """Each refusal of `ecdsa_signature_parse_der_lax`, and two past it.
+
+    The last two are encodings that parser reads and Core then fails to
+    verify -- a zero r, and an r wider than 32 octets, which the parser
+    replaces with a zero signature -- and that `Sig` refuses with the
+    error op_checksig turns into the same False.
+    """
+    der = LAX_DER_BASE
+    s_part = der[4 + der[3] :]
+    # a CompactSize size of 253, which `Sig.parse(strict=False)` reads as
+    # r's size and Core as 0x7d length octets to skip: they end inside r,
+    # where no integer tag is
+    r_wide = b"\x02\xfd\xfd\x00" + b"\x00" * (253 - der[3]) + der[4 : 4 + der[3]]
+    compact_size = b"\x30\xfd" + (len(r_wide) + len(s_part)).to_bytes(2, "little")
+    for encoding, message in (
+        (b"", "missing sequence tag"),
+        (b"\x31" + der[1:], "missing sequence tag"),
+        (b"\x30", "missing sequence length"),
+        (b"\x30\x85\x02\x01\x01\x02", "sequence length overruns the data"),
+        (der[:2] + b"\x03" + der[3:], "missing integer tag"),
+        (der[:3], "missing integer length"),
+        (der[:3] + b"\x81", "integer length overruns the data"),
+        (der[:3] + b"\x84\x01\x00\x00\x00" + der[3:], "integer length too wide"),
+        (der[:3] + b"\x7f" + der[4:], "integer overruns the data"),
+        (der[: 4 + der[3]], "missing integer tag"),
+        (compact_size + r_wide + s_part, "missing integer tag"),
+    ):
+        with pytest.raises(BTClibValueError, match=message):
+            fix_signature(encoding + b"\x01", NO_FLAGS)
+
+    for encoding in (
+        b"\x30\x00\x02\x00" + s_part,
+        b"\x30\x00\x02\x21\x01" + b"\x00" * 32 + s_part,
+    ):
+        with pytest.raises(BTClibEccValueError, match="scalar r not in 1..n-1"):
+            fix_signature(encoding + b"\x01", NO_FLAGS)
+
+
 def taproot_script_spend(
     script: list[Any],
     lock_time: int,
@@ -924,6 +1007,22 @@ def sign_codeseparator_spend(
     signature = sign_(msg_hash, CODESEP_PRV_KEY).serialize() + b"\x01"
     tx.vin[0].script_witness = Witness([signature.hex(), witness_script.hex()])
     return msg_hash
+
+
+@pytest.mark.parametrize("name", list(lax_encodings(LAX_DER_BASE)))
+def test_lax_der_verifies_without_dersig(name: str) -> None:
+    """A p2pk spend signed in a lax encoding verifies, and not under DERSIG."""
+    script_pub_key = serialize([PrvKeyData(CODESEP_PRV_KEY).pub.sec, "OP_CHECKSIG"])
+    prevout = TxOut(1000, ScriptPubKey(script_pub_key))
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), b"", 1)
+    tx = Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
+    msg_hash = sig_hash.legacy(script_pub_key, tx, 0, sig_hash.ALL)
+    der = sign_(msg_hash, CODESEP_PRV_KEY).serialize()
+    tx.vin[0].script_sig = serialize([lax_encodings(der)[name] + b"\x01"])
+
+    verify_input([prevout], tx, 0, "")
+    with pytest.raises(ScriptError, match="invalid DER"):
+        verify_input([prevout], tx, 0, "DERSIG")
 
 
 def test_p2wsh_codeseparator_cut_is_what_the_signature_commits_to() -> None:
