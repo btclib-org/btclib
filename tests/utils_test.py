@@ -28,6 +28,9 @@ from btclib.utils import (
 
 random.seed(42)
 
+# the refusal of a "0x" string whose digits are not ASCII hex (issue #2353)
+_NOT_HEX_DIGITS = "invalid hex integer: what follows 0x is not ASCII hex digits"
+
 
 def test_read_exactly() -> None:
     """The size asked for is the size returned, or it is an error."""
@@ -290,8 +293,67 @@ def test_octets_are_bytes_or_the_hex_string_of_bytes_and_nothing_else() -> None:
             bytes_from_octets(not_hex)
         with pytest.raises(BTClibValueError, match="invalid hex string: "):
             int_from_integer(not_hex)
-    with pytest.raises(BTClibValueError, match="invalid hex integer: "):
+    with pytest.raises(BTClibValueError) as excinfo:
         int_from_integer("0xzz")
+    assert str(excinfo.value) == _NOT_HEX_DIGITS
+
+
+def test_int_from_integer_reads_ascii_hex_after_0x() -> None:
+    """Only ASCII hex digits follow 0x, and only ASCII whitespace is stripped.
+
+    Python's `int(s, 16)` takes the digit-grouping underscore and every
+    Unicode decimal digit, and `str.strip()` every character `isspace`
+    counts, so each of these read as a number (issue #2353). The refusal
+    names no part of the string, which may be a private key.
+    """
+    arabic_indic = chr(0x661) + chr(0x660)
+    fullwidth = chr(0xFF11) + chr(0xFF10)
+    for not_hex in (
+        "0x1_0",
+        "0x_10",
+        "-0x1_0",
+        "0x" + arabic_indic,
+        "0x" + fullwidth,
+        "-0x" + fullwidth,
+        "0x",
+        "-0x",
+        "0x 10",
+        "0x-10",
+        "0x+10",
+        "0x10" + chr(0x3000) + "1",
+        # padding `isspace` counts and ASCII does not, after the digits:
+        # the string still starts with 0x, so this refusal answers it
+        "0x10" + chr(0x3000),
+        "0x10" + chr(0xA0),
+        "-0x10" + chr(0x2028),
+        "0x10" + chr(0x1C),
+    ):
+        with pytest.raises(BTClibValueError) as excinfo:
+            int_from_integer(not_hex)
+        assert str(excinfo.value) == _NOT_HEX_DIGITS
+        with pytest.raises(BTClibValueError) as excinfo:
+            hex_string(not_hex)
+        assert str(excinfo.value) == _NOT_HEX_DIGITS
+
+    # the same padding ahead of 0x, or around a string without it, leaves
+    # one that is neither "0x..." nor hex, so it is bytes.fromhex that
+    # refuses it, in its own words
+    for pad in (chr(0x3000), chr(0xA0), chr(0x2028), chr(0x1C)):
+        for padded in (f"{pad}0x10{pad}", f"{pad}deadbeef{pad}"):
+            with pytest.raises(ValueError) as fromhex:
+                bytes.fromhex(padded.lower())
+            with pytest.raises(BTClibValueError) as excinfo:
+                int_from_integer(padded)
+            assert str(excinfo.value) == f"invalid hex string: {fromhex.value}"
+
+    # what stays: ASCII whitespace around either spelling, and upper case
+    ascii_ws = " \t\n\r\f\v"
+    assert int_from_integer(f"{ascii_ws}0x10{ascii_ws}") == 16
+    assert int_from_integer(f"{ascii_ws}-0X1f{ascii_ws}") == -31
+    assert int_from_integer(f"{ascii_ws}DEADBEEF{ascii_ws}") == 0xDEADBEEF
+    assert int_from_integer("0x" + "0123456789abcdefABCDEF") == int(
+        "0123456789abcdefABCDEF", 16
+    )
 
 
 def test_a_buffer_becomes_the_bytes_the_signature_promises() -> None:
