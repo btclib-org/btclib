@@ -164,19 +164,19 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
     strings, and an OP_SUCCESSx ends the parse: what follows one is
     returned as raw bytes, BIP342 not requiring it to be a script --
     or, with `exit_on_op_success`, the whole answer is the single
-    marker ["OP_SUCCESS"], which is Core's pre-scan. An element over
-    520 bytes is refused only by a parse that meets no OP_SUCCESSx,
-    one anywhere making the script valid.
+    marker ["OP_SUCCESS"]. An element over 520 bytes is refused only by
+    a parse that meets no OP_SUCCESSx, one anywhere making the script
+    valid.
 
-    Each refusal is a ScriptError with the code Core's script
-    interpreter gives it, the parse being the engine's pre-scan: a push
-    running past the end and an unknown op code are BAD_OPCODE, an
-    oversized element PUSH_SIZE.
+    Each refusal is a ScriptError with the code Core's interpreter gives
+    the same fault: a push running past the end and an
+    unknown op code are BAD_OPCODE, an oversized element PUSH_SIZE. The
+    engine runs a tapscript without this parse.
 
     A `bool` and nothing else, which is the line
     `tests/built_object_contract_test.py` draws: this flag decides *what
     is computed* rather than whether a check runs, so a value read for
-    its truth answered the pre-scan's marker where the commands were
+    its truth answered the marker where the commands were
     asked for -- two different readings of the same bytes.
     """
     assert_type(exit_on_op_success, bool, "exit_on_op_success")

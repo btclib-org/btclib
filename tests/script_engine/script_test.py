@@ -50,6 +50,7 @@ from btclib.script.taproot import (
     leaf_hash,
     output_prvkey,
     output_pubkey,
+    output_pubkey_from_merkle_root,
 )
 from btclib.script.taproot import parse as parse_tapscript
 from btclib.script.taproot import serialize as serialize_tapscript
@@ -701,10 +702,7 @@ def test_verif_before_an_op_success() -> None:
     """An OP_SUCCESS ahead of OP_VERIF makes the tapscript valid anyway.
 
     Core's pre-scan returns success at the first OP_SUCCESS whatever
-    precedes it, so this spend is valid, and that is what keeps both op
-    codes in the tapscript tables: without a name for 0x65, `parse`
-    would raise on the byte before the pre-scan could answer, and btclib
-    would reject a spendable script (issue #182).
+    precedes it, so this spend is valid (issue #182).
     """
     prevouts, tx = taproot_script_spend(
         ["OP_VERIF", "OP_SUCCESS80", b""], lock_time=0, sequence=1
@@ -1282,9 +1280,8 @@ def test_read_push_data_measures_before_it_skips(skip_execution: bool) -> None:
     lose, and Core has a vector for exactly that shape ("520 byte push
     in non-executed IF branch").
 
-    Called directly rather than through verify_script: the push sizes
-    below are what `script.parse` refuses on the way in, so a script
-    carrying one cannot reach the loop at all yet.
+    Called directly, so that each refusal is the push's own and not
+    whatever else a script around it would add.
     """
     stack: list[bytes] = []
     args = (stack, skip_execution, NO_FLAGS, serialize)
@@ -1295,11 +1292,6 @@ def test_read_push_data_measures_before_it_skips(skip_execution: bool) -> None:
     err_msg = f"pushdata longer than {MAX_SCRIPT_ELEMENT_SIZE} bytes"
     with pytest.raises(BTClibValueError, match=err_msg):
         read_push_data(0x4D, stream, *args)
-
-    # the same push with the limit turned off, which is the tapscript arm
-    stream = BytesIO(over.to_bytes(2, "little") + b"\x00" * over)
-    read_push_data(0x4D, stream, *args, element_size_limit=None)
-    assert stack == ([] if skip_execution else [b"\x00" * over])
 
     # a push of two bytes with one to read
     with pytest.raises(BTClibValueError, match="pushdata of 2 bytes, 1 in the script"):
@@ -1670,3 +1662,94 @@ def test_an_op_success_forgives_an_oversized_witness_element(size: int) -> None:
         with pytest.raises(ScriptError) as exc_info:
             verify_input(prevouts, tx, 0, ALL_FLAGS)
         assert exc_info.value.code is ScriptErrorCode.PUSH_SIZE
+
+
+# a push of 521 bytes, one over the element limit, as OP_PUSHDATA2
+_PUSH_521 = b"\x4d\x09\x02" + bytes(MAX_SCRIPT_ELEMENT_SIZE + 1)
+
+
+@pytest.mark.parametrize(
+    "script_bytes, code",
+    [
+        (b"\x7e\xab\x51", "DISABLED_OPCODE"),
+        (b"\x6a\xab\x51", "OP_RETURN"),
+        (b"\x4d\x0a\x02" + bytes(522) + b"\xab", "PUSH_SIZE"),
+        (b"\x51\xab", "OP_CODESEPARATOR"),
+    ],
+    ids=["disabled", "op_return", "push size", "codeseparator alone"],
+)
+def test_const_scriptcode_is_asked_where_core_asks_it(
+    script_bytes: bytes, code: str
+) -> None:
+    """A fault ahead of OP_CODESEPARATOR is that fault's code, not this one's.
+
+    Core's EvalScript asks CONST_SCRIPTCODE of each op code as it reads
+    it, after the push size and the disabled op codes, so an earlier op
+    that fails answers first.
+    """
+    tx = Tx(check_validity=False)
+    with pytest.raises(ScriptError) as exc_info:
+        verify_script(script_bytes, [], 0, tx, 0, ScriptFlag.CONST_SCRIPTCODE, False)
+    assert exc_info.value.code is ScriptErrorCode[code]
+
+
+def _raw_tapscript_spend(leaf: bytes, witness: list[bytes]) -> tuple[list[TxOut], Tx]:
+    """Spend a tapscript leaf given as bytes, which no op code table reads.
+
+    The internal key is the BIP341 NUMS point, as in taproot_script_spend.
+    """
+    nums = bytes.fromhex(
+        "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
+    )
+    q, parity = output_pubkey_from_merkle_root(nums, leaf_hash(0xC0, leaf))
+    control = bytes([0xC0 | parity]) + nums
+    prevout = TxOut(1000, ScriptPubKey(serialize(["OP_1", q])))
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), b"", 1, Witness([*witness, leaf, control]))
+    tx = Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
+    return [prevout], tx
+
+
+@pytest.mark.parametrize(
+    "leaf, witness, code",
+    [
+        (b"\x75" + _PUSH_521 + b"\x51", [b""] * 1001, "STACK_SIZE"),
+        (b"\x6a" + _PUSH_521, [], "OP_RETURN"),
+        (b"\x6a\xff", [], "OP_RETURN"),
+        (b"\x00\x63" + _PUSH_521 + b"\x68\x51", [], "PUSH_SIZE"),
+        (b"\x51\x4c", [], "BAD_OPCODE"),
+        (b"\xff", [], "BAD_OPCODE"),
+    ],
+    ids=[
+        "stack size before push size",
+        "op_return before push size",
+        "op_return before invalid op code",
+        "push size where not executed",
+        "truncated push",
+        "invalid op code",
+    ],
+)
+def test_a_tapscript_fault_is_answered_where_core_answers_it(
+    leaf: bytes, witness: list[bytes], code: str
+) -> None:
+    """ExecuteWitnessScript's order, and EvalScript's per op code.
+
+    The pre-scan refuses only a push running past the end; the initial
+    stack is sized next, and an oversized push or OP_INVALIDOPCODE is
+    refused by the loop when it reads it, the push whether it executes
+    or not, OP_INVALIDOPCODE only where it does.
+    """
+    prevouts, tx = _raw_tapscript_spend(leaf, witness)
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+    assert exc_info.value.code is ScriptErrorCode[code]
+
+
+def test_an_unexecuted_invalid_op_code_spends_a_tapscript() -> None:
+    """OP_0 OP_IF OP_INVALIDOPCODE OP_ENDIF OP_1 is valid, as in Core.
+
+    0xff is no OP_SUCCESSx, so Core's pre-scan reads past it, and its
+    EvalScript reaches `default: BAD_OPCODE` only where the op executes;
+    script_tests.json's `IF 0xff ELSE 1 ENDIF` is the legacy twin.
+    """
+    prevouts, tx = _raw_tapscript_spend(b"\x00\x63\xff\x68\x51", [])
+    verify_input(prevouts, tx, 0, ALL_FLAGS)

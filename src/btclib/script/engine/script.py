@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from btclib.alias import ScriptList
 from btclib.curves import is_libsecp256k1_serving, point_from_octets
 from btclib.ecc import dsa
 from btclib.ecc.dsa import Sig
@@ -58,6 +57,7 @@ __all__ = [
     "OPERATIONS",
     "STRICT_DER_FLAGS",
     "VERIFY_CODES",
+    "assert_const_scriptcode",
     "assert_not_disabled",
     "assert_nulldummy",
     "assert_nullfail",
@@ -70,7 +70,6 @@ __all__ = [
     "fix_signature",
     "op_checksig",
     "op_code_name",
-    "prepare_script",
     "script_op_count",
     "verify_script",
 ]
@@ -576,17 +575,22 @@ def assert_not_disabled(op_code: int) -> None:
         raise ScriptError(err_msg, ScriptErrorCode.DISABLED_OPCODE)
 
 
-def prepare_script(script: ScriptList, flags: ScriptFlag, segwit: bool) -> None:
+# read from the table by name, as DISABLED_OP_CODES is
+_OP_CODESEPARATOR = BYTE_FROM_OP_CODE_NAME["OP_CODESEPARATOR"][0]
+
+
+def assert_const_scriptcode(op_code: int, flags: ScriptFlag, segwit: bool) -> None:
     """Refuse OP_CODESEPARATOR in a legacy script under CONST_SCRIPTCODE.
 
     Only legacy: BIP143 keeps the op code meaningful in segwit v0, so
-    the pre-segwit script code is the one the flag freezes.
+    the pre-segwit script code is the one the flag freezes. Asked of each
+    op code as the loop reads it, executed or not, and after the disabled
+    ones, which is where Core's EvalScript asks it: so a fault earlier in
+    the script is that fault's code, and not this one's.
     """
-    # `verify_script` reaches this before it reads its own `segwit`, so
-    # this is where the flag of a whole script evaluation is asked for
     assert_type(segwit, bool, "segwit")
     if (
-        "OP_CODESEPARATOR" in script
+        op_code == _OP_CODESEPARATOR
         and ScriptFlag.CONST_SCRIPTCODE in flags
         and not segwit
     ):
@@ -724,6 +728,7 @@ def _run_ops(  # noqa: C901, PLR0912
             op_code_num = script_op_count(op_code_num, 1)
 
         assert_not_disabled(t)
+        assert_const_scriptcode(t, flags, segwit)
 
         if skip_execution and t not in EVALUATED_WHEN_UNEXECUTED:
             continue
@@ -857,8 +862,8 @@ def verify_script(
         err_msg = f"script longer than {MAX_SCRIPT_SIZE} bytes: {len(script_bytes)}"
         raise ScriptError(err_msg, ScriptErrorCode.SCRIPT_SIZE)
 
+    assert_type(segwit, bool, "segwit")
     script = parse(script_bytes)
-    prepare_script(script, flags, segwit)
 
     # Core's pbegincodehash, an offset into script_bytes and not an index
     # into the parse: a script code is a slice of the script's own bytes,

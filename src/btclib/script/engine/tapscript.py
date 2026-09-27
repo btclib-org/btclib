@@ -29,7 +29,8 @@ from btclib.script.engine.script import (
 )
 from btclib.script.engine.script_op_codes import ScriptOp
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
-from btclib.script.op_codes_tapscript import OP_CODE_NAMES
+from btclib.script.op_codes_tapscript import OP_CODE_NAMES, OP_SUCCESS
+from btclib.script.script import op_code_spans
 from btclib.script.script_pub_key import type_and_payload
 from btclib.script.sig_hash import PrecomputedTxData
 
@@ -43,7 +44,6 @@ try:
     from btclib_secp256k1.ssa import verify as _libsecp256k1_ssa_verify
 except ImportError:  # pragma: no cover -- only an install without them
     _libsecp256k1_ssa_verify = None  # type: ignore[assignment]
-from btclib.script.taproot import parse
 from btclib.script.taproot import serialize as serialize_script
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
@@ -361,22 +361,16 @@ def _run_ops(  # noqa: C901, PLR0912
         t = b[0]
         if 0 < t <= 78:  # pushdata
             script_op_codes.read_push_data(
-                # the element limit is taproot.parse's here, deferred
-                # to the end of the walk so that an OP_SUCCESSx met
-                # first forgives an oversized push, as Core's
-                # pre-scan does. Measured again in the loop it would
-                # refuse what that parse has already forgiven
-                t,
-                s,
-                stack,
-                skip_execution,
-                flags,
-                serialize_script,
-                element_size_limit=None,
+                t, s, stack, skip_execution, flags, serialize_script
             )
             continue
         if skip_execution and t not in EVALUATED_WHEN_UNEXECUTED:
             continue
+        if t not in OP_CODE_NAMES:
+            # OP_INVALIDOPCODE, the one byte neither named nor an
+            # OP_SUCCESSx, which the pre-scan leaves to the loop as Core's
+            # does: BAD_OPCODE where it executes, nothing where it does not
+            script_op_codes.unknown_op_code(f"{t:#04x}")
         op = OP_CODE_NAMES[t]
 
         if op == "OP_CHECKSIG":
@@ -432,6 +426,26 @@ def _run_ops(  # noqa: C901, PLR0912
             script_op_codes.unknown_op_code(op)
 
 
+def _has_op_success(script_bytes: bytes) -> bool:
+    """Answer whether the script holds an OP_SUCCESSx: Core's pre-scan.
+
+    ExecuteWitnessScript walks the script with GetOp before it runs any
+    of it, and answers at the first OP_SUCCESSx; a push running past the
+    end met before one is BAD_OPCODE. Nothing else is asked: an oversized
+    push and an unnamed op code are the interpreter's to refuse, at the
+    place they sit, so a fault met before either is that fault's code.
+    """
+    consumed = 0
+    for op_code, _, stop in op_code_spans(script_bytes):
+        if op_code in OP_SUCCESS:
+            return True
+        consumed = stop
+    if consumed != len(script_bytes):
+        err_msg = f"push running past the end of the tapscript at byte {consumed}"
+        raise ScriptError(err_msg, ScriptErrorCode.BAD_OPCODE)
+    return False
+
+
 def verify_script_path_vc0(
     script_bytes: bytes,
     stack: list[bytes],
@@ -458,9 +472,7 @@ def verify_script_path_vc0(
     `hash_types` is `verify_input`'s collector, threaded to
     `op_checksig` as the legacy loop threads it to its own.
     """
-    script = parse(script_bytes, exit_on_op_success=True)
-
-    if script == ["OP_SUCCESS"]:
+    if _has_op_success(script_bytes):
         # the op code BIP342 reserved for a future soft fork, and until
         # then a spend of anything it appears in: refused only where the
         # caller says it does not want to relay one

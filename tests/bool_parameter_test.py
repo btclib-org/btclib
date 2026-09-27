@@ -252,10 +252,10 @@ _KINDS = (
         },
     ),
     _Case(
-        "btclib.script.engine.script.prepare_script",
+        "btclib.script.engine.script.assert_const_scriptcode",
         "segwit",
-        engine.prepare_script,
-        {"script": [], "flags": NO_FLAGS},
+        engine.assert_const_scriptcode,
+        {"op_code": 0x51, "flags": NO_FLAGS},
     ),
     _Case(
         "btclib.script.engine.script.verify_script",
