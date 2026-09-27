@@ -243,6 +243,11 @@ def p2pkh(key: PubKeyData) -> str:
     A WIF is the same call one step further back:
     `prv_key_data_from_wif(wif).pub`.
     """
+    # asked whatever `check_validity` the key was built with, as `bms.sign`
+    # asks its private key: one built unchecked may carry octets no SEC key
+    # has, and hashing them answers an address nobody can spend from
+    assert_type(key, PubKeyData, "key")
+    key.assert_valid()
     return address_from_h160("p2pkh", hash160(key.sec), key.network)
 
 
@@ -277,6 +282,9 @@ def _address_from_v0_witness(wit_prg: Octets, network: str) -> str:
 
 def p2wpkh_p2sh(key: PubKeyData) -> str:
     """Return the base58 p2sh-wrapped address of a p2wpkh."""
+    # asked as `p2pkh` above asks it
+    assert_type(key, PubKeyData, "key")
+    key.assert_valid()
     return _address_from_v0_witness(_v0_witness_program_from_key(key), key.network)
 
 

@@ -50,7 +50,8 @@ was meant to avoid.
 `BIP32KeyData` is (issue 727): no field changes after construction, so
 an object built with checks on stays valid, and one built with
 `check_validity=False` has to be asked by whichever public name uses it,
-as `PrvKeyData.pub` and `bms.sign` ask it. Not slotted, because
+as `PrvKeyData.pub` and `bms.sign` ask a private key and `b58.p2pkh`
+asks a public one. Not slotted, because
 `functools.cached_property` stores into the instance `__dict__` and a
 slotted dataclass has none -- it raises `TypeError: No '__dict__'
 attribute`. Equality and hashing read the declared fields alone, so what

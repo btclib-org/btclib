@@ -235,6 +235,9 @@ def _v0_witness_program_from_key(key: PubKeyData) -> bytes:
 
 def p2wpkh(key: PubKeyData) -> str:
     """Return the p2wpkh bech32 address corresponding to a public key."""
+    # asked as `b58.p2pkh` asks it, whatever `check_validity` it was built with
+    assert_type(key, PubKeyData, "key")
+    key.assert_valid()
     return address_from_witness(0, _v0_witness_program_from_key(key), key.network)
 
 
