@@ -319,6 +319,13 @@ full year, short month, short day (YYYY-M-D)
   with no value quoted.
 
   Act on it if you pass a number as text: pass the int.
+- **`ScriptPubKey.p2sh` refuses a redeem script longer than
+  `MAX_SCRIPT_ELEMENT_SIZE`** (closes #2381), with `BTClibValueError`
+  reading `redeem script exceeds size limit` and the length, where it
+  returned the script_pub_key of an output nothing can spend.
+
+  Act on it if you build p2sh outputs from scripts that long: `p2wsh` takes
+  them, a witness script not being held to the element size.
 
 ## v2026.9.24
 

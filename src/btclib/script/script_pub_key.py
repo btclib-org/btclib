@@ -33,7 +33,7 @@ from btclib.network import (
     normalized_network_name,
     validated_network_name,
 )
-from btclib.script.limits import MAX_PUBKEYS_PER_MULTISIG
+from btclib.script.limits import MAX_PUBKEYS_PER_MULTISIG, MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.script import Script, op_int, push_int, serialize
 from btclib.script.taproot import output_pubkey
 from btclib.utils import (
@@ -846,7 +846,19 @@ class ScriptPubKey(Script):
         *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
-        """Return the p2sh ScriptPubKey of the provided redeem script."""
+        """Return the p2sh ScriptPubKey of the provided redeem script.
+
+        The redeem script is at most MAX_SCRIPT_ELEMENT_SIZE bytes: a
+        spend pushes it in the script_sig, and a longer push fails script
+        evaluation, so its output could never be spent. Bitcoin Core's
+        createmultisig and bitcoin-tx refuse the same length with the same
+        comparison.
+        """
+        redeem_script = bytes_from_octets(redeem_script)
+        if len(redeem_script) > MAX_SCRIPT_ELEMENT_SIZE:
+            err_msg = "redeem script exceeds size limit: "
+            err_msg += f"{len(redeem_script)} > {MAX_SCRIPT_ELEMENT_SIZE}"
+            raise BTClibValueError(err_msg)
         script_h160 = hash160(redeem_script)
         script = serialize(["OP_HASH160", script_h160, "OP_EQUAL"])
         return cls(script, network, check_validity=check_validity)

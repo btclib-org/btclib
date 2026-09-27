@@ -515,6 +515,12 @@ A str or bytes is refused by type, as `int` reads non-ASCII digits, an
 underscore and padding in one (closes #2371); a fractional Decimal or Fraction
 is refused where it truncated, and no refusal quotes the value.
 
+### `ScriptPubKey.p2sh` refuses a redeem script over `MAX_SCRIPT_ELEMENT_SIZE`
+
+A spend pushes the redeem script, and Bitcoin Core fails a push that long, so
+the output it built could never be spent. The refusal quotes the length, not
+the script (closes #2381).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
