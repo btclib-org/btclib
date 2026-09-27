@@ -415,6 +415,10 @@ def _serialize_bytes_command(command: bytes | bytearray | memoryview) -> bytes:
     #123). The last branch is Core's own bound, `CScript::operator<<`
     having nothing wider than a four-byte length either.
     """
+    # both serializers hand here whatever command is neither an int nor a
+    # str, so a float or a None would otherwise reach `len` unasked
+    if not isinstance(command, (bytes, bytearray, memoryview)):
+        raise BTClibTypeError(f"invalid script command type: {type(command).__name__}")
     out: list[bytes | bytearray | memoryview] = []
     length = len(command)
     if length < 76:  # 1-byte-length

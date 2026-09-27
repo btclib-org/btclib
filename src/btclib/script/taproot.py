@@ -22,7 +22,6 @@ from btclib.alias import (
     Integer,
     Octets,
     ScriptList,
-    TaprootLeaf,
     TaprootLeafPaths,
     TaprootScriptTree,
 )
@@ -235,11 +234,23 @@ def tree_helper(script_tree: TaprootScriptTree) -> tuple[TaprootLeafPaths, bytes
     BIP341's taproot_tree_helper: the leaves come back in tree order,
     each with the control-block path that proves it, and the root is
     what the output key commits to.
+
+    Every node is asked for its shape before it is walked: a list, of
+    one leaf or of two subtrees, a leaf being a `(leaf_version, script)`
+    tuple. A node that is no list, a leaf that is no such tuple and a
+    leaf version that is no integer are a BTClibTypeError; a list of
+    neither one nor two elements and a leaf version outside a byte are
+    a BTClibValueError.
     """
+    assert_type(script_tree, list, "script tree")
     if len(script_tree) == 1:
-        return _tree_helper(script_tree)
+        return _tree_helper(script_tree[0])
+    if len(script_tree) != 2:
+        err_msg = f"invalid script tree node: {len(script_tree)} elements, "
+        raise BTClibValueError(err_msg + "neither one leaf nor two subtrees")
     # a branch: both elements are subtrees, and the alias says only that
-    # an element may also be a leaf, so the narrowing is ours to assert
+    # an element may also be a leaf, so the narrowing is ours to assert --
+    # and the recursion's own `assert_type` is what refuses a leaf here
     left, left_h = tree_helper(cast("TaprootScriptTree", script_tree[0]))
     right, right_h = tree_helper(cast("TaprootScriptTree", script_tree[1]))
     info = [(leaf, c + right_h) for leaf, c in left]
@@ -249,8 +260,21 @@ def tree_helper(script_tree: TaprootScriptTree) -> tuple[TaprootLeafPaths, bytes
     return (info, tagged_hash(b"TapBranch", left_h + right_h))
 
 
-def _tree_helper(script_tree: TaprootScriptTree) -> tuple[TaprootLeafPaths, bytes]:
-    leaf_version, script = cast("TaprootLeaf", script_tree[0])
+def _tree_helper(leaf: object) -> tuple[TaprootLeafPaths, bytes]:
+    # a tuple of two and not any pair that unpacks: a two-element list
+    # holding a leaf version and a script is how a branch is spelled too.
+    # The arity is the alias's, `tuple[int, ScriptList]`, so it is a type
+    if not isinstance(leaf, tuple):
+        raise BTClibTypeError(f"invalid script tree leaf type: {type(leaf).__name__}")
+    if len(leaf) != 2:
+        raise BTClibTypeError(f"invalid script tree leaf: {len(leaf)}-tuple")
+    leaf_version, script = leaf
+    if not is_integer(leaf_version):
+        err_msg = f"invalid leaf version type: {type(leaf_version).__name__}"
+        raise BTClibTypeError(err_msg)
+    # the mask below would read 0x100 as 0x00 and -1 as 0xFE
+    if not 0 <= leaf_version <= 0xFF:
+        raise BTClibValueError(f"invalid leaf version: {leaf_version}")
     leaf_version &= 0xFE
     h = leaf_hash(leaf_version, serialize(script))
     return ([((leaf_version, script), b"")], h)
@@ -295,9 +319,13 @@ def _output_pubkey_and_internal_key(
     twice, which is issue 896. The arm that reads the point pays for it
     and the arm that does not never asks.
     """
-    if not internal_pubkey and not script_tree:
+    # None is what stands for either being absent, and nothing else is:
+    # read for its truth, a falsy value of a wrong type -- b"", 0, [] --
+    # would be taken for a missing key or a missing tree
+    if internal_pubkey is None and script_tree is None:
         raise BTClibValueError("missing data")
-    if internal_pubkey:
+    if internal_pubkey is not None:
+        assert_type(internal_pubkey, PubKeyData, "internal_pubkey")
         # the 33-byte and the 65-byte form both arrive here, and `[1:33]`
         # is the x-coordinate of either
         sec = internal_pubkey.sec
@@ -322,10 +350,7 @@ def _output_pubkey_and_internal_key(
         # nothing else, so the prefix is this module's to supply -- 02,
         # BIP341's lift being the even one
         key_data = PubKeyData(b"\x02" + bytes.fromhex(h_str), check_validity=False)
-    if script_tree:
-        _, h = tree_helper(script_tree)
-    else:
-        h = b""
+    h = b"" if script_tree is None else tree_helper(script_tree)[1]
     q, parity_bit = _tweaked_pubkey(key_data, h)
     return q, parity_bit, key_data.sec[1:33]
 
@@ -337,9 +362,10 @@ def output_pubkey(
     """Return a taproot output key and its parity, per BIP341.
 
     The x-only internal key is tweaked by the script tree's root hash,
-    an empty tree contributing empty bytes -- key path only -- and a
-    missing internal key replaced by BIP341's unspendable point, script
-    path only. The parity bit is the tweaked point's, needed by the
+    a None tree contributing empty bytes -- key path only -- and a None
+    internal key replaced by BIP341's unspendable point, script path
+    only. An empty tree is no tree but a malformed one, as it is to
+    tree_helper. The parity bit is the tweaked point's, needed by the
     control block and never serialized in the output.
     """
     q, parity_bit, _ = _output_pubkey_and_internal_key(internal_pubkey, script_tree)
@@ -470,7 +496,9 @@ def output_prvkey(
     script tree's root hash, so its public point is the output key
     exactly.
     """
-    h = tree_helper(script_tree)[1] if script_tree else b""
+    # None for no tree, as output_pubkey reads it: the two answer for the
+    # same trees, one being the other's private key
+    h = b"" if script_tree is None else tree_helper(script_tree)[1]
     return _tweaked_prvkey(scalar_from_prv_key(prv_key), h)
 
 
