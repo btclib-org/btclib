@@ -24,6 +24,7 @@ import pytest
 from btclib import base58, bech32, var_int
 from btclib.alias import TaprootScriptTree
 from btclib.amount import valid_sats_amount
+from btclib.b32 import power_of_2_base_conversion
 from btclib.b58 import wif_from_prv_key
 from btclib.block import BlockHeader
 from btclib.block.block import bip34_commitment
@@ -100,6 +101,9 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("var_int", var_int.serialize),
     ("var_int max_size", lambda v: var_int.parse(b"\x01", max_size=v)),
     ("bech32 5-bit value", lambda v: bech32.encode("bc", [v])),
+    ("base conversion value", lambda v: power_of_2_base_conversion([v], 1, 8)),
+    ("base conversion from_bits", lambda v: power_of_2_base_conversion([1], v, 8)),
+    ("base conversion to_bits", lambda v: power_of_2_base_conversion([1], 8, v)),
     ("taproot leaf index", lambda v: input_script_sig(None, _SCRIPT_TREE, v)),
     (
         "sig_hash input index",
@@ -211,6 +215,8 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert var_int.serialize(1) == b"\x01"
     assert var_int.parse(b"\x01", max_size=1) == 1
     assert bech32.encode("bc", [1]) == b"bc1pdg93mv"
+    assert power_of_2_base_conversion([1], 1, 8) == [128]
+    assert power_of_2_base_conversion([1], 8, 1) == [0, 0, 0, 0, 0, 0, 0, 1]
     assert input_script_sig(None, _SCRIPT_TREE, 0)[0] == ["OP_1"]
     assert len(sig_hash.taproot(_tx(), 0, _PREVOUTS, 1, 0, b"", b"")) == 32
     assert encode_num(1) == b"\x01"

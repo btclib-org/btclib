@@ -41,7 +41,7 @@ from hypothesis import strategies as st
 from btclib import b32, b58
 from btclib.alias import ScriptList
 from btclib.curves import bytes_from_point, point_from_octets
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.script import op_int, output_pubkey, serialize
@@ -255,6 +255,52 @@ def test_address_witness() -> None:
     err_msg = "invalid size: "
     with pytest.raises(BTClibValueError, match=err_msg):
         b32.witness_from_address(addr)
+
+
+@pytest.mark.parametrize(
+    "from_bits, to_bits, err_msg",
+    [
+        (8, 0, "invalid to_bits: 0 < 1"),
+        (8, -2, "invalid to_bits: -2 < 1"),
+        (0, 5, "invalid from_bits: 0 < 1"),
+        (-1, 5, "invalid from_bits: -1 < 1"),
+    ],
+)
+def test_a_conversion_width_is_positive(
+    from_bits: int, to_bits: int, err_msg: str
+) -> None:
+    """A width below 1 is refused before the conversion starts.
+
+    A zero `to_bits` is the one of these that would otherwise never
+    return, the regrouping loop subtracting nothing from its counter.
+    """
+    with pytest.raises(BTClibValueError, match=err_msg):
+        b32.power_of_2_base_conversion([1], from_bits, to_bits)
+
+
+def test_a_conversion_width_of_one_is_accepted() -> None:
+    """A width of 1 is valid on either side, the refusal above stopping at 0."""
+    assert b32.power_of_2_base_conversion([1], 8, 1) == [0, 0, 0, 0, 0, 0, 0, 1]
+    assert b32.power_of_2_base_conversion([1], 1, 8) == [128]
+    assert b32.power_of_2_base_conversion([1], 1, 1) == [1]
+
+
+def test_a_conversion_takes_integers_only() -> None:
+    """A width, a value or the data of another type is a type error."""
+    for width in (8.0, "8", None):
+        with pytest.raises(BTClibTypeError, match="invalid from_bits type: "):
+            b32.power_of_2_base_conversion([1], width, 5)  # type: ignore[arg-type]
+        with pytest.raises(BTClibTypeError, match="invalid to_bits type: "):
+            b32.power_of_2_base_conversion([1], 5, width)  # type: ignore[arg-type]
+    for value in (1.0, "1", None):
+        with pytest.raises(BTClibTypeError, match="invalid value type: "):
+            b32.power_of_2_base_conversion([value], 8, 5)  # type: ignore[list-item]
+    with pytest.raises(BTClibTypeError, match="invalid data type: NoneType"):
+        b32.power_of_2_base_conversion(None, 8, 5)  # type: ignore[arg-type]
+
+    # any iterable of integers, a one-shot generator included: it is read
+    # once, into the list the values are checked in
+    assert b32.power_of_2_base_conversion((x for x in b"ab"), 8, 5) == [12, 5, 17, 0]
 
 
 def test_p2wpkh_p2sh() -> None:

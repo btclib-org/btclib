@@ -62,12 +62,14 @@ excluded-modules = []
 # Checked by hand and left as equivalent, not assumed: `bech32._polymod`'s
 # `chk << 5 ^ value` against `|` never overlaps a bit, the shift clearing
 # exactly the low five bits `value` (five bits itself) then occupies.
-# `b32.convertbits`'s `max_acc` mask, computed with `+`, `-`, `<<` and
-# `-1` all replaced in turn, keeps every vector passing even at the
-# widest of them (`+` to `*`, a mask thousands of times too large)
-# because `from_bits`/`to_bits` are always 5 and 8 here and `acc` never
-# approaches even the correct bound -- a defensive mask BIP173's own
-# regrouping does not bind. `bech32._decode`'s second case-check,
+# `b32._power_of_2_base_conversion`'s `max_acc` mask, with each operator
+# and each constant replaced in turn, survives wherever the replacement
+# leaves the mask `-1`, which masks nothing, or keeps at least its low
+# `from_bits + to_bits - 1` bits at every width of 1 or more: every read
+# of `acc` falls within those bits, so no output tells such a mask from
+# the correct one. Every other replacement is killed, the vectors
+# converting at widths of 1 as well as between 8 and 5 bits.
+# `bech32._decode`'s second case-check,
 # `bech.upper() != bech` weakened to `<`, is provably the same
 # comparison here: upper-casing never increases a character's code
 # point, so the first position where the two strings differ is always
