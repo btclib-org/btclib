@@ -358,3 +358,19 @@ def test_the_exponent_form_is_a_btc_amount() -> None:
     assert valid_btc_amount("1e1") == 10
     assert valid_btc_amount("1E-8") == Decimal("0.00000001")
     assert sats_from_btc("1e-8") == 1  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("amount", ["+1", "+0", " +1", "+1e1", "+-1"])
+def test_an_amount_refuses_a_leading_plus(amount: str) -> None:
+    """Neither `ParseMoney` nor `ParseFixedPoint` reads a leading "+"."""
+    with pytest.raises(BTClibValueError, match="invalid BTC amount"):
+        valid_btc_amount(amount)
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
+        valid_sats_amount(amount)
+
+
+def test_the_exponent_keeps_its_plus() -> None:
+    """`ParseFixedPoint` reads "1e+1", and `str(Decimal)` writes "1E+1"."""
+    assert valid_btc_amount("1e+1") == 10
+    assert valid_btc_amount(Decimal("1E+1")) == 10
+    assert str(Decimal("1E+1")) == "1E+1"

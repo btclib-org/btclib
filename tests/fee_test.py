@@ -678,3 +678,22 @@ def test_the_exponent_form_is_a_fee_rate() -> None:
     assert FeeRate.from_btc_per_kvbyte("1e-4") == FeeRate(sats_per_kvbyte=10_000)
     rounded = FeeRate.from_btc_per_kvbyte("1e-4", round_up=True)
     assert rounded == FeeRate(sats_per_kvbyte=10_000)
+
+
+@pytest.mark.parametrize("round_up", [False, True])
+@pytest.mark.parametrize("quote", ["+1", " +0.0001", "+1e-4"])
+def test_a_fee_rate_refuses_a_leading_plus(quote: str, round_up: bool) -> None:
+    """Neither of Core's amount parsers reads a leading "+"."""
+    with pytest.raises(BTClibValueError, match="invalid sat/vB fee rate"):
+        FeeRate.from_sats_per_vbyte(quote, round_up=round_up)
+    with pytest.raises(BTClibValueError, match="invalid BTC"):
+        FeeRate.from_btc_per_kvbyte(quote, round_up=round_up)
+
+
+@pytest.mark.parametrize("round_up", [False, True])
+def test_a_fee_rate_exponent_keeps_its_plus(round_up: bool) -> None:
+    """`ParseFixedPoint` reads "1e+1", so the "+" after the "e" stays."""
+    rate = FeeRate(sats_per_kvbyte=10_000)
+    assert FeeRate.from_sats_per_vbyte("1e+1", round_up=round_up) == rate
+    ten_btc = FeeRate.from_btc_per_kvbyte(Decimal("1E+1"), round_up=round_up)
+    assert ten_btc == FeeRate(sats_per_kvbyte=1_000_000_000)

@@ -72,22 +72,28 @@ def _number_text(text: str, err_msg: str) -> str:
     ZERO) are ten to both. Both strip what `str.isspace` counts, `int`
     all of it but U+001C to U+001F and `Decimal` all of it. Both read the
     digit-grouping underscore of Python's number literals, so "1_0" is
-    ten too. None of that is how anybody writes an amount, and each is a
-    second spelling of one.
+    ten too, and both read a leading "+". None of that is how anybody
+    writes an amount, and each is a second spelling of one.
 
     Bitcoin Core's `ParseMoney` strips space, tab, newline, carriage
     return, vertical tab and form feed, which are `string.whitespace`,
     and it and `ParseFixedPoint` read ASCII digits alone. So those six
     are stripped here, and what is left has to be printable ASCII with
     no underscore: printable because U+001C to U+001F are ASCII, and
-    `Decimal` would strip them. Everything else is `int`'s or
-    `Decimal`'s to refuse.
+    `Decimal` would strip them. Neither of Core's parsers reads a leading
+    "+", so it is refused too; the one after an exponent's "e" stays,
+    `ParseFixedPoint` reading "1e+1" and `str(Decimal)` writing "1E+1".
+    Everything else is `int`'s or `Decimal`'s to refuse.
 
     The exponent form stays an amount: `ParseFixedPoint`, which Core's
     `AmountFromValue` reads an RPC amount through, takes "1e1".
     """
     text = text.strip(string.whitespace)
-    if not (text.isascii() and text.isprintable()) or "_" in text:
+    if (
+        not (text.isascii() and text.isprintable())
+        or "_" in text
+        or text.startswith("+")
+    ):
         raise BTClibValueError(err_msg)
     return text
 
