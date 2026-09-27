@@ -302,13 +302,19 @@ def test_p2wpkh() -> None:
 
 
 def test_p2wsh_p2sh() -> None:
-    """Build p2wsh-p2sh addresses from a script with spaced-out keys."""
+    """Build p2wsh-p2sh addresses from a script with spaced-out keys.
+
+    The addresses are Bitcoin Core's `deriveaddresses` of
+    `sh(wsh(pk(0279be...1798)))` on main and on testnet.
+    """
     # leading/trailing spaces should be tolerated
     pub = " 02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
     script_pub_key: ScriptList = [pub, "OP_CHECKSIG"]
     witness_script_bytes = serialize(script_pub_key)
-    b58.p2wsh_p2sh(witness_script_bytes)
-    b58.p2wsh_p2sh(witness_script_bytes, "testnet")
+    address = b58.p2wsh_p2sh(witness_script_bytes)
+    assert address == "3NVZWnhKt53ukKw4Qm217Zk57FE8VnKjH2"
+    address = b58.p2wsh_p2sh(witness_script_bytes, "testnet")
+    assert address == "2NE3maXdMVXZFx7Zc5tdsjWjLKbSJHTyaoU"
 
 
 def test_p2wsh() -> None:

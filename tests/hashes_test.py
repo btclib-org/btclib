@@ -81,15 +81,32 @@ def test_hashlib_ripemd160_probe(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_hash160_hash256() -> None:
-    """Verify hash160 and hash256 take keys in every octet spelling."""
-    test_vectors = (
-        plain_prv_keys
-        + net_unaware_compressed_pub_keys
-        + net_unaware_uncompressed_pub_keys
+    """Verify hash160 and hash256 take keys in every octet spelling.
+
+    Every spelling of one key answers that key's digests, pinned from
+    hashlib over the octets of 12, 12G compressed and 12G uncompressed.
+    """
+    families = (
+        (
+            plain_prv_keys,
+            "bf10ac3ee5160892c8aecb4c4cfd65d34c4c634f",
+            "1e24a22a6ef2dfdeacd32e4cedf55f2636484f45a9a862f5d43a2a8e5959197d",
+        ),
+        (
+            net_unaware_compressed_pub_keys,
+            "dd100be7d9aea5721158ebde6d6a1fd8fff93bb1",
+            "700c973f9e5b81b9a745a928bd622f7fc43249bdfe9f534288d4ff356f47201c",
+        ),
+        (
+            net_unaware_uncompressed_pub_keys,
+            "d6107a6912e0c22929fd5ddee12f2f0a6f16a4e7",
+            "43606851a4261bfa817fdea5f208aa7def5ada72176f36f0c23ccd1cd8569eb8",
+        ),
     )
-    for hexstring in test_vectors:
-        hash160(hexstring)
-        hash256(hexstring)
+    for spellings, expected_hash160, expected_hash256 in families:
+        for hexstring in spellings:
+            assert hash160(hexstring).hex() == expected_hash160
+            assert hash256(hexstring).hex() == expected_hash256
 
 
 def test_magic_message_length_prefix() -> None:
