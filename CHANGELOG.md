@@ -385,6 +385,26 @@ ahead of every other check: one in a branch not taken spends (issue #2332).
 Core's `ExecuteWitnessScript` scans for one before measuring the witness stack:
 a spend with an element over 520 bytes was refused (issue #2314).
 
+### The `install-bitcoind` action goes
+
+`reusable-integration-bitcoind.yml` installs bitcoind itself (issue
+btclib-org/.github#1373).
+
+### `codeql-passed` accepts `analyze`'s rows listed unfinished
+
+Where `needs.analyze.result` is `success` or `skipped`, the listing lagging
+behind a job already concluded (issue btclib-org/.github#1395).
+
+### `REPOSITORY.md` reads back classic signatures off and SHA pinning on
+
+`allowed_actions` is read back beside them, section 11 having the reasons
+(issue btclib-org/.github#1409).
+
+### Dependabot's `pre-commit` ecosystem is named as unused, not as absent
+
+pre-commit.ci's weekly autoupdate moves `rev:` instead (issue
+btclib-org/.github#1391).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

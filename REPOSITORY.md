@@ -160,7 +160,7 @@ holds the path for the same reason the JSON is not on one line, which is
 80 columns.
 
 **PATCH that sub-endpoint, never PUT the whole protection object**: a
-partial PUT drops the reviews, the signatures and the rest. Repeat
+partial PUT drops the reviews and the rest. Repeat
 `strict: true` in the body, which replaces the object rather than merging
 into it.
 
@@ -337,10 +337,9 @@ gh api repos/btclib-org/btclib --jq '.default_branch'
 ```
 
 Everything reaches it through a pull request: the four checks above with
-`strict`, one approving review, `dismiss_stale_reviews`, **required
-signatures**, linear history, no force pushes, no deletions,
-`required_conversation_resolution`, and `enforce_admins` *off* — an
-administrator can bypass all of it.
+`strict`, one approving review, `dismiss_stale_reviews`, linear history,
+no force pushes, no deletions, `required_conversation_resolution`, and
+`enforce_admins` *off* — an administrator can bypass all of it.
 
 That last one is what carries the review. CONTRIBUTING.md states why a
 review cannot be satisfied by its author; the consequence here is that on
@@ -348,6 +347,17 @@ a solo-maintainer repository the rule as written stops every pull request
 the maintainer opens, and the bypass is what lets one merge at all. The
 trade is the review's other half: it is there for a contributor's pull
 request, where there *is* somebody else to ask.
+
+```shell
+gh api repos/btclib-org/btclib/branches/main/protection \
+  --jq '.required_signatures.enabled'
+# false
+```
+
+Classic protection's own copy of the signature rule is off, the
+`main-integrity` ruleset below being what requires signatures on `main`:
+[the standard states that value for every
+repository](https://github.com/btclib-org/.github/blob/main/README.md#branch-protection-and-rulesets).
 
 Required signatures cost the maintainer nothing when a pull request is
 what lands on `main`: the only thing writing to it is a merge GitHub
@@ -641,6 +651,20 @@ gh api -X PUT repos/btclib-org/btclib/actions/permissions/workflow \
   -f default_workflow_permissions=read \
   -F can_approve_pull_request_reviews=false
 ```
+
+## Allowed actions and SHA pinning
+
+```shell
+gh api repos/btclib-org/btclib/actions/permissions
+# {"enabled":true,"allowed_actions":"all","sha_pinning_required":true}
+gh api orgs/btclib-org/actions/permissions \
+  --jq '{allowed_actions, sha_pinning_required}'
+# {"allowed_actions":"all","sha_pinning_required":true}
+```
+
+The organization gives the same two answers, `sha_pinning_required`
+being set at that level: [section 11 has the reasons for both
+fields](https://github.com/btclib-org/.github/blob/main/README.md#tokens-publishing-scanning).
 
 ## Publishing
 

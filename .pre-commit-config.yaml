@@ -705,8 +705,9 @@ repos:
         # so that every machine and pre-commit.ci check what CI checks --
         # the runner image happens to carry shellcheck, so leaving it to
         # chance meant CI checking more than a commit did.
-        # Pinned, because nothing bumps an additional dependency:
-        # pre-commit.ci moves rev, dependabot has no pre-commit ecosystem.
+        # Pinned, because nothing bumps an additional dependency here:
+        # pre-commit.ci moves rev; Dependabot's pre-commit ecosystem
+        # exists and is not configured.
         # That is the point rather than the cost -- a shellcheck release
         # adding a check would otherwise turn a pull request red for
         # having changed nothing
