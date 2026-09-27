@@ -30,6 +30,7 @@ import socket
 import subprocess
 import time
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from bitcoin_core_rpc import BitcoinCoreRpcClient
@@ -39,6 +40,39 @@ from bitcoin_core_rpc import BitcoinCoreRpcClient
 # suite, and the wait is a poll rather than a sleep, so this bounds only
 # the failure case
 _STARTUP_TIMEOUT = 30.0
+
+# what pytest-timeout gives each test here, setup and teardown included,
+# so that a bitcoind that stops answering fails the test waiting on it
+# instead of hanging the run until the workflow's timeout-minutes ends
+# the job. The session's first test pays the node's startup and its last
+# the node's shutdown. The shutdown waits at most _STARTUP_TIMEOUT; the
+# startup's deadline is _STARTUP_TIMEOUT too, but it is read between
+# calls, and the call in flight can outlast it by bitcoin_core_rpc's own
+# DEFAULT_TIMEOUT. This sits above those three together plus the slowest
+# test: the fixture's own deadlines, which say what they were waiting
+# for, fire first. Measured 2026-09-27
+# against bitcoind 31.1: the slowest test, coinstats_test.py's, took
+# under 12 s of setup and call on a macOS machine at a one-minute load
+# average between 20 and 45, and under 2 s on ubuntu-latest
+# (integration-bitcoind run 36309935817). `--durations=0
+# --durations-min=0` on the run the module docstring gives re-derives it
+_TEST_TIMEOUT = 120.0
+
+_HERE = Path(__file__).parent
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Bound every test of this directory with pytest-timeout.
+
+    A marker per test rather than the `timeout` key of
+    `[tool.pytest.ini_options]`, which would bound the rest of the suite
+    too, against a slowest test the number above was not measured on.
+    The hook sees every item of the session, not only this directory's,
+    hence the path test.
+    """
+    for item in items:
+        if _HERE in item.path.parents:
+            item.add_marker(pytest.mark.timeout(_TEST_TIMEOUT))
 
 
 def _free_port() -> int:
