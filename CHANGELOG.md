@@ -562,6 +562,16 @@ Refusals name an int past `str()`'s digit limit by sign and bit length, and
 `var_int.serialize` quotes as `hex()` does; amount and fee bounds use `int`'s
 methods; `assert_valid_hash_type` refuses a non-int as a type (closes #2394).
 
+### `taproot.leaf_hash` refuses a leaf version no control block carries
+
+A non-integer is a type error, and a version outside a byte or odd, which
+BIP341's `c[0] & 0xfe` never is, a value error (closes #2396).
+
+### `taproot.serialize` refuses an OP_SUCCESS number of more than three digits
+
+It is refused before `int` reads it, where one past `int`'s digit limit raised
+a builtin `ValueError` (closes #2400).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

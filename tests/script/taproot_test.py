@@ -49,6 +49,7 @@ from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.taproot import (
     MAX_TREE_DEPTH,
     assert_valid_control_block,
+    leaf_hash,
     parse,
     serialize,
     tree_helper,
@@ -1001,6 +1002,37 @@ def test_op_success_is_spelled_as_parse_writes_it() -> None:
         err_msg = f"^invalid string command: {re.escape(command)}$"
         with pytest.raises(BTClibValueError, match=err_msg):
             serialize([command, b"\x01"])
+
+
+def test_an_op_success_number_is_read_off_its_text() -> None:
+    """A number of more digits than any OP_SUCCESS is refused unread.
+
+    `int` raises a ValueError of its own on more digits than
+    `sys.get_int_max_str_digits()`, which would leave `serialize` as that
+    error rather than as this library's (issue #2400).
+    """
+    for digits in ("1" * 5000, "1000", "255", "0"):
+        err_msg = f"^invalid OP_SUCCESS number: {digits}$"
+        with pytest.raises(BTClibValueError, match=err_msg):
+            serialize(["OP_SUCCESS" + digits, b"\x01"])
+    assert serialize(["OP_SUCCESS254", b"\x01"])[0] == 0xFE
+
+
+def test_a_leaf_hash_refuses_what_no_control_block_carries() -> None:
+    """A byte, and an even one: BIP341's `c[0] & 0xfe` (issue #2396).
+
+    Left to `int.to_bytes`, a version outside a byte would raise an
+    OverflowError and a float an AttributeError, and a bool would hash
+    as version one.
+    """
+    for leaf_version in (1.5, "c0", None, True):
+        with pytest.raises(BTClibTypeError, match="^invalid leaf version type: "):
+            leaf_hash(leaf_version, b"")  # type: ignore[arg-type]
+    for leaf_version in (-1, 0xC1, 0xFF, 0x100, 10**5000):
+        with pytest.raises(BTClibValueError, match="^invalid leaf version: "):
+            leaf_hash(leaf_version, b"")
+    for leaf_version in (0, 0xC0, 0xFE):
+        assert len(leaf_hash(leaf_version, b"")) == 32
 
 
 def test_a_string_command_is_stripped_of_ascii_whitespace_alone() -> None:
