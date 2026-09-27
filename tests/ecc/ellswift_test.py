@@ -5,20 +5,24 @@
 """Tests for the `btclib.ecc.ellswift` module's own `xdh`.
 
 The encoding is btclib_ecc's, and its tests are that package's. What
-is btclib's is BIP324's x-only ECDH over two encodings, and the bindings
-are the other implementation it is held against: each party through
-them, and each party through the Python arithmetic, reach one secret.
+is btclib's is BIP324's x-only ECDH over two encodings. It is held to
+BIP324's own packet encoding vectors on the bindings and on the Python
+arithmetic, and to the bindings on random keys: each party through them,
+and each party through the Python arithmetic, reach one secret.
 """
 
+import csv
 import hashlib
 import secrets
+from pathlib import Path
+from typing import Any
 
 import pytest
 
 from btclib.curves import CURVES, mult, secp256k1
 from btclib.ecc import ellswift
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from tests import needs_bindings, no_bindings_anywhere
+from tests import needs_bindings, no_bindings_anywhere, vector_id
 
 # the other Koblitz curves of the catalogue: a == 0 and a square -3, which
 # is all the map wants, so the Python path serves them without a switch
@@ -28,6 +32,76 @@ OTHER_CURVES = ("secp160k1", "secp192k1", "secp224k1")
 def _key() -> int:
     """Return a random secp256k1 private key."""
     return secrets.randbelow(secp256k1.n - 1) + 1
+
+
+# bitcoin/bips' bip-0324/packet_encoding_test_vectors.csv, pinned in
+# tests/_data/README.md
+_PACKET_ENCODING = Path(__file__).parent / "_data" / "packet_encoding_test_vectors.csv"
+
+
+def _xdh_vectors() -> list[Any]:
+    """Return each BIP324 packet encoding vector as `xdh`'s input and output.
+
+    A row is one party's: its private key, its own encoding and its
+    peer's, and whether it initiates. The initiator's encoding is the
+    first one hashed whichever party computes the secret, so it is
+    `ell_a`, and `party` says which of the two is the row's own.
+    """
+    with _PACKET_ENCODING.open(encoding="ascii", newline="") as file_:
+        rows = list(csv.DictReader(file_))
+    vectors = []
+    for i, row in enumerate(rows):
+        ours = bytes.fromhex(row["in_ellswift_ours"])
+        theirs = bytes.fromhex(row["in_ellswift_theirs"])
+        initiating = {"1": True, "0": False}[row["in_initiating"]]
+        vectors.append(
+            pytest.param(
+                *((ours, theirs, 0) if initiating else (theirs, ours, 1)),
+                int(row["in_priv_ours"], 16),
+                int(row["mid_x_shared"], 16),
+                bytes.fromhex(row["mid_shared_secret"]),
+                id=vector_id(i, "idx", row["in_idx"]),
+            )
+        )
+    return vectors
+
+
+_XDH_VECTOR_ARGS = ("ell_a", "ell_b", "party", "prv_key", "x_shared", "secret")
+
+
+@pytest.mark.parametrize(_XDH_VECTOR_ARGS, _xdh_vectors())
+def test_xdh_bip324_vectors_on_the_python_arithmetic(
+    monkeypatch: pytest.MonkeyPatch,
+    ell_a: bytes,
+    ell_b: bytes,
+    party: int,
+    prv_key: int,
+    x_shared: int,
+    secret: bytes,
+) -> None:
+    """BIP324's shared x-coordinate and secret, the bindings out of reach."""
+    no_bindings_anywhere(monkeypatch)
+
+    theirs = ell_b if party == 0 else ell_a
+    assert mult(prv_key, ellswift.decode_var(theirs))[0] == x_shared
+    assert ellswift.xdh(ell_a, ell_b, prv_key, party) == secret
+
+
+@needs_bindings
+@pytest.mark.parametrize(_XDH_VECTOR_ARGS, _xdh_vectors())
+def test_xdh_bip324_vectors_on_the_bindings(
+    ell_a: bytes,
+    ell_b: bytes,
+    party: int,
+    prv_key: int,
+    x_shared: int,
+    secret: bytes,
+) -> None:
+    """BIP324's shared secret from the bindings, and from `xdh` delegating."""
+    from btclib_secp256k1 import ellswift as libsecp256k1_ellswift  # noqa: PLC0415
+
+    assert libsecp256k1_ellswift.xdh(ell_a, ell_b, prv_key, party) == secret
+    assert ellswift.xdh(ell_a, ell_b, prv_key, party) == secret
 
 
 @needs_bindings

@@ -310,6 +310,12 @@ A `q` outside 1..n-1 or of no integer type raises as `assert_valid` does, where
 a key built with `check_validity=False` derived the public key of `q` mod n
 where that is nonzero, or of a hex string read as a number (closes #2294).
 
+### `ecc.ellswift.xdh` is held to BIP324's packet encoding vectors
+
+Each row of bitcoin/bips' `packet_encoding_test_vectors.csv` is asserted
+through the bindings and through the Python arithmetic, whose arm then answers
+to BIP324's reference code and not to libsecp256k1 alone (closes #2307).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
