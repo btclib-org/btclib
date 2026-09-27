@@ -298,6 +298,12 @@ A version of zero or below raised "invalid version", where Bitcoin Core refuses
 it only as `bad-version`, a check keyed on the chain's activation heights and
 not reached from the header alone (closes #2309).
 
+### `NetworkAddressV2` takes a `TORV2` or `YGGDRASIL` address of any length
+
+Core's `SetNetFromBIP155Network` has no case for either id, so Core drops one
+of any length within `MAX_ADDRV2_SIZE` and keeps the message; `assert_valid`
+holds one to that bound alone (closes #2308), not to BIP155's table.
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

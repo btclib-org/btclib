@@ -8,7 +8,9 @@ The message that gossips an address of any network, and the one a peer
 sends to say it understands the first. BIP155 is the specification and
 is unusually precise; Core's `CAddress` under `V2_NETWORK`, of
 src/protocol.h and src/netaddress.h, is the implementation, and where
-the two read differently this module says so and follows the BIP.
+the two read differently this module says so and follows the BIP --
+except on the length of a `TORV2` or `YGGDRASIL` address, where it
+follows Core.
 
 An entry is `addr`'s idea in a different encoding, not a variant of it:
 four octets of timestamp, then the service flags as a `CompactSize`, a
@@ -48,16 +50,18 @@ addresses of networks they cannot validate. That is a rule about what to
 relay, and this package relays nothing; keeping the octets is what lets
 the caller apply it.
 
-**A known id whose address is the wrong length is refused, and the
-message with it.** BIP155: "Clients SHOULD reject messages that contain
-addresses that have a different length than specified in this table for a
-specific network ID, as these are meaningless." Core implements exactly
-that, `SetNetFromBIP155Network` throwing `std::ios_base::failure` for
-every id it knows, which fails the whole message rather than the entry.
-So does `assert_valid` here, and refusing is what a codec can mean by
-it: dropping the entry would leave a message that serializes back
-one address shorter than it arrived, and there is no value of a field
-that means "this one was ignored".
+**An address of the wrong length is refused, and the message with it,
+under an id Core checks the length of.** BIP155: "Clients SHOULD reject
+messages that contain addresses that have a different length than
+specified in this table for a specific network ID, as these are
+meaningless." Core implements that for `IPV4`, `IPV6`, `TORV3`, `I2P`
+and `CJDNS`, the ids `SetNetFromBIP155Network` has a case for, each case
+throwing `std::ios_base::failure` on a wrong length, which fails the
+whole message rather than the entry. So does `assert_valid` here, for
+the same ids, and refusing is what a codec can mean by it: dropping the
+entry would leave a message that serializes back one address shorter
+than it arrived, and there is no value of a field that means "this one
+was ignored".
 
 What BIP155 does say to *ignore* is a different thing, and neither half
 of it is refused here: a `TORV2` address, and an `IPV6` address inside a
@@ -78,6 +82,15 @@ falls through to the unknown-id path and is dropped, and the test
 framework's `ADDRV2_NET_NAME` has no entry for it. `YGGDRASIL` Core has
 not got at all, Yggdrasil being carried there as ordinary IPv6, so an id
 7 from a real Yggdrasil peer is an unknown network to a Core node today.
+
+So neither id is held to the length BIP155's table gives it. Core reads
+an id 3 or id 7 address of any length up to `MAX_ADDRV2_SIZE`, drops it
+and keeps the rest of the message; refusing one here would refuse a
+message Core accepts, which is the ground on which the receive policy
+above is not applied either. The two ids are held to what an unnamed id
+is held to, and a caller that wants BIP155's rejection for them applies
+the table's ten and sixteen octets itself: keeping the octets is what
+lets it.
 
 Naming them is not offering them: an id round-trips whether or not a
 member names it, so what the member changes is only whether a caller
@@ -209,10 +222,12 @@ class BIP155Network(IntEnum):
     YGGDRASIL = 7
 
 
-# what BIP155's "Address length (bytes)" column fixes for each id. A
-# private table and not a property of the enum: it is the length of the
-# `addr` field rather than anything about the network, and it is what
-# `assert_valid` refuses a mismatch against.
+# what BIP155's "Address length (bytes)" column fixes for each id Core's
+# `SetNetFromBIP155Network` has a case for, `TORV2` and `YGGDRASIL` being
+# out of it for the reason the module docstring gives. A private table
+# and not a property of the enum: it is the length of the `addr` field
+# rather than anything about the network, and it is what `assert_valid`
+# refuses a mismatch against.
 #
 # Keyed `int` rather than `BIP155Network`, the members being their own
 # values: what is looked up here is a `network_id`, which is the plain
@@ -220,11 +235,9 @@ class BIP155Network(IntEnum):
 _ADDRESS_SIZE: dict[int, int] = {
     BIP155Network.IPV4: 4,
     BIP155Network.IPV6: 16,
-    BIP155Network.TORV2: 10,
     BIP155Network.TORV3: 32,
     BIP155Network.I2P: 32,
     BIP155Network.CJDNS: 16,
-    BIP155Network.YGGDRASIL: 16,
 }
 
 
@@ -325,11 +338,11 @@ class NetworkAddressV2:
     def assert_valid(self) -> None:
         """Refuse a field no width holds, and an address of the wrong length.
 
-        The length is BIP155's table read against `network_id`: an id a
-        member names fixes it, and a mismatch is what the BIP calls
-        meaningless and what Core's `SetNetFromBIP155Network` throws on.
-        An id no member names fixes nothing, so `MAX_ADDRV2_SIZE` is the
-        whole of what such an address is held to.
+        The length is BIP155's table read against `network_id`, for the
+        ids Core's `SetNetFromBIP155Network` throws on a mismatch for.
+        Any other id fixes nothing -- `TORV2` and `YGGDRASIL`, and an id
+        no member names -- so `MAX_ADDRV2_SIZE` is the whole of what such
+        an address is held to.
         """
         _assert_int_range(self.timestamp, _MAX_TIMESTAMP, "timestamp")
         _assert_int_range(self.services, _MAX_SERVICES, "services")
