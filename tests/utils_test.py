@@ -7,14 +7,17 @@
 import array
 import random
 from decimal import Decimal
+from fractions import Fraction
 from io import BytesIO
 
 import pytest
+from typing_extensions import override
 
 from btclib.block import BlockHeader
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, magic_message, siphash
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     bytes_from_octets,
     decode_num,
@@ -503,3 +506,53 @@ def test_a_json_number_is_no_string(text: str | bytes) -> None:
     assert "1" not in str(e.value)
     with pytest.raises(BTClibTypeError, match="invalid nonce type: "):
         BlockHeader(nonce=text, check_validity=False)  # type: ignore[arg-type]
+
+
+def test_a_message_quotes_an_int_str_can_write() -> None:
+    """Digits where `str()` writes them, sign and bit length where it cannot.
+
+    `str()` refuses an int past `sys.get_int_max_str_digits()` digits
+    with ValueError, which a message quoting one would raise instead of
+    the refusal it was building (issue #2389).
+    """
+    assert _message_text(10**4000) == str(10**4000)
+    assert _message_text(-7) == "-7"
+    assert _message_text(True) == "True"
+    assert _message_text("1_0") == "1_0"
+    assert _message_text(10**5000) == "an int of 16610 bits"
+    assert _message_text(-(10**5000)) == "a negative int of 16610 bits"
+
+
+class _Unwritable:
+    @override
+    def __str__(self) -> str:
+        raise RuntimeError
+
+
+def test_a_message_describes_what_str_cannot_write() -> None:
+    """A value whose `str()` raises is named by its type, never by its text."""
+    assert _message_text(Fraction(10**5000)) == "a Fraction str() cannot write"
+    assert _message_text(Fraction(1, 10**5000)) == "a Fraction str() cannot write"
+    assert _message_text(Fraction(3, 2)) == "3/2"
+    assert _message_text(_Unwritable()) == "a _Unwritable str() cannot write"
+
+
+class _UnorderedInt(int):
+    @override
+    def __str__(self) -> str:
+        raise RuntimeError
+
+    @override
+    def __lt__(self, other: object) -> bool:
+        raise RuntimeError
+
+
+def test_a_message_describes_an_int_by_int_s_own_methods() -> None:
+    """A subclass overriding the comparison is described all the same."""
+    # the overrides do raise, so a description reaching them would too
+    with pytest.raises(RuntimeError):
+        _ = _UnorderedInt(-5) < 0
+    with pytest.raises(RuntimeError):
+        str(_UnorderedInt(-5))
+    assert _message_text(_UnorderedInt(-5)) == "a negative int of 3 bits"
+    assert _message_text(_UnorderedInt(10**5000)) == "an int of 16610 bits"

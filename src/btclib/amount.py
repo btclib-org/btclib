@@ -32,7 +32,7 @@ from decimal import (
 from typing import Any
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import is_integer
+from btclib.utils import _message_text, is_integer
 
 __all__ = [
     "btc_from_sats",
@@ -137,8 +137,15 @@ def _number_text(text: str, err_msg: str) -> str:
     return text
 
 
-def _decimal_from_text(text: str, err_msg: str) -> Decimal:
-    """Return the finite Decimal a number's text spells, or refuse it.
+def _decimal_from_value(value: object, err_msg: str) -> Decimal:
+    """Return the finite Decimal the text of a value spells, or refuse it.
+
+    The text is `str(value)`, which raises ValueError for an int past
+    `sys.get_int_max_str_digits()` digits and for what is written with
+    one, a Fraction for one, and which a `__str__` of the caller's own
+    can make raise anything: refused as what it is, a value that is no
+    amount, rather than let out as that error. Every Exception, for the
+    reason `utils._message_text` catches every one.
 
     The grammar `_number_text` holds the text to spells no NaN and no
     infinity, but it does spell an exponent past what `Decimal` can hold
@@ -146,6 +153,10 @@ def _decimal_from_text(text: str, err_msg: str) -> Decimal:
     which `_CONTEXT` traps, so the refusal is this library's whatever the
     caller's context does with the signal.
     """
+    try:
+        text = str(value)
+    except Exception as e:
+        raise BTClibValueError(err_msg) from e
     text = _number_text(text, err_msg)
     with localcontext(_CONTEXT):
         try:
@@ -170,21 +181,27 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
     # conversion, the same way valid_sats_amount type-checks its own dust
     # threshold
     if not isinstance(dust, Decimal):
-        raise BTClibTypeError(f"non-Decimal BTC dust threshold: {dust}")
+        err_msg = f"non-Decimal BTC dust threshold: {_message_text(dust)}"  # type: ignore[unreachable]
+        raise BTClibTypeError(err_msg)
     # a threshold is an amount, and bounding it is what bounds the range
     # below to amounts _CONTEXT holds exactly: a negative one would admit
     # a negative amount of any magnitude. is_finite goes first, a NaN
     # signalling InvalidOperation on the comparisons after it
     if not (dust.is_finite() and 0 <= dust <= _MAX_BITCOIN):
         raise BTClibValueError("invalid BTC dust threshold")
+    # an int is bounded as an int, before str() reads it: str() of one
+    # past 4300 digits raises ValueError, and every int it would refuse
+    # for that is out of range
+    if isinstance(amount, int) and not 0 <= amount <= int(_MAX_BITCOIN):
+        raise BTClibValueError(f"invalid BTC amount: {_message_text(amount)}")
     with localcontext(_CONTEXT):
-        # any input that can be converted to str is fine
-        amount = "0" if amount is None else str(amount)
-        err_msg = f"invalid BTC amount: {amount}"
-        # using str in the Decimal constructor avoids the
-        # FloatOperation exception _CONTEXT traps; what comes back is
-        # finite, so the range check below compares finite values
-        btc = _decimal_from_text(amount, err_msg)
+        # any input str() writes is read through its text
+        amount = "0" if amount is None else amount
+        err_msg = f"invalid BTC amount: {_message_text(amount)}"
+        # reading the Decimal through str avoids the FloatOperation
+        # exception _CONTEXT traps; what comes back is finite, so the
+        # range check below compares finite values
+        btc = _decimal_from_value(amount, err_msg)
         if not dust <= btc <= _MAX_BITCOIN:
             raise BTClibValueError(err_msg)
         # in range, so the quantize is exact at _CONTEXT's precision
@@ -194,7 +211,8 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
             # sign, reading no context, and every other value is returned
             # exactly as parsed, exponent included
             return btc.copy_abs() if btc.is_zero() else btc
-        raise BTClibValueError(f"too many decimals for a BTC amount: {amount}")
+        err_msg = f"too many decimals for a BTC amount: {_message_text(amount)}"
+        raise BTClibValueError(err_msg)
 
 
 def sats_from_btc(amount: Decimal) -> int:
@@ -221,7 +239,8 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     # comparison below as zero or one, so `dust=True` is a dust level of
     # one satoshi rather than a caller error
     if not is_integer(dust):
-        raise BTClibTypeError(f"non-integer satoshi dust threshold: {dust}")
+        err_msg = f"non-integer satoshi dust threshold: {_message_text(dust)}"
+        raise BTClibTypeError(err_msg)
     # bounded as valid_btc_amount bounds its own, so that the two keep one
     # contract; the message quotes no value, an int past 4300 digits
     # being one str() refuses
@@ -242,9 +261,11 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     try:
         sats = 0 if amount is None else int(text)
     except (ValueError, OverflowError) as e:
-        raise BTClibValueError(f"invalid satoshi amount: {amount}") from e
+        err_msg = f"invalid satoshi amount: {_message_text(amount)}"
+        raise BTClibValueError(err_msg) from e
     except TypeError as e:
-        raise BTClibTypeError(f"non-integer satoshi amount: {amount}") from e
+        err_msg = f"non-integer satoshi amount: {_message_text(amount)}"
+        raise BTClibTypeError(err_msg) from e
     # sats != amount is what catches the truncation int() performs
     # silently on a float or a Decimal fraction (int(2.5) == 2, so
     # 2 != 2.5 fires); it cannot fire that way on a str, since int()
@@ -254,9 +275,10 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     # numeric string despite the comment above admitting one. A str is
     # exempted from the check rather than compared under it
     if amount is not None and not isinstance(amount, str) and sats != amount:
-        raise BTClibTypeError(f"non-integer satoshi amount: {amount}")
+        err_msg = f"non-integer satoshi amount: {_message_text(amount)}"
+        raise BTClibTypeError(err_msg)
     if not dust <= sats <= _MAX_SATOSHI:
-        raise BTClibValueError(f"invalid satoshi amount: {amount}")
+        raise BTClibValueError(f"invalid satoshi amount: {_message_text(amount)}")
     return sats
 
 

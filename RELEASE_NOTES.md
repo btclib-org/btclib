@@ -362,6 +362,12 @@ full year, short month, short day (YYYY-M-D)
 
   Act on it if your code can pass a rate that large: catch
   `BTClibValueError` there.
+- **`FeeRate(sats_per_kvbyte=...)` refuses a rate above MAX_MONEY satoshi
+  per virtual byte** (closes #2389), `2_100_000_000_000_000_000` sat/kvB,
+  with `BTClibValueError`, where it built the `FeeRate`: the bound
+  `from_sats_per_vbyte` holds a quote to, held by the constructor too.
+
+  Act on it as on the `from_sats_per_vbyte` bullet above.
 
 ## v2026.9.24
 

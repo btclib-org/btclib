@@ -307,6 +307,32 @@ def assert_no_trailing(data: BinaryData, stream: BytesIO, what: str) -> None:
         raise BTClibValueError(f"{len(trailing)} bytes after the {what}")
 
 
+def _message_text(value: object) -> str:
+    """Return the text of a value for a refusal's message, never raising.
+
+    `str()` of an int past `sys.get_int_max_str_digits()` digits, 4300 by
+    default, raises ValueError, and so does `str()` of what is written
+    with such an int, a Fraction for one; a `__str__` of the caller's own
+    can raise anything. A message quoting such a value would leave
+    through the refusal it was building, as that error rather than this
+    library's. So a value `str()` cannot write is described and not
+    quoted: an int by its sign and bit length, anything else by its type
+    name, never by its text.
+    """
+    # every Exception and not only ValueError: what is caught is a
+    # failure to describe a value, and no failure of that kind may
+    # replace the refusal the description is for
+    try:
+        return str(value)
+    except Exception:  # noqa: BLE001
+        if isinstance(value, int):
+            # int's own methods, not the value's: a subclass can override
+            # the comparison and bit_length as it overrode __str__
+            sign = "a negative" if int.__lt__(value, 0) else "an"
+            return f"{sign} int of {int.bit_length(value)} bits"
+        return f"a {type(value).__name__} str() cannot write"
+
+
 def is_integer(value: Any) -> bool:
     """Return whether the value is an integer, a bool not being one.
 

@@ -51,15 +51,16 @@ from btclib import var_int
 from btclib.alias import Octets
 from btclib.amount import (
     _CONTEXT,
+    _MAX_BITCOIN,
     _MAX_SATOSHI,
-    _decimal_from_text,
+    _decimal_from_value,
     sats_from_btc,
     valid_sats_amount,
 )
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script.script_pub_key import is_segwit
 from btclib.script.spendability import is_unspendable
-from btclib.utils import assert_type, bytes_from_octets, is_integer
+from btclib.utils import _message_text, assert_type, bytes_from_octets, is_integer
 
 __all__ = [
     "DUST_RELAY_FEE_RATE",
@@ -71,6 +72,11 @@ __all__ = [
 
 # the kilo in sat/kvB, i.e. how many virtual bytes a rate is quoted over
 _VBYTES_PER_KVBYTE = 1000
+
+# MAX_MONEY per virtual byte, in sat/kvB: no fee exceeds MAX_MONEY and no
+# transaction is smaller than a virtual byte, so a higher rate is one
+# nothing can pay (issue #2385)
+_MAX_SATS_PER_KVBYTE = _MAX_SATOSHI * _VBYTES_PER_KVBYTE
 
 
 @dataclass(frozen=True, order=True, kw_only=True)
@@ -104,9 +110,8 @@ class FeeRate:
 
     def __post_init__(self) -> None:
         if not is_integer(self.sats_per_kvbyte):
-            raise BTClibTypeError(
-                f"non-integer sat/kvB fee rate: {self.sats_per_kvbyte}"
-            )
+            rate = _message_text(self.sats_per_kvbyte)
+            raise BTClibTypeError(f"non-integer sat/kvB fee rate: {rate}")
         # Core's CFeeRate admits a negative rate, and its GetFee floors
         # the result at -1 satoshi when it sees one. That is not leniency
         # to copy: the fraction CFeeRate stores is also the slope of a
@@ -115,7 +120,17 @@ class FeeRate:
         # here is only ever a price, never a difference, so a negative
         # one is a caller's mistake and the floor has nothing to protect
         if self.sats_per_kvbyte < 0:
-            raise BTClibValueError(f"negative fee rate: {self.sats_per_kvbyte} sat/kvB")
+            rate = _message_text(self.sats_per_kvbyte)
+            raise BTClibValueError(f"negative fee rate: {rate} sat/kvB")
+        # the bound from_sats_per_vbyte holds a quote to, held by the
+        # field itself, so that no FeeRate is one nothing can pay -- and
+        # so that its repr and sats_per_vbyte, which read the field
+        # through str(), never meet an int str() refuses
+        if self.sats_per_kvbyte > _MAX_SATS_PER_KVBYTE:
+            rate = _message_text(self.sats_per_kvbyte)
+            raise BTClibValueError(
+                f"fee rate above MAX_MONEY per virtual byte: {rate} sat/kvB"
+            )
 
     @classmethod
     def from_sats_per_vbyte(
@@ -152,10 +167,14 @@ class FeeRate:
         parameter is a kind or a truth").
         """
         assert_type(round_up, bool, "round_up")
-        err_msg = f"invalid sat/vB fee rate: {sats_per_vbyte}"
+        err_msg = f"invalid sat/vB fee rate: {_message_text(sats_per_vbyte)}"
+        # an int is bounded as an int, before str() reads it, as
+        # valid_btc_amount bounds its own
+        if isinstance(sats_per_vbyte, int) and abs(sats_per_vbyte) > _MAX_SATOSHI:
+            raise BTClibValueError(err_msg)
         # finite in any caller's context, so as_integer_ratio below,
         # which raises on a NaN and on an infinity, is never handed one
-        rate = _decimal_from_text(str(sats_per_vbyte), err_msg)
+        rate = _decimal_from_value(sats_per_vbyte, err_msg)
         # both ends of the exponent are settled here, ahead of
         # as_integer_ratio, which builds an int of as many digits as the
         # exponent is large: "1e10000000" and "1e-10000000" are short
@@ -253,11 +272,17 @@ class FeeRate:
         if btc_per_kvbyte is None:
             raise BTClibValueError(f"invalid BTC/kvB fee rate: {btc_per_kvbyte}")
         if round_up:
-            err_msg = f"invalid BTC/kvB fee rate: {btc_per_kvbyte}"
+            err_msg = f"invalid BTC/kvB fee rate: {_message_text(btc_per_kvbyte)}"
+            # an int is bounded as an int, before str() reads it, as
+            # valid_btc_amount bounds its own
+            if isinstance(btc_per_kvbyte, int) and abs(btc_per_kvbyte) > int(
+                _MAX_BITCOIN
+            ):
+                raise BTClibValueError(err_msg)
             # finite in any caller's context, so quantize below, which
             # raises on an infinity and passes a NaN through, is never
             # handed one
-            rate = _decimal_from_text(str(btc_per_kvbyte), err_msg)
+            rate = _decimal_from_value(btc_per_kvbyte, err_msg)
             # ROUND_CEILING rounds toward positive infinity, so a negative
             # quote finer than a satoshi rounds *up to* zero rather than
             # away from it -- accepted as a free-transaction FeeQuote
@@ -296,11 +321,10 @@ class FeeRate:
         # built from its digits rather than by dividing two Decimals or
         # calling normalize(), both of which round to the ambient
         # context's precision: what a caller has set that to is no
-        # business of a fee rate, and a FeeRate built directly has no
-        # bound a library-owned precision could be sized for. The
-        # trailing zeros are stripped into the exponent, which is what
-        # normalize() does, so that equal rates print the same way;
-        # Decimal(str) is exact and reads no context
+        # business of a fee rate. The trailing zeros are stripped into
+        # the exponent, which is what normalize() does, so that equal
+        # rates print the same way; Decimal(str) is exact and reads no
+        # context
         if not self.sats_per_kvbyte:
             return Decimal(0)
         digits = str(self.sats_per_kvbyte)
@@ -324,9 +348,9 @@ def fee_from_vsize(vsize: int, fee_rate: FeeRate) -> int:
     # between a rate and the satoshi it owes. A str fails instead, but on
     # the comparison below and with a bare TypeError naming '<'
     if not is_integer(vsize):
-        raise BTClibTypeError(f"non-integer virtual size: {vsize}")
+        raise BTClibTypeError(f"non-integer virtual size: {_message_text(vsize)}")
     if vsize < 0:
-        raise BTClibValueError(f"negative virtual size: {vsize}")
+        raise BTClibValueError(f"negative virtual size: {_message_text(vsize)}")
     # integer division and a bump, not math.ceil of a quotient: the
     # quotient would be a float, and Core's own comment on this
     # computation is that "we've previously had bugs creep in from silent
@@ -384,12 +408,14 @@ def package_fee(
     that nothing else in the arithmetic can notice.
     """
     if not is_integer(ancestor_vsize):
-        raise BTClibTypeError(f"non-integer ancestor virtual size: {ancestor_vsize}")
+        err_msg = f"non-integer ancestor virtual size: {_message_text(ancestor_vsize)}"
+        raise BTClibTypeError(err_msg)
     # bounded here rather than left to the sum below, where a negative
     # total would cancel against `vsize` and price the package as
     # something smaller than the child it holds
     if ancestor_vsize < 0:
-        raise BTClibValueError(f"negative ancestor virtual size: {ancestor_vsize}")
+        err_msg = f"negative ancestor virtual size: {_message_text(ancestor_vsize)}"
+        raise BTClibValueError(err_msg)
     # the ancestors' fee is money, so the amount validator is the gate:
     # non-integer, negative and above MAX_MONEY are its answers to give,
     # and that bound is one this module has no business restating

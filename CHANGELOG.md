@@ -545,6 +545,12 @@ A caller's decimal precision and traps change no amount or rate, and a dust
 threshold outside zero to MAX_MONEY is refused (closes #2387). A rate above
 MAX_MONEY sat/vB is refused, and no exponent builds a huge int (closes #2385).
 
+### An amount or fee-rate refusal never raises while it quotes its value
+
+A value `str()` cannot write, such as an int past its digit limit, is refused
+as this library's error and named by bit length or type; `FeeRate` refuses a
+rate above MAX_MONEY sat/vB, so its repr never meets one (closes #2389).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
