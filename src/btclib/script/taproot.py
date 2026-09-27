@@ -118,8 +118,10 @@ def serialize(script: ScriptList) -> bytes:
         if isinstance(command, int):
             r.append(_serialize_int_command(command))
         elif isinstance(command, str):
-            r.append(_serialize_str_command(command))
-            if "OP_SUCCESS" in command:
+            serialized = _serialize_str_command(command)
+            r.append(serialized)
+            # keyed on the byte written, not on how the command spells it
+            if len(serialized) == 1 and serialized[0] in OP_SUCCESS:
                 if len(script) != 1 or not isinstance(
                     script[0], (bytes, bytearray, memoryview)
                 ):

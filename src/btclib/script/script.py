@@ -307,7 +307,7 @@ OP_CODE_NAME_FROM_INT = {
 # What parse appends where the bytes stop being a script, spelled as
 # Bitcoin Core's ScriptToAsmStr spells it. Display-only, deliberately: it
 # marks a place in the script rather than an instruction, so serialize
-# refuses it -- "invalid string command: [ERROR]" -- where
+# refuses it -- "invalid string command: [error]" -- where
 # UNKNOWN_OP_CODE_n must and does round-trip, being a legitimate byte of
 # an executable script. Nothing is lost by that: a Script is its bytes,
 # and Core's asm is not invertible either, printing a short push as a
@@ -368,8 +368,20 @@ def _serialize_int_command(command: int) -> bytes:
     return _serialize_bytes_command(encode_num(command))
 
 
+def _assert_ascii_command(command: str) -> None:
+    # ahead of `strip`, which strips Unicode whitespace too, and of anything
+    # reading a number: `int` takes any Unicode decimal digit
+    if not command.isascii():
+        raise BTClibValueError("non-ASCII string command")
+
+
 def _serialize_str_command(command: str) -> bytes:
-    command = command.strip().upper()
+    # an op code name matches only as parse writes it, upper-case, as
+    # Core's ParseScript matches one exactly: `str.upper` maps U+0131 onto
+    # I and U+017F onto S, so a case mapping would look a name that is no
+    # op code's up as one. Hex data is read in either case
+    _assert_ascii_command(command)
+    command = command.strip()
     if command in BYTE_FROM_OP_CODE_NAME:
         return BYTE_FROM_OP_CODE_NAME[command]
     try:
@@ -449,8 +461,8 @@ def serialize(script: Sequence[Command]) -> bytes:
 
     An integer is encoded as the number it pushes -- with a warning
     where a one-byte op code means the same, and a refusal outside the
-    int64 a script number is -- a string is an op code name, an
-    UNKNOWN_OP_CODE_n byte, or hex data, and bytes are data; data is
+    int64 a script number is -- a string is an upper-case op code name,
+    an UNKNOWN_OP_CODE_n byte, or hex data, and bytes are data; data is
     always the minimal push operator, per BIP62. What parse returns
     round-trips, ERROR_COMMAND excepted, that marker being a place in
     the bytes rather than an instruction.
@@ -487,6 +499,9 @@ def serialize(script: Sequence[Command]) -> bytes:
         if isinstance(command, int):
             r.append(_serialize_int_command(command))
         elif isinstance(command, str):
+            # ahead of the UNKNOWN_OP_CODE_n branch, whose `int` reads any
+            # Unicode decimal digit and strips Unicode whitespace
+            _assert_ascii_command(command)
             if "UNKNOWN_OP_CODE_" in command:
                 r.append(int(command[16:]).to_bytes(1, "big"))
             else:

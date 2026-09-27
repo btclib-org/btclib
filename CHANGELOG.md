@@ -452,6 +452,12 @@ string was quoted, a private key pasted there included (closes #2350).
 `str.isspace` counts; `string.whitespace` is Bitcoin Core's `IsSpace`
 (closes #2349).
 
+### Script serializers match an op code name as `parse` writes it
+
+Upper-case ASCII: `str.upper` maps U+0131 onto `I`, so `op_` U+0131 `f` was
+OP_IF, and `taproot.serialize` wrote `op_success80` without refusing what
+follows it. An OP_SUCCESS number is ASCII digits (closes #2352).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
