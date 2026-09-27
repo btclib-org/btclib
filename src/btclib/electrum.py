@@ -55,7 +55,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, NoReturn, cast
 
 from btclib.alias import Octets
 from btclib.block.block_header import BlockHeader
@@ -96,19 +96,46 @@ def encode_request(request_id: int, method: str, params: Any = ()) -> bytes:
     return json.dumps(request).encode("utf-8") + b"\n"
 
 
+def _raise_rpc_error(error: object) -> NoReturn:
+    """Raise a JSON-RPC `error` member as `RpcError`.
+
+    Shared by the two sites `decode_response` reads one from: the
+    ordinary case, an id matching the request, and the JSON-RPC 2.0 one,
+    a reply whose `id` is `null` because the server could not parse the
+    request enough to answer it at all.
+    """
+    if isinstance(error, dict):
+        message = str(error.get("message", error))
+        code = error.get("code", 0)
+        raise RpcError(message, code if is_integer(code) else 0, error.get("data"))
+    raise RpcError(str(error), 0)
+
+
 def decode_response(line: bytes, request_id: int) -> Any:
     """Return the `result` of one response line, matched to `request_id`.
 
     Refuses a line that is not one: not JSON, not an object, an id that
-    is not this request's, or neither a `result` nor an `error` member.
-    An `error` member is raised as `RpcError` rather than returned -- a
-    JSON-RPC error object, `{"code", "message"}` and an optional `data`,
-    every field this module's own caller in `btclib_wallet.fetch.electrum` asks
-    for the way it asks a bitcoind JSON-RPC error's fields. A server that
-    still answers the elder, non-object form of an error -- a bare string
-    result under protocol 1.0 -- is read the same way, with code 0: the
-    protocol carries no code for that shape, and 0 is no code Core or
-    Electrum ever assigns one of their own.
+    is not this request's own integer id, or neither a `result` nor an
+    `error` member. An `error` member is raised as `RpcError` rather than
+    returned -- a JSON-RPC error object, `{"code", "message"}` and an
+    optional `data`, every field this module's own caller in
+    `btclib_wallet.fetch.electrum` asks for the way it asks a bitcoind
+    JSON-RPC error's fields. A server that still answers the elder,
+    non-object form of an error -- a bare string result under protocol
+    1.0 -- is read the same way, with code 0: the protocol carries no
+    code for that shape, and 0 is no code Core or Electrum ever assigns
+    one of their own.
+
+    A request the server could not parse enough to answer at all is
+    answered under JSON-RPC 2.0 with `"id": null`, so a `null` id
+    carrying an `error` member is read as that error before the id is
+    checked against `request_id` -- a `null` id with no `error` member
+    falls through to the ordinary mismatch below instead, `null` being
+    an id no request of this module's own ever carries. An id equal to
+    `request_id` under Python's `==` but not itself an integer --
+    `true`, `1.0` -- does not match either: JSON's booleans and floats
+    compare equal to the integers they neighbour, and this module
+    already refuses a bool as a number of any other kind (`is_integer`).
     """
     try:
         reply: Any = json.loads(line)
@@ -116,17 +143,16 @@ def decode_response(line: bytes, request_id: int) -> Any:
         raise BTClibValueError(f"not a JSON-RPC line: {line!r}") from e
     if not isinstance(reply, dict):
         raise BTClibTypeError(f"not a JSON-RPC response object: {reply!r}")
-    if reply.get("id") != request_id:
-        err_msg = f"response id {reply.get('id')!r}"
+    reply_id = reply.get("id")
+    error = reply.get("error")
+    if reply_id is None and error is not None:
+        _raise_rpc_error(error)
+    if not (is_integer(reply_id) and reply_id == request_id):
+        err_msg = f"response id {reply_id!r}"
         err_msg += f" does not answer request {request_id}"
         raise BTClibValueError(err_msg)
-    error = reply.get("error")
     if error is not None:
-        if isinstance(error, dict):
-            message = str(error.get("message", error))
-            code = error.get("code", 0)
-            raise RpcError(message, code if is_integer(code) else 0, error.get("data"))
-        raise RpcError(str(error), 0)
+        _raise_rpc_error(error)
     if "result" not in reply:
         raise BTClibValueError(f"neither a result nor an error: {reply!r}")
     return reply["result"]
