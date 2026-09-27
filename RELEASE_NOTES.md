@@ -303,6 +303,14 @@ full year, short month, short day (YYYY-M-D)
   padding in place.
 
   Act on it if you pass network names padded that way: strip them first.
+- **The amount and fee-rate readers refuse a leading `+`** (closes #2372):
+  `valid_btc_amount`, `valid_sats_amount`, `FeeRate.from_sats_per_vbyte`
+  and `FeeRate.from_btc_per_kvbyte`, and what reads an amount through them.
+  `"+1"` raises `BTClibValueError`, where it read as 1. The `+` of an
+  exponent, `"1e+1"`, is still read.
+
+  Act on it if you hand these functions a signed positive string: drop the
+  `+` first.
 
 ## v2026.9.24
 

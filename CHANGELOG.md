@@ -504,6 +504,11 @@ took U+00A0, U+3000, U+001C and the rest of what `str.isspace` counts
 One rule for every ecosystem, though dependabot-core dates a docker tag only on
 Docker Hub and the base image is on gcr.io (issue btclib-org/.github#1405).
 
+### Amount and fee-rate readers refuse a leading `+`
+
+Neither of Bitcoin Core's `ParseMoney` and `ParseFixedPoint` reads one; the `+`
+of an exponent, "1e+1", stays (closes #2372).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
