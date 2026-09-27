@@ -17,7 +17,7 @@ the byte before ever reaching it (issue #182).
 """
 
 from btclib.exceptions import BTClibValueError
-from btclib.script.script import _serialize_bytes_command
+from btclib.script.script import _assert_ascii_command, _serialize_bytes_command
 
 __all__ = [
     "OP_CODES",
@@ -256,11 +256,18 @@ OP_SUCCESS = [
 
 
 def _serialize_str_command(command: str) -> bytes:
-    command = command.strip().upper()
+    # an op code name matches as script._serialize_str_command matches one
+    _assert_ascii_command(command)
+    command = command.strip()
     if command in OP_CODES:
         return OP_CODES[command]
     if command.startswith("OP_SUCCESS"):
-        x = int(command[10:])
+        digits = command[10:]
+        # the number as parse writes it: `int` also takes a sign, an
+        # underscore, whitespace and leading zeros
+        if not digits.isdigit() or str(int(digits)) != digits:
+            raise BTClibValueError(f"invalid string command: {command}")
+        x = int(digits)
         if x not in OP_SUCCESS:
             raise BTClibValueError(f"invalid OP_SUCCESS number: {x}")
         return x.to_bytes(1, "little")

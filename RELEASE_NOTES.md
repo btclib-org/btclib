@@ -232,6 +232,21 @@ full year, short month, short day (YYYY-M-D)
   Act on it if you hand these functions text padded that way: strip it
   first.
 
+- **`script.serialize` and `taproot.serialize` match an op code name only
+  upper-case, as `parse` writes it, and refuse a non-ASCII string command**
+  (closes #2352). `"op_dup"` raises `invalid string command: op_dup` where it
+  serialized as OP_DUP. A string command holding a non-ASCII character
+  raises `non-ASCII string command`, U+3000 or U+00A0 around an op code name
+  or an `UNKNOWN_OP_CODE_n` included. `taproot.serialize` raises `invalid
+  string command: <command>` for an OP_SUCCESS number written with a sign,
+  an underscore, whitespace or a leading zero, where it read the number. An
+  `invalid string command` refusal quotes the command in the case it was
+  written in, where it quoted it upper-cased. Hex data is read in either
+  case.
+
+  Act on it by writing op code names upper-case. Each of these refusals is a
+  `BTClibValueError`.
+
 ## v2026.9.24
 
 ### Breaking changes

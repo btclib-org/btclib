@@ -12,6 +12,7 @@ Core rather than anything a BIP publishes.
 tests/_data/README.md pins the revision of each.
 """
 
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -886,6 +887,36 @@ def test_invalid_serialization() -> None:
         serialize(["OP_SUCCESS80", 1])
     with pytest.raises(BTClibValueError, match="OP_SUCCESS must be followed"):
         serialize(["OP_SUCCESS80", "00"])
+
+
+def test_op_success_is_spelled_as_parse_writes_it() -> None:
+    """Upper-case ASCII, and the number in ASCII digits (issue #2352).
+
+    `str.upper` maps U+017F LONG S onto S and `int` reads U+0668 U+0660
+    as 80, so either spelling serialized as OP_SUCCESS80, and the
+    lower-case one wrote 0x50 without the refusal of what follows it.
+    """
+    non_ascii = (
+        "OP_" + chr(0x17F) + "UCCESS80",
+        "OP_SUCCESS" + chr(0x668) + chr(0x660),
+        "op_" + chr(0x131) + "f",
+    )
+    for command in non_ascii:
+        with pytest.raises(BTClibValueError, match="^non-ASCII string command$"):
+            serialize([command, b"\x01"])
+
+    for command in (
+        "op_success80",
+        "OP_SUCCESS8_0",
+        "OP_SUCCESS+80",
+        "OP_SUCCESS 80",
+        "OP_SUCCESS080",
+        "OP_SUCCESS",
+        "op_if",
+    ):
+        err_msg = f"^invalid string command: {re.escape(command)}$"
+        with pytest.raises(BTClibValueError, match=err_msg):
+            serialize([command, b"\x01"])
 
 
 def test_op_success_is_followed_by_bytes_however_they_are_held() -> None:

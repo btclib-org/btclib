@@ -205,6 +205,36 @@ def test_exceptions() -> None:
         serialize(["OP_2", "OP_3", "OP_ADD", "OP_5", serialize])  # type: ignore[list-item]
 
 
+def test_an_op_code_name_is_matched_as_parse_writes_it() -> None:
+    """Upper-case ASCII, as Core's ParseScript matches it (issue #2352).
+
+    `str.upper` maps U+0131 DOTLESS I onto I and U+017F LONG S onto S,
+    so upper-casing before the lookup serialized the first two commands
+    below as OP_IF and OP_CHECKSIG; `str.strip` removes U+3000. The
+    UNKNOWN_OP_CODE_n branch is refused the same way: `int` read the
+    Arabic-Indic 187 and stripped U+3000, and U+00A0 ahead of the name
+    left `int` a string it raised a bare ValueError on.
+    """
+    for command in (
+        "op_" + chr(0x131) + "f",
+        "OP_CHECK" + chr(0x17F) + "IG",
+        chr(0x3000) + "OP_IF",
+        "UNKNOWN_OP_CODE_" + chr(0x661) + chr(0x668) + chr(0x667),
+        "UNKNOWN_OP_CODE_187" + chr(0x3000),
+        chr(0xA0) + "UNKNOWN_OP_CODE_187",
+    ):
+        with pytest.raises(BTClibValueError, match="^non-ASCII string command$"):
+            serialize([command])
+
+    for command in ("op_if", "Op_CheckSig"):
+        err_msg = f"^invalid string command: {command}$"
+        with pytest.raises(BTClibValueError, match=err_msg):
+            serialize([command])
+
+    # hex data is data, and read in either case
+    assert serialize(["ab"]) == serialize(["AB"]) == b"\x01\xab"
+
+
 def test_pushdata4_and_the_only_length_left_to_refuse() -> None:
     """All four push widths are written, and read back.
 
@@ -264,7 +294,7 @@ def test_truncated_push_ends_the_parse() -> None:
     # the mark cannot be serialized back: it is a place, not a command,
     # where UNKNOWN_OP_CODE_n is a byte of an executable script and must
     # round-trip
-    with pytest.raises(BTClibValueError, match=r"invalid string command: \[ERROR\]"):
+    with pytest.raises(BTClibValueError, match=r"^invalid string command: \[error\]$"):
         serialize([ERROR_COMMAND])
 
     # 0xff, Core's OP_INVALIDOPCODE, which no soft fork can name: an op
