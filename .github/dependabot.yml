@@ -1,8 +1,11 @@
 ---
 # what is left out, and why:
-# - the pre-commit hook revs, because dependabot has no pre-commit
-#   ecosystem; pre-commit.ci updates them instead, weekly, as configured
-#   in the ci: block of .pre-commit-config.yaml
+# - the pre-commit hook revs: dependabot has a pre-commit ecosystem, and
+#   the maintainer decided to keep pre-commit.ci for them instead
+#   (btclib-org/.github#1391), its weekly autoupdate -- the ci: block of
+#   .pre-commit-config.yaml -- already rewriting rev: for every repo: but
+#   local and meta, so a second bot on the same pin would only compete
+#   with it
 # - .clusterfuzzlite/requirements.txt, which is uv.lock exported and which
 #   the uv-export hook of .pre-commit-config.yaml rewrites from the lock:
 #   a pip entry moving it would be moving it away from the lock. A uv pull

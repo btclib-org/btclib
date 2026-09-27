@@ -162,15 +162,16 @@ jobs:
     # workflows with a job named "every job passed" would produce one
     # ambiguous check, and test.yml's aggregate is a required check
     name: "codeql: every job passed"
-    # ordering, and nothing else: nothing in this tree calls this
-    # workflow, so the step below reads the run's own job listing rather
-    # than `needs.*.result`, which is section 10 of the organization
-    # standard's shape for a workflow only ever run directly -- a called
-    # workflow's listing is the caller's run and holds jobs waiting on
-    # this one, which is why test.yml, being release.yml's own call,
-    # keeps `needs`. Here `needs` sequences this job after the call above
-    # and decides nothing, so a language the called workflow's own matrix
-    # adds is covered without touching this
+    # nothing in this tree calls this workflow, so the step below reads
+    # the run's own job listing rather than `needs.*.result`, which is
+    # section 10 of the organization standard's shape for a workflow only
+    # ever run directly -- a called workflow's listing is the caller's run
+    # and holds jobs waiting on this one, which is why test.yml, being
+    # release.yml's own call, keeps `needs`. Here `needs` sequences this
+    # job after the call above, so a language the called workflow's own
+    # matrix adds is covered without touching this, and
+    # `needs.analyze.result` is what the step reads for analyze's own rows
+    # where the listing still shows them unfinished
     needs: [analyze]
     # not success(): a job whose dependencies failed is skipped, and a
     # skipped check reports "skipped", which a rule naming this context
@@ -205,14 +206,16 @@ jobs:
       # the run's own listing instead reads what actually happened, at
       # the price of a step per workflow rather than one shared with
       # test.yml's aggregate, `needs` reaching nothing outside its own
-      # workflow
+      # workflow. The step reads that result for a row the listing still
+      # shows unfinished and for nothing else: a row the listing shows
+      # concluded is judged on its conclusion whatever the result says
       #
       # under the call above, the listing carries the called workflow's
       # rows under a name this job's own id prefixes -- reusable-codeql.yml's
       # own header has the reason -- and the filter below reads `.jobs[]`
-      # whole and judges each row on its conclusion column alone, so the
-      # rename changes what a row is called and nothing the filter or the
-      # count below reads
+      # whole and judges each row on its conclusion column, reading a
+      # row's name only for that prefix, which is what says an unfinished
+      # row is one of analyze's own
       #
       # the allowlist below names "success" and "skipped", which is what
       # section 10 asks of a listing step, rather than "success" alone.
@@ -237,6 +240,7 @@ jobs:
       - name: Fail unless every other job of this run succeeded
         env:
           GH_TOKEN: ${{ github.token }}
+          ANALYZE_RESULT: ${{ needs.analyze.result }}
         run: |
           set -euo pipefail
           # `.status` beside the conclusion so that an unfinished job says
@@ -253,8 +257,28 @@ jobs:
           # where awk's field separator is POSIX
           bad=$(printf '%s\n' "${jobs}" |
             awk -F'\t' '$1 != "success" && $1 != "skipped" && $1 != "unfinished"')
-          unfinished=$(printf '%s\n' "${jobs}" |
-            awk -F'\t' '$1 == "unfinished"' | wc -l | tr -d ' ')
+          # a row of analyze's that the listing still shows unfinished is
+          # accepted where analyze's own result is success or skipped:
+          # `needs` does not let this job start before analyze concludes,
+          # so such a row is the listing lagging and not the run
+          # (btclib-org/.github#1395). A row is analyze's where its name
+          # starts with this job's `needs` id and then a space, a slash and
+          # a space, the prefix GitHub lists a called workflow's jobs under;
+          # with any other result the prefix is empty and nothing is
+          # accepted this way
+          prefix=""
+          case "${ANALYZE_RESULT}" in
+            success | skipped) prefix="analyze / " ;;
+          esac
+          lagging=$(printf '%s\n' "${jobs}" | awk -F'\t' -v p="${prefix}" \
+            '$1 == "unfinished" && p != "" && index($3, p) == 1')
+          if [ -n "${lagging}" ]; then
+            echo "listed unfinished, accepted as analyze's (${ANALYZE_RESULT}):"
+            printf '%s\n' "${lagging}"
+          fi
+          counted=$(printf '%s\n' "${jobs}" | awk -F'\t' -v p="${prefix}" \
+            '$1 == "unfinished" && !(p != "" && index($3, p) == 1)')
+          unfinished=$(printf '%s' "${counted}" | awk 'END { print NR }')
           # each annotation names the rows it is about, an annotation
           # being what the checks page shows without the log being
           # opened. `%0A` is a newline to one, and the tab goes with it:
@@ -269,15 +293,16 @@ jobs:
             annotate "these jobs of the run did not succeed:" "${bad}"
             verdict=1
           fi
-          # exactly one job of the run may be unfinished, and it is this
-          # one. Counted rather than excluded by name, a name being what
-          # goes stale when this job is renamed -- and none unfinished at
-          # all is refused too, a listing with no job running not being a
-          # listing of the run this step is running in
+          # beside analyze's accepted rows, exactly one job of the run may
+          # be unfinished, and it is this one. Counted rather than excluded
+          # by name, a name being what goes stale when this job is renamed
+          # -- and none unfinished at all is refused too, a listing with no
+          # job running not being a listing of the run this step is
+          # running in
           if [ "${unfinished}" -ne 1 ]; then
             annotate \
               "this check should be the run's one unfinished job; ${unfinished} are" \
-              "$(printf '%s\n' "${jobs}" | awk -F'\t' '$1 == "unfinished"')"
+              "${counted}"
             verdict=1
           fi
           exit "${verdict}"
