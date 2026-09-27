@@ -52,6 +52,7 @@ read under.
 from __future__ import annotations
 
 import string
+import sys
 from collections.abc import Iterable, Mapping
 from io import BytesIO
 from numbers import Number
@@ -276,7 +277,17 @@ def read_exactly(stream: BinaryIO, size: int, what: str) -> bytes:
     package, reads from one: a view over a psbt does not consume the
     stream it is given, so it needs no stream that can also
     `getbuffer()`.
+
+    `size` is a count of octets, so an integer from zero to
+    `sys.maxsize`: a negative one is what `read` takes for "to the end",
+    and past `sys.maxsize` `read` answers with an OverflowError of its
+    own, where no stream holds that many octets anyway.
     """
+    # a bool is not a count, `True` reading one octet
+    if not is_integer(size):
+        raise BTClibTypeError(f"invalid {what} size type: {type(size).__name__}")
+    if not 0 <= size <= sys.maxsize:
+        raise BTClibValueError(f"invalid {what} size: {_message_text(size)}")
     data = stream.read(size)
     if len(data) != size:
         err_msg = f"not enough data for the {what}: "

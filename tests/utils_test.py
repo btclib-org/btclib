@@ -6,6 +6,7 @@
 
 import array
 import random
+import sys
 from decimal import Decimal
 from fractions import Fraction
 from io import BytesIO
@@ -45,6 +46,24 @@ def test_read_exactly() -> None:
     assert read_exactly(stream, 3, "second field") == b"345"
     # nothing left, and asking for nothing is not asking
     assert read_exactly(stream, 0, "no field") == b""
+
+
+def test_read_exactly_refuses_a_size_that_is_no_count() -> None:
+    """A size `read` cannot take, or takes as "to the end" (issue #2399).
+
+    Left to `read`, a size past `sys.maxsize` would raise an
+    OverflowError and a float a TypeError, a negative size would read
+    the whole stream, and `True` would read one octet.
+    """
+    for size in (1.5, "1", None, True):
+        with pytest.raises(BTClibTypeError, match="^invalid tx_id size type: "):
+            read_exactly(BytesIO(b"12"), size, "tx_id")  # type: ignore[arg-type]
+    for size in (-1, sys.maxsize + 1, 10**5000, -(10**5000)):
+        with pytest.raises(BTClibValueError, match="^invalid tx_id size: "):
+            read_exactly(BytesIO(b"12"), size, "tx_id")
+    # the top of the range is a short read, not a refusal of the size
+    with pytest.raises(BTClibValueError, match="^not enough data for the tx_id: "):
+        read_exactly(BytesIO(b"12"), sys.maxsize, "tx_id")
 
 
 def test_read_exactly_names_the_field_it_could_not_fill() -> None:

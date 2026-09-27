@@ -572,6 +572,11 @@ BIP341's `c[0] & 0xfe` never is, a value error (closes #2396).
 It is refused before `int` reads it, where one past `int`'s digit limit raised
 a builtin `ValueError` (closes #2400).
 
+### `utils.read_exactly` refuses a size that is no count of octets
+
+A non-integer size, a bool included, is a type error, and one below zero or
+past `sys.maxsize` is refused before `read` sees it (closes #2399).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
