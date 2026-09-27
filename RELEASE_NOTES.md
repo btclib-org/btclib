@@ -209,6 +209,14 @@ full year, short month, short day (YYYY-M-D)
   character out of range` as well. It is still a `BTClibValueError`, so an
   `except` on that class is unaffected.
 
+- **`script_from_script_pub_key` does not quote the string it refuses**
+  (closes #2350). It raises `neither a script nor an address` where it
+  raised `neither a script nor an address: '<input>'`.
+
+  Act on it if you match on the text of that refusal: match it without
+  the colon. It is still a `BTClibValueError`, so an `except` on that
+  class is unaffected.
+
 ## v2026.9.24
 
 ### Breaking changes

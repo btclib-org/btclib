@@ -1218,7 +1218,11 @@ def test_script_from_takes_an_output_however_the_caller_holds_it() -> None:
     "script_pub_key, error, match",
     [
         ("", BTClibValueError, "empty script_pub_key"),
-        ("not hex, not an address", BTClibValueError, "neither a script nor"),
+        (
+            "not hex, not an address",
+            BTClibValueError,
+            "^neither a script nor an address$",
+        ),
         (5, BTClibTypeError, "invalid script_pub_key type"),
     ],
 )
@@ -1228,6 +1232,23 @@ def test_script_from_refuses_what_names_no_output(
     """The empty string, text that is neither spelling, and a non-string."""
     with pytest.raises(error, match=match):
         _script_from(script_pub_key)
+
+
+def test_script_from_script_pub_key_does_not_quote_what_it_refuses() -> None:
+    """A key pasted where an output belongs is not repeated by the refusal.
+
+    The reproduction issue #2350 was filed with: a WIF behind "bc1", which
+    the bech32 decoder refuses, and a bare WIF, which the base58 one does.
+    The decoder's refusal is chained as the cause, and quotes nothing either.
+    """
+    wif = "L4rK1yDtCWekvXuE6oXD9jCYfFNV2cWRpVuPLBcCU2z8TrisoyY1"
+    for spelling in (f"bc1{wif}", wif):
+        err = "^neither a script nor an address$"
+        with pytest.raises(BTClibValueError, match=err) as exc_info:
+            script_from_script_pub_key(spelling)
+        cause = exc_info.value.__cause__
+        assert isinstance(cause, ValueError)
+        assert wif not in str(cause)
 
 
 def test_script_from_script_pub_key_asks_the_object_first() -> None:

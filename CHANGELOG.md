@@ -440,6 +440,12 @@ Ahead of the case check: `str.lower` maps U+212A KELVIN SIGN onto `k`, so an
 uppercase address with it in place of `K` decoded as that address. Bitcoin
 Core's `CheckCharacters` refuses the same range (closes #2347).
 
+### `script_from_script_pub_key` refuses a string without quoting it
+
+What is neither the hex of a script nor an address is refused as `neither a
+script nor an address`, the decoder's refusal chained as the cause, where the
+string was quoted, a private key pasted there included (closes #2350).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
