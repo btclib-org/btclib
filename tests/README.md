@@ -83,6 +83,10 @@ pytest's `tmp_path` and ephemeral rpc and p2p ports, so nothing reaches a
 node you are running. Name another binary with
 `BTCLIB_BITCOIND=/path/to/bitcoind`.
 
+Each of these tests is bounded by pytest-timeout, so a node that stops
+answering fails the test waiting on it instead of hanging the run. The
+bound and the measurement behind it are in `tests/integration/conftest.py`.
+
 These tests are outside the coverage ratchet, which `pyproject.toml`
 says where it omits them: the ratchet measures what an ordinary run
 executes, and a body that skips itself would be an uncovered line at

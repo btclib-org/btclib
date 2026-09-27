@@ -287,6 +287,11 @@ A width that is not a positive integer, or a value that is not `is_integer`,
 raises `BTClibValueError` or `BTClibTypeError`, where a zero `to_bits` looped
 forever and a bool was taken as a digit (closes #2290).
 
+### `tests/integration` bounds each test with pytest-timeout
+
+A `bitcoind` that stops answering fails the test waiting on it instead of
+hanging the run, and `pytest-timeout` joins the `harness` group (closes #2310).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
