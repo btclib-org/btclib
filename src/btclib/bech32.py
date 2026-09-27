@@ -98,6 +98,18 @@ _TAPS = [
 _INDEX_OF = {c: i for i, c in enumerate(_ALPHABET)}
 
 
+def _hrp_in_range(text: str) -> bool:
+    """Whether every character of `text` is in BIP173's HRP range.
+
+    "a value in the range [33-126]", shared between `_decode`'s check on
+    `text[:pos]` and `encode`'s on the HRP it is given, so the bound
+    lives in one place. 33 and 126 are the boundary themselves ("!" and
+    "~"); a weakened `<=` at either end would accept 32 (" ") or 127
+    (DEL).
+    """
+    return all(32 < ord(x) < 127 for x in text)
+
+
 def _polymod(values: Iterable[int]) -> int:
     """Return the bech32 checksum."""
     chk = 1
@@ -151,7 +163,7 @@ def _decode(bech: String) -> tuple[str, list[int], list[int]]:
     if pos + 7 > len(text):
         raise BTClibValueError(f"too short checksum: {text}")
 
-    if not all(47 < ord(x) < 123 for x in text[:pos]):
+    if not _hrp_in_range(text[:pos]):
         raise BTClibValueError(f"HRP character out of range: {text}")
     if text.lower() != text and text.upper() != text:
         raise BTClibValueError(f"mixed case: {text}")
@@ -185,6 +197,20 @@ def decode(bech: String, m: int | None = None) -> tuple[str, list[int]]:
 def encode(hrp: str, data: list[int], m: int | None = None) -> bytes:
     """Compute a bech32 string given HRP and data values.
 
+    The HRP is checked against the rule `_decode` applies to it:
+    non-empty, ASCII, every character in BIP173's [33-126] range -- an
+    `f"{hrp}1"` given anything else silently formats it rather than
+    raising, a non-str hrp included, which is why the type is checked
+    too rather than left to that formatting. Case is narrower than
+    `_decode`'s: `_decode` accepts an all-uppercase string, but every
+    data digit here comes from `_ALPHABET`, which is lowercase only, so
+    an all-uppercase HRP combined with any data digit that is a letter
+    writes a string `decode` refuses as mixed case -- the very defect
+    this check exists to catch. Requiring the HRP itself lowercase,
+    rather than merely single-case, is what makes the guarantee hold for
+    every `data` rather than only for the calls that happen to carry no
+    letter.
+
     Every value is one 5-bit digit, and each is checked rather than left
     to the alphabet lookup to fail: ``_ALPHABET[-1]`` is "l" and
     ``_ALPHABET[-32]`` is "q", Python indexing from the end, so a
@@ -198,6 +224,15 @@ def encode(hrp: str, data: list[int], m: int | None = None) -> bytes:
     key derivation that produced them -- an address is encoded once,
     never in an inner loop.
     """
+    if not isinstance(hrp, str):
+        raise BTClibTypeError(f"invalid HRP type: {type(hrp).__name__}")
+    if not hrp:
+        raise BTClibValueError("empty HRP")
+    if not _hrp_in_range(hrp):
+        raise BTClibValueError(f"HRP character out of range: {hrp}")
+    if hrp != hrp.lower():
+        raise BTClibValueError(f"HRP is not lowercase: {hrp}")
+
     for d in data:
         if not is_integer(d):
             raise BTClibTypeError(f"invalid 5-bit value type: {type(d).__name__}")
