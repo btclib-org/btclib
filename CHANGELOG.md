@@ -276,6 +276,11 @@ The docstrings of it and `merkle_root_and_mutated` gave the provided list
 as the tree's bottom level, which is its items' hashes; a list of hashes
 taken as given goes to `merkle_root_and_mutated_from_hashes` (closes #2300).
 
+### A clone short of the release tags is told to `git fetch --tags`
+
+`CONTRIBUTING.md` says so beside `uv run pytest`, and the skip reason of the
+tag-reading tests names the same command (closes #2301).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

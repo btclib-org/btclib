@@ -350,7 +350,8 @@ pytestmark = pytest.mark.skipif(
         "no v* tag resolves in this checkout -- a shallow, tagless clone"
         " cannot verify a release's own history. test.yml's coverage and"
         " no-bindings jobs, the two that gate a merge, fetch tags for"
-        " exactly this reason, so a pull request does not take this skip"
+        " exactly this reason, so a pull request does not take this skip;"
+        " in a local clone, `git fetch --tags` is what spares it"
     ),
 )
 
