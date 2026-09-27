@@ -854,6 +854,27 @@ repos:
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock
+      # keep .clusterfuzzlite/requirements.txt, which the fuzz container
+      # installs with --require-hashes, in sync with uv.lock: btclib's
+      # runtime dependencies and the `fuzz` group, hashes included. After
+      # uv-lock, so an --all-files run exports a re-lock in the same run; a
+      # commit staging pyproject.toml alone exports it on the next attempt,
+      # pre-commit having listed the files before uv-lock rewrote uv.lock.
+      # --frozen, the hook's own default, rather than --locked: uv-lock
+      # above is what refuses a stale lock, and --locked needs the
+      # interpreter .python-version names, where --frozen exports with none
+      # -- and the pre-commit.ci image does not carry it, which is why the
+      # ci: block skips uv-lock. `files:` adds the output itself to the
+      # hook's uv.lock, so a hand edit to it is rewritten too
+      - id: uv-export
+        args:
+          - --frozen
+          - --no-default-groups
+          - --group=fuzz
+          - --no-emit-project
+          - --output-file=.clusterfuzzlite/requirements.txt
+          - --quiet
+        files: ^(uv\.lock|\.clusterfuzzlite/requirements\.txt)$
   # what is tracked and not in the sdist, and what is in the sdist and not
   # tracked, both ways round, against the patterns of
   # [tool.uv.build-backend]. --no-isolation is in the hook's own manifest
