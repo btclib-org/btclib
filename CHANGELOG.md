@@ -487,6 +487,12 @@ A digit outside ASCII is refused and only `string.whitespace` stripped, as in
 Bitcoin Core's `ParseMoney`, and both `FeeRate` readers refuse the underscore
 (closes #2360). "1e1" stays an amount, as Core's `ParseFixedPoint` reads it.
 
+### `utils.int_from_integer` reads only ASCII hex digits after `0x`
+
+`int(s, 16)` read `0x1_0` and `0x` + fullwidth or Arabic-Indic digits as 16,
+and `strip()` let non-ASCII whitespace pad either spelling. The refusal quotes
+no part of the string, and `hex_string` inherits it (closes #2353).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

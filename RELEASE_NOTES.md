@@ -278,6 +278,22 @@ full year, short month, short day (YYYY-M-D)
   Act on it if you hand these functions such text: convert the digits to
   ASCII and strip the padding first.
 
+- **`utils.int_from_integer` and `utils.hex_string` refuse a `0x` string
+  whose digits are not ASCII hex as `invalid hex integer: what follows 0x
+  is not ASCII hex digits`** (closes #2353), where `int()` read `0x1_0`,
+  and `0x` followed by fullwidth or Arabic-Indic digits, as 16, and
+  refused the rest as `invalid hex integer: '<input>'`. Only ASCII
+  whitespace is stripped. A `0x` string padded after its digits with
+  U+00A0, U+3000 or any other character `str.isspace` counts is refused
+  as `invalid hex integer` above; the same padding ahead of the `0x`, or
+  around a string without one, is refused by `bytes.fromhex`, as `invalid
+  hex string: <its message>`.
+
+  Act on it if you pass such a string, or match on the text of this
+  refusal: pass ASCII hex digits, and match `invalid hex integer` alone.
+  It is still a `BTClibValueError`, so an `except` on that class is
+  unaffected.
+
 ## v2026.9.24
 
 ### Breaking changes

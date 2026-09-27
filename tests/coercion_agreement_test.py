@@ -156,3 +156,20 @@ def test_every_shared_coercion_has_a_vector() -> None:
         if isfunction(getattr(btclib_utils, n)) and hasattr(btclib_ecc_utils, n)
     }
     assert shared == {name for name, _ in _VECTORS}
+
+
+@pytest.mark.xfail(
+    strict=True, raises=AssertionError, reason="btclib-org/ellipticcurves#21"
+)
+@pytest.mark.parametrize("spelling", ["0x1_0", "0x" + "ab" * 31 + "zz"])
+def test_int_from_integer_copies_agree_on_the_0x_spelling(spelling: str) -> None:
+    """Both copies refuse a 0x spelling alike, and neither quotes it.
+
+    btclib_ecc's copy reads "0x1_0" as 16 and repeats the string in
+    its refusal (issue #2353). Kept out of `_VECTORS`, whose ids and
+    shared-name check a marked parameter would break; strict, so the fix
+    upstream turns this red until the marker goes.
+    """
+    ours = _outcome(btclib_utils.int_from_integer, (spelling,))
+    theirs = _outcome(btclib_ecc_utils.int_from_integer, (spelling,))
+    assert ours == theirs
