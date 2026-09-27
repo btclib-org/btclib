@@ -89,7 +89,9 @@ __all__ = [
 # two things that cannot differ: a leaf at depth d is proved by a merkle
 # path of d nodes, and the control block carrying that path is capped at
 # TAPROOT_CONTROL_MAX_SIZE = 33 + 32 * 128 -- so a leaf deeper than this
-# has no control block to be spent with, whatever built the tree.
+# has no control block to be spent with. tree_helper refuses such a tree,
+# as Core's TaprootBuilder never builds one: `ValidDepths` answers false
+# for it and `Insert` asserts against it, in script/signingprovider.cpp.
 #
 # Here rather than in script/limits.py, whose five caps are the ones at
 # the top of Core's script/script.h: this one is BIP341's, declared
@@ -241,20 +243,30 @@ def tree_helper(script_tree: TaprootScriptTree) -> tuple[TaprootLeafPaths, bytes
     one leaf or of two subtrees, a leaf being a `(leaf_version, script)`
     tuple. A node that is no list, a leaf that is no such tuple and a
     leaf version that is no integer are a BTClibTypeError; a list of
-    neither one nor two elements and a leaf version outside a byte are
-    a BTClibValueError.
+    neither one nor two elements, a leaf version outside a byte and a
+    leaf deeper than MAX_TREE_DEPTH are a BTClibValueError.
     """
+    return _walk(script_tree, 0)
+
+
+def _walk(script_tree: TaprootScriptTree, depth: int) -> tuple[TaprootLeafPaths, bytes]:
+    """`tree_helper` for a node at `depth`, the root being at 0."""
     assert_type(script_tree, list, "script tree")
     if len(script_tree) == 1:
         return _tree_helper(script_tree[0])
     if len(script_tree) != 2:
         err_msg = f"invalid script tree node: {len(script_tree)} elements, "
         raise BTClibValueError(err_msg + "neither one leaf nor two subtrees")
+    # a branch puts its leaves one level below itself, and a leaf's depth
+    # is the length of the merkle path proving it: refused here, before
+    # the recursion, it also bounds the recursion well inside Python's
+    if depth == MAX_TREE_DEPTH:
+        raise BTClibValueError(f"script tree deeper than {MAX_TREE_DEPTH}")
     # a branch: both elements are subtrees, and the alias says only that
     # an element may also be a leaf, so the narrowing is ours to assert --
     # and the recursion's own `assert_type` is what refuses a leaf here
-    left, left_h = tree_helper(cast("TaprootScriptTree", script_tree[0]))
-    right, right_h = tree_helper(cast("TaprootScriptTree", script_tree[1]))
+    left, left_h = _walk(cast("TaprootScriptTree", script_tree[0]), depth + 1)
+    right, right_h = _walk(cast("TaprootScriptTree", script_tree[1]), depth + 1)
     info = [(leaf, c + right_h) for leaf, c in left]
     info += [(leaf, c + left_h) for leaf, c in right]
     if right_h < left_h:

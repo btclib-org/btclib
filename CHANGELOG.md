@@ -464,6 +464,11 @@ A key built with `check_validity=False` on a network no name has is refused on
 both arms, where the bindings took it (closes #2342), and a SEC prefix wrong for
 its length is refused in `assert_valid`'s words, where each arm had its own.
 
+### `script.taproot` refuses a script tree deeper than `MAX_TREE_DEPTH`
+
+Every name taking a tree refuses one whose leaf no control block can prove, as
+Core's `TaprootBuilder` does, where it built an output key (closes #2343).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
