@@ -47,13 +47,14 @@ BIP61 names the codes below and reserves the rest of each range --
 member of any of them, so a code no member here has is not malformed, and
 refusing it would refuse a message BIP61 itself allows.
 
-**The refusals that remain are `BTClibValueError` and
-`BTClibRuntimeError`, the family every payload in this package raises,
-and never a bare exception from underneath it.** A receiver holding this
-codec in front of a socket sorts a peer's malformed payload from its own
-defect by that family -- a truncated field, an unrecognized command
-padding, a hash of the wrong length -- exactly as it would for any other
-message this library parses.
+**`parse`'s refusals are `BTClibValueError`, the family every payload in
+this package raises for malformed wire data, and never a bare exception
+from underneath it.** A receiver holding this codec in front of a socket
+sorts a peer's malformed payload from its own defect by that family -- a
+truncated field, an unrecognized command padding, a hash of the wrong
+length -- exactly as it would for any other message this library parses.
+`BTClibTypeError` reaches a caller only from building a `Reject` directly
+with a field of the wrong type, never from `parse`.
 
 **`data` is a `hash256`, held displayed and reversed on the wire**, the
 convention `btclib.p2p.inventory.Inventory.hash` already carries: what a

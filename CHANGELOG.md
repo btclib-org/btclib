@@ -253,6 +253,12 @@ to be a `Decimal`, matching `valid_sats_amount`'s own check (closes #2292).
 `"1_0"` read as ten BTC; a string amount carrying `_` is now refused,
 and a zero result's sign is now cleared rather than kept (closes #2293).
 
+### `var_bytes.parse` raises `BTClibValueError` for a truncated or a zero-size field
+
+It raised `BTClibRuntimeError` for both, unlike `var_int.parse` and
+`utils.read_exactly`'s `BTClibValueError` for the same truncation, and
+the two-class catches this forced are narrowed (closes #2289).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

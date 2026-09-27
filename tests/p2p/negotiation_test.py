@@ -47,7 +47,7 @@ from io import BytesIO
 import pytest
 
 from btclib import var_bytes
-from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p import (
     Feature,
     FeeFilter,
@@ -454,10 +454,10 @@ def test_the_feature_octets_end_where_the_two_fields_do() -> None:
             Feature.parse(Feature(b"BIP434").serialize() + trailing)
 
     # an identifier whose length is longer than the octets that follow
-    with pytest.raises(BTClibRuntimeError, match="not enough binary data"):
+    with pytest.raises(BTClibValueError, match="not enough binary data"):
         Feature.parse(var_bytes.serialize(b"BIP434")[:-1])
     # and the same truncation in the second field
-    with pytest.raises(BTClibRuntimeError, match="not enough binary data"):
+    with pytest.raises(BTClibValueError, match="not enough binary data"):
         Feature.parse(var_bytes.serialize(b"BIP434") + b"\x08xx")
 
     with pytest.raises(BTClibValueError, match="not enough binary data for var_int"):

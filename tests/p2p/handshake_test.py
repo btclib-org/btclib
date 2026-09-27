@@ -36,7 +36,7 @@ from io import BytesIO
 import pytest
 
 from btclib import var_bytes
-from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p import (
     Message,
     NetworkAddress,
@@ -209,7 +209,7 @@ def test_no_prefix_of_a_version_is_a_version_except_the_relay_flag() -> None:
 
     for size in range(len(_VERSION_PAYLOAD)):
         for check_validity in (True, False):
-            with pytest.raises((BTClibValueError, BTClibRuntimeError, BTClibTypeError)):
+            with pytest.raises((BTClibValueError, BTClibTypeError)):
                 Version.parse(with_relay[:size], check_validity=check_validity)
 
     # the one prefix that is an object, and it is a different object

@@ -15,7 +15,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from btclib import var_bytes
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.exceptions import BTClibValueError
 
 
 @given(octets=st.binary(max_size=512))
@@ -48,7 +48,7 @@ def test_truncated_is_rejected(octets: bytes) -> None:
     inputs would parse to one value.
     """
     serialized = var_bytes.serialize(octets)
-    with pytest.raises(BTClibRuntimeError, match="not enough binary data"):
+    with pytest.raises(BTClibValueError, match="not enough binary data"):
         var_bytes.parse(serialized[:-1])
 
 
@@ -59,7 +59,7 @@ def test_forbid_zero_size(octets: bytes) -> None:
     if octets:
         assert var_bytes.parse(serialized, forbid_zero_size=True) == octets
     else:
-        with pytest.raises(BTClibRuntimeError, match="zero size"):
+        with pytest.raises(BTClibValueError, match="zero size"):
             var_bytes.parse(serialized, forbid_zero_size=True)
 
 
@@ -85,12 +85,27 @@ def _outcome(read: Callable[[BytesIO], bytes], data: bytes) -> tuple[str, bytes 
         return "ValueError", str(e)
 
 
+_UNPREFIXED_MESSAGES = {"zero size", "not enough binary data"}
+
+
 def _var_bytes_as_dsa_reports_it(stream: BytesIO) -> bytes:
-    """Return what `var_bytes` reads, erring in the words `Sig.parse` uses."""
+    """Return what `var_bytes` reads, erring in the words `Sig.parse` uses.
+
+    Both readers raise `..ValueError` today, so the family already
+    agrees; what does not is the message of `var_bytes`'s own two checks
+    -- the zero size and the short read of the value it announces --
+    which `_parse_der_value` prefixes with "invalid DER length: " and
+    `var_bytes.parse` does not. The var_int-level checks underneath
+    (`_parse_der_size`, mirroring `var_int.parse`) already agree
+    verbatim and pass through unchanged.
+    """
     try:
         return var_bytes.parse(stream, forbid_zero_size=True)
-    except BTClibRuntimeError as e:
-        raise BTClibValueError(f"invalid DER length: {e}") from e
+    except BTClibValueError as e:
+        message = str(e)
+        if message in _UNPREFIXED_MESSAGES:
+            raise BTClibValueError(f"invalid DER length: {message}") from e
+        raise
 
 
 @pytest.mark.parametrize(

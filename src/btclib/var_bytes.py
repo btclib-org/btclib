@@ -6,7 +6,7 @@
 
 from btclib import var_int
 from btclib.alias import BinaryData, Octets
-from btclib.exceptions import BTClibRuntimeError
+from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 __all__ = [
@@ -28,11 +28,11 @@ def parse(stream: BinaryData, forbid_zero_size: bool = False) -> bytes:
     stream = bytesio_from_binarydata(stream)
     i = var_int.parse(stream)
     if forbid_zero_size and i == 0:
-        raise BTClibRuntimeError("zero size")
+        raise BTClibValueError("zero size")
 
     result = stream.read(i)
     if len(result) != i:
-        raise BTClibRuntimeError("not enough binary data")
+        raise BTClibValueError("not enough binary data")
     return result
 
 
