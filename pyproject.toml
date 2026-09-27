@@ -218,9 +218,9 @@ harness = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pytest-randomly>=5.0.0",
-    # bounds each test of tests/integration, the part of the suite that
-    # waits on a bitcoind; the bound and its measurement are in that
-    # directory's conftest.py
+    # bounds each test: the `timeout` key of [tool.pytest.ini_options]
+    # below for the suite, and tests/integration/conftest.py's marker for
+    # the tests that wait on a bitcoind
     "pytest-timeout>=2.4.0",
     "pytest-xdist>=3.8.0",
 ]
@@ -581,6 +581,24 @@ markers = [
 # here should name the warning, not a module, and say what would let it be
 # dropped
 filterwarnings = ["error"]
+# pytest-timeout's bound on every test, setup and teardown included: a
+# test waiting on something that never answers -- a `git` blocked on a
+# lock or a prompt, an interpreter deadlocked at import, children that
+# tests outside tests/integration start with subprocess.run -- fails
+# instead of holding the job until its timeout-minutes. The bound sits
+# several times above the slowest test measured, on CI's slowest runners
+# and on a loaded local machine, because a bound that fires on a slow
+# runner is a red with nothing wrong. `--durations=8` above prints the
+# slowest tests of every CI job, and the local measurement is
+#
+#     uv run pytest --durations=0 --durations-min=0
+#
+# tests/integration/conftest.py gives each of its own tests a marker,
+# which pytest-timeout reads ahead of this key. A pytest without the
+# plugin does not know the key, which --strict-config makes an error: an
+# environment missing pytest-timeout exits before running a test rather
+# than running unbounded
+timeout = 300
 
 [tool.codespell]
 # the vendored data is skipped rather than corrected: the test vectors

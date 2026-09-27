@@ -405,6 +405,11 @@ behind a job already concluded (issue btclib-org/.github#1395).
 pre-commit.ci's weekly autoupdate moves `rev:` instead (issue
 btclib-org/.github#1391).
 
+### The whole suite bounds each test with pytest-timeout
+
+A test waiting on a `git` or Python child that never exits fails instead of
+hanging the run, and `tests/integration` keeps its own bound (closes #2325).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

@@ -64,11 +64,11 @@ _HERE = Path(__file__).parent
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Bound every test of this directory with pytest-timeout.
 
-    A marker per test rather than the `timeout` key of
-    `[tool.pytest.ini_options]`, which would bound the rest of the suite
-    too, against a slowest test the number above was not measured on.
-    The hook sees every item of the session, not only this directory's,
-    hence the path test.
+    A marker per test, which pytest-timeout reads ahead of the `timeout`
+    key of `[tool.pytest.ini_options]`: that key bounds the rest of the
+    suite, against a slowest test that waits on no node, and the number
+    above is measured against this directory's own. The hook sees every
+    item of the session, not only this directory's, hence the path test.
     """
     for item in items:
         if _HERE in item.path.parents:
