@@ -120,6 +120,8 @@ followed on 2026-08-03, at the tip of its path too, and Core's
 2026-09-03, at the tip of that path, and
 bitcoin-core/secp256k1's `src` for `secp256k1_symbols.txt` on 2026-09-10,
 refreshed again on 2026-09-14, at the tip of its path that day too.
+BIP324's `packet_encoding_test_vectors.csv` followed on 2026-09-27, at the
+tip of its path.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -183,6 +185,31 @@ Verdict: **transcribed**, complete. All five groups — their 15 public keys
 and their five p2sh addresses — appear verbatim in the pinned text, and
 re-checking against the tip on 2026-07-30 and again on 2026-08-06 found no
 sixth group. Nothing to refresh.
+
+### `tests/ecc/_data/packet_encoding_test_vectors.csv`
+
+```text
+repo    bitcoin/bips
+path    bip-0324/packet_encoding_test_vectors.csv
+commit  713f000a20421a54b29cd8ab89e711eef1fbccb9  2025-10-23
+blob    1588b066b4792d0b03f30d4f7f18e57ccde1f525
+pulled  2026-09-27
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical but for line endings** — upstream is CRLF and this
+repository is LF throughout, which `mixed-line-ending` enforces with
+`--fix=lf`, so our blob is `c556c47c` rather than the one above.
+
+`tests/ecc/ellswift_test.py` reads the columns of the x-only ECDH --
+`in_priv_ours`, `in_ellswift_ours`, `in_ellswift_theirs`,
+`in_initiating`, `mid_x_shared` and `mid_shared_secret` -- and holds
+`ecc.ellswift.xdh` to every row on the bindings and on the Python
+arithmetic. Nothing else in the row is asserted: `mid_x_ours` and
+`mid_x_theirs` are the x-coordinates the encodings decode to, a question
+for btclib_ecc's map, and the packet columns and every column after
+`mid_shared_secret` are the v2 transport's, which btclib does not
+implement. `in_idx` names each case.
 
 ## bitcoin/bitcoin
 
@@ -879,6 +906,7 @@ Against a pinned upstream blob:
   `key_io_invalid.json`, `base58_encode_decode.json`, `siphash.json`,
   `blockfilters.json`, `checkblock_valid.json`, `checkblock_invalid.json`.
 - identical but for a trailing newline: `script_assets_test.json`.
+- identical but for line endings: `packet_encoding_test_vectors.csv`.
 - JSON-equal, reformatted: `signmessage.json`.
 
 Not checked byte for byte against one:

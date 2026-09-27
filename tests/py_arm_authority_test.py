@@ -63,12 +63,6 @@ wrote.** So an entry says "a module built on third-party vectors reaches
 this arm", which is weaker than "this vector reaches this arm" and is what
 the measurement supports. Sharpening it means selecting the vector-driven
 tests within a module, which no marker in the tree expresses today.
-
-One arm is reached by no such module at all, and what would change that
-is known: `ecc.ellswift.xdh`, the x-only ECDH. BIP324's
-`packet_encoding_test_vectors.csv` carries, per pair of encodings, the
-shared x-coordinate and the shared secret, and no module here reads it
-yet (issue #2307).
 """
 
 from __future__ import annotations
@@ -86,6 +80,7 @@ _TESTS = Path(__file__).parent
 # `btclib_test_vectors.json` appear nowhere here
 _THIRD_PARTY_VECTORS: dict[str, tuple[str, ...]] = {
     "ecc/bms_test.py": ("signmessage.json",),
+    "ecc/ellswift_test.py": ("packet_encoding_test_vectors.csv",),
     "key_io_test.py": ("key_io_valid.json", "key_io_invalid.json"),
     "script/sig_hash_legacy_test.py": ("sig_hash_legacy_test_vectors.json",),
     "script/sig_hash_taproot_test.py": ("taproot_test_vector.json",),
@@ -95,10 +90,10 @@ _THIRD_PARTY_VECTORS: dict[str, tuple[str, ...]] = {
 }
 
 # arm -> the modules of `_THIRD_PARTY_VECTORS` whose run reaches it. An
-# empty tuple is an arm no third-party vector reaches, and the module
-# docstring says what would
+# empty tuple is an arm no third-party vector reaches, and belongs in
+# `_WITHOUT_AN_AUTHORITY` below
 _AUTHORITY: dict[str, tuple[str, ...]] = {
-    "ecc.ellswift.xdh": (),
+    "ecc.ellswift.xdh": ("ecc/ellswift_test.py",),
     "script.engine.script.dsa_verify": (
         "script/sig_hash_legacy_test.py",
         "script_engine/script_test.py",
@@ -129,7 +124,7 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
 
 # the ones the measurement found nothing for, named so that closing one
 # is a line deleted here rather than a number nobody re-derives
-_WITHOUT_AN_AUTHORITY = frozenset({"ecc.ellswift.xdh"})
+_WITHOUT_AN_AUTHORITY: frozenset[str] = frozenset()
 
 
 def _arm_locations() -> dict[str, tuple[Path, int, int]]:
