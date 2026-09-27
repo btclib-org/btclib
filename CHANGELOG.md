@@ -527,6 +527,12 @@ A leading zero before another digit and a point without a digit on both sides
 are refused, "01", ".5", "1.", ".5e1" and "01e1" among them; "0", "0.5", "0e1"
 and "-0" stay (closes #2378).
 
+### `b58.p2sh` and the p2wsh builders refuse a script too long to spend
+
+A redeem script over `MAX_SCRIPT_ELEMENT_SIZE` (closes #2383), a witness script
+over the consensus `MAX_SCRIPT_SIZE`, not Core's relay limit (closes #2384).
+Both are in `btclib.consensus`, and `btclib.script.limits` re-exports them.
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

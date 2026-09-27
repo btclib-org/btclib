@@ -164,6 +164,9 @@ REEXPORTED = {
     "btclib.block.limits": _reexports(
         (consensus, ["MAX_BLOCK_WEIGHT", "WITNESS_SCALE_FACTOR"]),
     ),
+    "btclib.script.limits": _reexports(
+        (consensus, ["MAX_SCRIPT_ELEMENT_SIZE", "MAX_SCRIPT_SIZE"]),
+    ),
     "btclib.hashes": _reexports(
         (btclib_ecc.hashes, ["reduce_to_hlen", "tagged_hash"]),
     ),

@@ -57,6 +57,7 @@ from collections.abc import Iterable
 
 from btclib.alias import Octets, String
 from btclib.bech32 import decode, encode
+from btclib.consensus import MAX_SCRIPT_SIZE
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.key import PubKeyData
@@ -234,6 +235,27 @@ def _v0_witness_program_from_key(key: PubKeyData) -> bytes:
     return hash160(key.sec)
 
 
+def _v0_witness_program_from_script(witness_script: Octets) -> bytes:
+    """Return the v0 witness program of a witness script.
+
+    sha256 of the script, refused over MAX_SCRIPT_SIZE bytes for the reason
+    `p2wsh` gives. Core's bitcoin-tx refuses the same length with the same
+    comparison before wrapping a script in p2wsh. The encodings that build
+    one -- `p2wsh` here, `b58.p2wsh_p2sh` and
+    `script.script_pub_key.ScriptPubKey.p2wsh` -- ask this rather than each
+    carrying the rule.
+
+    The relay limit on a p2wsh witness script, Core's
+    MAX_STANDARD_P2WSH_SCRIPT_SIZE, is policy and is not asked here.
+    """
+    witness_script = bytes_from_octets(witness_script)
+    if len(witness_script) > MAX_SCRIPT_SIZE:
+        err_msg = "witness script exceeds size limit: "
+        err_msg += f"{len(witness_script)} > {MAX_SCRIPT_SIZE}"
+        raise BTClibValueError(err_msg)
+    return sha256(witness_script)
+
+
 def p2wpkh(key: PubKeyData) -> str:
     """Return the p2wpkh bech32 address corresponding to a public key."""
     # asked as `b58.p2pkh` asks it, whatever `check_validity` it was built with
@@ -243,8 +265,13 @@ def p2wpkh(key: PubKeyData) -> str:
 
 
 def p2wsh(script_pub_key: Octets, network: str = "mainnet") -> str:
-    """Return the p2wsh bech32 address corresponding to a script_pub_key."""
-    h256 = sha256(script_pub_key)
+    """Return the p2wsh bech32 address corresponding to a script_pub_key.
+
+    The script_pub_key is the witness script, and a witness script over
+    MAX_SCRIPT_SIZE bytes is refused, since a spend executes it and Bitcoin Core
+    fails a longer segwit v0 script, so the output could never be spent.
+    """
+    h256 = _v0_witness_program_from_script(script_pub_key)
     return address_from_witness(0, h256, network)
 
 

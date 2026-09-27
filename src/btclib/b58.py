@@ -26,12 +26,13 @@ from typing import Literal
 
 from btclib import b32
 from btclib.alias import Integer, Octets, ScriptType, String
-from btclib.b32 import _v0_witness_program_from_key
+from btclib.b32 import _v0_witness_program_from_key, _v0_witness_program_from_script
 from btclib.base58 import decode as b58decode
 from btclib.base58 import encode as b58encode
+from btclib.consensus import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.curves import scalar_from_prv_key
 from btclib.exceptions import BTClibValueError, InvalidPrvKeyError, NotAPrvKeyError
-from btclib.hashes import hash160, sha256
+from btclib.hashes import hash160
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.network import network_from_key_value, network_from_name
 from btclib.utils import assert_type, bytes_from_octets, str_from_string
@@ -252,9 +253,32 @@ def p2pkh(key: PubKeyData) -> str:
     return address_from_h160("p2pkh", hash160(key.sec), key.network)
 
 
+def _script_hash_from_redeem_script(redeem_script: Octets) -> bytes:
+    """Return the p2sh script hash of a redeem script.
+
+    hash160 of the script, refused over MAX_SCRIPT_ELEMENT_SIZE bytes for the
+    reason `p2sh` gives. Core's createmultisig and bitcoin-tx refuse the same
+    length with the same comparison. The encodings that build one -- `p2sh` here
+    and `script.script_pub_key.ScriptPubKey.p2sh` -- ask this rather than each
+    carrying the rule.
+    """
+    redeem_script = bytes_from_octets(redeem_script)
+    if len(redeem_script) > MAX_SCRIPT_ELEMENT_SIZE:
+        err_msg = "redeem script exceeds size limit: "
+        err_msg += f"{len(redeem_script)} > {MAX_SCRIPT_ELEMENT_SIZE}"
+        raise BTClibValueError(err_msg)
+    return hash160(redeem_script)
+
+
 def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
-    """Return the p2sh base58 address corresponding to a script_pub_key."""
-    h160 = hash160(script_pub_key)
+    """Return the p2sh base58 address corresponding to a script_pub_key.
+
+    The script_pub_key is the redeem script, and a redeem script over
+    MAX_SCRIPT_ELEMENT_SIZE bytes is refused, since a spend pushes it in the
+    script_sig and Bitcoin Core fails a longer push, so the output could never
+    be spent.
+    """
+    h160 = _script_hash_from_redeem_script(script_pub_key)
     return address_from_h160("p2sh", h160, network)
 
 
@@ -290,6 +314,11 @@ def p2wpkh_p2sh(key: PubKeyData) -> str:
 
 
 def p2wsh_p2sh(redeem_script: Octets, network: str = "mainnet") -> str:
-    """Return the base58 p2sh-wrapped address of a p2wsh."""
-    witness_program = sha256(redeem_script)
+    """Return the base58 p2sh-wrapped address of a p2wsh.
+
+    The redeem_script is the witness script, and a witness script over
+    MAX_SCRIPT_SIZE bytes is refused, since a spend executes it and Bitcoin Core
+    fails a longer segwit v0 script, so the output could never be spent.
+    """
+    witness_program = _v0_witness_program_from_script(redeem_script)
     return _address_from_v0_witness(witness_program, network)

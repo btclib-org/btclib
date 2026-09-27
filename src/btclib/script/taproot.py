@@ -93,7 +93,7 @@ __all__ = [
 # as Core's TaprootBuilder never builds one: `ValidDepths` answers false
 # for it and `Insert` asserts against it, in script/signingprovider.cpp.
 #
-# Here rather than in script/limits.py, whose five caps are the ones at
+# Here rather than in script/limits.py, whose caps are the ones at
 # the top of Core's script/script.h: this one is BIP341's, declared
 # beside the control block it bounds and read by the descriptor parser
 # through this name
