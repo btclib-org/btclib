@@ -105,6 +105,24 @@ def test_the_coercion_runs_where_the_refusal_does_not() -> None:
         unchecked.assert_valid()
 
 
+def test_p2ms_refuses_one_key_s_octets_as_its_keys() -> None:
+    """Octets are a `Sequence`, but their length is no key count."""
+    sec = PrvKeyData(1).pub.sec
+    for keys in (sec, bytearray(sec), memoryview(sec), sec.hex()):
+        with pytest.raises(BTClibTypeError, match="invalid keys type"):
+            ScriptPubKey.p2ms(1, keys)  # type: ignore[arg-type]
+
+
+def test_nulldata_types() -> None:
+    """Text is encoded, a buffer is read as bytes, and nothing else is data."""
+    expected = serialize(["OP_RETURN", b"ab"])
+    for data in ("ab", b"ab", bytearray(b"ab"), memoryview(b"ab")):
+        assert ScriptPubKey.nulldata(data).script == expected
+    for wrong in (None, 1.5):
+        with pytest.raises(BTClibTypeError, match="invalid octets type"):
+            ScriptPubKey.nulldata(wrong)  # type: ignore[arg-type]
+
+
 def test_nulldata() -> None:
     """Round-trip nulldata payloads, learnmeabitcoin's cases included."""
     OP_RETURN = b"\x6a"

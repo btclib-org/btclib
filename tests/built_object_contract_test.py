@@ -106,8 +106,15 @@ _CASES = (
             ("script.ScriptPubKey.p2pk", ScriptPubKey.p2pk),
             ("script.ScriptPubKey.p2pkh", ScriptPubKey.p2pkh),
             ("script.ScriptPubKey.p2wpkh", ScriptPubKey.p2wpkh),
-            ("script.ScriptPubKey.p2ms", _p2ms_1_of_1),
+            ("script.ScriptPubKey.p2ms at a key", _p2ms_1_of_1),
         )
+    ),
+    _Case(
+        "script.ScriptPubKey.p2ms",
+        ScriptPubKey.p2ms,
+        (1, [_PUB_KEY], True),
+        # a threshold above the key count, and a sequence of no keys
+        {0: 2, 1: []},
     ),
 )
 

@@ -25,7 +25,7 @@ from btclib import b32, b58, var_bytes
 from btclib.alias import Octets, ScriptList, ScriptType, String, TaprootScriptTree
 from btclib.b32 import _v0_witness_program_from_key
 from btclib.curves import point_from_octets
-from btclib.exceptions import BTClibEccValueError, BTClibValueError
+from btclib.exceptions import BTClibEccValueError, BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.key import PubKeyData
 from btclib.network import (
@@ -35,7 +35,13 @@ from btclib.network import (
 )
 from btclib.script.script import Script, op_int, serialize
 from btclib.script.taproot import output_pubkey
-from btclib.utils import assert_type, bytes_from_octets, bytesio_from_binarydata
+from btclib.utils import (
+    assert_type,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    is_integer,
+    is_octets,
+)
 
 __all__ = [
     "ScriptPubKey",
@@ -717,6 +723,16 @@ class ScriptPubKey(Script):
 
         https://github.com/bitcoin/bips/blob/master/bip-0067.mediawiki
         """
+        # types ahead of the bounds, which compare `m` and take `len(keys)`:
+        # a bool is refused as a threshold under `utils.is_integer`'s policy,
+        # and `keys` is indexed below, so an iterator or a set is refused too.
+        # One key's octets are a `Sequence` as well, whose length would be
+        # read as n, and `is_octets` is what refuses that shape
+        if not is_integer(m):
+            raise BTClibTypeError(f"invalid m type: {type(m).__name__}")
+        if is_octets(keys):
+            raise BTClibTypeError(f"invalid keys type: {type(keys).__name__}")
+        assert_type(keys, Sequence, "keys")
         assert_type(lexicographic_sorting, bool, "lexicographic_sorting")
 
         n = len(keys)
@@ -765,9 +781,9 @@ class ScriptPubKey(Script):
         check_validity: bool = True,
     ) -> ScriptPubKey:
         """Return the nulldata ScriptPubKey of the provided data."""
-        if isinstance(data, str):
-            # do not strip spaces
-            data = data.encode()
+        # text is encoded with its spaces kept, a buffer becomes bytes, and
+        # anything else is refused as a type
+        data = data.encode() if isinstance(data, str) else bytes_from_octets(data)
 
         if len(data) > 80:
             err_msg = f"invalid nulldata payload length: {len(data)} bytes "
