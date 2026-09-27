@@ -194,6 +194,11 @@ public import path resolves as before; a test holds it (issue #2282).
 package's objects again under the same paths, and the `secp256k1` extra
 asks for its own; RELEASE_NOTES.md says what changes (issue #2282).
 
+### `REVIEWING.md` lets a filed issue carry its fix
+
+An issue filed from a review may now say the fix where one is known;
+the filing bar stands as it was (issue btclib-org/.github#1378).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
