@@ -259,6 +259,11 @@ It raised `BTClibRuntimeError` for both, unlike `var_int.parse` and
 `utils.read_exactly`'s `BTClibValueError` for the same truncation, and
 the two-class catches this forced are narrowed (closes #2289).
 
+### `test_p2wsh_p2sh` and `test_hash160_hash256` assert what they compute
+
+The addresses are Bitcoin Core's `deriveaddresses` and the digests hashlib's,
+where both tests called the function and discarded its answer (closes #2302).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
