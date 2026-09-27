@@ -102,8 +102,8 @@ repository's own default branch -- a fork's pull-request branch, so
 far the only case. `.github/scripts/check_vendored_vectors.py` reads it
 as the `sha` parameter of GitHub's "commits touching a path" API, which
 otherwise walks the default branch alone and finds no commit touching a
-path that only exists elsewhere, reading as the file having been
-deleted upstream regardless of whether the pin is current (ISS 2160).
+path that only exists elsewhere, reported as a path the default branch
+never held regardless of whether the pin is current (ISS 2160).
 Absent, as on every other entry here, the call is asked exactly as it
 always was.
 

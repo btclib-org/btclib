@@ -264,6 +264,12 @@ the two-class catches this forced are narrowed (closes #2289).
 The addresses are Bitcoin Core's `deriveaddresses` and the digests hashlib's,
 where both tests called the function and discarded its answer (closes #2302).
 
+### `check_vendored_vectors` does not read a removed pin as changed content
+
+A pin whose file upstream deleted or renamed is reported as the commit that
+removed it, which the report says may be a deletion or a rename; "no commit"
+names a path the branch walked never held (closes #2312).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
