@@ -68,7 +68,11 @@ from btclib.script.script_pub_key import (
     p2ms_m_and_keys,
     type_and_payload,
 )
-from btclib.script.sig_ops import sig_op_count
+from btclib.script.sig_ops import (
+    p2sh_sig_op_count,
+    sig_op_count,
+    witness_sig_op_count,
+)
 from btclib.script.spendability import is_unspendable
 from btclib.script.taproot import (
     check_output_pubkey,
@@ -119,6 +123,7 @@ __all__ = [
     "output_pubkey",
     "output_pubkey_from_merkle_root",
     "p2ms_m_and_keys",
+    "p2sh_sig_op_count",
     "parse",
     "push_int",
     "script_from_dict",
@@ -128,6 +133,7 @@ __all__ = [
     "sig_op_count",
     "taproot",
     "type_and_payload",
+    "witness_sig_op_count",
 ]
 
 # the two subgroups this package publishes without importing: see the

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from btclib.alias import Command, ScriptType
+from btclib.consensus import WITNESS_SCALE_FACTOR
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import sha256
 from btclib.script.engine import tapscript
@@ -21,8 +22,9 @@ from btclib.script.engine.script import verify_script as verify_script_legacy
 from btclib.script.engine.script_op_codes import _MAX_NUM_SIZE, _to_num
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.script import op_code_spans, parse, serialize
-from btclib.script.script_pub_key import is_segwit, type_and_payload
+from btclib.script.script_pub_key import is_p2sh, is_segwit, type_and_payload
 from btclib.script.sig_hash import PrecomputedTxData
+from btclib.script.sig_ops import p2sh_sig_op_count, witness_sig_op_count
 from btclib.script.taproot import check_output_pubkey
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
@@ -43,6 +45,7 @@ __all__ = [
     "PAY_TO_ANCHOR",
     "ScriptFlag",
     "ScriptFlags",
+    "sig_op_cost",
     "taproot_get_annex",
     "taproot_unwrap_script",
     "to_script_flags",
@@ -508,6 +511,52 @@ def verify_amounts(prevouts: list[TxOut], tx: Tx) -> None:
     """
     if sum(x.value for x in tx.vout) > sum(x.value for x in prevouts):
         raise BTClibValueError("Invalid transaction amounts")
+
+
+def sig_op_cost(prevouts: list[TxOut], tx: Tx, flags: ScriptFlags | None = None) -> int:
+    """Return the signature check cost of a transaction.
+
+    Bitcoin Core's `GetTransactionSigOpCost`, of
+    src/consensus/tx_verify.cpp: the legacy count, `Tx.sig_op_count`,
+    and under P2SH the `script.sig_ops.p2sh_sig_op_count` of every input
+    spending a p2sh output, both at `WITNESS_SCALE_FACTOR`, plus under
+    WITNESS the `script.sig_ops.witness_sig_op_count` of every input at
+    one. A coinbase spends nothing, so its cost is the legacy count
+    alone and `prevouts` is not read.
+
+    `prevouts` are the outputs the inputs spend, in input order, and
+    `flags` are what `verify_transaction` takes. Core's `ConnectBlock`
+    sums the cost under the block's own flags and bounds the sum by
+    `MAX_BLOCK_SIGOPS_COST`; its mempool computes it under the standard
+    flags and bounds it by `MAX_STANDARD_TX_SIGOPS_COST`.
+
+    WITNESS without P2SH is refused: Core asserts against it in
+    `CountWitnessSigOps`, BIP141's nested programs being p2sh outputs.
+    """
+    script_flags = to_script_flags(flags)
+    cost = tx.sig_op_count * WITNESS_SCALE_FACTOR
+    if tx.is_coinbase:
+        return cost
+    if len(prevouts) != len(tx.vin):
+        raise BTClibValueError(
+            f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
+        )
+    if ScriptFlag.P2SH in script_flags:
+        cost += WITNESS_SCALE_FACTOR * sum(
+            p2sh_sig_op_count(tx_in.script_sig, prevout.script_pub_key.script)
+            for tx_in, prevout in zip(tx.vin, prevouts, strict=True)
+            if is_p2sh(prevout.script_pub_key.script)
+        )
+    if ScriptFlag.WITNESS in script_flags:
+        if ScriptFlag.P2SH not in script_flags:
+            raise BTClibValueError("WITNESS without P2SH")
+        cost += sum(
+            witness_sig_op_count(
+                tx_in.script_sig, prevout.script_pub_key.script, tx_in.script_witness
+            )
+            for tx_in, prevout in zip(tx.vin, prevouts, strict=True)
+        )
+    return cost
 
 
 def verify_transaction(

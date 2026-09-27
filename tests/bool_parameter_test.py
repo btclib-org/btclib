@@ -108,6 +108,7 @@ from btclib.script.engine import script_op_codes, verify_transaction
 from btclib.script.engine.flags import NO_FLAGS, ScriptFlag
 from btclib.script.script import serialize as serialize_script
 from btclib.script.script_pub_key import ScriptPubKey
+from btclib.script.sig_ops import sig_op_count
 from btclib.script.taproot import parse as taproot_parse
 from btclib.tx.coin import Coin
 from btclib.tx.out_point import OutPoint
@@ -281,6 +282,13 @@ _KINDS = (
             "flags": NO_FLAGS,
             "serialize": serialize_script,
         },
+    ),
+    # Core's `fAccurate`: it decides what an OP_CHECKMULTISIG costs
+    _Case(
+        "btclib.script.sig_ops.sig_op_count",
+        "accurate",
+        sig_op_count,
+        {"script": b"\xae"},
     ),
     _Case(
         "btclib.script.taproot.parse",

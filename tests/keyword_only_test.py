@@ -219,6 +219,7 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.script:Witness.parse": ["check_validity"],
     "btclib.script:Witness.serialize": ["check_validity"],
     "btclib.script:Witness.to_dict": ["check_validity"],
+    "btclib.script:sig_op_count": ["accurate"],
     "btclib.tx:Coin.__init__": ["check_validity"],
     "btclib.tx:OutPoint.__init__": ["check_validity"],
     "btclib.tx:OutPoint.from_dict": ["check_validity"],

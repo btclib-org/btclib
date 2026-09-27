@@ -225,8 +225,8 @@ class Block:
         """Return the legacy sigop count, summed over the transactions.
 
         What `CheckBlock` sums to enforce `MAX_BLOCK_SIGOPS_COST`; see
-        `script.sig_ops.sig_op_count` for what "legacy" leaves out and
-        why nothing here can add it.
+        `script.sig_ops` for what "legacy" leaves out and why nothing here
+        can add it.
         """
         return sum(t.sig_op_count for t in self.transactions)
 
