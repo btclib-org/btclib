@@ -334,6 +334,12 @@ signature Core verifies was refused, and one it refuses taken (closes #2283).
 docker entry moving it (closes #2305), and `build.sh` installs the versions
 uv.lock pins, exported with their hashes (closes #2306).
 
+### `script.engine.sig_op_cost` is Bitcoin Core's `GetTransactionSigOpCost`
+
+`script.sig_op_count` takes `accurate`, and `p2sh_sig_op_count` and
+`witness_sig_op_count` count what an input adds given the output it spends
+(closes #2313); the cost sums them with the legacy count, as Core weighs each.
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it

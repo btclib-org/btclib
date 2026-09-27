@@ -203,10 +203,12 @@ class Tx:  # noqa: PLW1641
 
         Every input's script_sig and every output's script_pub_key,
         counted from the bytes by `script.sig_ops.sig_op_count`: the p2sh
-        and witness sigops Core adds in ConnectBlock need the outputs
-        being spent, which a transaction does not carry. That module's
-        docstring has what the shortfall is; the block rule this feeds,
-        `Block.assert_valid_sig_op_count`, is the one it is enough for.
+        and witness sigops Core adds in ConnectBlock and in the mempool's
+        PreChecks need the outputs being spent, which a transaction does
+        not carry, and
+        `script.engine.sig_op_cost` is the whole cost given them. The
+        block rule this feeds, `Block.assert_valid_sig_op_count`, is the
+        one the legacy count is enough for.
         """
         return sum(script_sig_op_count(tx_in.script_sig) for tx_in in self.vin) + sum(
             script_sig_op_count(tx_out.script_pub_key.script) for tx_out in self.vout
