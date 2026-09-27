@@ -304,6 +304,12 @@ Core's `SetNetFromBIP155Network` has no case for either id, so Core drops one
 of any length within `MAX_ADDRV2_SIZE` and keeps the message; `assert_valid`
 holds one to that bound alone (closes #2308), not to BIP155's table.
 
+### `PrvKeyData.pub` asks the key before deriving it
+
+A `q` outside 1..n-1 or of no integer type raises as `assert_valid` does, where
+a key built with `check_validity=False` derived the public key of `q` mod n
+where that is nonzero, or of a hex string read as a number (closes #2294).
+
 ## v2026.9.24
 
 ### A schedule comment names the `pull_request` trigger below it
