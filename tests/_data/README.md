@@ -119,7 +119,7 @@ followed on 2026-08-03, at the tip of its path too, and Core's
 `muhash_vectors.json`, both transcribed from `crypto_tests.cpp`, on
 2026-09-03, at the tip of that path, and
 bitcoin-core/secp256k1's `src` for `secp256k1_symbols.txt` on 2026-09-10,
-refreshed again on 2026-09-14, at the tip of its path that day too.
+refreshed again on 2026-09-14 and 2026-09-29, at the tip of its path each time.
 BIP324's `packet_encoding_test_vectors.csv` followed on 2026-09-27, at the
 tip of its path.
 
@@ -550,8 +550,8 @@ re-check should compare.
 ```text
 repo    bitcoin-core/secp256k1
 path    src
-commit  46db787112beabdb5e17e0dc35680716f1057e7b  2026-09-11
-pulled  2026-09-10, refreshed 2026-09-14
+commit  b819a790f06122d5a53c0320e79c0dc486349fbd  2026-09-28
+pulled  2026-09-10, refreshed 2026-09-14 and 2026-09-29
 behind  0 revisions; that commit is the tip of the path
 ```
 
