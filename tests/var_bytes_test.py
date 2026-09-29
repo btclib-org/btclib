@@ -5,6 +5,7 @@
 """Tests for the `btclib.var_bytes` module."""
 
 from collections.abc import Callable
+from functools import partial
 from io import BytesIO
 
 import pytest
@@ -96,8 +97,10 @@ def _var_bytes_as_dsa_reports_it(stream: BytesIO) -> bytes:
     -- the zero size and the short read of the value it announces --
     which `_parse_der_value` prefixes with "invalid DER length: " and
     `var_bytes.parse` does not. The var_int-level checks underneath
-    (`_parse_der_size`, mirroring `var_int.parse`) already agree
-    verbatim and pass through unchanged.
+    (`_parse_der_size`, called `strict=False` to mirror `var_int.parse`'s
+    own CompactSize reading rather than DER's short-form-only one) raise
+    the same three shapes under a name of their own, "DER length" where
+    `var_int.parse` says "var_int" (issue #2282, Rule 3).
     """
     try:
         return var_bytes.parse(stream, forbid_zero_size=True)
@@ -105,7 +108,7 @@ def _var_bytes_as_dsa_reports_it(stream: BytesIO) -> bytes:
         message = str(e)
         if message in _UNPREFIXED_MESSAGES:
             raise BTClibValueError(f"invalid DER length: {message}") from e
-        raise
+        raise BTClibValueError(message.replace("var_int", "DER length")) from e
 
 
 @pytest.mark.parametrize(
@@ -134,4 +137,5 @@ def test_dsa_reads_a_der_size_as_var_bytes_does(data: bytes) -> None:
     here: the value, or the refusal and its message.
     """
     expected = _outcome(_var_bytes_as_dsa_reports_it, data)
-    assert _outcome(_parse_der_value, data) == expected
+    non_strict = partial(_parse_der_value, strict=False)
+    assert _outcome(non_strict, data) == expected

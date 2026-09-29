@@ -83,7 +83,9 @@ import json, sys
 class RefuseTheBindings:
     def find_spec(self, name, path=None, target=None):
         if name == "btclib_secp256k1" or name.startswith("btclib_secp256k1."):
-            raise ImportError("btclib_secp256k1 is out of reach")
+            raise ModuleNotFoundError(
+                "btclib_secp256k1 is out of reach", name="btclib_secp256k1"
+            )
         return None
 
 
@@ -245,7 +247,9 @@ import json, sys
 class RefuseTheBindings:
     def find_spec(self, name, path=None, target=None):
         if name == "btclib_secp256k1" or name.startswith("btclib_secp256k1."):
-            raise ImportError("btclib_secp256k1 is out of reach")
+            raise ModuleNotFoundError(
+                "btclib_secp256k1 is out of reach", name="btclib_secp256k1"
+            )
         return None
 
 
