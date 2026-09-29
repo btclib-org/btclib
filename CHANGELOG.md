@@ -46,6 +46,12 @@ file per release is what keeps each of them under it.
 but `bms` and `ellswift`, and every name of `btclib_ecc` or `bitcoin_core_rpc`
 that another module bound are gone (closes #2404).
 
+### `[tool.uv]`'s floor rises to the `uv` `dependabot-core` bundles
+
+`required-version` reads `>=0.12.19`, the pin in `dependabot-core`'s
+`uv/Dockerfile`: the old floor admitted a `uv` older than the one the updater
+writes `uv.lock` with (issue btclib-org/.github#1438).
+
 ## v2026.9.29
 
 ### `requires-python` moves to `>=3.11`
