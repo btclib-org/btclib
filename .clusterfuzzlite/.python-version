@@ -1,0 +1,18 @@
+# The interpreter Dependabot takes for requirements.txt beside this file.
+# It reads a .python-version in the directory it scans ahead of the
+# root's, and the root's names the newest interpreter the test matrix
+# covers, which Dependabot can be yet to support: the Dependency Graph's
+# pip job for this directory then fails, and the packages requirements.txt
+# pins go without Dependabot alerts.
+#
+# 3.11 is the interpreter that installs requirements.txt: PYTHON_VERSION
+# in the config of the image the Dockerfile's digest names. Nothing keeps
+# the two in step. An image of another minor version leaves requirements.txt
+# resolved here under an interpreter the image no longer installs it with;
+# a Dependabot that no longer supports 3.11 fails the pip job here as the
+# root's pin does. Dependabot matches the major and minor version alone,
+# so no patch is written here.
+#
+# uv reads this file too, for a command run in this directory, so a
+# whole-line comment only, for the reason the root .python-version gives.
+3.11

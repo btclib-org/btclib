@@ -52,6 +52,12 @@ that another module bound are gone (closes #2404).
 `uv/Dockerfile`: the old floor admitted a `uv` older than the one the updater
 writes `uv.lock` with (issue btclib-org/.github#1438).
 
+### `.clusterfuzzlite/.python-version` pins the fuzz image's interpreter
+
+`.clusterfuzzlite/.python-version` names `3.11`, the fuzz image's interpreter,
+so that the Dependency Graph's pip job there reads it rather than a root pin
+Dependabot does not support yet (closes btclib-org/.github#1436).
+
 ## v2026.9.29
 
 ### `requires-python` moves to `>=3.11`
