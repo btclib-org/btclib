@@ -220,12 +220,19 @@ jobs:
         env:
           PYTHON_VERSION: ${{ matrix.python }}
           NO_BINARY: ${{ matrix.no-binary || false }}
+          # the tag release.yml passes and the wait above held for, so the
+          # install takes that version and not whichever the runner's view
+          # of the index calls newest; empty on the schedule and a
+          # dispatch, where the newest is the one wanted
+          TAG: ${{ inputs.version }}
         run: |
           uv venv --python "$PYTHON_VERSION"
+          requirement=btclib
+          if [ -n "$TAG" ]; then requirement="btclib==${TAG#v}"; fi
           if [ "$NO_BINARY" = "true" ]; then
-            uv pip install --verbose --no-binary btclib btclib
+            uv pip install --verbose --no-binary btclib "$requirement"
           else
-            uv pip install --verbose --only-binary btclib btclib
+            uv pip install --verbose --only-binary btclib "$requirement"
           fi
       # the ecc surface, as test.yml's dist job asserts it: a signature
       # round trip is the one thing an import cannot get wrong by itself,
@@ -309,11 +316,15 @@ jobs:
         shell: bash
         env:
           PYTHON_VERSION: ${{ matrix.python }}
+          # install-published's own TAG, for the reason given there
+          TAG: ${{ inputs.version }}
         run: |
           uv venv --python "$PYTHON_VERSION"
+          requirement="btclib[secp256k1]"
+          if [ -n "$TAG" ]; then requirement="btclib[secp256k1]==${TAG#v}"; fi
           uv pip install --verbose \
             --only-binary btclib --only-binary btclib-secp256k1 \
-            "btclib[secp256k1]"
+            "$requirement"
       # is_libsecp256k1_serving is the assertion install-published's own
       # comment says it is not entitled to, that job's install naming no
       # extra. This job names the extra, so it is entitled to the
