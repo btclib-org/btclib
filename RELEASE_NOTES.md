@@ -21,6 +21,8 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.10 (work in progress, not released yet)
 
+## v2026.9.29
+
 ### Breaking changes
 
 - **`requires-python` is `>=3.11`.** A 3.10 install no longer resolves

@@ -35,7 +35,7 @@ name = "btclib"
 # file. Not a literal in src/btclib/__init__.py for setuptools to import
 # and conf.py to repeat: two declarations are two things a release
 # workflow has to compare before trusting either
-version = "2026.10"
+version = "2026.9.29"
 description = "A library for 'bitcoin cryptography'"
 readme = "README.md"
 # PEP 639: a SPDX expression and the files it refers to, replacing the
@@ -58,12 +58,12 @@ dependencies = [
     # `magic_from_signet_challenge`, all three in 2026.8.29, the split of
     # the package into errors, chains, transport and client modules behind
     # its facade and the first release the `chains` module exists in
-    "bitcoin-core-rpc>=2026.8.29",
+    "bitcoin-core-rpc>=2026.9.29",
     # the curve arithmetic and the schemes built on it: `btclib.curves`,
     # `btclib.ecc` less `bms`, `btclib.kdf` and `btclib.number_theory`
     # re-export that package's objects, and `btclib.exceptions` its
     # exception classes (issue #2282)
-    "btclib-ecc>=2026.9.26",
+    "btclib-ecc>=2026.9.28",
     # `typing.override` is 3.12's, `typing.TypeIs` is 3.13's, and the
     # floor is 3.11, so both come from the backport; 4.4 is the release
     # that adds `override`, 4.10 the one that adds `TypeIs`, and the
@@ -141,11 +141,11 @@ secp256k1 = [
     # `xonly.tweak_add` parses the x again and that parse is a field
     # square root. The floor is the one btclib-ecc's own `secp256k1`
     # extra sets, below which the entry after this one does not resolve
-    "btclib-secp256k1>=0.8.0.8",
+    "btclib-secp256k1>=0.8.0.9",
     # what the rest of the delegation is: btclib_ecc imports the
     # bindings for the curve arithmetic and the schemes, and its extra is
     # what states which release that takes
-    "btclib-ecc[secp256k1]>=2026.9.26",
+    "btclib-ecc[secp256k1]>=2026.9.28",
 ]
 
 [project.urls]
@@ -205,7 +205,7 @@ pull_requests = "https://github.com/btclib-org/btclib/pulls"
 # refuses the day the two stop agreeing. What the group buys is that no
 # documented command had to grow an `--extra`, and that the job of issue
 # #991 is those same commands with this group left out
-bindings = ["btclib-secp256k1>=0.8.0.8", "btclib-ecc[secp256k1]>=2026.9.26"]
+bindings = ["btclib-secp256k1>=0.8.0.9", "btclib-ecc[secp256k1]>=2026.9.28"]
 # what runs the suite, without what the suite delegates to: `test` is the
 # two together and is what every documented command asks for, while
 # `harness` alone is the environment the no-bindings job of test.yml
