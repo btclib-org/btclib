@@ -58,6 +58,12 @@ writes `uv.lock` with (issue btclib-org/.github#1438).
 so that the Dependency Graph's pip job there reads it rather than a root pin
 Dependabot does not support yet (closes btclib-org/.github#1436).
 
+### `pypi-install.yml` installs the version the release published
+
+The install names `btclib==<version>` from the tag `release.yml` passes,
+where a bare name let a lagging index serve the release before it
+(issue btclib-org/.github#1456).
+
 ## v2026.9.29
 
 ### `requires-python` moves to `>=3.11`
