@@ -8,7 +8,6 @@ Subpackages
    :maxdepth: 4
 
    btclib.block
-   btclib.curves
    btclib.ecc
    btclib.p2p
    btclib.script
@@ -101,13 +100,6 @@ btclib.hashes module
    :members:
    :show-inheritance:
 
-btclib.kdf module
------------------
-
-.. automodule:: btclib.kdf
-   :members:
-   :show-inheritance:
-
 btclib.key module
 -----------------
 
@@ -126,13 +118,6 @@ btclib.network module
 ---------------------
 
 .. automodule:: btclib.network
-   :members:
-   :show-inheritance:
-
-btclib.number\_theory module
-----------------------------
-
-.. automodule:: btclib.number_theory
    :members:
    :show-inheritance:
 

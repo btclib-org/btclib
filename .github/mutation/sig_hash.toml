@@ -38,7 +38,7 @@ module-path = "src/btclib/script/sig_hash.py"
 # tests/script does -- leaving it out would report those as survivors.
 # python_path_test.py is ignored: it re-runs the same vectors with the two
 # symbols the engine takes from the bindings replaced by their python
-# implementations, which is a second verdict on btclib.ecc and the same
+# implementations, which is a second verdict on btclib_ecc and the same
 # verdict on this module, at a real cost to the directory's own budget.
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
   tests/script tests/script_engine \

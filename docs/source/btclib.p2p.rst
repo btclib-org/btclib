@@ -70,19 +70,18 @@ btclib.p2p.limits module
 btclib.p2p.magic module
 -----------------------
 
-.. All three names are published by the package below as well, so autodoc
-   documents each of them twice -- at `btclib.p2p.magic_from_chain` and at
-   `btclib.p2p.magic.magic_from_chain`, two cross-reference targets for
+.. The name is published by the package below as well, so autodoc
+   documents it twice -- at `btclib.p2p.magic_from_network` and at
+   `btclib.p2p.magic.magic_from_network`, two cross-reference targets for
    one function. Documented once, under the package, which is where
-   `__all__` publishes them and where a caller reaches them. -W does not
+   `__all__` publishes it and where a caller reaches it. -W does not
    fail on this -- the two targets are distinct, so nothing is a
    duplicate description -- which is why the exclusion has to be written
    rather than waited for.
 
 .. automodule:: btclib.p2p.magic
    :members:
-   :exclude-members: magic_from_chain, magic_from_network,
-       magic_from_signet_challenge
+   :exclude-members: magic_from_network
    :show-inheritance:
 
 btclib.p2p.merkleblock module

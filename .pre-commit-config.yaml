@@ -440,7 +440,7 @@ repos:
   # one grep sees every one; the same destinations without the "./"
   # render the destination alone, which no single pattern reaches
   # without also matching the autodoc anchors these pages carry --
-  # href="#btclib.ecc.dsa.sign" and href="#module-btclib.b32".
+  # href="#btclib.ecc.bms.sign" and href="#module-btclib.b32".
   #
   # "../" is accepted, unlike the three rows above: conf.py's
   # RootFileLinks transform resolves a target written this way against

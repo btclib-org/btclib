@@ -17,10 +17,10 @@ name: pypi-install
 #
 # `import btclib` runs __init__.py alone, and the data files under
 # btclib/ -- `git ls-files | grep '^src/btclib/.*_data/'` is which -- are
-# read when `btclib.network` and `btclib.curves.curve` are first imported,
-# so a wheel missing one of them installs cleanly, answers `import btclib`
-# cleanly, and fails at the first import of either. The signature check
-# below imports both.
+# read when `btclib.network` is first imported, so a wheel missing one of
+# them installs cleanly, answers `import btclib` cleanly, and fails at the
+# first import of it. The signature check below imports it, through
+# `btclib.key`.
 #
 # Version-independent on purpose, checking a signature whose value is
 # fixed forever, so it needs no edit after a release the way a
@@ -243,7 +243,7 @@ jobs:
         shell: bash
         run: |
           uv run --no-project python -c "import btclib; \
-            from btclib.ecc import dsa; \
+            from btclib_ecc.ecc import dsa; \
             from btclib.key import PrvKeyData; \
             print(btclib.__version__); \
             assert btclib.__version__ != 'unknown'; \
@@ -326,8 +326,8 @@ jobs:
         shell: bash
         run: |
           uv run --no-project python -c "import btclib; \
-            from btclib.curves import is_libsecp256k1_serving; \
-            from btclib.ecc import dsa; \
+            from btclib_ecc.curves import is_libsecp256k1_serving; \
+            from btclib_ecc.ecc import dsa; \
             from btclib.key import PrvKeyData; \
             print(btclib.__version__); \
             assert btclib.__version__ != 'unknown'; \

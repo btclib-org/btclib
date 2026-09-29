@@ -106,8 +106,8 @@ vulnerabilities*:
 - memory disclosure: a secret in a Python object is not zeroized
 - a secret handed to a delegated `_var` multiplication, which is
   variable time in its scalar
-- the block cipher `ecc.ecies` takes from its caller, whose resistance to
-  side channels is the caller's
+- the block cipher `btclib_ecc.ecc.ecies` takes from its caller, whose
+  resistance to side channels is the caller's
 - the operating system's random number generator, which btclib uses
   through `secrets` rather than seeding one of its own
 
@@ -127,13 +127,13 @@ nonce, a hash function, a curve, or `check_validity=False`. Some of those
 choices select the Python arithmetic, and SECURITY.md states which.
 
 **btclib and btclib_ecc.** The curve arithmetic and the schemes built
-on it are btclib_ecc's, a btclib-org package btclib binds again under
-its own paths. What they raise derives from the built-in exception
+on it are btclib_ecc's, a btclib-org package btclib imports and does not
+re-export. What they raise derives from the built-in exception
 classes and not from `BTClibException`, as [ARCHITECTURE](./ARCHITECTURE.md)'s
 *The curve arithmetic is btclib_ecc's* describes.
 
 **btclib and the bindings.** Past this boundary is C code btclib does
-not own. `curves.is_libsecp256k1_serving` decides each call, btclib's
+not own. `btclib_ecc.curves.is_libsecp256k1_serving` decides each call, btclib's
 own and btclib_ecc's alike, so whether anything crosses is decided by
 one switch rather than at each call site. The bindings are trusted for
 the answer, and the suite compares btclib's own Python arms against

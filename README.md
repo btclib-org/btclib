@@ -177,7 +177,7 @@ one function to the next, and `SECURITY.md` states each of them, for
 Whatever that conjunction declines runs the Python arithmetic, which
 the suite validates against the bindings but which is not
 constant-time. A process that has the bindings turns that switch off
-with `curves.set_libsecp256k1_serving(serving=False)`, or with
+with `btclib_ecc.curves.set_libsecp256k1_serving(serving=False)`, or with
 `BTCLIB_ECC_NO_LIBSECP256K1` in the environment, and every operation here
 is then the Python arithmetic. So a caller whose threat model includes
 timing should stay on the delegated paths, or keep the key out of the

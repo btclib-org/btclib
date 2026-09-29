@@ -167,7 +167,7 @@ jobs:
           python -c "import importlib.util;
           assert importlib.util.find_spec('btclib_secp256k1') is None,
           'btclib_secp256k1 is installed';
-          from btclib.curves import is_libsecp256k1_serving;
+          from btclib_ecc.curves import is_libsecp256k1_serving;
           assert not is_libsecp256k1_serving()"
 
       # --dry-run on the pull_request trigger only: a fork's read-only

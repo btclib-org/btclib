@@ -24,13 +24,14 @@ from __future__ import annotations
 import string
 from typing import Literal
 
+from btclib_ecc.curves import scalar_from_prv_key
+
 from btclib import b32
 from btclib.alias import Integer, Octets, ScriptType, String
 from btclib.b32 import _v0_witness_program_from_key, _v0_witness_program_from_script
 from btclib.base58 import decode as b58decode
 from btclib.base58 import encode as b58encode
 from btclib.consensus import MAX_SCRIPT_ELEMENT_SIZE
-from btclib.curves import scalar_from_prv_key
 from btclib.exceptions import BTClibValueError, InvalidPrvKeyError, NotAPrvKeyError
 from btclib.hashes import hash160
 from btclib.key import PrvKeyData, PubKeyData

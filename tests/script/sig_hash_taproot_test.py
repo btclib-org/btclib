@@ -20,16 +20,11 @@ tests/_data/README.md pins the revision of each.
 from typing import Any
 
 import pytest
+from btclib_ecc.ecc import ssa
+from btclib_ecc.exceptions import BTClibEccRuntimeError, BTClibEccValueError
 
 from btclib.alias import Octets, ScriptList, TaprootScriptTree
-from btclib.ecc import ssa
-from btclib.exceptions import (
-    BTClibEccRuntimeError,
-    BTClibEccValueError,
-    BTClibRuntimeError,
-    BTClibTypeError,
-    BTClibValueError,
-)
+from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.key import PrvKeyData
 from btclib.script import (

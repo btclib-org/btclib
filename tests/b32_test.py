@@ -37,12 +37,12 @@ from __future__ import annotations
 import string
 
 import pytest
+from btclib_ecc.curves import bytes_from_point, point_from_octets
 from hypothesis import given
 from hypothesis import strategies as st
 
 from btclib import b32, b58
 from btclib.alias import ScriptList
-from btclib.curves import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.key import PrvKeyData, PubKeyData

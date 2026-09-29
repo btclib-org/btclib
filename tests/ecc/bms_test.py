@@ -23,17 +23,15 @@ from hashlib import sha256
 from typing import Any
 
 import pytest
+from btclib_ecc.curves import CURVES, mult, secp256k1
+from btclib_ecc.ecc import dsa
+from btclib_ecc.exceptions import BTClibEccRuntimeError, BTClibEccValueError
 
 from btclib import b32, b58
 from btclib.alias import Point
 from btclib.b58 import h160_from_address
-from btclib.curves import CURVES, mult, secp256k1
-from btclib.ecc import bms, dsa
-from btclib.exceptions import (
-    BTClibEccRuntimeError,
-    BTClibEccValueError,
-    BTClibValueError,
-)
+from btclib.ecc import bms
+from btclib.exceptions import BTClibValueError
 from btclib.hashes import magic_message
 from btclib.key import PrvKeyData, PubKeyData
 from tests import (

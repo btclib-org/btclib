@@ -46,6 +46,7 @@ from dataclasses import FrozenInstanceError, replace
 from io import BytesIO
 
 import pytest
+from bitcoin_core_rpc import magic_from_chain
 
 from btclib.exceptions import (
     BTClibException,
@@ -54,7 +55,7 @@ from btclib.exceptions import (
     BTClibValueError,
     IncompleteMessageError,
 )
-from btclib.p2p import Message, magic_from_chain
+from btclib.p2p import Message
 from btclib.p2p.limits import MAX_PROTOCOL_MESSAGE_LENGTH
 
 # The Bitcoin Wiki's Protocol documentation, "version" section: a message

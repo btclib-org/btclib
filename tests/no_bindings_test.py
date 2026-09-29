@@ -50,10 +50,11 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
+from btclib_ecc.curves import bytes_from_point, is_libsecp256k1_serving, mult
+from btclib_ecc.ecc import dsa, ssa
+from btclib_ecc.exceptions import BTClibEccException
 
-from btclib.curves import bytes_from_point, is_libsecp256k1_serving, mult
-from btclib.ecc import dsa, ssa
-from btclib.exceptions import BTClibEccException, BTClibException
+from btclib.exceptions import BTClibException
 from btclib.key import PubKeyData
 from btclib.script.taproot import output_pubkey
 from tests import needs_bindings
@@ -92,8 +93,9 @@ class RefuseTheBindings:
 sys.meta_path.insert(0, RefuseTheBindings())
 
 import btclib
-from btclib.curves import is_libsecp256k1_serving, mult
-from btclib.ecc import dh, dsa, ellswift, ssa
+from btclib_ecc.curves import is_libsecp256k1_serving, mult
+from btclib.ecc import ellswift
+from btclib_ecc.ecc import dh, dsa, ssa
 from btclib.script import taproot
 from btclib.script.engine import script as engine_script
 from btclib.script.engine import tapscript as engine_tapscript
@@ -181,7 +183,7 @@ def test_the_environment_variable_refuses_the_installed_bindings() -> None:
     throughout. An empty value is not set, and leaves the bindings serving.
     """
     probe = (
-        "from btclib.curves import is_libsecp256k1_serving;"
+        "from btclib_ecc.curves import is_libsecp256k1_serving;"
         "print(is_libsecp256k1_serving())"
     )
     for value, serving in (("1", "False"), ("", "True")):
@@ -256,9 +258,10 @@ class RefuseTheBindings:
 sys.meta_path.insert(0, RefuseTheBindings())
 
 import btclib
-from btclib.curves import is_libsecp256k1_serving
-from btclib.ecc import dsa
-from btclib.exceptions import BTClibException, BTClibEccException
+from btclib_ecc.curves import is_libsecp256k1_serving
+from btclib_ecc.ecc import dsa
+from btclib_ecc.exceptions import BTClibEccException
+from btclib.exceptions import BTClibException
 from btclib.key import PubKeyData
 from btclib.script.taproot import output_pubkey
 

@@ -20,6 +20,7 @@ from enum import IntEnum
 from typing import Any
 
 import pytest
+from btclib_ecc.exceptions import BTClibEccTypeError
 
 from btclib import base58, bech32, var_int
 from btclib.alias import TaprootScriptTree
@@ -31,7 +32,7 @@ from btclib.block.block import bip34_commitment
 from btclib.block.block_context import BlockContext
 from btclib.block.mining import mine
 from btclib.block.proof_of_work import hash_rate, retarget_first_height
-from btclib.exceptions import BTClibEccTypeError, BTClibTypeError
+from btclib.exceptions import BTClibTypeError
 from btclib.fee import FeeRate, fee_from_vsize
 from btclib.hashes import merkle_root_from_branch, sha256
 from btclib.key import PrvKeyData

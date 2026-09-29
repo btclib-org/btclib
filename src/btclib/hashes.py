@@ -5,20 +5,18 @@
 """The hash functions of bitcoin.
 
 ripemd160 and sha1 through sha256, the hash160 and hash256 pairs,
-BIP340's tagged hash, SipHash-2-4, the BMS magic envelope, and the
-merkle roots and branches of a block.
+SipHash-2-4, the BMS magic envelope, and the merkle roots and branches of
+a block.
 
-`tagged_hash` and `reduce_to_hlen` are the `btclib_ecc` package's,
-whose schemes hash with them: each is that package's own object, bound
-again here, where a caller looks for a hash function (issue #2282).
+BIP340's `tagged_hash` and `reduce_to_hlen` are `btclib_ecc.hashes`'s,
+which the schemes of that package hash with: a caller imports them from
+there.
 """
 
 from __future__ import annotations
 
 import hashlib
 from collections.abc import Callable, Sequence
-
-from btclib_ecc.hashes import reduce_to_hlen, tagged_hash
 
 from btclib import var_int
 from btclib._ripemd160 import ripemd160 as pure_python_ripemd160
@@ -34,12 +32,10 @@ __all__ = [
     "merkle_root_and_mutated",
     "merkle_root_and_mutated_from_hashes",
     "merkle_root_from_branch",
-    "reduce_to_hlen",
     "ripemd160",
     "sha1",
     "sha256",
     "siphash",
-    "tagged_hash",
 ]
 
 _MASK64 = 0xFFFFFFFFFFFFFFFF

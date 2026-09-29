@@ -37,11 +37,11 @@ import pathlib
 from typing import Any
 
 import pytest
+from btclib_ecc.curves import secp256k1
+from btclib_ecc.ecc import dsa
 from typing_extensions import override
 
 from btclib.amount import _MAX_SATOSHI
-from btclib.curves import secp256k1
-from btclib.ecc import dsa
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import Witness
 from btclib.script.script_pub_key import ScriptPubKey

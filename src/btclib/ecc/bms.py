@@ -116,16 +116,14 @@ import string
 from dataclasses import dataclass
 from hashlib import sha256
 
+from btclib_ecc.curves import bytes_from_prv_key_int, secp256k1
+from btclib_ecc.ecc import dsa
+from btclib_ecc.exceptions import BTClibEccRuntimeError
+
 from btclib.alias import BinaryData, Octets, String
 from btclib.b32 import is_segwit_prefixed, p2wpkh, witness_from_address
 from btclib.b58 import h160_from_address, p2pkh, p2wpkh_p2sh, wif_from_prv_key
-from btclib.curves import bytes_from_prv_key_int, secp256k1
-from btclib.ecc import dsa
-from btclib.exceptions import (
-    BTClibEccRuntimeError,
-    BTClibRuntimeError,
-    BTClibValueError,
-)
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160, magic_message
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.network import network_from_name
@@ -463,9 +461,9 @@ def _assert_structurally_valid_(addr: String, sig: Sig | String) -> Sig:
     65-octet signature, so `assert_as_valid` answers them below, on the
     `Sig` this returns.
 
-    The message is not asked here, as in `ecc.dsa` and `ecc.ssa`: it is
-    what the signature is verified about, and issue #814 is where that
-    was settled.
+    The message is not asked here, as in `btclib_ecc.ecc.dsa` and
+    `btclib_ecc.ecc.ssa`: it is what the signature is verified about, and
+    issue #814 is where that was settled.
     """
     parsed_sig = (
         sig if isinstance(sig, Sig) else Sig.b64decode(sig, check_validity=False)

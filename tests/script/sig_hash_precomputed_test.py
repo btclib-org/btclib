@@ -15,8 +15,8 @@ BIP341 vectors by the three test modules beside this one.
 from dataclasses import FrozenInstanceError
 
 import pytest
+from btclib_ecc.ecc import dsa, ssa
 
-from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash256, sha256
 from btclib.key import PrvKeyData

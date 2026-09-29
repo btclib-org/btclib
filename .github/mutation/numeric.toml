@@ -19,8 +19,8 @@ test-command = """python -m pytest -x -q -n0 -p no:randomly \
 
 # 30 seconds, narrow where sig_hash.toml's is wide, and measured rather
 # than inherited. The measurement's scope is wider than this file's:
-# `amount.py` and `fee.py` beside `ecc.dh` and `kdf`, which are
-# btclib_ecc's and mutated there, with the 25-minute budget
+# `amount.py` and `fee.py` beside `btclib_ecc.ecc.dh` and
+# `btclib_ecc.kdf`, which are mutated there, with the 25-minute budget
 # mutation.yml gives this file ending that session complete.
 #
 # What the clock answers is a loop no bound stops, rare here.

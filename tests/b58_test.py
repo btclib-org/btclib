@@ -9,19 +9,15 @@ from __future__ import annotations
 import string
 
 import pytest
+from btclib_ecc.curves import bytes_from_point, point_from_octets, secp256k1
+from btclib_ecc.exceptions import BTClibEccValueError
 from hypothesis import given
 from hypothesis import strategies as st
 
 from btclib import b32, b58
 from btclib.alias import ScriptList, ScriptType
 from btclib.base58 import encode as b58encode
-from btclib.curves import bytes_from_point, point_from_octets, secp256k1
-from btclib.exceptions import (
-    BTClibEccValueError,
-    BTClibValueError,
-    InvalidPrvKeyError,
-    NotAPrvKeyError,
-)
+from btclib.exceptions import BTClibValueError, InvalidPrvKeyError, NotAPrvKeyError
 from btclib.hashes import hash160, sha256
 from btclib.key import PubKeyData
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_SCRIPT_SIZE

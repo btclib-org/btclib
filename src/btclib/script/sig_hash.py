@@ -17,10 +17,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from btclib_ecc.hashes import tagged_hash
+
 from btclib import var_bytes
 from btclib.alias import Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.hashes import hash160, hash256, sha256, tagged_hash
+from btclib.hashes import hash160, hash256, sha256
 from btclib.script.script import (
     BYTE_FROM_OP_CODE_NAME,
     ERROR_COMMAND,

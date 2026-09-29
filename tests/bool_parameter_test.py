@@ -94,11 +94,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from btclib_ecc.curves import bytes_from_point, bytes_from_prv_key_int
+from btclib_ecc.ecc import dsa
 
 from btclib import b32, b58, var_bytes
 from btclib.block.block import Block
-from btclib.curves import bytes_from_point, bytes_from_prv_key_int
-from btclib.ecc import bms, dsa
+from btclib.ecc import bms
 from btclib.exceptions import BTClibTypeError
 from btclib.fee import FeeRate
 from btclib.key import PrvKeyData, PubKeyData
@@ -608,6 +609,3 @@ def test_the_walk_reaches_what_it_claims() -> None:
     # a private function, and a parameter of another type
     assert ("btclib.block.block.Block._serialized_size", "include_witness") not in found
     assert ("btclib.hashes.merkle_root", "hf") not in found
-    # and nothing of what btclib re-exports of btclib_ecc: the walk
-    # reads btclib's own files, where those names are imports and no def
-    assert not [pair for pair in found if pair[0].startswith("btclib.ecc.dsa.")]

@@ -18,12 +18,12 @@ is what the pull request will be answered against.
 
 [ARCHITECTURE.md](./ARCHITECTURE.md) is the design: the curve arithmetic
 btclib_ecc provides, the layers, and the import edges the tests hold.
-Read it before touching `src/btclib/curves/` or `src/btclib/ecc/`, whose
-modules bind btclib_ecc's objects again, `ecc.bms` and
-`ecc.ellswift.xdh` excepted; `xdh`, the script engine and
-`script.taproot` delegate to the bindings only where
-`curves.is_libsecp256k1_serving()` and the call site both admit it, so a
-change there has two paths to keep right.
+Read it before touching `src/btclib/ecc/`, which holds `bms` and
+`ellswift` alone, the rest of the curve arithmetic and the schemes being
+`btclib_ecc`'s and imported from it, never re-exported; `xdh`, the script
+engine and `script.taproot` delegate to the bindings only where
+`btclib_ecc.curves.is_libsecp256k1_serving()` and the call site both
+admit it, so a change there has two paths to keep right.
 
 ## The primary checkout is the maintainer's
 
