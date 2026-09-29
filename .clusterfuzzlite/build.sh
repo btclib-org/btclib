@@ -42,7 +42,7 @@ pip3 install --no-deps --no-build-isolation -e .
 # and a frozen onefile executable bundles no non-Python file
 # PyInstaller cannot trace a reference to -- confirmed against this
 # fuzzer's own import chain (btclib.p2p -> ... -> btclib.network ->
-# btclib.curves), which crashed a real ClusterFuzzLite run on exactly
+# btclib_ecc.curves), which crashed a real ClusterFuzzLite run on exactly
 # this, `FileNotFoundError` on `curves/_data/ec_Brainpool.json` inside
 # a PyInstaller `_MEI` extraction directory. `--collect-data` walks the
 # whole of each package's tree rather than naming a `_data` directory

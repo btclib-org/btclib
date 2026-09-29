@@ -10,10 +10,12 @@ against Core. What is btclib's is the vocabulary and the exceptions --
 `NETWORKS` is keyed by BIP network names where the package takes Core's
 chain names -- and that is the whole of what `magic_from_network` adds.
 
-The names are imported from `btclib.p2p.magic` and not from the package,
-which publishes them through `__getattr__`: that spelling is `Any` to
-mypy, so a call with a wrong type would be a call nothing checks. The
-package spelling is asserted to be these same objects instead.
+The function is imported from `btclib.p2p.magic` and not from the package,
+which publishes it through `__getattr__`: that spelling is `Callable[...,
+bytes]` to mypy, so a call with a wrong type would be a call nothing
+checks. The package spelling is asserted to be the same object instead.
+`magic_from_chain` and `magic_from_signet_challenge` are the `bitcoin-core-rpc`
+package's, imported from it.
 
 The walk over `NETWORKS` below is the other half: nothing at run time
 re-checks that every btclib network is a chain Core has, so this is where
@@ -24,27 +26,24 @@ from __future__ import annotations
 
 import bitcoin_core_rpc
 import pytest
+from bitcoin_core_rpc import magic_from_chain, magic_from_signet_challenge
 
 import btclib.p2p
 import btclib.p2p.magic
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS
-from btclib.p2p.magic import (
-    magic_from_chain,
-    magic_from_network,
-    magic_from_signet_challenge,
-)
+from btclib.p2p.magic import magic_from_network
 
 
-def test_the_aliases_are_the_packages_own_objects() -> None:
-    """Aliases and not wrappers, as `btclib_wallet.fetch.transport` is.
+def test_the_module_publishes_the_one_function_it_defines() -> None:
+    """The two Core-vocabulary functions are not btclib's to publish.
 
-    The identity is the point: a second copy of the table would be a
-    second thing to keep in step with Core, which is the argument
-    `src/btclib/network.py` already made for not having one here.
+    `bitcoin_core_rpc.magic_from_chain` is what a caller with a chain name
+    imports, and a second spelling of it here would be a surface btclib does
+    not own.
     """
-    assert magic_from_chain is bitcoin_core_rpc.magic_from_chain
-    assert magic_from_signet_challenge is bitcoin_core_rpc.magic_from_signet_challenge
+    assert btclib.p2p.magic.__all__ == ["magic_from_network"]
+    assert not hasattr(btclib.p2p, "magic_from_chain")
 
 
 def test_every_network_of_the_catalogue_has_a_message_start() -> None:
@@ -121,24 +120,18 @@ def test_the_default_signet_challenge_derives_the_tabulated_magic() -> None:
     assert other != default
 
 
-def test_the_package_publishes_the_three_without_importing_them() -> None:
+def test_the_package_publishes_the_function_without_importing_it() -> None:
     """PEP 562 here, as in `src/btclib/script/__init__.py`, and why.
 
     Reaching `bitcoin_core_rpc` brings `urllib.request`, `ssl` and
     `socket` with it, and a codec has no use for any of them --
     `tests/imports_test.py` is where that cost is measured. What is left
-    to check is the publication itself: each name reachable off the
+    to check is the publication itself: the name reachable off the
     package, offered to a prompt, and nothing else answered.
     """
-    published = (
-        "magic_from_chain",
-        "magic_from_network",
-        "magic_from_signet_challenge",
-    )
-    for name in published:
-        assert name in btclib.p2p.__all__
-        assert getattr(btclib.p2p, name) is getattr(btclib.p2p.magic, name)
+    assert "magic_from_network" in btclib.p2p.__all__
+    assert btclib.p2p.magic_from_network is btclib.p2p.magic.magic_from_network
 
     assert set(btclib.p2p.__all__) <= set(dir(btclib.p2p))
-    with pytest.raises(AttributeError, match="has no attribute 'magic_from_chains'"):
-        _ = btclib.p2p.magic_from_chains
+    with pytest.raises(AttributeError, match="has no attribute 'magic_from_networks'"):
+        _ = btclib.p2p.magic_from_networks

@@ -4,23 +4,22 @@
 
 """ElligatorSwift encoding of a public key, and BIP324's x-only ECDH on it.
 
-The encoding is btclib_ecc.ecc.ellswift's: `create_var`, `encode_var`
-and `decode_var` are that module's own objects, bound again so that
-`btclib.ecc.ellswift` keeps answering for them (issue #2282). What BIP324
-builds on the map is a protocol's rather than a fact about a curve, and
-it is this module's own: `xdh`, the x-only ECDH over two encodings, with
-`XDH_TAG` and `ELL_SIZE`.
+The encoding itself, `create_var`, `encode_var` and `decode_var`, is
+`btclib_ecc.ecc.ellswift`'s. What BIP324 builds on the map is a protocol's
+rather than a fact about a curve, and it is this module's: `xdh`, the
+x-only ECDH over two encodings, with `XDH_TAG` and `ELL_SIZE`.
 
 https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki
 
 This module stops at the x-only ECDH, and each piece of BIP324's v2
 transport it leaves out has a reason of its own (issue 1066). The key
 schedule's HKDF-SHA256 is not one of them: it is a construction over a
-hash, `hmac` and `hashlib` and nothing else, and it is `kdf.hkdf`.
+hash, `hmac` and `hashlib` and nothing else, and it is
+`btclib_ecc.kdf.hkdf`.
 
-- **ChaCha20-Poly1305** is the cipher, and `ecc.ecies` is where the rule
-  about a cipher is stated: btclib takes one from its caller rather than
-  shipping one. A cipher in the standard library is what would change
+- **ChaCha20-Poly1305** is the cipher, and `btclib_ecc.ecc.ecies` is where
+  the rule about a cipher is stated: btclib takes one from its caller rather
+  than shipping one. A cipher in the standard library is what would change
   that; a hand-rolled one is not, being the only implementation, on by
   default, for every installation, on a network path.
 - **Forward-secure rekeying and length obfuscation** are cipher
@@ -37,17 +36,17 @@ packet vectors.
 
 from __future__ import annotations
 
-from btclib_ecc.ecc.ellswift import create_var, decode_var, encode_var
-from btclib_ecc.hashes import tagged_hash
-
-from btclib.alias import Integer, Octets
-from btclib.curves import (
+from btclib_ecc.curves import (
     Curve,
     is_libsecp256k1_serving,
     mult,
     scalar_from_prv_key,
     secp256k1,
 )
+from btclib_ecc.ecc import ellswift as _ecc_ellswift
+from btclib_ecc.hashes import tagged_hash
+
+from btclib.alias import Integer, Octets
 from btclib.exceptions import BTClibValueError
 from btclib.utils import _message_text, assert_type, bytes_from_octets
 
@@ -65,9 +64,6 @@ except ImportError:  # pragma: no cover -- only an install without them
 __all__ = [
     "ELL_SIZE",
     "XDH_TAG",
-    "create_var",
-    "decode_var",
-    "encode_var",
     "xdh",
 ]
 
@@ -119,6 +115,6 @@ def xdh(
     # the shared x-coordinate is the same for either y of the decoded
     # point, q*P and q*(-P) differing by their own y alone, so which y
     # `decode_var` answers with does not reach the secret
-    x = mult(q, decode_var(ell_b if party == 0 else ell_a, ec), ec)[0]
+    x = mult(q, _ecc_ellswift.decode_var(ell_b if party == 0 else ell_a, ec), ec)[0]
     preimage = ell_a + ell_b + x.to_bytes(ec.p_size, byteorder="big", signed=False)
     return tagged_hash(XDH_TAG, preimage)

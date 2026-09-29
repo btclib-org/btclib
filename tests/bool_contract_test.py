@@ -75,11 +75,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
+from btclib_ecc.ecc import dsa, ssa
+from btclib_ecc.hashes import reduce_to_hlen
 
 from btclib import b58
 from btclib.block import merkle_proof
-from btclib.ecc import bms, dsa, ssa
-from btclib.hashes import reduce_to_hlen
+from btclib.ecc import bms
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.script.engine import script as engine_script
 from btclib.script.engine import tapscript as engine_tapscript

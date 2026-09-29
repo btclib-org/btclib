@@ -21,24 +21,22 @@ block challenge and differs between two deployments that report the same
 chain. A field would be right for every other network and a lie for
 signet, which is an annotation accepting the mistake rather than
 refusing it.
-`btclib_wallet.fetch.transport` re-exports the same package's HTTP transport on
-the same reasoning: a second copy is a second thing to keep true.
 
-`magic_from_chain` and `magic_from_signet_challenge` are therefore
-aliases and not wrappers -- the package's own objects, so
-`btclib.p2p.magic_from_chain is bitcoin_core_rpc.magic_from_chain` -- and
-they take Core's vocabulary: a chain name, "main", "test", "testnet4",
-"signet" or "regtest", and a challenge as the hex a config file writes or
-the octets a parser holds. Their exceptions are the package's too, as
-`btclib_wallet.fetch.transport` says of the transport it re-exports: an unknown
-chain leaves as `BtcRpcValueError`, which is not a class
-`btclib.exceptions` declares.
+`bitcoin_core_rpc.magic_from_chain` and
+`bitcoin_core_rpc.magic_from_signet_challenge` are the package's, and a
+caller imports them from there: a second spelling of them here
+would be a surface btclib does not own. They take Core's
+vocabulary: a chain name, "main", "test", "testnet4", "signet" or
+"regtest", and a challenge as the hex a config file writes or the octets a
+parser holds. Their exceptions are the package's too: an unknown chain
+leaves as `BtcRpcValueError`, which is not a class `btclib.exceptions`
+declares.
 
 `magic_from_network` is what btclib's own vocabulary reaches, and it is
 here because that vocabulary is not Core's: `NETWORKS` is keyed by the
 BIP network names -- "mainnet", "testnet" -- where Core says "main" and
 "test", so a caller holding a `Network` and passing its name straight to
-`magic_from_chain` is told its network is unknown.
+`bitcoin_core_rpc.magic_from_chain` is told its network is unknown.
 `bitcoin_core_rpc.chain_from_network` is the bridge, and
 `btclib_wallet.fetch.bitcoin_core` uses it exactly this way: "chain_from_network
 on the way in, client_errors on the way out".
@@ -56,19 +54,11 @@ this tree does not write. `tests/p2p/magic_test.py` walks `NETWORKS` and
 asserts the property instead, which is where it can go stale visibly.
 """
 
-from bitcoin_core_rpc import (
-    chain_from_network,
-    magic_from_chain,
-    magic_from_signet_challenge,
-)
+import bitcoin_core_rpc
 
 from btclib.network import validated_network_name
 
-__all__ = [
-    "magic_from_chain",
-    "magic_from_network",
-    "magic_from_signet_challenge",
-]
+__all__ = ["magic_from_network"]
 
 
 def magic_from_network(network: str = "mainnet") -> bytes:
@@ -79,11 +69,13 @@ def magic_from_network(network: str = "mainnet") -> bytes:
     name in any case and with ASCII whitespace around it, as everywhere a
     network is named; signet's answer is the *default* signet's, another
     signet being identified by its challenge rather than by a name, and
-    `magic_from_signet_challenge` is what answers for that one.
+    `bitcoin_core_rpc.magic_from_signet_challenge` is what answers for that
+    one.
 
     A name no network has leaves as a `BTClibValueError` and a value that
     is no name at all as a `BTClibTypeError`, both from the converter
     this shares with the rest of the library rather than from the package
     the table is in.
     """
-    return magic_from_chain(chain_from_network(validated_network_name(network)))
+    chain = bitcoin_core_rpc.chain_from_network(validated_network_name(network))
+    return bitcoin_core_rpc.magic_from_chain(chain)

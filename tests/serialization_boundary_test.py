@@ -69,8 +69,7 @@ every flag in the library and with the reason for each.
 
 The decoders of the schemes btclib_ecc carries, `dsa.Sig`, `ssa.Sig`,
 `BorromeanSig`, `RangeProof` and `ecies.Envelope`, are that package's to
-hold to this contract (issue #2282), and the walk leaves them out by
-where each class is defined.
+hold to this contract, and btclib publishes none of them.
 """
 
 from __future__ import annotations

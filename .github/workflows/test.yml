@@ -397,7 +397,7 @@ jobs:
           python -c "import importlib.util;
           assert importlib.util.find_spec('btclib_secp256k1') is None,
           'btclib_secp256k1 is installed';
-          from btclib.curves import is_libsecp256k1_serving;
+          from btclib_ecc.curves import is_libsecp256k1_serving;
           assert not is_libsecp256k1_serving()"
       - name: Run pytest
         run: >
@@ -723,7 +723,7 @@ jobs:
       # what the others miss: the version is asserted and not merely
       # printed, since btclib.__version__ falls back to "unknown" with no
       # metadata installed (issue #150), so a wheel shipping none would
-      # print that and pass; `btclib.ecc.dsa` is imported because `import
+      # print that and pass; `btclib_ecc.ecc.dsa` is imported because `import
       # btclib` runs only __init__.py, which reads that metadata and
       # touches no binding, so the bindings could be missing entirely; the
       # bindings are asserted to be serving because nothing else here
@@ -772,8 +772,8 @@ jobs:
           set -- "$GITHUB_WORKSPACE"/dist/*.whl
           uv pip install --constraints constraints.txt "$1[secp256k1]"
           .venv/bin/python -c "import btclib; \
-            from btclib.curves import is_libsecp256k1_serving; \
-            from btclib.ecc import dsa; \
+            from btclib_ecc.curves import is_libsecp256k1_serving; \
+            from btclib_ecc.ecc import dsa; \
             from btclib.key import PrvKeyData; \
             print(btclib.__version__); \
             assert btclib.__version__ != 'unknown'; \
@@ -804,8 +804,8 @@ jobs:
           set -- "$GITHUB_WORKSPACE"/dist/*.whl
           uv run --isolated --no-project --with "$1[secp256k1]" \
             python -c "import btclib; \
-              from btclib.curves import is_libsecp256k1_serving; \
-              from btclib.ecc import dsa; \
+              from btclib_ecc.curves import is_libsecp256k1_serving; \
+              from btclib_ecc.ecc import dsa; \
               from btclib.key import PrvKeyData; \
               print(btclib.__version__); \
               assert btclib.__version__ != 'unknown'; \

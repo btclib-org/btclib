@@ -40,6 +40,12 @@ file per release is what keeps each of them under it.
 
 ## v2026.10 (work in progress, not released yet)
 
+### `btclib` stops re-exporting the names of `btclib_ecc` and `bitcoin_core_rpc`
+
+`btclib.curves`, `btclib.kdf`, `btclib.number_theory`, `btclib.ecc`'s modules
+but `bms` and `ellswift`, and every name of `btclib_ecc` or `bitcoin_core_rpc`
+that another module bound are gone (closes #2404).
+
 ## v2026.9.29
 
 ### `requires-python` moves to `>=3.11`

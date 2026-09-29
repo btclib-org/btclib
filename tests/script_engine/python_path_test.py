@@ -29,8 +29,8 @@ disagreement rather than as two red suites nobody compares.
 from typing import Any
 
 import pytest
+from btclib_ecc.curves import is_libsecp256k1_serving, set_libsecp256k1_serving
 
-from btclib.curves import is_libsecp256k1_serving, set_libsecp256k1_serving
 from btclib.script.engine import script as engine_script
 from btclib.script.engine import tapscript as engine_tapscript
 

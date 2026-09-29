@@ -1,5 +1,5 @@
 # Bitcoin message signing, mutated: the legacy and segwit signature formats
-# `bms.py` builds on `ecc.dsa` and the address decoders. A wrong recovery
+# `bms.py` builds on `btclib_ecc.ecc.dsa` and the address decoders. A wrong recovery
 # id or a normalization dropped silently is a signature that verifies
 # against the wrong key rather than failing, which coverage cannot
 # distinguish from the correct line running -- the same question #219 and

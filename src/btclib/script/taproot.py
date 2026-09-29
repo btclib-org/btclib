@@ -16,6 +16,18 @@ from __future__ import annotations
 from io import BytesIO
 from typing import cast
 
+from btclib_ecc.curves import (
+    bytes_from_prv_key_int,
+    is_libsecp256k1_serving,
+    mult,
+    scalar_from_prv_key,
+    secp256k1,
+)
+from btclib_ecc.curves.curve_group import HEX_THRESHOLD
+from btclib_ecc.ecc.ssa import point_from_bip340pub_key
+from btclib_ecc.exceptions import BTClibEccValueError
+from btclib_ecc.hashes import tagged_hash
+
 from btclib import var_bytes
 from btclib.alias import (
     BinaryData,
@@ -25,23 +37,12 @@ from btclib.alias import (
     TaprootLeafPaths,
     TaprootScriptTree,
 )
-from btclib.curves import (
-    bytes_from_prv_key_int,
-    is_libsecp256k1_serving,
-    mult,
-    scalar_from_prv_key,
-    secp256k1,
-)
-from btclib.curves.curve_group import HEX_THRESHOLD
-from btclib.ecc.ssa import point_from_bip340pub_key
 from btclib.exceptions import (
-    BTClibEccValueError,
     BTClibTypeError,
     BTClibValueError,
     ScriptError,
     ScriptErrorCode,
 )
-from btclib.hashes import tagged_hash
 from btclib.key import _HYBRID_PREFIXES, PubKeyData
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.op_codes_tapscript import (

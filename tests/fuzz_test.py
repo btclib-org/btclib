@@ -26,6 +26,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from btclib_ecc.exceptions import (
+    BTClibEccRuntimeError,
+    BTClibEccTypeError,
+    BTClibEccValueError,
+)
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -35,14 +40,7 @@ from btclib.block.block_filter import BasicBlockFilter
 from btclib.block.block_header import BlockHeader
 from btclib.block.partial_merkle_tree import PartialMerkleTree
 from btclib.ecc import bms
-from btclib.exceptions import (
-    BTClibEccRuntimeError,
-    BTClibEccTypeError,
-    BTClibEccValueError,
-    BTClibRuntimeError,
-    BTClibTypeError,
-    BTClibValueError,
-)
+from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.key import PrvKeyData
 from btclib.p2p.address import Addr, NetworkAddress, TimestampedNetworkAddress
 from btclib.p2p.addrv2 import AddrV2, NetworkAddressV2, SendAddrV2

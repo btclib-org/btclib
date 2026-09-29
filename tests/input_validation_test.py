@@ -100,13 +100,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from btclib_ecc.exceptions import BTClibEccException, BTClibEccTypeError
 
-from btclib.exceptions import (
-    BTClibEccException,
-    BTClibEccTypeError,
-    BTClibException,
-    BTClibTypeError,
-)
+from btclib.exceptions import BTClibException, BTClibTypeError
 
 _LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 

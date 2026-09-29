@@ -144,7 +144,7 @@ def test_the_codec_does_not_pay_for_the_rpc_package() -> None:
     reaches. ARCHITECTURE.md states the property this keeps: "no module
     loads `urllib.request` on its way to anything else".
 
-    So `src/btclib/p2p/__init__.py` answers the three names through PEP 562,
+    So `src/btclib/p2p/__init__.py` answers the name through PEP 562,
     as `src/btclib/script/__init__.py` answers `sig_hash` and `engine`, and
     what is pinned here is both halves: importing the package costs
     nothing, and asking for a message start costs only
@@ -186,7 +186,7 @@ def test_the_codec_does_not_pay_for_the_rpc_package() -> None:
     # the package is reached the moment a message start is asked for, and
     # `urllib.request` still is not: `chains.py` is the whole of what
     # that lookup runs
-    probe = "import btclib.p2p as p; p.magic_from_chain; import sys; print(sorted(sys.modules))"
+    probe = "import btclib.p2p as p; p.magic_from_network; import sys; print(sorted(sys.modules))"
     loaded = subprocess.run(  # noqa: S603
         [sys.executable, "-c", probe], check=True, capture_output=True, encoding="utf-8"
     ).stdout
@@ -338,43 +338,21 @@ def _assert_stays_within(entry_point: str, allowed_btclib_modules: set[str]) -> 
     assert not set(loaded) & set(_HEAVY_MODULES)
 
 
-def test_curves_stays_stdlib_light() -> None:
-    """`btclib.curves` loads nothing of btclib's beyond its own modules.
-
-    Its names are btclib_ecc's objects bound again (issue #2282), so
-    what it costs a caller is that package's closure, which the heavy
-    modules are asserted absent from as well.
-    """
-    _assert_stays_within(
-        "btclib.curves",
-        {
-            "btclib",
-            "btclib.curves",
-            "btclib.curves.curve",
-            "btclib.curves.curve_group",
-            "btclib.curves.curve_group_2",
-            "btclib.curves.curve_group_f",
-            "btclib.curves.sec_point",
-        },
-    )
-
-
-# the units `btclib.ecc` may load: itself, `curves`, and the substrate
+# the units `btclib.ecc` may load: itself, and the substrate
 # `ecc.ellswift.xdh` reads its octets with
-_ECC_UNITS = frozenset({"curves", "ecc", "alias", "exceptions", "utils"})
+_ECC_UNITS = frozenset({"ecc", "alias", "exceptions", "utils"})
 
 
 def test_ecc_stays_stdlib_light() -> None:
-    """`btclib.ecc` loads `curves`, the substrate and itself, nothing else.
+    """`btclib.ecc` loads the substrate and itself, nothing else.
 
-    `ecc/__init__.py` imports every scheme but `bms` eagerly, so this is
-    the whole of the package as a caller gets it, and `bms` is asserted
-    absent from it.
+    `ecc/__init__.py` imports `ellswift` eagerly, so this is the whole of
+    the package as a caller gets it, and `bms` is asserted absent from it.
     """
     loaded = _loaded_after_importing("btclib.ecc")
     # the package itself is loaded under any of its modules
     btclib_loaded = {m for m in loaded if _is_btclib(m) and m != "btclib"}
-    assert "btclib.ecc.dsa" in btclib_loaded
+    assert "btclib.ecc.ellswift" in btclib_loaded
     assert "btclib.ecc.bms" not in btclib_loaded
     assert sorted(m for m in btclib_loaded if m.split(".")[1] not in _ECC_UNITS) == []
     assert not set(loaded) & set(_HEAVY_MODULES)
@@ -412,12 +390,9 @@ def test_hashes_stays_stdlib_light() -> None:
     """`btclib.hashes`, with `_ripemd160`, stays in `btclib` under issue #2129.
 
     Not a package of its own, for the reason `base58` and `bech32` are
-    not. `tagged_hash` and `reduce_to_hlen` are btclib_ecc's, bound
-    again here (issue #2282), and that package is one issue #2129's rule
-    4 holds stdlib-light. `_hashlib_has_ripemd160` makes whether this
-    interpreter's hashlib carries RIPEMD-160 a runtime question rather
-    than an import; this checks that the module reaches nothing heavy
-    rather than assumes it.
+    not. `_hashlib_has_ripemd160` makes whether this interpreter's hashlib
+    carries RIPEMD-160 a runtime question rather than an import; this
+    checks that the module reaches nothing heavy rather than assumes it.
     """
     _assert_stays_within(
         "btclib.hashes",

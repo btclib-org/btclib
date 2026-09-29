@@ -36,9 +36,7 @@ miss if it stopped at the constructor. Inherited
 methods are not walked a second time under a subclass that does not
 override them, deduplication being by the id of the underlying function
 once resolved, so a name re-exported under a second `__all__` --
-`all_test.py`'s `REEXPORTED` -- is one entry and not two either. What
-btclib re-exports of the btclib_ecc package is no entry at all, that
-package's own suite being what holds its signatures (issue #2282).
+`all_test.py`'s `REEXPORTED` -- is one entry and not two either.
 """
 
 from __future__ import annotations
@@ -49,7 +47,6 @@ from typing import Any
 
 import pytest
 
-from tests import defined_by_btclib_ecc
 from tests.all_test import library_modules
 
 # Walked from `btclib`, on the commit this file is part of: every public
@@ -249,7 +246,7 @@ def _resolve(label: str) -> Any:
     """Import `module:Class.method` or `module:function` back to the object.
 
     The colon is the split point rather than the last dot: a module name
-    is dotted too (`btclib.ecc.dsa`), so the pair is stored apart instead
+    is dotted too (`btclib.ecc.bms`), so the pair is stored apart instead
     of concatenated and re-split.
     """
     module_name, _, attr_path = label.partition(":")
@@ -311,13 +308,8 @@ def _live_keyword_only() -> dict[str, list[str]]:
     seen_ids: set[int] = set()
     found: dict[str, list[str]] = {}
     for module in library_modules():
-        names = getattr(module, "__all__", None)
-        if not names:
-            continue
-        for name in names:
+        for name in module.__all__:
             obj = getattr(module, name)
-            if defined_by_btclib_ecc(obj):
-                continue
             if inspect.isclass(obj):
                 found.update(_class_sites(module, name, obj, seen_ids))
             elif inspect.isfunction(obj) or inspect.isbuiltin(obj):

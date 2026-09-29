@@ -29,15 +29,14 @@ payload is `Version.parse(message.payload)` under the caller's own
 `if`, which is the shape `net_processing.cpp` has too.
 
 **The message start is published without being imported.**
-`magic_from_chain`, `magic_from_network` and `magic_from_signet_challenge`
-are `btclib.p2p.magic`'s, and that module reaches the `bitcoin-core-rpc`
-package's `chains` vocabulary, which depends on nothing beyond the
-standard library -- `urllib.request`, and `ssl` and `socket` under it,
-live in that package's `client` and `transport` instead, which a
-message-start lookup never reaches. ARCHITECTURE.md states the property
-this keeps: "no module loads `urllib.request` on its way to anything
-else".
-`__getattr__` below still answers the three lazily, the same pattern
+`magic_from_network` is `btclib.p2p.magic`'s, and that module reaches
+the `bitcoin-core-rpc` package's `chains` vocabulary, which depends on
+nothing beyond the standard library -- `urllib.request`, and `ssl` and
+`socket` under it, live in that package's `client` and `transport`
+instead, which a message-start lookup never reaches. ARCHITECTURE.md
+states the property this keeps: "no module loads `urllib.request` on its
+way to anything else".
+`__getattr__` below still answers it lazily, the same pattern
 `btclib/script/__init__.py` uses for `sig_hash` and `engine`: `import
 btclib.p2p` stays what a parser needs and nothing else, whether or not
 the module behind a lazy name would itself have been free.
@@ -48,7 +47,7 @@ names the module it comes from, which is what says the number is Core's
 and not this library's.
 """
 
-from typing import Any
+from collections.abc import Callable
 
 from btclib.p2p.address import (
     Addr,
@@ -165,43 +164,33 @@ __all__ = [
     "addr_entry",
     "can_addrv1",
     "is_embedded_ipv6",
-    "magic_from_chain",
     "magic_from_network",
-    "magic_from_signet_challenge",
     "network_address",
     "peer_from_addr_entry",
     "reconstruct",
 ]
 
-# what `btclib.p2p.magic` holds, published here and imported on demand:
-# see the docstring for what importing it eagerly would cost
-_ON_DEMAND = (
-    "magic_from_chain",
-    "magic_from_network",
-    "magic_from_signet_challenge",
-)
 
-
-def __getattr__(published: str) -> Any:
-    """Return a message start function, importing its module the first time.
+def __getattr__(published: str) -> Callable[..., bytes]:
+    """Return `magic_from_network`, importing its module the first time.
 
     PEP 562, as `btclib/__init__.py` and `btclib/script/__init__.py` do
     it, and for a name rather than a submodule: this answers
-    `btclib.p2p.magic_from_chain` on a package that imported neither the
+    `btclib.p2p.magic_from_network` on a package that imported neither the
     module nor `bitcoin_core_rpc` behind it, which is how a walker
     reading `__all__` descends and how `from btclib.p2p import *` binds.
-    `from btclib.p2p.magic import magic_from_chain` never reaches here,
+    `from btclib.p2p.magic import magic_from_network` never reaches here,
     importing the module itself.
 
-    `Any` and not a narrower type, the three signatures differing: what
-    that costs is one attribute lookup's worth of strictness on this
-    package, which `btclib/__init__.py` weighs the same way. A caller who
-    wants mypy to hold them to their signatures names the module.
+    `Callable[..., bytes]` and not the signature: what that costs is one
+    attribute lookup's worth of strictness on this package, which
+    `btclib/__init__.py` weighs the same way. A caller who wants mypy to
+    hold it to the signature names the module.
     """
-    if published in _ON_DEMAND:
+    if published == "magic_from_network":
         from btclib.p2p import magic  # noqa: PLC0415
 
-        return getattr(magic, published)
+        return magic.magic_from_network
     raise AttributeError(f"module {__name__!r} has no attribute {published!r}")
 
 
@@ -211,6 +200,6 @@ def __dir__() -> list[str]:
     The PEP 562 asymmetry `btclib/__init__.py` answers the same way:
     `dir()` reads the namespace, so a name `__getattr__` has not been
     asked for yet is missing from it, and interactive completion would
-    hide three supported spellings.
+    hide a supported spelling.
     """
     return sorted({*__all__, *globals()})

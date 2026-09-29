@@ -27,7 +27,7 @@ bindings instead of the floor.
 
 from __future__ import annotations
 
-from btclib.curves import is_libsecp256k1_serving
+from btclib_ecc.curves import is_libsecp256k1_serving
 
 
 def main() -> int:

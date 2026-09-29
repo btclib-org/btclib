@@ -8,17 +8,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from btclib_ecc.curves import is_libsecp256k1_serving
+from btclib_ecc.ecc import ssa
+from btclib_ecc.exceptions import BTClibEccValueError
+from btclib_ecc.hashes import tagged_hash
+
 from btclib import var_bytes
 from btclib.alias import ScriptList
-from btclib.curves import is_libsecp256k1_serving
-from btclib.ecc import ssa
-from btclib.exceptions import (
-    BTClibEccValueError,
-    BTClibValueError,
-    ScriptError,
-    ScriptErrorCode,
-)
-from btclib.hashes import tagged_hash
+from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import ScriptFlag
@@ -64,8 +61,8 @@ def ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     """Verify a BIP340 signature, returning False if it is malformed.
 
     The dispatch `engine.script.dsa_verify` makes and for its reason:
-    `ecc.ssa` answers the same question in Python, and the arm is what
-    there is to reach with libsecp256k1 out of reach. No hybrid prefix to
+    `btclib_ecc.ecc.ssa` answers the same question in Python, and the arm is
+    what there is to reach with libsecp256k1 out of reach. No hybrid prefix to
     ask for here -- an x-only key is 32 bytes and BIP340 says which of
     the two points it is -- so the arm is the prepared spelling alone.
 

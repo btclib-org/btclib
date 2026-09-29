@@ -70,19 +70,6 @@ def module_names() -> list[str]:
     ]
 
 
-def defined_by_btclib_ecc(obj: object) -> bool:
-    """Whether a name btclib publishes is an object of btclib_ecc.
-
-    The curve arithmetic and the schemes other than `bms` are that
-    package's, and btclib re-exports them (issue #2282): a test walking
-    btclib's surface for a property of every function or class meets them
-    under btclib's spellings, and that package's own suite is what asks
-    them the question. So such a walk leaves them out, by where the object
-    was defined rather than by a list of names.
-    """
-    return (getattr(obj, "__module__", None) or "").split(".")[0] == "btclib_ecc"
-
-
 def public_classes_with(method_name: str) -> set[str]:
     """Return every public btclib class offering that method, module included.
 
@@ -239,13 +226,14 @@ class KeyPairSpellings(NamedTuple):
 def key_pair_spellings() -> KeyPairSpellings:
     """Build one `KeyPairSpellings`, computed on call rather than at import.
 
-    `btclib.base58` and `btclib.curves` are imported
+    `btclib.base58` and `btclib_ecc.curves` are imported
     inside this function rather than at the top of the module, for the
     reason the block comment above gives: a top-level import would run at
     collection, the same moment `Q = mult(q)` would.
     """
+    from btclib_ecc.curves import mult  # noqa: PLC0415
+
     from btclib.base58 import encode as b58encode  # noqa: PLC0415
-    from btclib.curves import mult  # noqa: PLC0415
 
     q = 12
     q_bytes = q.to_bytes(32, byteorder="big", signed=False)
@@ -360,7 +348,7 @@ def python_arithmetic() -> Iterator[None]:
     restores the switch after the test, and this restores it after the
     block, so that what follows in the same test is delegated again.
     """
-    from btclib.curves import (  # noqa: PLC0415
+    from btclib_ecc.curves import (  # noqa: PLC0415
         is_libsecp256k1_serving,
         set_libsecp256k1_serving,
     )
@@ -391,7 +379,7 @@ def no_bindings_anywhere(monkeypatch: pytest.MonkeyPatch) -> None:
     arm this does not cover fails by calling through instead of passing
     by measuring the bindings against themselves.
     """
-    from btclib.curves import set_libsecp256k1_serving  # noqa: PLC0415
+    from btclib_ecc.curves import set_libsecp256k1_serving  # noqa: PLC0415
 
     def refuse(what: str) -> Callable[..., Any]:
         def asked(*_args: object, **_kwargs: object) -> Any:

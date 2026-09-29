@@ -10,10 +10,10 @@ import dataclasses
 from typing import Any
 
 import pytest
+from btclib_ecc.curves import bytes_from_point, mult
 
 from btclib import b32, b58, var_bytes
 from btclib.alias import ScriptList
-from btclib.curves import bytes_from_point, mult
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.key import PrvKeyData, PubKeyData

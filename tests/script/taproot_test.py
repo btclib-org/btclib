@@ -18,19 +18,19 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
-
-from btclib import b32
-from btclib.alias import Octets, ScriptList
-from btclib.curves import (
+from btclib_ecc.curves import (
     Curve,
     bytes_from_point,
     mult,
     secp256k1,
     set_libsecp256k1_serving,
 )
+from btclib_ecc.number_theory import mod_sqrt_var
+
+from btclib import b32
+from btclib.alias import Octets, ScriptList
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.key import PrvKeyData, PubKeyData
-from btclib.number_theory import mod_sqrt_var
 from btclib.script import (
     ScriptPubKey,
     TaprootScriptTree,

@@ -223,7 +223,7 @@ jobs:
         shell: bash
         run: >
           uv run --locked --no-default-groups --group test
-          python -c "from btclib.curves import is_libsecp256k1_serving;
+          python -c "from btclib_ecc.curves import is_libsecp256k1_serving;
           assert is_libsecp256k1_serving(),
           'the newest btclib_secp256k1 does not import'"
       - name: Run pytest

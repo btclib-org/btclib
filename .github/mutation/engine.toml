@@ -25,7 +25,7 @@ module-path = "src/btclib/script/engine"
 # a round trip would kill; those are reported as survivors instead,
 # and the sighash session kills them from its own side.
 # python_path_test.py is ignored for the reason given in sig_hash.toml
-# -- it is a second verdict on btclib.ecc's python path and the same
+# -- it is a second verdict on btclib_ecc's python path and the same
 # verdict on this directory, at a real cost to the session's own
 # budget
 test-command = """python -m pytest -x -q -n0 -p no:randomly \

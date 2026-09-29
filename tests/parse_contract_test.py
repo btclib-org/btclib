@@ -26,17 +26,15 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
-from btclib.block import Block, BlockHeader, PartialMerkleTree
-from btclib.ecc import bms
-from btclib.exceptions import (
+from btclib_ecc.exceptions import (
     BTClibEccRuntimeError,
     BTClibEccTypeError,
     BTClibEccValueError,
-    BTClibRuntimeError,
-    BTClibTypeError,
-    BTClibValueError,
 )
+
+from btclib.block import Block, BlockHeader, PartialMerkleTree
+from btclib.ecc import bms
+from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.key import PrvKeyData
 from btclib.p2p import (
     Addr,

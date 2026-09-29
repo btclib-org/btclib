@@ -11,8 +11,8 @@ otherwise Core's file untouched; tests/_data/README.md pins the revision.
 """
 
 import pytest
+from btclib_ecc.ecc import dsa
 
-from btclib.ecc import dsa
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, hash256
 from btclib.key import PrvKeyData

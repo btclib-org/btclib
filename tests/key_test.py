@@ -13,14 +13,11 @@ never reaches a repr.
 """
 
 import pytest
+from btclib_ecc.curves import bytes_from_point, mult, secp256k1
+from btclib_ecc.exceptions import BTClibEccValueError
 
 from btclib.alias import Octets
-from btclib.curves import bytes_from_point, mult, secp256k1
-from btclib.exceptions import (
-    BTClibEccValueError,
-    BTClibTypeError,
-    BTClibValueError,
-)
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.key import PrvKeyData, PubKeyData
 
 Q_INT = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D

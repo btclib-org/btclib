@@ -701,7 +701,7 @@ uv run --locked --no-default-groups --group harness \
     python -c "import importlib.util; \
       assert importlib.util.find_spec('btclib_secp256k1') is None, \
         'btclib_secp256k1 is installed'; \
-      from btclib.curves import is_libsecp256k1_serving; \
+      from btclib_ecc.curves import is_libsecp256k1_serving; \
       assert not is_libsecp256k1_serving()"
 COVERAGE_FILE=coverage-data-no-bindings \
     uv run --locked --no-default-groups --group harness \
@@ -842,8 +842,8 @@ cd "$tmp" && uv venv &&
     set -- "$OLDPWD"/dist/*.whl &&
     uv pip install --constraints constraints.txt "$1[secp256k1]" &&
     .venv/bin/python -c "import btclib; \
-      from btclib.curves import is_libsecp256k1_serving; \
-      from btclib.ecc import dsa; \
+      from btclib_ecc.curves import is_libsecp256k1_serving; \
+      from btclib_ecc.ecc import dsa; \
       from btclib.key import PrvKeyData; \
       print(btclib.__version__); \
       assert btclib.__version__ != 'unknown'; \
@@ -854,8 +854,8 @@ cd "$tmp" && uv venv &&
 cd "$OLDPWD" &&
     uv run --isolated --no-project --with "$(echo dist/*.whl)[secp256k1]" \
     python -c "import btclib; \
-      from btclib.curves import is_libsecp256k1_serving; \
-      from btclib.ecc import dsa; \
+      from btclib_ecc.curves import is_libsecp256k1_serving; \
+      from btclib_ecc.ecc import dsa; \
       from btclib.key import PrvKeyData; \
       print(btclib.__version__); \
       assert btclib.__version__ != 'unknown'; \
@@ -928,7 +928,7 @@ rather than as the answer the job was asked for:
 ```shell
 uv lock --upgrade-package btclib-secp256k1
 uv run --locked --no-default-groups --group test python -c \
-    "from btclib.curves import is_libsecp256k1_serving; \
+    "from btclib_ecc.curves import is_libsecp256k1_serving; \
      assert is_libsecp256k1_serving(), \
        'the newest btclib_secp256k1 does not import'"
 uv run --locked --no-default-groups --group test pytest
@@ -941,9 +941,9 @@ serves.
 `install-published` installs btclib itself from PyPI, nothing checked
 out, and asks whether it works rather than whether it installs:
 `import btclib` runs `__init__.py` alone, and the files under
-`src/btclib/*/_data/` are read by path when `btclib.network` and
-`btclib.curves.curve` are first imported, so a wheel missing one would
-pass `import btclib` and fail only here. This install names no extra, so
+`src/btclib/_data/` are read by path when `btclib.network` is first
+imported, so a wheel missing one would pass `import btclib` and fail only
+here. This install names no extra, so
 the bindings are not asked for and the job is not entitled to assert they
 serve — the supported no-bindings configuration of issues #990, #991
 and #992. The check below is version-independent, a signature whose value
@@ -952,7 +952,7 @@ is fixed forever:
 ```shell
 python -m pip install btclib
 python -c "import btclib; \
-    from btclib.ecc import dsa; \
+    from btclib_ecc.ecc import dsa; \
     from btclib.key import PrvKeyData; \
     assert dsa.verify(b'btclib', PrvKeyData(1).pub.sec, \
       dsa.sign(b'btclib', 1))"
@@ -972,8 +972,8 @@ after it is meaningful because of that:
 python -m pip install --only-binary btclib --only-binary btclib-secp256k1 \
     "btclib[secp256k1]"
 python -c "import btclib; \
-    from btclib.curves import is_libsecp256k1_serving; \
-    from btclib.ecc import dsa; \
+    from btclib_ecc.curves import is_libsecp256k1_serving; \
+    from btclib_ecc.ecc import dsa; \
     from btclib.key import PrvKeyData; \
     assert is_libsecp256k1_serving(), \
       'the secp256k1 extra resolved, the bindings do not serve'; \
@@ -1219,14 +1219,14 @@ deciding to.
 
 The two halves are independent. A module declares its own surface whether
 or not its parent publishes an edge to it, which is how
-`btclib.curves.curve_group` says what it offers without becoming
+`btclib.p2p.limits` says what it offers without becoming
 anybody's API: the module states the offer, the
 parent decides whether it is reachable.
 
 **A public name kept out of the list is a decision, and the docstring
-says why.** The `datadir` of `btclib.network` and of
-`btclib.curves.curve`, and `btclib`'s own `name`, are the ones in the tree
-today; each stays
+says why.** The `datadir` of `btclib.network` and `btclib`'s own
+`name` are two such names, and `UNEXPORTED` in `tests/all_test.py` records
+each; a name kept out stays
 importable from the module that defines it, which is where the test suite
 takes it from. `tests/all_test.py` checks all of this and finds the
 modules rather than listing them, so a new public name fails the suite
@@ -1236,14 +1236,13 @@ until it is exported or recorded in that file's `UNEXPORTED` table.
 string, octets, or an object somebody built earlier — a name a caller can
 reach checks it before acting on it, and a malformed argument leaves as a
 `BTClibTypeError` or a `BTClibValueError`, which is what the callers of
-this library are written to catch. A name bound again from btclib_ecc,
-and a function of btclib's own handing an argument on to one, leaves with
-that package's `BTClibEccTypeError` or `BTClibEccValueError`
-instead: each derives from the same built-in, and neither from
-`BTClibException` (issue #2282). The work itself may be deferred to a
-private twin that does not validate; that twin is then what the library
-composes internally, where the inputs have already been checked and
-checking them a second time buys nothing.
+this library are written to catch. A function of btclib's own handing an
+argument on to btclib_ecc leaves with that package's
+`BTClibEccTypeError` or `BTClibEccValueError` instead: each derives from
+the same built-in, and neither from `BTClibException` (issue #2282). The
+work itself may be deferred to a private twin that does not validate; that
+twin is then what the library composes internally, where the inputs have
+already been checked and checking them a second time buys nothing.
 
 **A function that answers a `bool` is total over the types it declares,
 and only those.** `is_p2sh` answers False for bytes that are not a p2sh
@@ -1256,12 +1255,12 @@ own mistake, it is a call mypy already refuses, and it leaves as a
 12 being a private key in this library and never a public one, where a
 well-formed public key that simply did not sign is False.
 
-**`ecc`'s verifications carve one case out of that**, as `ecc.musig2`
-and `ecc.frost` do: a value of a declared type whose size or encoding
-makes it impossible to read as a signature, a key, an address, a digest
-or an opening raises rather than answering False. The function is not
-saying the signature is forged, it is saying it has no way to find out
-(issue #2170). So `dsa.verify(msg, "not a key", sig)` raises
+**`bms.verify` carves one case out of that**, as `btclib_ecc.ecc.musig2`
+and `btclib_ecc.ecc.frost` do: a value of a declared type whose size or
+encoding makes it impossible to read as a signature, a key, an address, a
+digest or an opening raises rather than answering False. The function is
+not saying the signature is forged, it is saying it has no way to find out
+(issue #2170). So `btclib_ecc.ecc.dsa.verify(msg, "not a key", sig)` raises
 `BTClibEccValueError`, and `bms.verify(msg, "not an address", sig)`
 raises `BTClibValueError`, while a signature that is well formed and
 simply does not verify is False.
@@ -1279,8 +1278,8 @@ reference reads the same way: `dleq_verify_proof` asserts
 asserts `len(m) == 32`, while `s >= GE.ORDER` and a challenge that does
 not match are its False.
 
-`ecc.dsa`'s malformed DER encoding is the one thing on the other side of
-the line, and it is there because a measurement put it there rather than
+`btclib_ecc.ecc.dsa`'s malformed DER encoding is the one thing on the other
+side of the line, and it is there because a measurement put it there rather than
 because the rule reaches it: its own wycheproof vectors ask that question
 over profiles built for it, and answer False.
 
@@ -1457,7 +1456,7 @@ takes the hash `sign` would compute, `musig2.nonce_gen_` the randomness
 so it is an offer to skip work the caller has already paid for, not a way
 past the validation above: `sign_` checks its `msg_hash` as `sign` checks
 its `msg`. The two conventions are independent, and
-`btclib.ecc.dsa._assert_as_valid_` carries both.
+`btclib_ecc.ecc.dsa._assert_as_valid_` carries both.
 
 Publishing both names is what makes their agreement a promise rather than
 a tidiness. A keyword added to `verify` is added to `verify_` or to
@@ -1502,9 +1501,9 @@ random operands of 256 bits down to 64, the ratio between the two ends:
     `curve_group._mult_jac_var` and `curve_group_2._double_mult_w_NAF_var`
     against `_mult_regular_window`, `_mult_fixed_base` and
     `_double_mult_regular_window`, which make the same number for every
-    scalar of the curve. `curves.double_mult_var` and
-    `curves.multi_mult_var` carry it for that reason and `curves.mult`
-    does not
+    scalar of the curve. `btclib_ecc.curves.double_mult_var` and
+    `btclib_ecc.curves.multi_mult_var` carry it for that reason and
+    `btclib_ecc.curves.mult` does not
 - the iteration count of an extended Euclid: `mod_inv_var` at 4.21x,
     `xgcd_var` at 4.84x, `mod_inv_batch_var` at 2.01x
 - the length of a loop over the operand: `legendre_symbol_var` at 4.26x,

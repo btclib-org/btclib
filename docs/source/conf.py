@@ -123,12 +123,11 @@ intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 #   underscore, and automodule does not document a name spelled that way
 #   at all, so `:members:` renders no page for a signature naming one to
 #   link to
-# - a name under btclib_ecc's own path that the pages here document
-#   under btclib's alone, or not at all: the objects `btclib.curves` and
-#   `btclib.ecc` bind again carry that package's annotations and
-#   docstrings, and btclib-ecc.readthedocs.io serves no objects.inv
-#   for a mapping to read (issue #2282). An inventory there is what
-#   retires these three
+# - a name under btclib_ecc's own path: the pages here document none of
+#   that package, whose classes the signatures of `btclib.ecc` still
+#   name, and btclib-ecc.readthedocs.io serves no objects.inv for a
+#   mapping to read (issue #2282). An inventory there is what retires
+#   them
 nitpick_ignore = [
     ("py:class", "collections.abc.Callable[[]"),
     ("py:class", "tuple[int"),
@@ -139,9 +138,8 @@ nitpick_ignore = [
     ("py:class", "btclib.p2p.inventory._LocatorPayload"),
     ("py:class", "btclib.p2p.keepalive._NoncePayload"),
     ("py:class", "btclib.p2p.block_filters._FilterRangeRequest"),
-    ("py:class", "btclib_ecc.alias.HashObject"),
-    ("py:mod", "btclib_ecc.ecc.dh"),
-    ("py:func", "btclib_ecc.ecc.dh.diffie_hellman"),
+    ("py:class", "btclib_ecc.curves.curve.Curve"),
+    ("py:class", "btclib_ecc.ecc.dsa.Sig"),
 ]
 
 # no suppress_warnings, and myst.xref_missing least of all: the transform

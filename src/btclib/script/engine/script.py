@@ -8,16 +8,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from btclib.curves import is_libsecp256k1_serving, point_from_octets
-from btclib.ecc import dsa
-from btclib.ecc.dsa import Sig
-from btclib.exceptions import (
-    BTClibEccRuntimeError,
-    BTClibEccValueError,
-    BTClibValueError,
-    ScriptError,
-    ScriptErrorCode,
-)
+from btclib_ecc.curves import is_libsecp256k1_serving, point_from_octets
+from btclib_ecc.ecc import dsa
+from btclib_ecc.ecc.dsa import Sig
+from btclib_ecc.exceptions import BTClibEccRuntimeError, BTClibEccValueError
+
+from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import ScriptFlag
@@ -92,9 +88,10 @@ def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     """Verify an ECDSA signature, returning False if it is malformed.
 
     The dispatch every delegation in this library makes, and this one has
-    a second implementation to reach when it declines: `ecc.dsa` answers
-    the same question in Python, so libsecp256k1 out of reach leaves an
-    arm to take rather than an ImportError to raise.
+    a second implementation to reach when it declines:
+    `btclib_ecc.ecc.dsa` answers the same question in Python, so
+    libsecp256k1 out of reach leaves an arm to take rather than an
+    ImportError to raise.
 
     `hybrid=True` is what the Python arm needs and the bindings do not:
     `ec_pubkey_parse` takes the 0x06/0x07 prefixes always (eckey_impl.h)

@@ -4,10 +4,7 @@
 
 """Tests for what the library exports.
 
-`__all__` is a decision about the public surface, and it had drifted: it
-carried a benchmark's worth of multiplication implementations in `btclib.curves`
-while `btclib.ecc` advertised four helpers and none of the six signature
-schemes behind them.
+`__all__` is a decision about the public surface.
 
 Every module and package of the library declares one, at every depth, which
 is the answer issue #338 asked for: a name is public here because a list
@@ -37,15 +34,9 @@ from pathlib import Path
 from pkgutil import iter_modules
 from types import ModuleType
 
-import bitcoin_core_rpc
-import btclib_ecc.ecc
-import btclib_ecc.ecc.ellswift
-import btclib_ecc.exceptions
-import btclib_ecc.hashes
 import pytest
 
 import btclib
-import btclib.curves
 import btclib.ecc
 import btclib.script
 from btclib import consensus
@@ -66,12 +57,10 @@ def _reexports(*groups: tuple[ModuleType, list[str]]) -> dict[str, ModuleType]:
     """Turn a module's own re-export groups into one name-to-canonical map.
 
     A re-exporting module can alias more than one canonical, each for its
-    own reason -- `btclib.exceptions` will, once it re-exports the
-    exception classes of several packages at once -- and a plain
-    `{**a, **b}` merge of one `{name: module}` dict per group would drop a
-    name both groups declare rather than say so. This raises instead, so a
-    name recorded against two canonicals fails here rather than resolving
-    to whichever group happened to come last.
+    own reason, and a plain `{**a, **b}` merge of one `{name: module}` dict
+    per group would drop a name both groups declare rather than say so.
+    This raises instead, so a name recorded against two canonicals fails
+    here rather than resolving to whichever group happened to come last.
     """
     merged: dict[str, ModuleType] = {}
     for canonical, names in groups:
@@ -91,109 +80,26 @@ def _reexports(*groups: tuple[ModuleType, list[str]]) -> dict[str, ModuleType]:
 # canonical object under the name a caller already had. Keying on the name
 # rather than pairing one canonical with a whole module is what lets one
 # re-exporting module alias several canonicals at once, each name to its
-# own -- the case `btclib.exceptions` will be once the package
-# decomposition gives it the re-exported exception classes of more than
-# one package, which a single `(canonical, names)` pair cannot record.
+# own.
 #
-# The `bitcoin-core-rpc` package is the canonical source of the network
-# magic a node is spoken to with, and btclib depends on it rather than
-# carrying a copy: `btclib.p2p.magic` aliases the two functions, and its
-# docstring states the reasoning.
-#
-# `btclib.consensus` is the second decision: a transaction's counts and a
+# `btclib.consensus` is the one decision: a transaction's counts and a
 # witness stack's are arithmetic on the block weight, and neither `btclib.tx`
 # nor `btclib.script` can import `btclib.block`, so the two constants they
 # divide by are defined below all three. `btclib.block.limits` names them
 # still, being where the rest of Core's header is and where a caller reading
-# a block's own rules goes.
+# a block's own rules looks for them.
 #
-# The `btclib_ecc` package is the third decision (issue #2282): the
-# curve arithmetic, the number theory, the key derivation functions and
-# every scheme of `btclib.ecc` but `bms` are that package's, and each
-# module btclib kept for them binds its objects again under the spelling a
-# caller already had. Those entries are derived from the canonical
-# module's own `__all__` rather than listed, which is the rule itself: a
-# name the package publishes is a name btclib re-exports, so one it adds
-# and btclib does not follow fails here. `btclib.hashes` names the two
-# hash functions the package's schemes use, being where a caller looks for
-# a hash function, and `btclib.exceptions` the package's exception
-# classes, so that a caller names each from there. The two packages are
-# recorded too, for their names that are not a module.
-#
-# So a name here is not a name about to leak: it is the same object under
-# the name a caller already had, which each entry records its canonical
-# module for and the test below asserts. What would be a leak is a module
-# not listed here, or a listed module exporting a name its recorded
-# canonical module does not
-# the modules btclib keeps for the package's, each re-exporting the whole
-# of its canonical module's `__all__`
-_BTCLIB_ECC_MODULES = (
-    "curves.curve",
-    "curves.curve_group",
-    "curves.curve_group_2",
-    "curves.curve_group_f",
-    "curves.sec_point",
-    "ecc.bip340_nonce",
-    "ecc.borromean",
-    "ecc.commit_nonce",
-    "ecc.dh",
-    "ecc.dleq",
-    "ecc.dsa",
-    "ecc.ecies",
-    "ecc.frost",
-    "ecc.musig2",
-    "ecc.pedersen",
-    "ecc.rangeproof",
-    "ecc.rfc6979_nonce",
-    "ecc.ssa",
-    "kdf",
-    "number_theory",
-)
-
-
-def _the_whole_of(dotted: str) -> tuple[ModuleType, list[str]]:
-    """Return a btclib_ecc module and every name it publishes."""
-    canonical = import_module(f"btclib_ecc.{dotted}")
-    return canonical, list(canonical.__all__)
-
-
+# What no entry may name is an object of another distribution:
+# `test_no_module_exports_another_distributions_name` is what holds that,
+# and `btclib_ecc` and `bitcoin_core_rpc` are imported from where they are
+# defined
 REEXPORTED = {
-    "btclib.p2p.magic": _reexports(
-        (bitcoin_core_rpc, ["magic_from_chain", "magic_from_signet_challenge"]),
-    ),
     "btclib.block.limits": _reexports(
         (consensus, ["MAX_BLOCK_WEIGHT", "WITNESS_SCALE_FACTOR"]),
     ),
     "btclib.script.limits": _reexports(
         (consensus, ["MAX_SCRIPT_ELEMENT_SIZE", "MAX_SCRIPT_SIZE"]),
     ),
-    "btclib.hashes": _reexports(
-        (btclib_ecc.hashes, ["reduce_to_hlen", "tagged_hash"]),
-    ),
-    "btclib.exceptions": _reexports(
-        (
-            btclib_ecc.exceptions,
-            [
-                "BorromeanRingError",
-                "BTClibEccException",
-                "BTClibEccRuntimeError",
-                "BTClibEccTypeError",
-                "BTClibEccValueError",
-                "InvalidContributionError",
-            ],
-        ),
-    ),
-    "btclib.ecc.ellswift": _reexports(
-        (btclib_ecc.ecc.ellswift, ["create_var", "decode_var", "encode_var"]),
-    ),
-    "btclib.curves": _reexports(_the_whole_of("curves")),
-    "btclib.ecc": _reexports(
-        (btclib_ecc.ecc, ["diffie_hellman", "second_generator"]),
-    ),
-    **{
-        f"btclib.{dotted}": _reexports(_the_whole_of(dotted))
-        for dotted in _BTCLIB_ECC_MODULES
-    },
 }
 
 # every direct child module of every package, on the side of the decision
@@ -227,34 +133,8 @@ CHILD_MODULES = {
             "partial_merkle_tree",
         ],
     },
-    "btclib.curves": {
-        "groups": [],
-        "unpublished": [
-            "curve",
-            "curve_group",
-            "curve_group_2",
-            "curve_group_f",
-            "sec_point",
-        ],
-    },
     "btclib.ecc": {
-        "groups": [
-            "bip340_nonce",
-            "bms",
-            "borromean",
-            "commit_nonce",
-            "dh",
-            "dleq",
-            "dsa",
-            "ecies",
-            "ellswift",
-            "frost",
-            "musig2",
-            "pedersen",
-            "rangeproof",
-            "rfc6979_nonce",
-            "ssa",
-        ],
+        "groups": ["bms", "ellswift"],
         "unpublished": [],
     },
     "btclib.p2p": {
@@ -319,7 +199,7 @@ def library_modules() -> list[ModuleType]:
     Found rather than listed: one added to btclib is one these tests ask
     about, and the walk is the whole tree rather than the top level, the
     packages having submodules a caller reaches by name --
-    `btclib.ecc.dsa`, `btclib.script.sig_hash` -- and a command line
+    `btclib.ecc.bms`, `btclib.script.sig_hash` -- and a command line
     reaching them through `__all__` alone.
 
     `btclib._ripemd160` is out, and so is anything under a private name: a
@@ -396,103 +276,24 @@ def defined_public_names(module: ModuleType) -> set[str]:
     }
 
 
-def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
-    """One multiplication, not fourteen ways to spell it.
+def test_ecc_exports_the_two_schemes_that_are_bitcoins() -> None:
+    """Guards against `bms` and `ellswift` dropping out of the export list.
 
-    mult dispatches to libsecp256k1 for secp256k1, which is exactly what a
-    caller choosing _mult_jac_var from the same namespace -- on the
-    strength of its name -- gives up. The variants are btclib_ecc's
-    own, and that package's suite is what asks after them.
+    The curve arithmetic and every other scheme are `btclib_ecc`'s, and a
+    name added here for one of them is the re-export this package does
+    not make.
     """
-    assert sorted(btclib.curves.__all__) == [
-        "CURVES",
-        "Curve",
-        "CurveGroup",
-        "PreparedPoint",
-        "PubKey",
-        "TweakChain",
-        "bytes_from_point",
-        "bytes_from_prv_key_int",
-        "double_mult_var",
-        "find_all_points",
-        "find_subgroup_points",
-        "is_libsecp256k1_serving",
-        "is_x_coordinate_var",
-        "mult",
-        "mult_pub_key",
-        "multi_mult_var",
-        "point_from_octets",
-        "point_from_pub_key",
-        "scalar_from_prv_key",
-        "secp256k1",
-        "set_libsecp256k1_serving",
-        "sum_var",
-        "tweak_add_var",
-    ]
-
-
-def test_ecc_exports_the_signature_schemes() -> None:
-    """Guards against dsa, ssa and bms dropping out of the export list."""
-    assert sorted(btclib.ecc.__all__) == [
-        "bip340_nonce",
-        "bms",
-        "borromean",
-        "commit_nonce",
-        "dh",
-        "diffie_hellman",
-        "dleq",
-        "dsa",
-        "ecies",
-        "ellswift",
-        "frost",
-        "musig2",
-        "pedersen",
-        "rangeproof",
-        "rfc6979_nonce",
-        "second_generator",
-        "ssa",
-    ]
+    assert sorted(btclib.ecc.__all__) == ["bms", "ellswift"]
 
     # importing the package is enough to reach them, which is the point:
-    # guards against btclib.ecc.dsa raising AttributeError until something
-    # else in the process happens to import the submodule
-    for name in (
-        "dsa",
-        "ssa",
-        "bms",
-        "dleq",
-        "borromean",
-        "pedersen",
-        "ecies",
-        "ellswift",
-        "frost",
-        "musig2",
-        "dh",
-        "rfc6979_nonce",
-        "bip340_nonce",
-        "commit_nonce",
-    ):
+    # guards against btclib.ecc.ellswift raising AttributeError until
+    # something else in the process happens to import the submodule
+    for name in ("bms", "ellswift"):
         module = getattr(btclib.ecc, name)
         assert module.__name__ == f"btclib.ecc.{name}"
 
-    # the expert door stays in the module that defines it: a name ending in
-    # an underscore takes a reduced message and an explicit curve, and
-    # dsa.sign_ is not exported either
-    for module_name, name in (
-        ("rfc6979_nonce", "rfc6979_nonce_"),
-        ("bip340_nonce", "bip340_nonce_"),
-        ("commit_nonce", "commit_nonce_"),
-    ):
-        module = getattr(btclib.ecc, module_name)
-        assert hasattr(module, name), f"btclib.ecc.{module_name}.{name} went missing"
-        assert name not in btclib.ecc.__all__
-
-    # and bms's own `from btclib.ecc import dsa` reads the attribute the
-    # package's eager imports bound, the same object
-    assert btclib.ecc.bms.dsa is btclib.ecc.dsa
-
     # bms is the one scheme the package imports on demand (issue #2282):
-    # offered to a prompt like the others, and no answer for anything else
+    # offered to a prompt like the other, and no answer for anything else
     assert set(btclib.ecc.__all__) <= set(dir(btclib.ecc))
     with pytest.raises(AttributeError, match="has no attribute 'bmss'"):
         _ = btclib.ecc.bmss
@@ -581,22 +382,18 @@ def test_no_module_exports_a_name_it_imported() -> None:
     """A module exports what it defines, which is what packages do not.
 
     A package's `__all__` is re-export by design -- `btclib.ecc` names
-    `dsa`, defined a module away -- and for a module the same thing is a
+    `bms`, defined a module away -- and for a module the same thing is a
     leak: `Octets` reached through `btclib.b58` is that module's import
     section, where `btclib.alias.Octets` is the name a caller wants. A
     module with a reason to re-export something is a conversation to have
     with this test, not around it.
 
     `REEXPORTED` is that conversation, one name-to-canonical mapping per
-    re-exporting module: `btclib.p2p.magic` aliases the two functions the
-    `bitcoin-core-rpc` package canonically holds, a second copy of Core's
-    table being a second thing to keep true; `btclib.block.limits` names
-    the two constants `btclib.consensus` defines below the package, which
-    is where a caller reading a block's rules looks for them; and the
-    modules btclib keeps for the `btclib_ecc` package bind that
-    package's objects under the spellings a caller already had. A package
-    is asked too where it is recorded, for its names that are not one of
-    its own submodules.
+    re-exporting module: `btclib.block.limits` names the two constants
+    `btclib.consensus` defines below the package, which is where a caller
+    reading a block's rules looks for them, and so does `btclib.script.limits`
+    for its two. A package is asked too where it is recorded, for its names
+    that are not one of its own submodules.
 
     Asserted both ways, because a skip list is only half a table: it says
     which names may be re-exported and nothing about whether they still are,
@@ -630,6 +427,27 @@ def test_no_module_exports_a_name_it_imported() -> None:
             assert getattr(module, name) is getattr(canonical, name), (
                 f"{module.__name__}.{name} is not the canonical"
                 f" {canonical.__name__}.{name}"
+            )
+
+
+def test_no_module_exports_another_distributions_name() -> None:
+    """No `__all__` names an object `btclib_ecc` or `bitcoin_core_rpc` owns.
+
+    `REEXPORTED` records what btclib aliases from itself, and this is the
+    half it cannot be: a name whose canonical module is in another
+    distribution is that distribution's to publish, and a caller imports
+    it from there. It is asked of the object rather than of the import
+    statement, so an alias spelled `import x as y`, or a name bound in a
+    `try`, is caught too.
+    """
+    foreign = ("btclib_ecc", "bitcoin_core_rpc")
+    for module in library_modules():
+        for name in module.__all__:
+            value = getattr(module, name)
+            owner = value.__name__ if isinstance(value, ModuleType) else None
+            owner = owner or getattr(value, "__module__", None) or ""
+            assert owner.split(".")[0] not in foreign, (
+                f"{module.__name__}.{name} is {owner}'s, not btclib's"
             )
 
 
@@ -669,9 +487,9 @@ def test_the_export_tree_is_walkable_to_its_leaves() -> None:
     exports no command line should offer as well as of every other.
 
     A module-valued export is also checked to be a submodule of the module
-    exporting it: `btclib.ecc.dsa` is `btclib.ecc`'s to publish, and a
+    exporting it: `btclib.ecc.bms` is `btclib.ecc`'s to publish, and a
     module from somewhere else in the tree would make the path a caller
-    reads off the walk -- `btclib ecc dsa sign` -- name something the
+    reads off the walk -- `btclib ecc bms sign` -- name something the
     import does not.
     """
     seen = {btclib.__name__}
@@ -712,8 +530,8 @@ def test_every_child_module_is_a_group_or_deliberately_not() -> None:
     `btclib.script` came to publish none of the three subgroups its own
     tables promise -- fails until somebody writes down which side it is on.
 
-    The empty published sides are as deliberate as the rest: `curves`,
-    `tx`, `p2p` and `script.engine` offer a flat surface and no
+    The empty published sides are as deliberate as the rest: `tx`,
+    `p2p` and `script.engine` offer a flat surface and no
     group. Every package has to be in the table, so a new one is a decision
     rather than a silent pair of empty lists.
     """

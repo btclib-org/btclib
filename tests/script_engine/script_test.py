@@ -12,16 +12,12 @@ from io import BytesIO
 from typing import Any, NamedTuple
 
 import pytest
+from btclib_ecc.ecc import ssa
+from btclib_ecc.ecc.dsa import Sig, sign_
+from btclib_ecc.exceptions import BTClibEccValueError
 
 from btclib.alias import TaprootScriptTree
-from btclib.ecc import ssa
-from btclib.ecc.dsa import Sig, sign_
-from btclib.exceptions import (
-    BTClibEccValueError,
-    BTClibValueError,
-    ScriptError,
-    ScriptErrorCode,
-)
+from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
 from btclib.hashes import hash160, sha256
 from btclib.key import PrvKeyData
 from btclib.script import ScriptPubKey, sig_hash

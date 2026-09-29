@@ -28,16 +28,15 @@ no public function lets a native `KeyError`, `IndexError` or
 `OverflowError` escape uncaught.
 
 What the `btclib_ecc` package raises is not a `BTClibException`. The
-curve arithmetic and the schemes other than `bms` are that package's
-(issue #2282), and it raises its own classes, `BTClibEccValueError`,
+curve arithmetic and the schemes other than `bms` are that package's, and
+it raises its own classes, `btclib_ecc.exceptions.BTClibEccValueError`,
 `BTClibEccTypeError` and `BTClibEccRuntimeError` under
 `BTClibEccException`, built the same way beside the same three
 built-ins. So a failure raised inside it, whichever btclib function
 called in, is caught by `except ValueError` and not by `except
-BTClibValueError`. Those classes are bound here again, as are the two
-carrying a field that the package's protocols raise,
-`InvalidContributionError` and `BorromeanRingError`, so that a caller
-names each from here.
+BTClibValueError`. A caller naming one of those classes, or the two that
+carry a field, `InvalidContributionError` and `BorromeanRingError`,
+imports them from `btclib_ecc.exceptions`.
 
 The exception is the few classes below carrying a field: what a peer got
 wrong, the node's rpc error code, an HTTP status. Those are values a
@@ -73,32 +72,18 @@ from collections.abc import Mapping
 from enum import IntEnum
 from typing import Any
 
-from btclib_ecc.exceptions import (
-    BorromeanRingError,
-    BTClibEccException,
-    BTClibEccRuntimeError,
-    BTClibEccTypeError,
-    BTClibEccValueError,
-    InvalidContributionError,
-)
 from typing_extensions import override
 
 __all__ = [
-    "BTClibEccException",
-    "BTClibEccRuntimeError",
-    "BTClibEccTypeError",
-    "BTClibEccValueError",
     "BTClibException",
     "BTClibRuntimeError",
     "BTClibTypeError",
     "BTClibUserWarning",
     "BTClibValueError",
-    "BorromeanRingError",
     "FetchError",
     "HttpError",
     "IncompleteMessageError",
     "InconclusiveError",
-    "InvalidContributionError",
     "InvalidPrvKeyError",
     "NoDescriptorError",
     "NotAPrvKeyError",

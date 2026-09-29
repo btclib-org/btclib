@@ -22,11 +22,13 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import Any
 
 import pytest
+from btclib_ecc.ecc import dsa
+from btclib_ecc.ecc import ellswift as ecc_ellswift
+from btclib_ecc.exceptions import BTClibEccException
 
 from btclib import exceptions
-from btclib.ecc import dsa, ellswift
+from btclib.ecc import ellswift
 from btclib.exceptions import (
-    BTClibEccException,
     BTClibException,
     BTClibRuntimeError,
     BTClibTypeError,
@@ -39,7 +41,6 @@ from btclib.exceptions import (
     ScriptErrorCode,
     SignerError,
 )
-from tests import defined_by_btclib_ecc
 
 HTTP_MESSAGE = "getblockcount at http://127.0.0.1:8332: HTTP 503"
 
@@ -189,9 +190,8 @@ def test_every_exception_of_the_module_is_one_base_to_catch() -> None:
 
     `BTClibUserWarning` is the exception, and the assertion says which way:
     a warning is filtered, not caught, so it stays out of the class an
-    `except` names. The classes btclib_ecc defines, bound here again,
-    are the other: they are that package's base, not this one. And
-    `ScriptErrorCode` is no exception at all, but `ScriptError`'s field.
+    `except` names. And `ScriptErrorCode` is no exception at all, but
+    `ScriptError`'s field.
     """
     classes = [
         getattr(exceptions, name)
@@ -209,10 +209,6 @@ def test_every_exception_of_the_module_is_one_base_to_catch() -> None:
             continue
         if cls is BTClibUserWarning:
             assert not issubclass(cls, BTClibException)
-            continue
-        if defined_by_btclib_ecc(cls):
-            assert issubclass(cls, BTClibEccException), cls.__name__
-            assert not issubclass(cls, BTClibException), cls.__name__
             continue
         assert issubclass(cls, BTClibException), f"{cls.__name__} is not catchable"
 
@@ -301,16 +297,16 @@ def test_a_field_carrying_exception_crosses_a_process_boundary() -> None:
 def test_a_failure_raised_inside_btclib_ecc_is_caught_by_the_builtin() -> None:
     """`except ValueError` catches it, and `except BTClibException` does not.
 
-    What a btclib name bound again from btclib_ecc raises is that
-    package's class, and so is what a function of btclib's own lets
-    through from a call into it: `ellswift.xdh` reads its private key
-    with btclib_ecc's `scalar_from_prv_key`. The built-in is the one
+    What btclib_ecc raises is that package's class, and so is what a
+    function of btclib's own lets through from a call into it:
+    `ellswift.xdh` reads its private key with btclib_ecc's
+    `scalar_from_prv_key`. The built-in is the one
     base both packages share, which is what a caller catching either
     names.
     """
     with pytest.raises(ValueError, match="invalid compound header") as parsed:
         dsa.Sig.parse(b"")
-    ell = ellswift.create_var(1)
+    ell = ecc_ellswift.create_var(1)
     with pytest.raises(ValueError, match="private key not in 1..n-1") as read:
         ellswift.xdh(ell, ell, 0, 0)
 

@@ -54,15 +54,14 @@ requires-python = ">=3.11"
 # moving whenever this tree starts calling something newer and a second copy
 # of the number being the one that goes stale.
 dependencies = [
-    # `btclib.p2p.magic` calls `chain_from_network`, `magic_from_chain` and
-    # `magic_from_signet_challenge`, all three in 2026.8.29, the split of
-    # the package into errors, chains, transport and client modules behind
-    # its facade and the first release the `chains` module exists in
+    # `btclib.p2p.magic` calls `chain_from_network` and `magic_from_chain`,
+    # both in 2026.8.29, the split of the package into errors, chains,
+    # transport and client modules behind its facade and the first release
+    # the `chains` module exists in
     "bitcoin-core-rpc>=2026.9.29",
-    # the curve arithmetic and the schemes built on it: `btclib.curves`,
-    # `btclib.ecc` less `bms`, `btclib.kdf` and `btclib.number_theory`
-    # re-export that package's objects, and `btclib.exceptions` its
-    # exception classes (issue #2282)
+    # the curve arithmetic and the schemes built on it, which btclib
+    # imports from `btclib_ecc` where it uses them and does not
+    # re-export
     "btclib-ecc>=2026.9.28",
     # `typing.override` is 3.12's, `typing.TypeIs` is 3.13's, and the
     # floor is 3.11, so both come from the backport; 4.4 is the release
@@ -125,7 +124,7 @@ classifiers = [
 # what README.md and the guide tell a reader to run -- and an extra
 # rather than a dependency because
 # btclib answers without them: every delegation asks
-# `curves.is_libsecp256k1_serving`, which is False where they are
+# `btclib_ecc.curves.is_libsecp256k1_serving`, which is False where they are
 # absent. What that buys is a btclib a distribution can
 # package with no C toolchain in reach, and a caller that must not check
 # libsecp256k1 with libsecp256k1 (issue #198). What it costs is in
@@ -1291,7 +1290,7 @@ ignore = [
 # __getattr__ (astral-sh/ruff#18504, open): these modules publish this
 # way, as each docstring says, and F822 sees no import to bind the name
 # to. btclib, btclib.ecc and btclib.script publish submodules; btclib.p2p
-# publishes three functions, so that a codec does not import the rpc
+# publishes a function, so that a codec does not import the rpc
 # package the message start comes from. tests/all_test.py already walks `__all__`
 # with getattr and fails on the same drift this rule would catch, so
 # nothing here goes unchecked while the upstream rule does not know the

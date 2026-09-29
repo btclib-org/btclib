@@ -6,7 +6,7 @@
 
 A value a caller hands to btclib may be read by either package: by
 `btclib.utils` where btclib reads it, by `btclib_ecc._utils` where a
-name bound again from btclib_ecc does (issue #2282). Two copies of one
+function of btclib_ecc does (issue #2282). Two copies of one
 coercion that answer one input differently would make the same argument
 valid through one import path and refused through the other. So each
 vector below goes through both, and each must come back with the same value,

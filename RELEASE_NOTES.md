@@ -21,6 +21,172 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.10 (work in progress, not released yet)
 
+### Breaking changes
+
+- **`btclib.curves` is `btclib_ecc.curves`** (closes #2404), and `import
+  btclib.curves` raises `ModuleNotFoundError`. v2023.7.12 has it as
+  `btclib.ec`. Act on it by importing `btclib_ecc.curves` in its place.
+- **`btclib.curves.curve` is `btclib_ecc.curves.curve`** (closes #2404), and
+  `import btclib.curves.curve` raises `ModuleNotFoundError`. v2023.7.12 has
+  it as `btclib.ec.curve`. Act on it by importing `btclib_ecc.curves.curve`
+  in its place.
+- **`btclib.curves.curve_group` is `btclib_ecc.curves.curve_group`** (closes
+  #2404), and `import btclib.curves.curve_group` raises
+  `ModuleNotFoundError`. v2023.7.12 has it as `btclib.ec.curve_group`. Act
+  on it by importing `btclib_ecc.curves.curve_group` in its place.
+- **`btclib.curves.curve_group_2` is `btclib_ecc.curves.curve_group_2`**
+  (closes #2404), and `import btclib.curves.curve_group_2` raises
+  `ModuleNotFoundError`. v2023.7.12 has it as `btclib.ec.curve_group_2`. Act
+  on it by importing `btclib_ecc.curves.curve_group_2` in its place.
+- **`btclib.curves.curve_group_f` is `btclib_ecc.curves.curve_group_f`**
+  (closes #2404), and `import btclib.curves.curve_group_f` raises
+  `ModuleNotFoundError`. v2023.7.12 has it as `btclib.ec.curve_group_f`. Act
+  on it by importing `btclib_ecc.curves.curve_group_f` in its place.
+- **`btclib.curves.sec_point` is `btclib_ecc.curves.sec_point`** (closes
+  #2404), and `import btclib.curves.sec_point` raises `ModuleNotFoundError`.
+  v2023.7.12 has it as `btclib.ec.sec_point`. Act on it by importing
+  `btclib_ecc.curves.sec_point` in its place.
+- **`btclib.kdf` is `btclib_ecc.kdf`** (closes #2404), and `import
+  btclib.kdf` raises `ModuleNotFoundError`. v2023.7.12 has no `btclib.kdf`.
+  Act on it by importing `btclib_ecc.kdf` in its place.
+- **`btclib.number_theory` is `btclib_ecc.number_theory`** (closes #2404),
+  and `import btclib.number_theory` raises `ModuleNotFoundError`. v2023.7.12
+  has `btclib.number_theory`. Act on it by importing
+  `btclib_ecc.number_theory` in its place.
+- **`btclib.ecc.bip340_nonce` is `btclib_ecc.ecc.bip340_nonce`** (closes
+  #2404), and `import btclib.ecc.bip340_nonce` raises `ModuleNotFoundError`.
+  v2023.7.12 has `btclib.ecc.bip340_nonce`. Act on it by importing
+  `btclib_ecc.ecc.bip340_nonce` in its place.
+- **`btclib.ecc.borromean` is `btclib_ecc.ecc.borromean`** (closes #2404),
+  and `import btclib.ecc.borromean` raises `ModuleNotFoundError`. v2023.7.12
+  has `btclib.ecc.borromean`. Act on it by importing
+  `btclib_ecc.ecc.borromean` in its place.
+- **`btclib.ecc.commit_nonce` is `btclib_ecc.ecc.commit_nonce`** (closes
+  #2404), and `import btclib.ecc.commit_nonce` raises `ModuleNotFoundError`.
+  v2023.7.12 has no `btclib.ecc.commit_nonce`, its sign-to-contract module
+  being `btclib.ecc.sign_to_contract`, which an earlier bullet records as
+  gone. Act on it by importing
+  `btclib_ecc.ecc.commit_nonce` in its place.
+- **`btclib.ecc.dh` is `btclib_ecc.ecc.dh`** (closes #2404), and `import
+  btclib.ecc.dh` raises `ModuleNotFoundError`. v2023.7.12 has
+  `btclib.ecc.dh`. Act on it by importing `btclib_ecc.ecc.dh` in its place.
+- **`btclib.ecc.dleq` is `btclib_ecc.ecc.dleq`** (closes #2404), and `import
+  btclib.ecc.dleq` raises `ModuleNotFoundError`. v2023.7.12 has no
+  `btclib.ecc.dleq`. Act on it by importing `btclib_ecc.ecc.dleq` in its
+  place.
+- **`btclib.ecc.dsa` is `btclib_ecc.ecc.dsa`** (closes #2404), and `import
+  btclib.ecc.dsa` raises `ModuleNotFoundError`. v2023.7.12 has
+  `btclib.ecc.dsa`. Act on it by importing `btclib_ecc.ecc.dsa` in its
+  place.
+- **`btclib.ecc.ecies` is `btclib_ecc.ecc.ecies`** (closes #2404), and
+  `import btclib.ecc.ecies` raises `ModuleNotFoundError`. v2023.7.12 has no
+  `btclib.ecc.ecies`. Act on it by importing `btclib_ecc.ecc.ecies` in its
+  place.
+- **`btclib.ecc.frost` is `btclib_ecc.ecc.frost`** (closes #2404), and
+  `import btclib.ecc.frost` raises `ModuleNotFoundError`. v2023.7.12 has no
+  `btclib.ecc.frost`. Act on it by importing `btclib_ecc.ecc.frost` in its
+  place.
+- **`btclib.ecc.musig2` is `btclib_ecc.ecc.musig2`** (closes #2404), and
+  `import btclib.ecc.musig2` raises `ModuleNotFoundError`. v2023.7.12 has no
+  `btclib.ecc.musig2`. Act on it by importing `btclib_ecc.ecc.musig2` in its
+  place.
+- **`btclib.ecc.pedersen` is `btclib_ecc.ecc.pedersen`** (closes #2404), and
+  `import btclib.ecc.pedersen` raises `ModuleNotFoundError`. v2023.7.12 has
+  `btclib.ecc.pedersen`. Act on it by importing `btclib_ecc.ecc.pedersen` in
+  its place.
+- **`btclib.ecc.rangeproof` is `btclib_ecc.ecc.rangeproof`** (closes #2404),
+  and `import btclib.ecc.rangeproof` raises `ModuleNotFoundError`.
+  v2023.7.12 has no `btclib.ecc.rangeproof`. Act on it by importing
+  `btclib_ecc.ecc.rangeproof` in its place.
+- **`btclib.ecc.rfc6979_nonce` is `btclib_ecc.ecc.rfc6979_nonce`** (closes
+  #2404), and `import btclib.ecc.rfc6979_nonce` raises
+  `ModuleNotFoundError`. v2023.7.12 has `btclib.ecc.rfc6979_nonce`. Act on
+  it by importing `btclib_ecc.ecc.rfc6979_nonce` in its place.
+- **`btclib.ecc.ssa` is `btclib_ecc.ecc.ssa`** (closes #2404), and `import
+  btclib.ecc.ssa` raises `ModuleNotFoundError`. v2023.7.12 has
+  `btclib.ecc.ssa`. Act on it by importing `btclib_ecc.ecc.ssa` in its
+  place.
+- **`btclib.ecc.diffie_hellman` is `btclib_ecc.ecc.diffie_hellman`** (closes
+  #2404), and `from btclib.ecc import diffie_hellman` raises `ImportError`.
+  v2023.7.12's `btclib.ecc` has `diffie_hellman`. Act on it by importing it
+  from `btclib_ecc.ecc` instead.
+- **`btclib.ecc.second_generator` is `btclib_ecc.ecc.second_generator`**
+  (closes #2404), and `from btclib.ecc import second_generator` raises
+  `ImportError`. v2023.7.12's `btclib.ecc` has `second_generator`. Act on it
+  by importing it from `btclib_ecc.ecc` instead.
+- **`btclib.ecc.ellswift.create_var` is
+  `btclib_ecc.ecc.ellswift.create_var`** (closes #2404), and `from
+  btclib.ecc.ellswift import create_var` raises `ImportError`. v2023.7.12
+  has no `create_var`. Act on it by importing it from
+  `btclib_ecc.ecc.ellswift` instead.
+- **`btclib.ecc.ellswift.decode_var` is
+  `btclib_ecc.ecc.ellswift.decode_var`** (closes #2404), and `from
+  btclib.ecc.ellswift import decode_var` raises `ImportError`. v2023.7.12
+  has no `decode_var`. Act on it by importing it from
+  `btclib_ecc.ecc.ellswift` instead.
+- **`btclib.ecc.ellswift.encode_var` is
+  `btclib_ecc.ecc.ellswift.encode_var`** (closes #2404), and `from
+  btclib.ecc.ellswift import encode_var` raises `ImportError`. v2023.7.12
+  has no `encode_var`. Act on it by importing it from
+  `btclib_ecc.ecc.ellswift` instead.
+- **`btclib.hashes.tagged_hash` is `btclib_ecc.hashes.tagged_hash`** (closes
+  #2404), and `from btclib.hashes import tagged_hash` raises `ImportError`.
+  v2023.7.12's `btclib.hashes` has `tagged_hash`. Act on it by importing it
+  from `btclib_ecc.hashes` instead.
+- **`btclib.hashes.reduce_to_hlen` is `btclib_ecc.hashes.reduce_to_hlen`**
+  (closes #2404), and `from btclib.hashes import reduce_to_hlen` raises
+  `ImportError`. v2023.7.12's `btclib.hashes` has `reduce_to_hlen`. Act on
+  it by importing it from `btclib_ecc.hashes` instead.
+- **`btclib.exceptions.BTClibEccException` is
+  `btclib_ecc.exceptions.BTClibEccException`** (closes #2404), and `from
+  btclib.exceptions import BTClibEccException` raises `ImportError`.
+  v2023.7.12 has no `BTClibEccException`. Act on it by importing it from
+  `btclib_ecc.exceptions` instead.
+- **`btclib.exceptions.BTClibEccValueError` is
+  `btclib_ecc.exceptions.BTClibEccValueError`** (closes #2404), and `from
+  btclib.exceptions import BTClibEccValueError` raises `ImportError`.
+  v2023.7.12 has no `BTClibEccValueError`. Act on it by importing it from
+  `btclib_ecc.exceptions` instead.
+- **`btclib.exceptions.BTClibEccTypeError` is
+  `btclib_ecc.exceptions.BTClibEccTypeError`** (closes #2404), and `from
+  btclib.exceptions import BTClibEccTypeError` raises `ImportError`.
+  v2023.7.12 has no `BTClibEccTypeError`. Act on it by importing it from
+  `btclib_ecc.exceptions` instead.
+- **`btclib.exceptions.BTClibEccRuntimeError` is
+  `btclib_ecc.exceptions.BTClibEccRuntimeError`** (closes #2404), and `from
+  btclib.exceptions import BTClibEccRuntimeError` raises `ImportError`.
+  v2023.7.12 has no `BTClibEccRuntimeError`. Act on it by importing it from
+  `btclib_ecc.exceptions` instead.
+- **`btclib.exceptions.BorromeanRingError` is
+  `btclib_ecc.exceptions.BorromeanRingError`** (closes #2404), and `from
+  btclib.exceptions import BorromeanRingError` raises `ImportError`.
+  v2023.7.12 has no `BorromeanRingError`. Act on it by importing it from
+  `btclib_ecc.exceptions` instead.
+- **`btclib.exceptions.InvalidContributionError` is
+  `btclib_ecc.exceptions.InvalidContributionError`** (closes #2404), and
+  `from btclib.exceptions import InvalidContributionError` raises
+  `ImportError`. v2023.7.12 has no `InvalidContributionError`. Act on it by
+  importing it from `btclib_ecc.exceptions` instead.
+- **`btclib.p2p.magic_from_chain` is `bitcoin_core_rpc.magic_from_chain`**
+  (closes #2404), and `from btclib.p2p import magic_from_chain` raises
+  `ImportError`. v2023.7.12 has no `magic_from_chain`. Act on it by
+  importing it from `bitcoin_core_rpc` instead.
+- **`btclib.p2p.magic_from_signet_challenge` is
+  `bitcoin_core_rpc.magic_from_signet_challenge`** (closes #2404), and `from
+  btclib.p2p import magic_from_signet_challenge` raises `ImportError`.
+  v2023.7.12 has no `magic_from_signet_challenge`. Act on it by importing it
+  from `bitcoin_core_rpc` instead.
+- **`btclib.p2p.magic.magic_from_chain` is
+  `bitcoin_core_rpc.magic_from_chain`** (closes #2404), and `from
+  btclib.p2p.magic import magic_from_chain` raises `ImportError`. v2023.7.12
+  has no `magic_from_chain`. Act on it by importing it from
+  `bitcoin_core_rpc` instead.
+- **`btclib.p2p.magic.magic_from_signet_challenge` is
+  `bitcoin_core_rpc.magic_from_signet_challenge`** (closes #2404), and `from
+  btclib.p2p.magic import magic_from_signet_challenge` raises `ImportError`.
+  v2023.7.12 has no `magic_from_signet_challenge`. Act on it by importing it
+  from `bitcoin_core_rpc` instead.
+
 ## v2026.9.29
 
 ### Breaking changes

@@ -19,14 +19,15 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
+from btclib_ecc.curves import point_from_octets
+from btclib_ecc.exceptions import BTClibEccValueError
 from typing_extensions import override
 
 from btclib import b32, b58, var_bytes
 from btclib.alias import Octets, ScriptList, ScriptType, String, TaprootScriptTree
 from btclib.b32 import _v0_witness_program_from_key, _v0_witness_program_from_script
 from btclib.b58 import _script_hash_from_redeem_script
-from btclib.curves import point_from_octets
-from btclib.exceptions import BTClibEccValueError, BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.key import PubKeyData
 from btclib.network import (

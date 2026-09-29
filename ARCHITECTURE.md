@@ -10,13 +10,14 @@ expectations hold is the [assurance case](./ASSURANCE_CASE.md).
 
 Elliptic-curve arithmetic and the cryptography built on it are
 [btclib_ecc](https://github.com/btclib-org/ellipticcurves), a required
-dependency: `curves`, `number_theory`, `kdf`, `ecc` except `ecc.bms`, and
-the SwiftEC map of `ecc.ellswift`. btclib binds each of those names again
-under its btclib path, so `btclib.curves.mult` is
-`btclib_ecc.curves.mult`, the same object; `tests/all_test.py`'s
-`REEXPORTED` holds every such module to that. What those names raise is
-btclib_ecc's exception classes, which derive from the built-in classes
-and not from `BTClibException`.
+dependency: `curves`, `number_theory`, `kdf`, `ecc` and the SwiftEC map
+of `ecc.ellswift`. btclib imports each name it uses from
+`btclib_ecc` and publishes none of them: `btclib_ecc.curves.mult` is spelt
+that way and no other, and `tests/all_test.py`'s
+`test_no_module_exports_another_distributions_name` holds every `__all__`
+of btclib to it. What those names raise is btclib_ecc's exception
+classes, which derive from the built-in classes and not from
+`BTClibException`, and a caller names them from `btclib_ecc.exceptions`.
 
 btclib_ecc delegates secp256k1 to
 [btclib-secp256k1](https://github.com/btclib-org/btclib-secp256k1), the
@@ -24,8 +25,9 @@ cffi bindings to Bitcoin Core's
 [libsecp256k1](https://github.com/bitcoin-core/secp256k1), conditionally,
 and btclib delegates its own few operations on the same condition.
 
-- **One switch.** `curves.is_libsecp256k1_serving` answers whether the
-  process delegates, and `curves.set_libsecp256k1_serving` sets it;
+- **One switch.** `btclib_ecc.curves.is_libsecp256k1_serving` answers
+  whether the process delegates, and
+  `btclib_ecc.curves.set_libsecp256k1_serving` sets it;
   `BTCLIB_ECC_NO_LIBSECP256K1` in the environment sets it off at
   import. btclib's own delegating calls, `ecc.ellswift.xdh`, the
   script engine's signature checks and `script.taproot`'s tweaks, ask it
@@ -49,16 +51,15 @@ and btclib delegates its own few operations on the same condition.
 ## Layers
 
 Roughly bottom-up. The directions that hold without exception are the
-curve's layer, the pairs in the next section and the edge to
+substrate, `ecc` without `ecc.bms`, the pairs in the next section and the edge to
 `btclib_wallet` below, each held by a test; elsewhere a module reaches up
 where its subject asks for it, as `ecc.bms` does for the address a
 message signature names.
 
 - **the substrate**: `alias`, `exceptions`, `utils`
-- **the curve**: `number_theory`, `curves`, bound again from
-  btclib_ecc
-- **what is built on a curve**: `ecc`, and `kdf` beside it, bound again
-  from btclib_ecc but for `ecc.bms` and `ecc.ellswift.xdh`
+- **the curve and what is built on it**: btclib_ecc's `curves`,
+  `number_theory`, `kdf` and `ecc`, in a distribution of their own, with
+  btclib's `ecc.ellswift` beside them
 - **bitcoin's hashes, integers and constants**: `hashes`, `var_int`,
   `var_bytes`, `consensus`, `amount`
 - **networks, keys and addresses**: `network`, `base58`, `bech32`, `key`,
@@ -74,29 +75,28 @@ asserts.
 
 ### What of the curve's layer is btclib's
 
-Two modules under `ecc` are btclib's own rather than btclib_ecc's:
+Two modules under `ecc` are btclib's own, and `btclib.ecc` holds no other:
 
 - `ecc.bms` names its signer by an address, so it imports `b32`, `b58`,
   `key` and `network`, and `ecc` imports it on demand rather than eagerly.
-- `ecc.ellswift` binds btclib_ecc's SwiftEC map again beside `xdh`,
-  `XDH_TAG` and `ELL_SIZE`, BIP324's agreement on the map, which are
-  btclib's.
+- `ecc.ellswift` is `xdh`, `XDH_TAG` and `ELL_SIZE`, BIP324's agreement on
+  btclib_ecc's SwiftEC map, which is btclib's.
 
 ### Each pair is one idea split in two
 
 | the codec or the arithmetic | the bitcoin semantics on top |
 | --- | --- |
-| `btclib.curves`: `Curve`, `mult` | `btclib.ecc`: `dsa`, `ssa`, `bms` |
 | `btclib.base58`: the encoding | `btclib.b58`: WIF, p2pkh, p2sh |
 | `btclib.bech32`: the encoding | `btclib.b32`: p2wpkh, p2wsh, p2tr |
 
 The right column imports the left one, and the left never imports the
-right. So `from btclib.ecc import dsa` for a signature,
-`from btclib.curves import mult` for a point multiplication, `btclib.b58`
-for an address, and `btclib.base58` for the encoding on its own. Each of
-these modules states its direction in its docstring, and
-`tests/imports_test.py` holds `btclib.curves`, `btclib.base58` and
+right. So `btclib.b58` for an address, and `btclib.base58` for the
+encoding on its own. Each of these modules states its direction in its
+docstring, and `tests/imports_test.py` holds `btclib.base58` and
 `btclib.bech32` to closures that do not reach the other column.
+
+The same split lies between btclib_ecc's `curves` and its `ecc`, which
+btclib imports in place of a pair of its own.
 
 ### Where a key's spelling is read
 
@@ -108,8 +108,8 @@ network and the compression flag `ecc.bms` signs with.
 Each spelling of a key is read by the module that defines it:
 
 - the scalar and the curve point in their octet spellings are facts about
-  the curve, read by `curves.scalar_from_prv_key` and
-  `curves.point_from_pub_key`
+  the curve, read by `btclib_ecc.curves.scalar_from_prv_key` and
+  `btclib_ecc.curves.point_from_pub_key`
 - the network and the compression, which a record carries and a key does
   not, are `key`'s
 - a WIF is Base58Check with a prefix and a flag, so

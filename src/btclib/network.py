@@ -39,7 +39,7 @@ that decides where the table lives.
 where this package keeps the json files loaded at the bottom of this
 file, so it answers a question about the installation and not one about a
 network, and the only code that reads it is the loop it is written for --
-`btclib.curves.curve` has a `datadir` of its own for its own catalogues.
+`btclib_ecc.curves.curve` has a `datadir` of its own for its own catalogues.
 It is still `btclib.network.datadir` for a caller who wants the path.
 """
 
@@ -53,9 +53,10 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
+from btclib_ecc.curves import CURVES, Curve
+
 from btclib.alias import NetworkField, NetworkName, NetworkType, Octets
 from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams
-from btclib.curves import CURVES, Curve
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import assert_type, bytes_from_octets, fields_from_json_object
 

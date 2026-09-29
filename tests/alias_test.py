@@ -20,9 +20,10 @@ import inspect
 from typing import Any, get_args, get_type_hints
 
 import pytest
+from btclib_ecc.hashes import reduce_to_hlen, tagged_hash
 
 from btclib.alias import HashDigestF, HashF, HashObject, Octets
-from btclib.hashes import hash256, merkle_root, reduce_to_hlen, tagged_hash
+from btclib.hashes import hash256, merkle_root
 
 
 def test_the_two_hash_notions_are_not_interchangeable() -> None:

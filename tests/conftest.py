@@ -26,9 +26,8 @@ from pathlib import Path
 from typing import Any, Protocol
 
 import pytest
+from btclib_ecc.curves import is_libsecp256k1_serving, set_libsecp256k1_serving
 from hypothesis import settings
-
-from btclib.curves import is_libsecp256k1_serving, set_libsecp256k1_serving
 
 # whether the bindings can be imported at all, asked of the import system
 # without importing them: `curves.is_libsecp256k1_serving` answers whether

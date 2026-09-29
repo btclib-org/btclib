@@ -33,9 +33,9 @@ and the one key spelling that names a network, and through it a curve,
 is an xpub: `btclib_wallet.bip32` reads it, and the test of that
 mismatch is there.
 
-The functions of the btclib_ecc package that btclib re-exports take
-an `ec` too, and that package's suite is the table for them (issue
-#2282): what is here is the `ec` of btclib's own code.
+The functions of the btclib_ecc package take an `ec` too, and that
+package's suite is the table for them: what is here is the `ec` of
+btclib's own code.
 
 ## The walk is what makes the table complete
 
@@ -65,9 +65,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from btclib_ecc.curves import Curve, CurveGroup, mult, secp256k1
+from btclib_ecc.ecc import ellswift as ecc_ellswift
 
 from btclib.consensus import CONSENSUS_PARAMS
-from btclib.curves import Curve, CurveGroup, mult, secp256k1
 from btclib.ecc import ellswift
 from btclib.exceptions import BTClibTypeError
 from btclib.network import NETWORKS, Network
@@ -78,8 +79,8 @@ _LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 _WRONG_TYPES: tuple[Any, ...] = (None, 1.5)
 
 _PRV_KEY = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
-_ELL = ellswift.encode_var(mult(_PRV_KEY))
-_ELL_2 = ellswift.encode_var(mult(_PRV_KEY + 1))
+_ELL = ecc_ellswift.encode_var(mult(_PRV_KEY))
+_ELL_2 = ecc_ellswift.encode_var(mult(_PRV_KEY + 1))
 
 # a group and not a curve: it has p, a and b and neither the n nor the G a
 # Curve adds, which is the wrong type a check against the group would let
@@ -162,9 +163,9 @@ def _curve_parameters() -> set[str]:
     A method counts, `Network.__init__` being one, and a private function
     does not: the guard is what those call.
 
-    The walk reads btclib's own files, so what btclib re-exports of the
-    btclib_ecc package is not in it: those names are imports there,
-    and that package's own suite drives its `ec` parameters.
+    The walk reads btclib's own files, so the btclib_ecc package's functions
+    are not in it, and that package's own suite drives their `ec`
+    parameters.
     """
     found: set[str] = set()
 
@@ -253,8 +254,6 @@ def test_the_walk_reaches_what_it_claims() -> None:
     assert "btclib.ecc.ellswift.xdh" in found
     assert "btclib.network.Network.__init__" in found
 
-    # a private function taking an ec, a re-exported one, and one with no
-    # ec at all
+    # a private function taking an ec, and one with no ec at all
     assert "btclib.ecc.ellswift._ell_from_octets" not in found
-    assert "btclib.ecc.dsa.sign" not in found
     assert "btclib.hashes.sha256" not in found

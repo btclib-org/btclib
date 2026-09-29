@@ -9,10 +9,10 @@ from dataclasses import fields
 from typing import Any, get_args
 
 import pytest
+from btclib_ecc.curves.curve import CURVES
 
 from btclib.alias import NetworkField, NetworkName
 from btclib.consensus import CONSENSUS_PARAMS
-from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import (
     NETWORKS,

@@ -68,10 +68,10 @@ __all__ = [
 #
 # Every buffer, and not `bytes` alone: each is accepted at run time by
 # every consumer of an `Octets`, `utils.bytes_from_octets` being the one
-# coercion they share and `curves.sec_point._PUB_KEY_TYPES` naming the same
-# list from the other side. Narrower here than in the code, this cost a
-# caller who wrote a buffer down a `type: ignore` -- and cost more than
-# that, mypy not being able to see the buffer paths, so a place that
+# coercion they share and `btclib_ecc.curves.sec_point._PUB_KEY_TYPES`
+# naming the same list from the other side. Narrower here than in the code,
+# this cost a caller who wrote a buffer down a `type: ignore` -- and cost
+# more than that, mypy not being able to see the buffer paths, so a place that
 # breaks on one was found a caller at a time (issue #1238)
 #: Bytes, or the hex-string that decodes to them, wherever raw bytes are
 #: asked for.
@@ -309,7 +309,7 @@ class HashObject(Protocol):
 # time. A Protocol declaring __call__ with an optional positional parameter
 # would take both spellings, and would take with the other hand: a
 # zero-argument constructor would no longer be a HashF, which is
-# contravariance and not an oversight. btclib.hashes.reduce_to_hlen is the
+# contravariance and not an oversight. btclib_ecc.hashes.reduce_to_hlen is the
 # one-shot digest, for whoever wants one
 HashF = Callable[[], HashObject]
 
@@ -324,7 +324,7 @@ HashF = Callable[[], HashObject]
 HashDigestF = Callable[[Octets], bytes]
 
 # A block cipher under a key and an initialization vector: (key, iv, data)
-# to the transformed data. btclib.ecc.ecies takes one of these in each
+# to the transformed data. btclib_ecc.ecc.ecies takes one of these in each
 # direction because it ships no cipher of its own; that module's docstring
 # has the contract the two callables must honour, which this name cannot
 # carry -- padding and block size are not in the signature.

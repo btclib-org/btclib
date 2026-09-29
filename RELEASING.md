@@ -566,14 +566,14 @@ to `deps-latest`'s own result.
 1. Install what was just published into an environment of its own,
    then exercise something that touches the shipped data rather than
    only importing it. `import btclib` runs `__init__.py` alone, and the
-   files under `_data/` are read by path when `btclib.network` and
-   `btclib.curves.curve` are first imported, so a wheel missing one
-   would pass `import btclib` and fail only there:
+   files under `_data/` are read by path when `btclib.network` is first
+   imported, so a wheel missing one would pass `import btclib` and fail
+   only there:
 
    ```shell
    uv run --isolated --no-project --with btclib \
      python -c "from btclib.network import NETWORKS; \
-       from btclib.curves import CURVES; \
+       from btclib_ecc.curves import CURVES; \
        print(sorted(NETWORKS), CURVES['secp256r1'].n)"
    ```
 

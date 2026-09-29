@@ -82,12 +82,10 @@ non-empty value in the environment, before btclib is imported, makes
 
    BTCLIB_ECC_NO_LIBSECP256K1=1 python your_script.py
 
-:func:`btclib.curves.set_libsecp256k1_serving
-<btclib.curves.curve.set_libsecp256k1_serving>` changes it from inside a
+``btclib_ecc.curves.set_libsecp256k1_serving`` changes it from inside a
 running process — including back on, so the variable sets the initial
 state rather than locking one — and
-:func:`btclib.curves.is_libsecp256k1_serving
-<btclib.curves.curve.is_libsecp256k1_serving>` reads the answer back.
+``btclib_ecc.curves.is_libsecp256k1_serving`` reads the answer back.
 Both are one state and not two: what they report is whether the next
 call goes to libsecp256k1 or to the Python arithmetic, which is the only
 difference a caller can act on.
@@ -117,7 +115,7 @@ more than the rest.
 ``Octets`` — a message to sign, a script, a hash — a ``str`` is parsed
 with ``bytes.fromhex``. Passing text where hex is expected fails:
 
->>> from btclib.ecc import dsa
+>>> from btclib_ecc.ecc import dsa
 >>> dsa.sign("hello world", 1)
 Traceback (most recent call last):
 btclib_ecc.exceptions.BTClibEccValueError: invalid hex string: non-hexadecimal number found in fromhex() arg at position 0
@@ -162,9 +160,10 @@ The four aliases:
     ``btclib_wallet.bip32.pub_keyinfo_from_xkey(xkey)`` are the two ways
     to reach.
 
-    **The arithmetic layer reads it with** ``curves.scalar_from_prv_key``,
-    and a second name for the same union of types would be nothing a type
-    checker could tell apart (issue #1188). It does not take an extended
+    **The arithmetic layer reads it with**
+    ``btclib_ecc.curves.scalar_from_prv_key``, and a second name for the
+    same union of types would be nothing a type checker could tell apart
+    (issue #1188). It does not take an extended
     key: ``dsa.sign(msg, xprv)`` does not work; pass
     ``btclib_wallet.bip32.prv_keyinfo_from_xprv(xprv)[0]``. ``ecc.bms``
     is narrower still: message signing wants the network and the
@@ -399,7 +398,7 @@ Signing, and checking the result without a node
 The private key below is BIP143's, published in the specification.
 
 >>> prv_key = "619c335025c7f4012e556c2a58b2506e30b8511b53ade95ea316fd8c3286feb9"
->>> from btclib.curves import scalar_from_prv_key
+>>> from btclib_ecc.curves import scalar_from_prv_key
 >>> key = PrvKeyData(scalar_from_prv_key(prv_key))
 >>> pub_key = key.pub.sec
 >>> pub_key.hex()
@@ -413,7 +412,7 @@ already reduced the input with the hash function". ``dsa.sign`` would
 hash its argument again, which is not what you want here — the sighash
 *is* the message.
 
->>> from btclib.ecc import dsa
+>>> from btclib_ecc.ecc import dsa
 >>> msg_hash = sig_hash.from_tx([prevout], unsigned, 0, 0x01)
 >>> sig = dsa.sign_(msg_hash, prv_key)
 >>> sig.serialize().hex()
@@ -482,16 +481,16 @@ EVAL_FALSE -- Script evaluated without error but finished with a false/empty top
 Signatures on their own
 -----------------------
 
-The two schemes live in :mod:`btclib.ecc.dsa` (ECDSA, what pre-taproot
-bitcoin uses) and :mod:`btclib.ecc.ssa` (BIP340 Schnorr, what taproot
-uses). Both come in two spellings, and the difference is the trailing
+The two schemes live in ``btclib_ecc.ecc.dsa`` (ECDSA, what pre-taproot
+bitcoin uses) and ``btclib_ecc.ecc.ssa`` (BIP340 Schnorr, what taproot
+uses), in the ``btclib-ecc`` distribution that btclib depends on. Both come in two spellings, and the difference is the trailing
 underscore: ``sign`` hashes its argument for you, ``sign_`` takes the
 hash.
 
 ECDSA
 ~~~~~
 
->>> from btclib.ecc import dsa
+>>> from btclib_ecc.ecc import dsa
 >>> sig = dsa.sign(b"Satoshi Nakamoto", prv_key)
 >>> sig.serialize().hex()
 '304402204729dbf89f9288d56d32d1aea04db19df37c45c0a02863602f9ad98e7e506ce4022017489be41857144bf5782e964632d254b6b13ea22ce84837f775540784341f43'
@@ -515,7 +514,7 @@ are computed by any signer and thrown away by ``sign``.
 >>> sig, key_id = dsa.sign_recoverable(b"Satoshi Nakamoto", prv_key)
 >>> key_id
 1
->>> from btclib.curves import bytes_from_point
+>>> from btclib_ecc.curves import bytes_from_point
 >>> recovered = dsa.recover_pub_key(key_id, b"Satoshi Nakamoto", sig)
 >>> bytes_from_point(recovered) == pub_key
 True
@@ -526,7 +525,7 @@ BIP340 Schnorr
 BIP340 keys are x-only: 32 bytes, with the y coordinate implied even.
 ``gen_keys`` returns the scalar and that x coordinate.
 
->>> from btclib.ecc import ssa
+>>> from btclib_ecc.ecc import ssa
 >>> q, x_Q = ssa.gen_keys(
 ...     "B7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF"
 ... )
