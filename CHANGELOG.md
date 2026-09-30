@@ -53,6 +53,12 @@ The section is the same in every repository, and the rest of the file
 drops what `CONTRIBUTING.md`, the standard and the tests already state
 (issue btclib-org/.github#1494).
 
+### `release.yml` audits the lock before it publishes
+
+- **The `audit` job runs `uv audit` over what the wheel declares**, by calling
+  btclib-org/.github's `reusable-audit.yml`, and both publish jobs wait for
+  its success (closes btclib-org/.github#1466).
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again
