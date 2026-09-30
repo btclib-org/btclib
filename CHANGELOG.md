@@ -47,6 +47,14 @@ file per release is what keeps each of them under it.
   An array or an object leaked the built-in `TypeError`; a number, a bool or
   `null` left as `BTClibValueError`, which `except ValueError` no longer catches.
 
+### `btclib.script.solver` classifies a script_pub_key as Bitcoin Core's `Solver` does
+
+- **`solver` answers Core's eleven types and its solutions** (closes #2456),
+  and `get_txn_output_type` their names, read at bitcoin/bitcoin@9be056a8a7
+  (v31.1). `type_and_payload` is unchanged: it stays narrower (issue #211),
+  parsing p2pk and p2ms keys as curve points, taking one nulldata push of at
+  most 80 bytes, and having no anchor type.
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again

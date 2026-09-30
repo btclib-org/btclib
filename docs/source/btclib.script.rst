@@ -54,6 +54,13 @@ btclib.script.sig\_ops module
    :members:
    :show-inheritance:
 
+btclib.script.solver module
+---------------------------
+
+.. automodule:: btclib.script.solver
+   :members:
+   :show-inheritance:
+
 btclib.script.spendability module
 ---------------------------------
 
