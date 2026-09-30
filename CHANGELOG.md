@@ -43,8 +43,9 @@ file per release is what keeps each of them under it.
 
 ### `Network.from_dict` refuses a non-string network type
 
-- **A malformed `network_type` field leaves as `BTClibTypeError`**, instead of
-  leaking the membership check's built-in `TypeError` (closes #2434).
+- **A non-string `network_type` leaves as `BTClibTypeError`** (closes #2434).
+  An array or an object leaked the built-in `TypeError`; a number, a bool or
+  `null` left as `BTClibValueError`, which `except ValueError` no longer catches.
 
 ## v2026.9.30
 
