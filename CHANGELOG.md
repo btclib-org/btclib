@@ -106,6 +106,12 @@ The coinbase script length / null-prevout check now runs last in
 `assert_valid`, and each output's value and the running total are checked in
 one pass, matching `CheckTransaction`'s own order (closes #2417).
 
+### `codeql.yml`'s aggregate runs `check_run_jobs.py`
+
+The aggregate's step runs `check_run_jobs.py`, which reads the run's jobs
+listing again up to a deadline while a row of `analyze` is unfinished
+(issue btclib-org/.github#1463).
+
 ### `Tx.assert_valid` refuses an oversize transaction
 
 The stripped size, weighed `WITNESS_SCALE_FACTOR` times against
