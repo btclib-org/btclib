@@ -362,8 +362,11 @@ def test_a_count_pushed_where_an_op_code_exists_is_refused() -> None:
     _check(b"\x01\x01" + key_push + b"\x51\xae", "nonstandard", [])
     _check(b"\x4c\x01\x01" + key_push + b"\x51\xae", "nonstandard", [])
     _check(b"\x51" + key_push + b"\x01\x01\xae", "nonstandard", [])
-    # a push of the right size and a number that is not minimal
-    _check(b"\x02\x11\x00" + key_push + b"\x51\xae", "nonstandard", [])
+    # in range, and refused only because CScriptNum wants 1 as 01, not 01 00:
+    # m first, then n
+    _check(b"\x02\x01\x00" + key_push + b"\x51\xae", "nonstandard", [])
+    _check(b"\x51" + key_push + b"\x02\x01\x00\xae", "nonstandard", [])
+    # -1, minimal as it is, which the range check refuses
     _check(b"\x02\x01\x80" + key_push + b"\x51\xae", "nonstandard", [])
 
 

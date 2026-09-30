@@ -177,7 +177,7 @@ ScriptType = Literal[
     "witness_unknown",
 ]
 
-# What Bitcoin Core's `Solver` classifies a script_pub_key as: the eleven
+# What Bitcoin Core's `Solver` classifies a script_pub_key as: the
 # values of its TxoutType, spelled as its GetTxnOutputType spells them.
 # Closed, and not ScriptType: that one is what `type_and_payload` answers,
 # which is narrower than Core's classification (issue #211) and names its

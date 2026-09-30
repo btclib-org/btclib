@@ -7,7 +7,7 @@
 A port of `Solver` and `GetTxnOutputType` from `script/solver.cpp`, read at
 bitcoin/bitcoin@9be056a8a7 (v31.1), with the helpers it calls in
 `script/script.cpp`. Where `script_pub_key.type_and_payload` answers one
-payload and names nine types, this answers Core's eleven types and the
+payload and names its types its own way, this answers Core's types and the
 list of solutions Core fills, which is what `IsStandardTx`,
 `AreInputsStandard` and the wallet read.
 
