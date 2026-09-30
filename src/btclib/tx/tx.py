@@ -18,6 +18,7 @@ from typing_extensions import override
 from btclib import var_int
 from btclib.alias import BinaryData
 from btclib.amount import _MAX_SATOSHI
+from btclib.consensus import MAX_BLOCK_WEIGHT, WITNESS_SCALE_FACTOR
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.script.sig_ops import sig_op_count as script_sig_op_count
@@ -102,11 +103,11 @@ class Tx:  # noqa: PLW1641
     Mutable, being what a builder and a signer edit in place; `id` and
     `hash` are computed from the current state on every read, so they
     follow the edits. assert_valid checks what CheckTransaction checks
-    of a lone transaction -- field ranges, the inputs and outputs one
-    by one, the coinbase script size, no outpoint spent twice, the
-    MAX_MONEY bound on the output sum; whether it spends what it claims
-    needs the prevouts, which is script.engine.verify_transaction's
-    question.
+    of a lone transaction -- field ranges, the stripped size against the
+    block weight cap, the inputs and outputs one by one, the coinbase
+    script size, no outpoint spent twice, the MAX_MONEY bound on the
+    output sum; whether it spends what it claims needs the prevouts,
+    which is script.engine.verify_transaction's question.
     """
 
     # 4 bytes, _signed_ little endian
@@ -360,6 +361,18 @@ class Tx:  # noqa: PLW1641
 
         if not unsigned_template and not self.vout:
             raise BTClibValueError("Missing outputs")
+
+        # CheckTransaction's `bad-txns-oversize`: the stripped size --
+        # what a legacy node relays and what the txid hashes over, no
+        # witness included -- weighed WITNESS_SCALE_FACTOR times against
+        # the same MAX_BLOCK_WEIGHT a block is bounded by,
+        # Block.assert_valid_length's own comparison for the block as a
+        # whole rather than for one of its transactions (issue #2420)
+        size = self._serialized_size(include_witness=False)
+        if size * WITNESS_SCALE_FACTOR > MAX_BLOCK_WEIGHT:
+            err_msg = f"invalid transaction size: {size}"
+            err_msg += f" * {WITNESS_SCALE_FACTOR} > {MAX_BLOCK_WEIGHT}"
+            raise BTClibValueError(err_msg)
 
         # CheckTransaction bounds each output and the running total in the
         # same pass over the outputs, not in two: an earlier output can

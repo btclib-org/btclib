@@ -106,6 +106,12 @@ The coinbase script length / null-prevout check now runs last in
 `assert_valid`, and each output's value and the running total are checked in
 one pass, matching `CheckTransaction`'s own order (closes #2417).
 
+### `Tx.assert_valid` refuses an oversize transaction
+
+The stripped size, weighed `WITNESS_SCALE_FACTOR` times against
+`MAX_BLOCK_WEIGHT` -- CheckTransaction's `bad-txns-oversize`, which nothing
+here checked before (closes #2420).
+
 ## v2026.9.29
 
 ### `requires-python` moves to `>=3.11`
