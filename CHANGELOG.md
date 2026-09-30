@@ -112,6 +112,24 @@ The aggregate's step runs `check_run_jobs.py`, which reads the run's jobs
 listing again up to a deadline while a row of `analyze` is unfinished
 (issue btclib-org/.github#1463).
 
+### `Tx.assert_valid` refuses an oversize transaction
+
+The stripped size, weighed `WITNESS_SCALE_FACTOR` times against
+`MAX_BLOCK_WEIGHT` -- CheckTransaction's `bad-txns-oversize`, which nothing
+here checked before (closes #2420).
+
+### `assert_valid_structure` checks the merkle root right after proof-of-work
+
+`assert_valid_structure` checks the merkle root right after the header and its
+proof-of-work, `CheckBlock`'s own position for it, rather than after every
+transaction and the sigop bound (closes #2425).
+
+### An empty transaction list's merkle root is the all-zero hash, not a raise
+
+`merkle_root_and_mutated_from_hashes` now answers Core's own
+`ComputeMerkleRoot([])`, so `assert_valid_length` refuses the empty list
+itself, `bad-blk-length`'s own first question (closes #2427).
+
 ## v2026.9.29
 
 ### `requires-python` moves to `>=3.11`

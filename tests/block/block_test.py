@@ -527,9 +527,20 @@ def test_block_200000() -> None:
     block.transactions.pop(0)
     err_msg = "first transaction is not a coinbase"
     with pytest.raises(BTClibValueError, match=err_msg):
-        block.assert_valid()
-    with pytest.raises(BTClibValueError, match=err_msg):
         _ = block.height
+
+    # the same rule, reached through assert_valid_structure and not
+    # only through height: CheckBlock checks the merkle root before it
+    # checks the first transaction is a coinbase (issue #2425), so the
+    # header's root is recomputed over the twice-reduced list first, and
+    # assert_valid_structure is asked directly -- a new root needs its
+    # own new proof-of-work, which nothing here can grind for block
+    # 200000's real, mainnet-grade difficulty
+    new_root, mutated = merkle_root_and_mutated_from_transactions(block.transactions)
+    assert not mutated
+    block.header.merkle_root = new_root
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_structure()
 
 
 def test_block_merkle_mutation() -> None:
@@ -870,11 +881,17 @@ def test_difficulty_decodes_bits_once() -> None:
 
 
 def test_block_without_transactions() -> None:
-    """A block with no coinbase is not a block with nothing in it.
+    """Core's bad-txnmrklroot or bad-blk-length, depending on the header.
 
-    One byte is all it takes: a var_int of zero where the transaction
-    count goes, refused here rather than left for transactions[0] to
-    surface as an IndexError.
+    An empty transaction list's own merkle root is Core's own all-zero
+    one, `ComputeMerkleRoot`'s fallthrough rather than a raise
+    (issue #2427). `CheckBlock` checks the merkle root before the size
+    limits (issue #2425), so a header whose own root is not all-zero --
+    every real header -- answers there, `invalid merkle root`, where a
+    real node reports `bad-txnmrklroot`. Only a header already carrying
+    the all-zero root passes the merkle check and reaches
+    `assert_valid_length`'s own "empty transaction list", Core's
+    `bad-blk-length`.
     """
     fname = "block_1.bin"
     filename = Path(__file__).parent / "_data" / fname
@@ -883,12 +900,26 @@ def test_block_without_transactions() -> None:
 
     # the count follows the 80 bytes of the header
     emptied = block_bytes[:80] + b"\x00"
-    with pytest.raises(BTClibValueError, match="block with no transactions"):
+    with pytest.raises(BTClibValueError, match="invalid merkle root: "):
         Block.parse(emptied)
 
     header = Block.parse(block_bytes).header
-    with pytest.raises(BTClibValueError, match="block with no transactions"):
+    with pytest.raises(BTClibValueError, match="invalid merkle root: "):
         Block(header, [])
+
+    # a header already carrying the all-zero root passes the merkle
+    # check and reaches assert_valid_length instead. Proof-of-work
+    # cannot survive a merkle_root change (a different header, a
+    # different hash), so assert_valid_structure is asked directly
+    # rather than assert_valid -- nothing here can grind block 1's real,
+    # mainnet-grade difficulty for a new header
+    header.merkle_root = b"\x00" * 32
+    with pytest.raises(BTClibValueError, match="empty transaction list"):
+        Block(header, [], check_validity=False).assert_valid_structure()
+
+    # the message this test is named for, still reachable directly
+    with pytest.raises(BTClibValueError, match="block with no transactions"):
+        Block(header, [], check_validity=False)._assert_coinbase()
 
 
 def test_bip34_commitment_op_int_range_is_minus_one_to_sixteen() -> None:
@@ -924,17 +955,18 @@ def test_assert_valid_coinbase_height_reads_the_first_transaction() -> None:
 def test_a_block_carries_one_coinbase() -> None:
     """A second coinbase is refused, as Core's bad-cb-multiple.
 
-    No vector can state this. The proof-of-work is checked before the
-    transaction list is read, so a block carrying two coinbases is
-    refused for its work long before the rule would fire, and adding a
-    coinbase to a real block moves the merkle root its header commits
-    to -- there is no well-formed block with valid work and two
-    coinbases to be had. So the block is built here instead: block
-    200000's own coinbase, put back a second time over the transaction
-    that followed it.
-
-    The merkle root the block no longer has is checked after this rule,
-    which is where Core checks it too (issue #250).
+    No vector can state this through assert_valid: the proof-of-work is
+    checked before the transaction list is read, and grinding one for a
+    two-coinbase block is beyond a toy miner at mainnet's difficulty.
+    assert_valid_structure needs no work, so it is asked directly
+    instead, on block 200000's own coinbase put back a second time over
+    the transaction that followed it -- a copy with its own lock_time,
+    distinct from the first, so the pair is not also the CVE-2012-2459
+    duplicate merkle_root_and_mutated_from_transactions would refuse on
+    its own, and with the header's merkle root recomputed over the
+    mutated list so that check, which CheckBlock asks first
+    (issue #2425), does not answer instead of the rule this test means
+    to isolate.
     """
     fname = "block_200000.bin"
     filename = Path(__file__).parent / "_data" / fname
@@ -942,18 +974,33 @@ def test_a_block_carries_one_coinbase() -> None:
         block_bytes = file_.read()
 
     block = Block.parse(block_bytes)
-    block.transactions[1] = block.transactions[0]
+    coinbase = block.transactions[0]
+    second_coinbase = Tx(
+        coinbase.version, coinbase.lock_time + 1, coinbase.vin, coinbase.vout
+    )
+    block.transactions[1] = second_coinbase
+
+    merkle_root, mutated = merkle_root_and_mutated_from_transactions(block.transactions)
+    assert not mutated
+    block.header.merkle_root = merkle_root
+
     with pytest.raises(BTClibValueError, match="more than one coinbase"):
-        block.assert_valid()
+        block.assert_valid_structure()
 
 
 def test_assert_valid_checks_the_coinbase_transaction() -> None:
-    """Refuse an invalid coinbase before checking its changed txid.
+    """Refuse an invalid coinbase, once the merkle root it changed is fixed.
 
     Emptying the script_sig violates CheckTransaction's coinbase rule and
-    also changes the merkle root. The transaction rule comes first in
-    CheckBlock, so a merkle-root error would mean the coinbase itself was
-    skipped.
+    also changes the coinbase's txid, hence the merkle root -- and
+    CheckBlock checks the merkle root before it runs CheckTransaction on
+    any transaction (issue #2425), so an unfixed root would answer
+    `bad-txnmrklroot` and the coinbase rule this test means to isolate
+    would never be reached. The header's merkle root is recomputed over
+    the mutated transaction list, and assert_valid_structure is asked
+    directly rather than assert_valid: a header carrying a new root needs
+    its own new proof-of-work, which nothing here can grind for block
+    1's real, mainnet-grade difficulty.
     """
     fname = "block_1.bin"
     filename = Path(__file__).parent / "_data" / fname
@@ -961,8 +1008,12 @@ def test_assert_valid_checks_the_coinbase_transaction() -> None:
         block = Block.parse(file_.read())
 
     block.transactions[0].vin[0].script_sig = b""
+    merkle_root, mutated = merkle_root_and_mutated_from_transactions(block.transactions)
+    assert not mutated
+    block.header.merkle_root = merkle_root
+
     with pytest.raises(BTClibValueError, match="Invalid coinbase script size"):
-        block.assert_valid()
+        block.assert_valid_structure()
 
 
 def test_assert_valid_checks_the_first_transaction_and_not_the_last() -> None:
@@ -972,6 +1023,14 @@ def test_assert_valid_checks_the_first_transaction_and_not_the_last() -> None:
     object: `self.transactions[0].assert_valid()` weakened to `[-1]`
     needs a second transaction to be told from the loop that already
     validates every one but the first.
+
+    Growing the coinbase's script_sig also changes its txid, hence the
+    merkle root, and CheckBlock checks that before it runs
+    CheckTransaction on any transaction (issue #2425): the header's
+    root is recomputed over the mutated list, and assert_valid_structure
+    is asked directly, since a new root needs its own new
+    proof-of-work, which nothing here can grind for block 200000's
+    real, mainnet-grade difficulty.
     """
     fname = "block_200000.bin"
     filename = Path(__file__).parent / "_data" / fname
@@ -980,8 +1039,12 @@ def test_assert_valid_checks_the_first_transaction_and_not_the_last() -> None:
 
     assert len(block.transactions) > 1
     block.transactions[0].vin[0].script_sig = b"\x00" * 101
+    merkle_root, mutated = merkle_root_and_mutated_from_transactions(block.transactions)
+    assert not mutated
+    block.header.merkle_root = merkle_root
+
     with pytest.raises(BTClibValueError, match="Invalid coinbase script size"):
-        block.assert_valid()
+        block.assert_valid_structure()
 
 
 def test_assert_valid_does_not_rewrite_the_header() -> None:
@@ -1125,10 +1188,13 @@ def test_a_block_cannot_announce_too_many_sigops() -> None:
     -- the count is what the bytes announce, not what executing them
     would do.
 
-    The mutation moves the merkle root as well, so the block is invalid
-    twice over, and which answer comes back says where the rule sits:
-    Core asks the sigop question last of CheckBlock's own, after every
-    transaction has been checked on its own.
+    The mutation moves the merkle root too, and CheckBlock now asks that
+    question first of all (issue #2425), so the header's merkle root is
+    recomputed over the mutated coinbase before the over-the-cap case is
+    checked, and assert_valid_structure is asked directly rather than
+    assert_valid: a header carrying a new root needs its own new
+    proof-of-work, which nothing here can grind for block 1's real,
+    mainnet-grade difficulty.
     """
     fname = "block_1.bin"
     filename = Path(__file__).parent / "_data" / fname
@@ -1157,8 +1223,14 @@ def test_a_block_cannot_announce_too_many_sigops() -> None:
         err_msg = f"invalid sigop cost: {(count) * WITNESS_SCALE_FACTOR} > 80000"
         with pytest.raises(BTClibValueError, match=err_msg):
             block.assert_valid_sig_op_count()
+
+        merkle_root, mutated = merkle_root_and_mutated_from_transactions(
+            block.transactions
+        )
+        assert not mutated
+        block.header.merkle_root = merkle_root
         with pytest.raises(BTClibValueError, match=err_msg):
-            block.assert_valid()
+            block.assert_valid_structure()
 
 
 def test_a_block_cannot_hold_too_many_transactions_or_too_many_bytes() -> None:
@@ -1172,7 +1244,22 @@ def test_a_block_cannot_hold_too_many_transactions_or_too_many_bytes() -> None:
     serialized is what makes this half testable at all.
 
     The other half is the stripped size, reached with a single
-    million-byte output script.
+    million-byte output script. That mutation moves the merkle root
+    too, and CheckBlock now asks that question first of all
+    (issue #2425), so the header's root is recomputed and
+    assert_valid_structure is asked directly rather than assert_valid,
+    the way test_a_block_cannot_announce_too_many_sigops does and for
+    the same reason: nothing here can grind block 1's real,
+    mainnet-grade proof-of-work for a new root.
+
+    The 101-byte script_sig below is a second, further mutation of the
+    same coinbase -- issue #2422's own vector, a transaction whose
+    defect Core's CheckTransaction would also catch, reached here
+    through a real `Block.parse` round trip -- so the header's root is
+    recomputed a second time, over this doubly-mutated list, and parsed
+    with `check_validity=False` for the same reason as above: a header
+    already not carrying real proof-of-work for its first recomputed
+    root carries none for its second either.
     """
     fname = "block_1.bin"
     filename = Path(__file__).parent / "_data" / fname
@@ -1199,8 +1286,12 @@ def test_a_block_cannot_hold_too_many_transactions_or_too_many_bytes() -> None:
     err_msg = f"invalid stripped size: 1000152 \\* 4 > {MAX_BLOCK_WEIGHT}"
     with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid_length()
+
+    merkle_root, mutated = merkle_root_and_mutated_from_transactions(block.transactions)
+    assert not mutated
+    block.header.merkle_root = merkle_root
     with pytest.raises(BTClibValueError, match=err_msg):
-        block.assert_valid()
+        block.assert_valid_structure()
 
     # Core's CheckBlock runs bad-blk-length before validating individual
     # transactions: even when a transaction violates Tx.assert_valid (e.g.
@@ -1208,11 +1299,14 @@ def test_a_block_cannot_hold_too_many_transactions_or_too_many_bytes() -> None:
     # stripped size over the cap rather than the transaction's defect
     # (issue #2422)
     coinbase.vin[0].script_sig = b"\x00" * 101
+    merkle_root, mutated = merkle_root_and_mutated_from_transactions(block.transactions)
+    assert not mutated
+    block.header.merkle_root = merkle_root
     oversize_bytes = block.serialize(include_witness=False, check_validity=False)
     with pytest.raises(
         BTClibValueError, match=r"invalid stripped size: 1000246 \* 4 > 4000000"
     ):
-        Block.parse(oversize_bytes)
+        Block.parse(oversize_bytes, check_validity=False).assert_valid_structure()
 
 
 def test_parse_reports_bad_blk_length_before_a_tx_reject_reason() -> None:
@@ -1254,27 +1348,24 @@ def test_parse_reports_bad_blk_length_before_a_tx_reject_reason() -> None:
     that tells `Tx.parse`'s own `check_validity` apart from the
     hardcoded `False` `Block.parse` asks it with: parsed one at a time
     as they are read off the wire, with the caller's own flag rather
-    than the hardcoded one, the coinbase's own out-of-range script_sig
-    would answer under `_assert_valid_coinbase`'s "Invalid coinbase
-    script size" during the parse, before `Block.assert_valid` ever ran.
-    The script_sig defect is the discriminator here rather than an
-    oversize transaction, because nothing at this base yet bounds a
-    transaction's own serialized size -- #2420 does, on another branch,
-    and is not what this fix is answering for.
+    than the hardcoded one, this coinbase would answer for itself
+    during the parse -- `Tx.assert_valid`'s own oversize rule
+    (issue #2420) first, its huge output script alone crossing the cap
+    -- before `Block.assert_valid` ever ran.
     """
     limit = MAX_BLOCK_WEIGHT // WITNESS_SCALE_FACTOR
     huge_script = ScriptPubKey(b"\x00" * limit)
     coinbase = Tx(
         1,
         0,
-        # 101 bytes: one past _assert_valid_coinbase's own 2-100 bound,
-        # so a Tx.parse asked to validate this coinbase refuses it on
-        # its own, distinctly from assert_valid_length's stripped-size
-        # message below
-        [TxIn(OutPoint(), b"\x00" * 101, 0xFFFFFFFF)],
+        [TxIn(OutPoint(), b"\x00\x00", 0xFFFFFFFF)],
         [TxOut(1, huge_script)],
         check_validity=False,
     )
+
+    # the same single transaction is oversize on its own, exactly the
+    # shape test_oversize_is_refused (tests/tx/tx_test.py) refuses
+    assert coinbase._serialized_size(include_witness=False) > limit
 
     candidate = candidate_block_header(
         b"\x00" * 32,

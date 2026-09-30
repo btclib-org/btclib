@@ -343,6 +343,38 @@ def test_output_total_is_bounded() -> None:
         Tx(vin=[tx_in], vout=[TxOut(max_money // 2 + 1, "")] * 2)
 
 
+def test_oversize_is_refused() -> None:
+    """CheckTransaction's `bad-txns-oversize` (issue #2420).
+
+    The stripped size, weighed `WITNESS_SCALE_FACTOR` times against
+    `MAX_BLOCK_WEIGHT` -- Block.assert_valid_length's own comparison,
+    for one transaction rather than for the block. 999,936 script bytes
+    is what a one-input, one-output transaction needs to serialize to
+    exactly the 1,000,000-byte cap `MAX_BLOCK_WEIGHT // WITNESS_SCALE_FACTOR`
+    names; one byte more crosses it.
+    """
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0))
+
+    def _tx(script_len: int) -> Tx:
+        return Tx(
+            vin=[tx_in],
+            vout=[TxOut(1, ScriptPubKey(b"\x00" * script_len))],
+            check_validity=False,
+        )
+
+    at_cap = _tx(999_936)
+    assert at_cap._serialized_size(include_witness=False) == (
+        MAX_BLOCK_WEIGHT // WITNESS_SCALE_FACTOR
+    )
+    at_cap.assert_valid()
+
+    over_cap = _tx(999_937)
+    err_msg = "invalid transaction size: 1000001 "
+    err_msg += f"\\* {WITNESS_SCALE_FACTOR} > {MAX_BLOCK_WEIGHT}"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        over_cap.assert_valid()
+
+
 def test_one_outpoint_is_spent_once() -> None:
     """An outpoint named twice is refused, as `bad-txns-inputs-duplicate`.
 
@@ -508,9 +540,10 @@ def test_the_checks_fire_in_cores_own_order() -> None:
     """A transaction breaking several rules at once names Core's first one.
 
     `CheckTransaction` (consensus/tx_check.cpp) checks, in order:
-    vin-empty, vout-empty, each output's value and the running total,
-    duplicate inputs, then the coinbase script length or a null prevout
-    in a non-coinbase transaction (issue #2417). Each transaction below
+    vin-empty, vout-empty, the stripped size against the block weight
+    cap, each output's value and the running total, duplicate inputs,
+    then the coinbase script length or a null prevout in a non-coinbase
+    transaction (issue #2417, issue #2420). Each transaction below
     breaks the two rules its comment names at once, at the boundary
     between two adjacent checks, and only the earlier of the two is
     what `assert_valid` raises -- the running total against a later
@@ -539,6 +572,40 @@ def test_the_checks_fire_in_cores_own_order() -> None:
             check_validity=False,
         ).assert_valid()
 
+    # vout-empty before the oversize rule -- the script_sig alone, never
+    # validated by TxIn.assert_valid, already crosses the cap with no
+    # output at all
+    with pytest.raises(BTClibValueError, match="Missing outputs"):
+        Tx(
+            vin=[TxIn(out_point, b"\x00" * 1_000_000)],
+            vout=[],
+            check_validity=False,
+        ).assert_valid()
+
+    # the oversize rule before each output's own bad value -- one output
+    # is both: its huge script alone crosses the cap, and its own value
+    # is negative
+    huge_script = ScriptPubKey(b"\x00" * 1_000_000)
+    oversize_bad_out = TxOut(-1, huge_script, check_validity=False)
+    oversize_tx = Tx(
+        vin=[TxIn(out_point)], vout=[oversize_bad_out], check_validity=False
+    )
+    size = oversize_tx._serialized_size(include_witness=False)
+    assert size * WITNESS_SCALE_FACTOR > MAX_BLOCK_WEIGHT
+    with pytest.raises(BTClibValueError, match="invalid transaction size: "):
+        oversize_tx.assert_valid()
+
+    # the oversize rule before the running total -- the first output's
+    # huge script alone crosses the cap, and the second output's own
+    # value would otherwise push the total over MAX_MONEY
+    max_money = 2_100_000_000_000_000
+    with pytest.raises(BTClibValueError, match="invalid transaction size: "):
+        Tx(
+            vin=[TxIn(out_point)],
+            vout=[TxOut(max_money, huge_script), TxOut(1, "")],
+            check_validity=False,
+        ).assert_valid()
+
     # each output's value before duplicate-inputs
     bad_out = TxOut(-1, "", check_validity=False)
     with pytest.raises(BTClibValueError, match="invalid satoshi amount: "):
@@ -549,7 +616,6 @@ def test_the_checks_fire_in_cores_own_order() -> None:
         ).assert_valid()
 
     # the running total before duplicate-inputs
-    max_money = 2_100_000_000_000_000
     with pytest.raises(BTClibValueError, match="invalid total output amount: "):
         Tx(
             vin=[TxIn(out_point), TxIn(out_point)],

@@ -268,8 +268,9 @@ def test_build_block_refuses_a_malformed_non_coinbase_transaction() -> None:
 
     `Tx.assert_valid`'s own rule (bad-txns-prevout-null), reached through
     `assert_valid_structure`'s own per-transaction loop -- not by
-    `candidate_block_header`, which only refuses a CVE-2012-2459 merkle
-    mutation, and which this transaction does not trigger.
+    `candidate_block_header`, which only refuses an empty transaction
+    list or a CVE-2012-2459 merkle mutation, and which this transaction
+    triggers neither of.
     """
     coinbase = build_coinbase(1, ScriptPubKey(b"\x51"))
     malformed = Tx(
@@ -312,6 +313,13 @@ def test_build_block_refuses_a_block_over_the_weight_cap() -> None:
     assumed, against `tests/block/block_test.py`'s own weight-cap
     vectors: `4 * stripped_size > MAX_BLOCK_WEIGHT` is the same
     comparison a parsed block is refused by.
+
+    `heavy` alone already crosses `Tx.assert_valid`'s own oversize rule
+    (issue #2420), so it is built with `check_validity=False`: what this
+    test asks is what the block-level rule reports, not the one that
+    transaction carries on its own, and `assert_valid_length` is what
+    `assert_valid_structure` reaches first, ahead of asking any
+    transaction to validate itself.
     """
     coinbase = build_coinbase(1, ScriptPubKey(b"\x51"))
     heavy = Tx(
@@ -319,6 +327,7 @@ def test_build_block_refuses_a_block_over_the_weight_cap() -> None:
         0,
         [TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF)],
         [TxOut(1, ScriptPubKey(b"\x00" * 1_000_100))],
+        check_validity=False,
     )
     with pytest.raises(BTClibValueError, match="invalid stripped size: "):
         build_block(_PREVIOUS, [coinbase, heavy], _TIME, _EASY_BITS)

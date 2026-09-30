@@ -257,11 +257,18 @@ def merkle_root_and_mutated_from_hashes(
     one of them, so the root does not commit to the list it was computed
     from. Bitcoin Core computes the same flag (the `mutated` out
     parameter of BlockMerkleRoot) and rejects such a block.
+
+    An empty `hashes` answers 32 zero bytes and `mutated=False`, Core's
+    own `ComputeMerkleRoot`: its reduction loop never runs for zero
+    hashes, so it falls through to `uint256()` rather than raising
+    (issue #2427). A caller that must refuse an empty list -- a block
+    has to carry a coinbase, so `Block.assert_valid_length` is one, and
+    `mining.candidate_block_header` is another -- refuses it itself
+    rather than by relying on this function to.
     """
     level = list(hashes)
     if not level:
-        # the loop below would never reduce an empty level to a root
-        raise BTClibValueError("empty merkle tree")
+        return b"\x00" * 32, False
 
     mutated = False
     while len(level) != 1:

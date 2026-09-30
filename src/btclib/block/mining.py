@@ -69,8 +69,16 @@ def candidate_block_header(
 
     A transaction list whose merkle tree is the CVE-2012-2459 mutation
     of a shorter one is refused: the header would commit to both lists,
-    so it is not a candidate for the one at hand.
+    so it is not a candidate for the one at hand. An empty list is
+    refused too, checked here rather than left to
+    merkle_root_and_mutated_from_transactions: that function now answers
+    Core's own all-zero root for one instead of raising (issue #2427),
+    and a header with no transactions has no coinbase to mine for --
+    nothing this module would call a candidate.
     """
+    if not transactions:
+        raise BTClibValueError("empty transaction list")
+
     merkle_root, mutated = merkle_root_and_mutated_from_transactions(transactions)
     if mutated:
         raise BTClibValueError("duplicate transaction")
