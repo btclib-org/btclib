@@ -570,19 +570,33 @@ class Block:
     def assert_valid_structure(self) -> None:
         """Refuse what Core's CheckBlock refuses, proof-of-work excepted.
 
-        The size bounds, exactly one coinbase and it first, every
-        transaction on its own, the sigop bound, the merkle root, the
-        witness commitment, the weight -- everything `assert_valid` asks
-        except `BlockHeader.assert_valid` and `assert_valid_pow`, which
-        it calls immediately before this and which a pre-mining candidate
-        cannot pass. `block.build.build_block` is the other caller: a
-        header `mining.candidate_block_header` has already validated
-        structurally, over a block that has no proof-of-work yet and
-        cannot be asked for one, and everything below still has to hold
-        of it -- the two coinbases, the over-weight block and the
-        over-the-sigop-bound block this refuses are exactly what a
-        builder must not hand back silently.
+        The merkle root, the size bounds, exactly one coinbase and it
+        first, every transaction on its own, the sigop bound -- in that
+        order, CheckBlock's own (validation.cpp, read at
+        bitcoin/bitcoin@9be056a8a7, the v31.1 tag) -- then the witness
+        commitment and the weight, which Core asks in a later function,
+        ContextualCheckBlock, and which assert_valid_weight's own
+        docstring says why this still runs them last. Everything
+        `assert_valid` asks except `BlockHeader.assert_valid` and
+        `assert_valid_pow`, which it calls immediately before this and
+        which a pre-mining candidate cannot pass. `block.build.build_block`
+        is the other caller: a header `mining.candidate_block_header` has
+        already validated structurally, over a block that has no
+        proof-of-work yet and cannot be asked for one, and everything
+        below still has to hold of it -- the two coinbases, the
+        over-weight block and the over-the-sigop-bound block this refuses
+        are exactly what a builder must not hand back silently.
         """
+        # CheckBlock asks this right after the header and its
+        # proof-of-work, and before anything else: "All
+        # potential-corruption validation must be done before we do any
+        # transaction validation" is the size and coinbase-shape rules
+        # below, and the merkle root is the one potential-corruption
+        # question that comes first even among those, matching a
+        # transaction list against the header it was received under
+        # before any other claim about that list is trusted (issue #2425)
+        self.assert_valid_merkle_root()
+
         # Core's bad-blk-length is three questions in one condition -- an
         # empty transaction list, too many transactions, too many bytes --
         # and the first of them is answered by _assert_coinbase below: a
@@ -617,7 +631,6 @@ class Block:
         # is asked what they add up to
         self.assert_valid_sig_op_count()
 
-        self.assert_valid_merkle_root()
         self.assert_valid_witness_commitment()
         # after the commitment, and the docstring says why
         self.assert_valid_weight()
@@ -625,9 +638,9 @@ class Block:
     def assert_valid(self, pow_limit_bits: Octets = MAINNET_POW_LIMIT_BITS) -> None:
         """Refuse what Core's CheckBlock refuses, in Core's order.
 
-        The header and its proof-of-work, the size bounds, exactly one
-        coinbase and it first, every transaction on its own, the sigop
-        bound, the merkle root, the witness commitment, the weight.
+        The header and its proof-of-work, the merkle root, the size
+        bounds, exactly one coinbase and it first, every transaction on
+        its own, the sigop bound, the witness commitment, the weight.
         Height and clock rules are assert_valid_contextual's.
 
         `pow_limit_bits` is forwarded to assert_valid_pow, whose docstring

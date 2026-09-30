@@ -267,7 +267,17 @@ def test_a_wrong_type_is_a_type_error() -> None:
 
 
 def test_an_invalid_object_is_refused_unless_the_caller_says_not_to() -> None:
-    """`check_validity` reaches the class that owns the rule."""
+    """`check_validity` reaches the class that owns the rule.
+
+    The empty block's own message is `empty merkle tree` and not
+    `block with no transactions`: `Block.assert_valid_structure` checks
+    the merkle root before it checks the block has a coinbase
+    (issue #2425, `CheckBlock`'s own order), and
+    `merkle_root_and_mutated_from_transactions` raises on an empty list
+    rather than answering Core's own all-zero root for one, which is
+    what would let the coinbase check be reached instead
+    (issue #2427, filed and not fixed here).
+    """
     empty = Tx(1, 0, [], [], check_validity=False)
 
     with pytest.raises(BTClibValueError, match="Missing inputs"):
@@ -283,7 +293,7 @@ def test_an_invalid_object_is_refused_unless_the_caller_says_not_to() -> None:
         payload.serialize()
 
     headerless = Block(BlockHeader.parse(_BLOCK_1[:80]), [], check_validity=False)
-    with pytest.raises(BTClibValueError, match="block with no transactions"):
+    with pytest.raises(BTClibValueError, match="empty merkle tree"):
         BlockPayload(headerless, include_witness=True)
     unchecked = BlockPayload(headerless, include_witness=True, check_validity=False)
     assert unchecked.block is headerless

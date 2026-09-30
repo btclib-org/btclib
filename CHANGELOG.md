@@ -112,6 +112,12 @@ The stripped size, weighed `WITNESS_SCALE_FACTOR` times against
 `MAX_BLOCK_WEIGHT` -- CheckTransaction's `bad-txns-oversize`, which nothing
 here checked before (closes #2420).
 
+### `assert_valid_structure` checks the merkle root right after proof-of-work
+
+`assert_valid_structure` checks the merkle root right after the header and its
+proof-of-work, `CheckBlock`'s own position for it, rather than after every
+transaction and the sigop bound (closes #2425).
+
 ## v2026.9.29
 
 ### `requires-python` moves to `>=3.11`
