@@ -33,9 +33,11 @@ from btclib.block.proof_of_work import (
     hash_rate,
     is_negative_bits,
     next_bits,
+    permitted_difficulty_transition,
     retarget_first_height,
     target_from_bits,
 )
+from btclib.consensus import CONSENSUS_PARAMS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 
@@ -486,6 +488,101 @@ def test_next_bits_wraps_as_core_does() -> None:
     assert next_bits(
         "1e080000", first, first + two_weeks, pow_limit_bits=REGTEST_POW_LIMIT_BITS
     ) == bytes.fromhex("1e080000")
+
+
+def test_permitted_difficulty_transition_mainnet_history() -> None:
+    """The four retarget vectors of Core's `pow_tests.cpp`, negatives included.
+
+    Each height is `pindexLast.nHeight + 1`, the height Core's own
+    `GetNextWorkRequired` checks against `DifficultyAdjustmentInterval()`
+    and the one this function checks too; the old bits and the answer of
+    the first two are `test_next_bits_mainnet_history`'s own. The two
+    tests with a lower or an upper bound also check Core's own negative:
+    one tick past the bound is refused.
+    """
+    mainnet = CONSENSUS_PARAMS["mainnet"]
+
+    # get_next_work: height 32256
+    assert permitted_difficulty_transition(
+        mainnet, 32256, _bits_of("block_1.bin"), bytes.fromhex("1d00d86a")
+    )
+
+    # get_next_work_pow_limit: height 2016
+    assert permitted_difficulty_transition(
+        mainnet, 2016, _bits_of("block_1.bin"), bytes.fromhex("1d00ffff")
+    )
+
+    # get_next_work_lower_limit_actual: height 68544
+    assert permitted_difficulty_transition(
+        mainnet, 68544, bytes.fromhex("1c05a3f4"), bytes.fromhex("1c0168fd")
+    )
+    assert not permitted_difficulty_transition(
+        mainnet, 68544, bytes.fromhex("1c05a3f4"), bytes.fromhex("1c0168fc")
+    )
+
+    # get_next_work_upper_limit_actual: height 46368
+    assert permitted_difficulty_transition(
+        mainnet, 46368, bytes.fromhex("1c387f6f"), bytes.fromhex("1d00e1fd")
+    )
+    assert not permitted_difficulty_transition(
+        mainnet, 46368, bytes.fromhex("1c387f6f"), bytes.fromhex("1d00e1fe")
+    )
+
+
+def test_permitted_difficulty_transition_min_difficulty_networks() -> None:
+    """`pow_allow_min_difficulty_blocks` permits any transition outright.
+
+    testnet3, testnet4 and regtest all set it, which is checked against
+    the row itself rather than assumed; mainnet and signet do not, and
+    are refused the very same transition the other three are given.
+    """
+    old_bits = bytes.fromhex("1d00ffff")
+    new_bits = bytes.fromhex("12345678")
+
+    for name in ("testnet", "testnet4", "regtest"):
+        consensus = CONSENSUS_PARAMS[name]
+        assert consensus.pow_allow_min_difficulty_blocks
+        assert permitted_difficulty_transition(consensus, 1, old_bits, new_bits)
+
+    for name in ("mainnet", "signet"):
+        consensus = CONSENSUS_PARAMS[name]
+        assert not consensus.pow_allow_min_difficulty_blocks
+        assert not permitted_difficulty_transition(consensus, 1, old_bits, new_bits)
+
+
+def test_permitted_difficulty_transition_off_a_retarget_height() -> None:
+    """Off a retarget height, only repeating old_bits is permitted."""
+    mainnet = CONSENSUS_PARAMS["mainnet"]
+    bits = bytes.fromhex("1d00ffff")
+
+    assert permitted_difficulty_transition(mainnet, 32257, bits, bits)
+    assert not permitted_difficulty_transition(
+        mainnet, 32257, bits, bytes.fromhex("1d00fffe")
+    )
+
+
+def test_permitted_difficulty_transition_checks_height_and_bits() -> None:
+    """Height is type-checked, and both bits fields are width-checked.
+
+    `bytes_from_octets` is what raises on the second, its message
+    unchanged from `test_target_from_bits`'s own.
+    """
+    mainnet = CONSENSUS_PARAMS["mainnet"]
+    bits = bytes.fromhex("1d00ffff")
+
+    for not_a_height in ("2016", None, 1.5):
+        with pytest.raises(BTClibTypeError, match="invalid height type: "):
+            permitted_difficulty_transition(
+                mainnet,
+                not_a_height,  # type: ignore[arg-type]
+                bits,
+                bits,
+            )
+
+    with pytest.raises(BTClibValueError, match="invalid size: 3 bytes instead of 4"):
+        permitted_difficulty_transition(mainnet, 2016, "1d00ff", bits)
+    with pytest.raises(BTClibValueError, match="invalid size: 3 bytes instead of 4"):
+        permitted_difficulty_transition(mainnet, 2016, bits, "1d00ff")
 
 
 def test_block_work() -> None:

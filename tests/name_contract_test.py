@@ -93,10 +93,20 @@ _CAN_ADDRV1_ASKS_CAPACITY_NOT_VALIDITY = (
     " on the same question"
 )
 
+_PERMITTED_DIFFICULTY_TRANSITION_IS_CORES_OWN_NAME = (
+    "Bitcoin Core spells this `PermittedDifficultyTransition`"
+    " (`src/pow.cpp`, at bitcoin/bitcoin@9be056a8a7): an `is_` would"
+    " rename the check a headers presync (Core's `HeadersSyncState`)"
+    " asks by that exact name (issue #2418)"
+)
+
 _ENGLISH_PREDICATE: dict[str, str] = {
     "btclib.block.block_filter.match": _THE_STANDARD_NAMES_THE_OPERATION,
     "btclib.block.block_filter.match_any": _THE_STANDARD_NAMES_THE_OPERATION,
     "btclib.p2p.addrv2.can_addrv1": _CAN_ADDRV1_ASKS_CAPACITY_NOT_VALIDITY,
+    "btclib.block.proof_of_work.permitted_difficulty_transition": (
+        _PERMITTED_DIFFICULTY_TRANSITION_IS_CORES_OWN_NAME
+    ),
 }
 
 
