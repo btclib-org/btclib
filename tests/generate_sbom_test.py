@@ -675,3 +675,146 @@ def test_the_main_guard_runs_the_script_as___main__(
         runpy.run_path(str(_SCRIPT), run_name="__main__")
 
     assert excinfo.value.code == 0
+
+
+def write_vex(root: Path, *entries: str) -> None:
+    """Write the tree's not-affected list from these table bodies."""
+    (root / ".github").mkdir(exist_ok=True)
+    text = "".join(f"[[not_affected]]\n{entry}\n" for entry in entries)
+    (root / ".github" / "vex.toml").write_text(text, encoding="utf-8")
+
+
+_FINDING = """id = "GHSA-xxxx-xxxx-xxxx"
+source = "GitHub Advisories"
+component = "Some_Dep"
+justification = "code_not_reachable"
+detail = "The vulnerable parser is never called."
+"""
+
+
+def test_a_tree_with_no_list_states_no_vulnerabilities(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """No file leaves the key out, not an empty array."""
+    assert "vulnerabilities" not in sbom(script, tmp_path)
+
+
+def test_a_finding_reaches_the_document_against_its_component(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """The finding names the dependency by its `bom-ref` and says why."""
+    write_vex(tmp_path, _FINDING)
+    document = sbom(script, tmp_path, requirements=("some-dep>=1",))
+
+    assert document["vulnerabilities"] == [
+        {
+            "id": "GHSA-xxxx-xxxx-xxxx",
+            "source": {"name": "GitHub Advisories"},
+            "affects": [{"ref": "pkg:pypi/some-dep"}],
+            "analysis": {
+                "state": "not_affected",
+                "justification": "code_not_reachable",
+                "detail": "The vulnerable parser is never called.",
+            },
+        }
+    ]
+
+
+def test_a_finding_may_name_the_distribution_itself(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """The root component is a component too, its own code being a subject."""
+    root = sbom(script, tmp_path)["metadata"]["component"]
+    write_vex(tmp_path, _FINDING.replace("Some_Dep", root["name"]))
+    document = sbom(script, tmp_path)
+
+    (finding,) = document["vulnerabilities"]
+    assert finding["affects"] == [{"ref": root["bom-ref"]}]
+
+
+def test_a_finding_for_a_component_the_document_lacks_is_refused(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """A finding that answers nothing is an error, not a silent omission."""
+    write_vex(tmp_path, _FINDING)
+    with pytest.raises(SystemExit, match="some-dep, which this document"):
+        sbom(script, tmp_path)
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        _FINDING.replace("code_not_reachable", "not_reachable"),
+        _FINDING.replace('detail = "The vulnerable parser is never called."\n', ""),
+        _FINDING + 'severity = "low"\n',
+        _FINDING.replace("The vulnerable parser is never called.", ""),
+    ],
+    ids=["justification", "missing key", "extra key", "empty value"],
+)
+def test_a_malformed_finding_is_refused(
+    script: ModuleType, tmp_path: Path, entry: str
+) -> None:
+    """A finding is stated whole or not at all."""
+    write_vex(tmp_path, entry)
+    with pytest.raises(SystemExit):
+        sbom(script, tmp_path, requirements=("some-dep>=1",))
+
+
+def test_a_finding_may_name_a_vendored_submodule(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """A submodule is a component under its upstream repository's name."""
+    make_submodule_repo(tmp_path)
+    write_vex(tmp_path, _FINDING.replace("Some_Dep", "secp256k1"))
+    document = sbom(script, tmp_path)
+
+    (finding,) = document["vulnerabilities"]
+    assert finding["affects"] == [
+        {
+            "ref": "pkg:github/bitcoin-core/secp256k1@6e2c8bc4ecdc6e71dbe7a368f360d8d453ce435d"
+        }
+    ]
+
+
+def test_a_name_the_document_carries_twice_is_refused(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """A dependency and a submodule of one name make an entry ambiguous."""
+    make_submodule_repo(tmp_path)
+    write_vex(tmp_path, _FINDING.replace("Some_Dep", "secp256k1"))
+    with pytest.raises(SystemExit, match="secp256k1, which the document carries"):
+        sbom(script, tmp_path, requirements=("secp256k1>=1",))
+
+
+@pytest.mark.parametrize(
+    "text, message",
+    [
+        ("", "holds no `\\[\\[not_affected\\]\\]` entry"),
+        ("not_affected = [1]\n", "must be a list of"),
+        ("[not_affected]\nid = 'a'\n", "must be a list of"),
+        ("not_affected = [\n", "does not parse"),
+    ],
+    ids=["empty file", "list of integers", "single table", "unparsable"],
+)
+def test_a_list_the_rule_does_not_allow_is_refused_cleanly(
+    script: ModuleType, tmp_path: Path, text: str, message: str
+) -> None:
+    """Each shape of a bad file stops the run with a message."""
+    (tmp_path / ".github").mkdir()
+    (tmp_path / ".github" / "vex.toml").write_text(text, encoding="utf-8")
+    with pytest.raises(SystemExit, match=message):
+        sbom(script, tmp_path)
+
+
+def test_a_submodule_named_in_another_spelling_is_still_reached(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """An entry may name a submodule in its PEP 503 spelling."""
+    make_submodule_repo(tmp_path, url="https://github.com/o/Secp_Lib.git")
+    write_vex(tmp_path, _FINDING.replace("Some_Dep", "secp-lib"))
+    document = sbom(script, tmp_path)
+
+    (finding,) = document["vulnerabilities"]
+    assert finding["affects"] == [
+        {"ref": "pkg:github/o/Secp_Lib@6e2c8bc4ecdc6e71dbe7a368f360d8d453ce435d"}
+    ]
