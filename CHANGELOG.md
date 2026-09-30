@@ -70,6 +70,12 @@ An issue carrying the label is small and self-contained: *The issue
 tracker* says so, and links the organization-wide search for the open
 ones (issue btclib-org/.github#1362).
 
+### `btclib.block.proof_of_work` gains `permitted_difficulty_transition`
+
+A headers-only sync can check a retarget without the two timestamps
+`next_bits` needs, matching Core's `PermittedDifficultyTransition`
+(closes #2418).
+
 ## v2026.9.29
 
 ### `requires-python` moves to `>=3.11`

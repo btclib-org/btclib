@@ -15,8 +15,9 @@ Bitcoin Core's `pow.cpp` and `arith_uint256.cpp` are the reference for
 every value returned. The functions are named after what they answer
 rather than after Core's spelling -- `bits_from_target` is `GetCompact`,
 `target_from_bits` is `SetCompact`, `next_bits` is
-`CalculateNextWorkRequired`, `block_work` is `GetBlockProof` -- and each
-docstring names its counterpart.
+`CalculateNextWorkRequired`, `permitted_difficulty_transition` is
+`PermittedDifficultyTransition`, `block_work` is `GetBlockProof` -- and
+each docstring names its counterpart.
 
 `SetCompact` answers three things at once, the number and two
 out-parameters, so it is two functions here: `target_from_bits` is the
@@ -31,7 +32,7 @@ from collections.abc import Sequence
 from datetime import datetime
 
 from btclib.alias import Octets
-from btclib.consensus import CONSENSUS_PARAMS
+from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
     _message_text,
@@ -54,6 +55,7 @@ __all__ = [
     "hash_rate",
     "is_negative_bits",
     "next_bits",
+    "permitted_difficulty_transition",
     "retarget_first_height",
     "target_from_bits",
 ]
@@ -310,6 +312,102 @@ def next_bits(
     target = min(target, pow_limit)
 
     return bits_from_target(target.to_bytes(TARGET_SIZE, "big", signed=False))
+
+
+def _bounding_target(
+    old_target: int, timespan: int, timespan_total: int, pow_limit: int
+) -> int:
+    """Return old_target scaled by timespan / timespan_total, clamped, rounded.
+
+    The arithmetic `next_bits` performs once, for the one timespan it
+    measured, done here for a timespan chosen ahead of time -- the
+    largest or the smallest a retarget could have used -- and rounded
+    through a compact `bits` field before being handed back, which is
+    what makes the result comparable to a target a real header could
+    carry rather than to the exact rational one.
+    """
+    # the same wrap `next_bits` applies to its own multiplication, for
+    # the same reason: old_target is at most pow_limit and timespan at
+    # most four times the target timespan, the same bound next_bits'
+    # own actual_timespan carries, so this never actually reaches it
+    scaled = (old_target * timespan) % 2**256
+    scaled //= timespan_total
+    scaled = min(scaled, pow_limit)
+    rounded = bits_from_target(scaled.to_bytes(TARGET_SIZE, "big", signed=False))
+    return int.from_bytes(target_from_bits(rounded), "big", signed=False)
+
+
+def permitted_difficulty_transition(
+    consensus: ConsensusParams,
+    height: int,
+    old_bits: Octets,
+    new_bits: Octets,
+) -> bool:
+    """Return whether a block at `height` may carry `new_bits` after `old_bits`.
+
+    `old_bits` is the parent's, `new_bits` the candidate block's own, and
+    `consensus` supplies every threshold below -- `CONSENSUS_PARAMS`'s row
+    for the network in question. Unlike `next_bits`, which needs the two
+    endpoint timestamps of a difficulty period to compute the one target a
+    retarget could have produced, this asks only whether a transition is
+    *possible*, from the height and the two `bits` fields alone: what a
+    headers-only sync needs before it has the block bodies whose
+    timestamps `next_bits` would otherwise want. Bitcoin Core's own
+    headers presync (`HeadersSyncState`, `src/headerssync.cpp`) is such a
+    caller.
+
+    `pow_allow_min_difficulty_blocks` makes every transition permitted:
+    testnet3, testnet4 and regtest all let a block declare the network's
+    easiest target outright, a rule of its own that neither this function
+    nor `next_bits` otherwise models.
+
+    At a retarget height -- `height % difficulty_adjustment_interval ==
+    0` -- `new_bits` is bounded on both sides by what `old_bits` scaled by
+    the largest and the smallest timespan a retarget could have measured
+    (a quarter and four times the target timespan, the same clamp
+    `next_bits` applies) could have produced, each bound clamped to
+    `pow_limit_bits` and rounded through a compact `bits` field exactly as
+    `next_bits` rounds its own answer.
+
+    Every other height carries no retarget, so `new_bits` is permitted
+    only where it repeats `old_bits`.
+
+    Bitcoin Core spells this `PermittedDifficultyTransition`
+    (`src/pow.cpp:89-135` at bitcoin/bitcoin@9be056a8a7, the v31.1 tag).
+    """
+    if not is_integer(height):
+        raise BTClibTypeError(f"invalid height type: {type(height).__name__}")
+
+    old_bits = bytes_from_octets(old_bits, 4)
+    new_bits = bytes_from_octets(new_bits, 4)
+
+    if consensus.pow_allow_min_difficulty_blocks:
+        return True
+
+    if height % consensus.difficulty_adjustment_interval != 0:
+        return old_bits == new_bits
+
+    pow_limit = int.from_bytes(
+        target_from_bits(consensus.pow_limit_bits), "big", signed=False
+    )
+    old_target = int.from_bytes(target_from_bits(old_bits), "big", signed=False)
+    observed_new_target = int.from_bytes(
+        target_from_bits(new_bits), "big", signed=False
+    )
+
+    smallest_timespan = consensus.pow_target_timespan // 4
+    largest_timespan = consensus.pow_target_timespan * 4
+
+    maximum_new_target = _bounding_target(
+        old_target, largest_timespan, consensus.pow_target_timespan, pow_limit
+    )
+    if maximum_new_target < observed_new_target:
+        return False
+
+    minimum_new_target = _bounding_target(
+        old_target, smallest_timespan, consensus.pow_target_timespan, pow_limit
+    )
+    return minimum_new_target <= observed_new_target
 
 
 def block_work(bits: Octets) -> int:
