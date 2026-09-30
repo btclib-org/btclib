@@ -70,6 +70,12 @@ An issue carrying the label is small and self-contained: *The issue
 tracker* says so, and links the organization-wide search for the open
 ones (issue btclib-org/.github#1362).
 
+### The OpenSSF Baseline badge
+
+`README.md`'s badge row ends with the OpenSSF Baseline badge, beside the
+Best Practices badge, section 2 of the organization standard admitting it
+on the same property (issue btclib-org/.github#1460).
+
 ### `btclib.block.proof_of_work` gains `permitted_difficulty_transition`
 
 A headers-only sync can check a retarget without the two timestamps
