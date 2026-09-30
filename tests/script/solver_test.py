@@ -366,8 +366,10 @@ def test_a_count_pushed_where_an_op_code_exists_is_refused() -> None:
     # m first, then n
     _check(b"\x02\x01\x00" + key_push + b"\x51\xae", "nonstandard", [])
     _check(b"\x51" + key_push + b"\x02\x01\x00\xae", "nonstandard", [])
-    # -1, minimal as it is, which the range check refuses
+    # -1 pushed as 01 80, which is not minimal: both guards refuse it
     _check(b"\x02\x01\x80" + key_push + b"\x51\xae", "nonstandard", [])
+    # -2 pushed as 82, which is minimal: only the range check refuses it
+    _check(b"\x01\x82" + key_push + b"\x51\xae", "nonstandard", [])
 
 
 def test_n_is_bounded_below_by_m() -> None:
