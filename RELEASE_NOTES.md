@@ -21,6 +21,8 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.10 (work in progress, not released yet)
 
+## v2026.9.30
+
 ### Breaking changes
 
 - **`btclib.curves` is `btclib_ecc.curves`** (closes #2404), and `import
