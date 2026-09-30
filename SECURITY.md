@@ -16,6 +16,9 @@ If you have no GitHub account, or would rather not use it for this,
 responsible disclosure by email to *security at btclib dot org* is
 equally welcome.
 
+A report is acknowledged within 7 days, and a fix or a published advisory
+follows within 90 days.
+
 ## What belongs here, and what belongs upstream
 
 secp256k1 arithmetic is delegated to
