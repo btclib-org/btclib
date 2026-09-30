@@ -82,6 +82,12 @@ A headers-only sync can check a retarget without the two timestamps
 `next_bits` needs, matching Core's `PermittedDifficultyTransition`
 (closes #2418).
 
+### `pypi-install.yml` retries the install of the version the release published
+
+Both install jobs, the `[secp256k1]` one included, install through
+btclib-org/.github's `install_published_release.py`, which retries only while
+the installer says the pin is not resolvable (issue btclib-org/.github#1458).
+
 ## v2026.9.29
 
 ### `requires-python` moves to `>=3.11`

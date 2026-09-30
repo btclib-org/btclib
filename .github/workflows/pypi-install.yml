@@ -3,17 +3,18 @@ name: pypi-install
 
 # checks whether what is already on PyPI actually works, not merely
 # installs -- which no pull request asks, checking out the tree it is
-# testing being the whole point of one. No checkout in the jobs that
-# install, on purpose: nothing from this repository takes part in them,
-# which is what guarantees the checks below resolve to what was installed
-# from the index and not to a source tree. wait-for-index is the one job
-# that checks anything out and it installs nothing: its sparse checkout
-# reaches .github/scripts, and the repository root that cone mode always
-# adds with it, so there is no src/btclib on the runner that answers it
-# either. That job -- the checkout, the uv setup and the wait script
-# itself -- is btclib-org/.github's reusable-wait-for-index.yml, called
-# at @main so a fix there reaches this tree in one landing (issue
-# btclib-org/.github#35).
+# testing being the whole point of one. No checkout of this repository
+# in the jobs that install, on purpose: nothing from it takes part in
+# them, which is what guarantees the checks below resolve to what was
+# installed from the index and not to a source tree. The checkouts there
+# are btclib-org/.github's, sparse on .github/scripts: each install job's
+# under `path:`, so that the repository root cone mode always adds with it
+# stays out of the directory the cell runs in, and wait-for-index's, which
+# installs nothing. Neither puts a src/btclib on the runner for a check to
+# answer from. The wait-for-index job -- the checkout, the uv setup and
+# the wait script itself -- is btclib-org/.github's
+# reusable-wait-for-index.yml, called at @main so a fix there reaches this
+# tree in one landing (issue btclib-org/.github#35).
 #
 # `import btclib` runs __init__.py alone, and the data files under
 # btclib/ -- `git ls-files | grep '^src/btclib/.*_data/'` is which -- are
@@ -194,6 +195,24 @@ jobs:
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           python-version: ${{ matrix.python }}
+      # the install runs through btclib-org/.github's
+      # install_published_release.py, which runs it again after a pause
+      # while the installer says the pinned requirement is not resolvable
+      # (btclib-org/.github#1458): the wait above asks the index from one
+      # runner and each cell reads it through an edge of its own, which can
+      # still hold the page from before the upload. This sparse checkout of
+      # the organization's scripts is the one checkout of this job, and its
+      # `path:` keeps the root files that cone mode adds with the scripts
+      # out of the directory the cell runs in; no source of the tree under
+      # test lands
+      - name: Check out the install script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: btclib-org/.github
+          ref: main
+          path: btclib-org-github
+          persist-credentials: false
+          sparse-checkout: .github/scripts
       # --verbose so the log names the btclib_secp256k1 wheel this cell
       # resolved to, and on the include cell above where btclib itself is
       # built from its sdist, what that build did too. --only-binary
@@ -208,13 +227,17 @@ jobs:
       # below, is the job that names the extra and is entitled to
       # constrain btclib-secp256k1 too, with its own --only-binary --
       # the same flag applied a second time rather than a reason to
-      # change this one. An
+      # change this one. `--no-cache` stays here and not in the script:
+      # the index sends `Cache-Control: max-age` on its pages, and neither
+      # uv nor pip asks again for a page it holds for that long, so a retry
+      # with the cache on would read back the page it failed on. An
       # environment variable and a shell conditional rather than a ${{ }}
       # expression inside run, as both siblings already do: matrix values
       # are not attacker-controlled, but the pattern is worth keeping
       # uniform. A venv of its own, and every step below runs --no-project
-      # against it: there is no checkout, so nothing of this repository is
-      # on the path either way, and that is the property the header claims
+      # against it: there is no checkout of this repository, so nothing of
+      # it is on the path either way, and that is the property the header
+      # claims
       - name: Install btclib from PyPI
         shell: bash
         env:
@@ -227,13 +250,12 @@ jobs:
           TAG: ${{ inputs.version }}
         run: |
           uv venv --python "$PYTHON_VERSION"
-          requirement=btclib
-          if [ -n "$TAG" ]; then requirement="btclib==${TAG#v}"; fi
-          if [ "$NO_BINARY" = "true" ]; then
-            uv pip install --verbose --no-binary btclib "$requirement"
-          else
-            uv pip install --verbose --only-binary btclib "$requirement"
-          fi
+          package=btclib
+          if [ "$NO_BINARY" = "true" ]; then binary=--no-binary; else binary=--only-binary; fi
+          uv run --no-project python \
+            btclib-org-github/.github/scripts/install_published_release.py \
+            "$package" "$TAG" -- \
+            uv pip install --no-cache --verbose "$binary" "$package"
       # the ecc surface, as test.yml's dist job asserts it: a signature
       # round trip is the one thing an import cannot get wrong by itself,
       # and a bindings release that installs and answers incorrectly is
@@ -305,13 +327,25 @@ jobs:
         uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           python-version: ${{ matrix.python }}
+      # install-published's own checkout of the install script, for the
+      # reason given there
+      - name: Check out the install script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: btclib-org/.github
+          ref: main
+          path: btclib-org-github
+          persist-credentials: false
+          sparse-checkout: .github/scripts
       # --only-binary on both packages: btclib for the reason
       # install-published's own comment gives, and btclib-secp256k1 for
       # the same one applied to the package this job adds. Without it, a
       # wheel the bindings have not published for this cell demotes the
       # install to a source build -- a C toolchain question a hosted
       # runner may or may not answer -- and the run would stay green
-      # while never having asked whether a published wheel imports
+      # while never having asked whether a published wheel imports.
+      # `--no-cache` stays here for the reason install-published's own
+      # comment gives
       - name: Install btclib[secp256k1] from PyPI
         shell: bash
         env:
@@ -320,11 +354,11 @@ jobs:
           TAG: ${{ inputs.version }}
         run: |
           uv venv --python "$PYTHON_VERSION"
-          requirement="btclib[secp256k1]"
-          if [ -n "$TAG" ]; then requirement="btclib[secp256k1]==${TAG#v}"; fi
-          uv pip install --verbose \
-            --only-binary btclib --only-binary btclib-secp256k1 \
-            "$requirement"
+          uv run --no-project python \
+            btclib-org-github/.github/scripts/install_published_release.py \
+            'btclib[secp256k1]' "$TAG" -- \
+            uv pip install --no-cache --verbose \
+            --only-binary btclib --only-binary btclib-secp256k1
       # is_libsecp256k1_serving is the assertion install-published's own
       # comment says it is not entitled to, that job's install naming no
       # extra. This job names the extra, so it is entitled to the
