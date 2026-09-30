@@ -59,6 +59,12 @@ drops what `CONTRIBUTING.md`, the standard and the tests already state
   btclib-org/.github's `reusable-audit.yml`, and both publish jobs wait for
   its success (closes btclib-org/.github#1466).
 
+### `btclib.script.solver` is Bitcoin Core's `Solver`
+
+- **`solver` and `get_txn_output_type`** (closes #2456) answer Core's eleven
+  types and solutions, read at bitcoin/bitcoin@9be056a8a7 (v31.1).
+  `type_and_payload` stays narrower (issue #211).
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again

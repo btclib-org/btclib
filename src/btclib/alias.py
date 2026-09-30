@@ -47,6 +47,7 @@ __all__ = [
     "TaprootLeaf",
     "TaprootLeafPaths",
     "TaprootScriptTree",
+    "TxoutType",
 ]
 
 # hex-strings are strings that can be converted to bytes using bytes.fromhex,
@@ -173,6 +174,25 @@ ScriptType = Literal[
     "p2wpkh",
     "p2wsh",
     "unknown",
+    "witness_unknown",
+]
+
+# What Bitcoin Core's `Solver` classifies a script_pub_key as: the
+# values of its TxoutType, spelled as its GetTxnOutputType spells them.
+# Closed, and not ScriptType: that one is what `type_and_payload` answers,
+# which is narrower than Core's classification (issue #211) and names its
+# types otherwise.
+TxoutType = Literal[
+    "nonstandard",
+    "anchor",
+    "pubkey",
+    "pubkeyhash",
+    "scripthash",
+    "multisig",
+    "nulldata",
+    "witness_v0_keyhash",
+    "witness_v0_scripthash",
+    "witness_v1_taproot",
     "witness_unknown",
 ]
 

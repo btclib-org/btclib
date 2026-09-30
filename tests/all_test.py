@@ -165,6 +165,7 @@ CHILD_MODULES = {
             "script",
             "script_pub_key",
             "sig_ops",
+            "solver",
             "spendability",
             "witness",
         ],

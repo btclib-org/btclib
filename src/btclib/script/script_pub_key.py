@@ -503,8 +503,8 @@ def type_and_payload(script_pub_key: Octets) -> tuple[ScriptType, bytes]:  # noq
     """Return (script_pub_key type, payload) from the input script_pub_key.
 
     The returns here and in _witness_type_and_payload are the whole of
-    ScriptType between them, mypy checking each one against it: an
-    eleventh shape classified in either is a member added there.
+    ScriptType between them, mypy checking each one against it: a
+    new shape classified in either is a member added there.
     """
     script_pub_key = bytes_from_octets(script_pub_key)
 
