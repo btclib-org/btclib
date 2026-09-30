@@ -41,17 +41,6 @@ file per release is what keeps each of them under it.
 
 ## v2026.10 (work in progress, not released yet)
 
-### `generate_sbom.py` carries a not-affected list into the bill of materials
-
-- **`generate_sbom.py` reads `.github/vex.toml`**, where the tree lists the
-  vulnerabilities its release is not affected by, into the document's
-  `vulnerabilities`; no list, no key (issue btclib-org/.github#1469).
-
-### `SECURITY.md` promises a response time
-
-`SECURITY.md` says a report is acknowledged within 7 days, and a fix or a
-published advisory within 90 (issue btclib-org/.github#1460).
-
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again
@@ -149,3 +138,20 @@ transaction and the sigop bound (closes #2425).
 `merkle_root_and_mutated_from_hashes` now answers Core's own
 `ComputeMerkleRoot([])`, so `assert_valid_length` refuses the empty list
 itself, `bad-blk-length`'s own first question (closes #2427).
+
+### `generate_sbom.py` carries a not-affected list into the bill of materials
+
+- **`generate_sbom.py` reads `.github/vex.toml`**, where the tree lists the
+  vulnerabilities its release is not affected by, into the document's
+  `vulnerabilities`; no list, no key (issue btclib-org/.github#1469).
+
+### `SECURITY.md` promises a response time
+
+`SECURITY.md` says a report is acknowledged within 7 days, and a fix or a
+published advisory within 90 (issue btclib-org/.github#1460).
+
+### `urllib3` moves to 2.8.0 in the lock
+
+- **`uv.lock` pins `urllib3` 2.8.0**, past GHSA-gh4c-6fx4-qh6g,
+  GHSA-vxq7-64xx-v4gw and GHSA-8988-9cw3-xx77; it reaches the dev group
+  alone, through `twine`, `sphinx` and `pyroma`, never the wheel.
