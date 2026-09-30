@@ -1201,6 +1201,16 @@ def test_a_block_cannot_hold_too_many_transactions_or_too_many_bytes() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid()
 
+    # Core's CheckBlock runs bad-blk-length before validating individual
+    # transactions: even when a transaction violates Tx.assert_valid (e.g.
+    # an invalid coinbase script size), Block.parse reports the block's
+    # stripped size over the cap rather than the transaction's defect
+    # (issue #2422)
+    coinbase.vin[0].script_sig = b"\x00" * 101
+    oversize_bytes = block.serialize(include_witness=False, check_validity=False)
+    with pytest.raises(BTClibValueError, match=r"invalid stripped size: 1000246 \* 4 > 4000000"):
+        Block.parse(oversize_bytes)
+
 
 def test_a_block_cannot_weigh_more_than_the_cap() -> None:
     """Core's bad-blk-weight, and why it is asked after the commitment.
