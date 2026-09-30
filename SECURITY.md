@@ -78,9 +78,10 @@ repository is accepted. Neither path verifies a release the other
 signed. The PEP 740 attestations on PyPI name `release.yml`, the job
 that uploads there being its own rather than a called workflow's. The
 signed statement for the GitHub release is attached to it as well, as
-`<tag>.attestation.jsonl`, so `--bundle <tag>.attestation.jsonl` runs the
-same check reading it from disk instead of asking GitHub for it; one
-attestation covers every asset of the release. Either file can also be
+`<tag>.intoto.jsonl`, or as `<tag>.attestation.jsonl` on a release that
+carries that name instead, so `--bundle <that file>` runs the same check
+reading it from disk instead of asking GitHub for it; one attestation
+covers every asset of the release. Either file can also be
 rebuilt from its tag and verified without being downloaded at all, the
 build being reproducible: RELEASING.md has that command and the bounds on
 it.
