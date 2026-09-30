@@ -340,8 +340,6 @@ class Tx:  # noqa: PLW1641
         point of the format. BIP174 lists two zero-input PSBTs as valid
         and btclib refused both (issue 170).
         """
-        _assert_valid_coinbase(self.vin, is_coinbase=self.is_coinbase)
-
         # the type before the range, as BlockHeader.assert_valid checks its
         # own two int fields: a bool passes every comparison below as one or
         # zero, and `to_dict`/`from_dict` is a json boundary -- `true` there
@@ -360,6 +358,26 @@ class Tx:  # noqa: PLW1641
         for tx_in in self.vin:
             tx_in.assert_valid()
 
+        if not unsigned_template and not self.vout:
+            raise BTClibValueError("Missing outputs")
+
+        # CheckTransaction bounds each output and the running total in the
+        # same pass over the outputs, not in two: an earlier output can
+        # already push the total past MAX_MONEY, and Core reports that
+        # before it ever looks at a later output's own value, so a
+        # transaction breaking both is reported under the total's own rule
+        # rather than under whichever output a second pass would have
+        # reached first. Only the sum of the outputs, as there, and not
+        # the fee: what the inputs are worth is not in the transaction,
+        # and comparing the two is verify_amounts' job, with the prevouts
+        # in hand
+        total = 0
+        for tx_out in self.vout:
+            tx_out.assert_valid()
+            total += tx_out.value
+            if total > _MAX_SATOSHI:
+                raise BTClibValueError(f"invalid total output amount: {total}")
+
         # CheckTransaction's `bad-txns-inputs-duplicate` (CVE-2018-17144):
         # an outpoint named twice would be spent twice, and every arithmetic
         # over the inputs -- a fee, a total, an ancestor set -- counts what
@@ -369,25 +387,17 @@ class Tx:  # noqa: PLW1641
         # a member of a set. Unconditional, unsigned_template or not: the
         # flag drops the two rules a psbt's transaction cannot satisfy while
         # it is being built, and a Constructor adding an input already there
-        # builds a transaction no node accepts, incomplete or finished
+        # builds a transaction no node accepts, incomplete or finished.
+        # Core's CheckTransaction runs this after the output checks and
+        # before the coinbase one (issue #2417)
         outpoints = [tx_in.prev_out for tx_in in self.vin]
         if len(set(outpoints)) != len(outpoints):
             raise BTClibValueError("the same outpoint is spent twice")
 
-        if not unsigned_template and not self.vout:
-            raise BTClibValueError("Missing outputs")
-        for tx_out in self.vout:
-            tx_out.assert_valid()
-
-        # CheckTransaction bounds the outputs one by one and then their
-        # sum, and the second check is not implied by the first: every
-        # output can be within MoneyRange while the total is above it.
-        # Only the sum of the outputs, as there, and not the fee: what
-        # the inputs are worth is not in the transaction, and comparing
-        # the two is verify_amounts' job, with the prevouts in hand
-        total = sum(tx_out.value for tx_out in self.vout)
-        if total > _MAX_SATOSHI:
-            raise BTClibValueError(f"invalid total output amount: {total}")
+        # CheckTransaction's coinbase script length and null prevout check
+        # runs after vin-empty, vout-empty, output values, and duplicate inputs
+        # (issue #2417)
+        _assert_valid_coinbase(self.vin, is_coinbase=self.is_coinbase)
 
     def serialize(self, include_witness: bool, *, check_validity: bool = True) -> bytes:
         """Return the wire serialization, BIP144's where a witness rides.

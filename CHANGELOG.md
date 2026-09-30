@@ -100,6 +100,12 @@ Each transaction now parses unchecked, and `assert_valid_structure` validates
 it in its own pass rather than `Block.parse` checking it alone as it reads it
 off the wire (closes #2422).
 
+### `Tx.assert_valid` reports a multi-violation transaction under Core's own rule
+
+The coinbase script length / null-prevout check now runs last in
+`assert_valid`, and each output's value and the running total are checked in
+one pass, matching `CheckTransaction`'s own order (closes #2417).
+
 ## v2026.9.29
 
 ### `requires-python` moves to `>=3.11`
