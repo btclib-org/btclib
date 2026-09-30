@@ -64,6 +64,12 @@ The install names `btclib==<version>` from the tag `release.yml` passes,
 where a bare name let a lagging index serve the release before it
 (issue btclib-org/.github#1456).
 
+### `CONTRIBUTING.md` points a newcomer at `good first issue`
+
+An issue carrying the label is small and self-contained: *The issue
+tracker* says so, and links the organization-wide search for the open
+ones (issue btclib-org/.github#1362).
+
 ## v2026.9.29
 
 ### `requires-python` moves to `>=3.11`
