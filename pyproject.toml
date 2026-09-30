@@ -649,7 +649,11 @@ skip = "*/_data/*.json,*/_data/*.csv,*/_data/*.txt,*/_data/*.bin,*/_generated_fi
 # misspelling in. Every *prose* mention of either is backticked and
 # already invisible to this hook; what these two entries cover is the two
 # lines that configure the other one.
-ignore-words-list = "wit,ser,unser"
+# Also `intoto`, in-toto's own spelling in the bundle's name
+# `<tag>.intoto.jsonl`. RELEASING.md writes it in fenced commands, outside
+# the backticks `ignore-regex` below hides, and the dictionary offers
+# "into" for it, which --write-changes applies
+ignore-words-list = "wit,ser,unser,intoto"
 # a misspelling written on purpose goes in backticks, and that is a
 # convention of this repository rather than a preference: prose that
 # documents a spell checker has to name what it catches, and the prose
@@ -774,6 +778,9 @@ CPY = "CPY"
 # for the same reason
 ser = "ser"
 unser = "unser"
+# `intoto` in the bundle's name `<tag>.intoto.jsonl`, as for codespell above:
+# typos' dictionary offers "into" for it too
+intoto = "intoto"
 
 [tool.typos.type.verbatim]
 # the three files that quote a word rather than use it: an entry of

@@ -88,6 +88,12 @@ Both install jobs, the `[secp256k1]` one included, install through
 btclib-org/.github's `install_published_release.py`, which retries only while
 the installer says the pin is not resolvable (issue btclib-org/.github#1458).
 
+### The release's attestation bundle is attached as `*.intoto.jsonl`
+
+`RELEASING.md`'s commands and `SECURITY.md`'s verification name the bundle
+`<tag>.intoto.jsonl`, the name `reusable-github-release.yml` attaches it under
+(issue btclib-org/.github#1468).
+
 ## v2026.9.29
 
 ### `requires-python` moves to `>=3.11`
