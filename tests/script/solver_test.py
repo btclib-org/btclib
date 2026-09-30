@@ -20,7 +20,7 @@ from btclib.alias import TxoutType
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.script import push_int, serialize
-from btclib.script.solver import get_txn_output_type, solver
+from btclib.script.solver import _check_minimal_push, get_txn_output_type, solver
 
 # compressed G, 2G and 3G, and G uncompressed
 KEY_1 = bytes.fromhex(
@@ -467,3 +467,34 @@ def test_every_type_is_reached() -> None:
         )
     }
     assert answered == set(get_args(TxoutType))
+
+
+@pytest.mark.parametrize(
+    "size, op_code, minimal",
+    [
+        (0, 0x00, True),
+        (0, 0x4C, False),
+        (75, 75, True),
+        (75, 0x4C, False),
+        (76, 0x4C, True),
+        (76, 0x4D, False),
+        (255, 0x4C, True),
+        (256, 0x4C, False),
+        (256, 0x4D, True),
+        (256, 0x4E, False),
+        (65535, 0x4D, True),
+        (65535, 0x4E, False),
+        (65536, 0x4E, True),
+    ],
+)
+def test_check_minimal_push(size: int, op_code: int, minimal: bool) -> None:
+    """Core's CheckMinimalPush, past the sizes a multisig count can have."""
+    assert _check_minimal_push(b"\x20" * size, op_code) is minimal
+
+
+def test_check_minimal_push_of_one_byte() -> None:
+    """The bytes 1 to 16 and 0x81 have an op code; 0, 17 and 0x80 do not."""
+    for value in (*range(1, 17), 0x81):
+        assert not _check_minimal_push(bytes([value]), 1)
+    for value in (0, 17, 0x80):
+        assert _check_minimal_push(bytes([value]), 1)

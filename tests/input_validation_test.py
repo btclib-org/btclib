@@ -348,6 +348,7 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
         # test passing one would be testing the type checker
         "NetworkField",
         "ScriptType",
+        "TxoutType",
         # the two hash-function types are always behind a default -- `hf`
         # is the last parameter of everything that takes one -- so the
         # walk cannot reach them for the reason the module docstring
