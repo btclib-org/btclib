@@ -340,8 +340,6 @@ class Tx:  # noqa: PLW1641
         point of the format. BIP174 lists two zero-input PSBTs as valid
         and btclib refused both (issue 170).
         """
-        _assert_valid_coinbase(self.vin, is_coinbase=self.is_coinbase)
-
         # the type before the range, as BlockHeader.assert_valid checks its
         # own two int fields: a bool passes every comparison below as one or
         # zero, and `to_dict`/`from_dict` is a json boundary -- `true` there
@@ -388,6 +386,11 @@ class Tx:  # noqa: PLW1641
         total = sum(tx_out.value for tx_out in self.vout)
         if total > _MAX_SATOSHI:
             raise BTClibValueError(f"invalid total output amount: {total}")
+
+        # CheckTransaction's coinbase script length and null prevout check
+        # runs after vin-empty, vout-empty, output values, and duplicate inputs
+        # (issue #2417)
+        _assert_valid_coinbase(self.vin, is_coinbase=self.is_coinbase)
 
     def serialize(self, include_witness: bool, *, check_validity: bool = True) -> bytes:
         """Return the wire serialization, BIP144's where a witness rides.

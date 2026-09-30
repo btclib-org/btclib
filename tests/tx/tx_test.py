@@ -497,6 +497,12 @@ def test_a_coinbase_input_belongs_to_a_coinbase_only() -> None:
     # size consensus wants
     Tx(vin=[TxIn(OutPoint(), b"\x00\x00")], vout=[tx_out]).assert_valid()
 
+    # CheckTransaction checks empty vin/vout before the coinbase input rule,
+    # so a multi-violation transaction with zero outputs reports Missing outputs
+    # rather than bad-txns-prevout-null (issue #2417)
+    with pytest.raises(BTClibValueError, match="Missing outputs"):
+        Tx(vin=[tx_in, coinbase_in], vout=[], check_validity=False).assert_valid()
+
 
 # https://en.bitcoin.it/wiki/Protocol_documentation#tx
 def test_wiki_transaction() -> None:
