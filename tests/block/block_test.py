@@ -32,6 +32,7 @@ from btclib.block.limits import (
     MIN_SERIALIZABLE_TRANSACTION_WEIGHT,
     WITNESS_SCALE_FACTOR,
 )
+from btclib.block.mining import candidate_block_header, mine
 from btclib.block.proof_of_work import REGTEST_POW_LIMIT_BITS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256, merkle_root_and_mutated_from_hashes
@@ -1208,8 +1209,100 @@ def test_a_block_cannot_hold_too_many_transactions_or_too_many_bytes() -> None:
     # (issue #2422)
     coinbase.vin[0].script_sig = b"\x00" * 101
     oversize_bytes = block.serialize(include_witness=False, check_validity=False)
-    with pytest.raises(BTClibValueError, match=r"invalid stripped size: 1000246 \* 4 > 4000000"):
+    with pytest.raises(
+        BTClibValueError, match=r"invalid stripped size: 1000246 \* 4 > 4000000"
+    ):
         Block.parse(oversize_bytes)
+
+
+def test_parse_reports_bad_blk_length_before_a_tx_reject_reason() -> None:
+    """CheckBlock asks every corruption question before CheckTransaction.
+
+    Core answers `bad-blk-length` before it ever runs `CheckTransaction`
+    on a single transaction (bitcoin/bitcoin@9be056a8a7, validation.cpp,
+    "All potential-corruption validation must be done before we do any
+    transaction validation"). A block whose only defect is one
+    oversize transaction must therefore answer under the block's own
+    rule and not under the transaction's `bad-txns-oversize` -- and only
+    a real round trip through `Block.parse` can tell the two apart,
+    since a transaction parsed off the wire is what used to be checked
+    on its own, one at a time, before the block-level check ever ran
+    (issue #2422).
+
+    The block must carry no *other* defect along the way it reaches
+    `Block.parse`, and a candidate real enough to mine is what keeps
+    that true: `candidate_block_header` computes the header's merkle
+    root from the actual transaction list, so the header committing to
+    this one coinbase is real rather than borrowed from an unrelated
+    block, and it is mined for real at REGTEST_POW_LIMIT_BITS (mainnet's
+    difficulty being nothing a toy miner reaches), the way
+    test_a_mined_block_is_a_block (tests/block/mining_test.py) already
+    builds one.
+
+    Two calls, two different fixed points of `Block.parse`'s
+    `check_validity` -- neither reaching the transaction's own
+    complaint. `check_validity=False` skips `assert_valid` entirely, so
+    `parsed.assert_valid(REGTEST_POW_LIMIT_BITS)` is asked by hand and
+    answers `assert_valid_length`'s own `bad-blk-length`, the size bound
+    this test is named for. The default `check_validity=True` instead
+    answers under `assert_valid_pow`, and under mainnet's own limit
+    rather than regtest's: `Block.assert_valid` checks the header and
+    its proof-of-work before it ever asks `assert_valid_structure`, and
+    this fixture is mined at REGTEST_POW_LIMIT_BITS -- easier than
+    mainnet allows -- so that check is what answers first, never
+    reaching `bad-blk-length` or the transaction. It is this second call
+    that tells `Tx.parse`'s own `check_validity` apart from the
+    hardcoded `False` `Block.parse` asks it with: parsed one at a time
+    as they are read off the wire, with the caller's own flag rather
+    than the hardcoded one, the coinbase's own out-of-range script_sig
+    would answer under `_assert_valid_coinbase`'s "Invalid coinbase
+    script size" during the parse, before `Block.assert_valid` ever ran.
+    The script_sig defect is the discriminator here rather than an
+    oversize transaction, because nothing at this base yet bounds a
+    transaction's own serialized size -- #2420 does, on another branch,
+    and is not what this fix is answering for.
+    """
+    limit = MAX_BLOCK_WEIGHT // WITNESS_SCALE_FACTOR
+    huge_script = ScriptPubKey(b"\x00" * limit)
+    coinbase = Tx(
+        1,
+        0,
+        # 101 bytes: one past _assert_valid_coinbase's own 2-100 bound,
+        # so a Tx.parse asked to validate this coinbase refuses it on
+        # its own, distinctly from assert_valid_length's stripped-size
+        # message below
+        [TxIn(OutPoint(), b"\x00" * 101, 0xFFFFFFFF)],
+        [TxOut(1, huge_script)],
+        check_validity=False,
+    )
+
+    candidate = candidate_block_header(
+        b"\x00" * 32,
+        [coinbase],
+        datetime(2024, 5, 1, 12, 0, 0, tzinfo=UTC),
+        REGTEST_POW_LIMIT_BITS,
+    )
+    header = mine(candidate)
+    assert header is not None
+
+    oversize_block = Block(header, [coinbase], check_validity=False)
+    assert oversize_block.stripped_size * WITNESS_SCALE_FACTOR > MAX_BLOCK_WEIGHT
+    serialization = oversize_block.serialize(check_validity=False)
+
+    err_msg = f"invalid stripped size: {oversize_block.stripped_size} "
+    err_msg += f"\\* {WITNESS_SCALE_FACTOR} > {MAX_BLOCK_WEIGHT}"
+    parsed = Block.parse(serialization, check_validity=False)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        parsed.assert_valid(REGTEST_POW_LIMIT_BITS)
+
+    # the default check_validity=True path answers under mainnet's own
+    # proof-of-work limit instead, Block.assert_valid's first question
+    # and asked before assert_valid_structure -- reaching neither
+    # bad-blk-length above nor the transaction's own complaint
+    with pytest.raises(
+        BTClibValueError, match="proof-of-work target above the limit: "
+    ):
+        Block.parse(serialization)
 
 
 def test_a_block_cannot_weigh_more_than_the_cap() -> None:

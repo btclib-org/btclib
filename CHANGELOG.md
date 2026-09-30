@@ -94,6 +94,12 @@ the installer says the pin is not resolvable (issue btclib-org/.github#1458).
 `<tag>.intoto.jsonl`, the name `reusable-github-release.yml` attaches it under
 (issue btclib-org/.github#1468).
 
+### `Block.parse` defers each transaction's own checks to `assert_valid_structure`
+
+Each transaction now parses unchecked, and `assert_valid_structure` validates
+it in its own pass rather than `Block.parse` checking it alone as it reads it
+off the wire (closes #2422).
+
 ## v2026.9.29
 
 ### `requires-python` moves to `>=3.11`

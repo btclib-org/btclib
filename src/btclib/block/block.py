@@ -698,9 +698,7 @@ class Block:
         # parsed with check_validity=False so that cls's assert_valid_structure
         # runs the block's own assert_valid_length ahead of per-transaction
         # validation, matching Core's CheckBlock order (issue #2422)
-        transactions = [
-            Tx.parse(stream, check_validity=False) for _ in range(n)
-        ]
+        transactions = [Tx.parse(stream, check_validity=False) for _ in range(n)]
         assert_no_trailing(data, stream, "block")
 
         return cls(header, transactions, check_validity=check_validity)
