@@ -121,8 +121,11 @@ def test_the_merkle_root_is_the_one_the_block_checks() -> None:
     with pytest.raises(BTClibValueError, match="duplicate transaction"):
         candidate_block_header(_PREVIOUS, mutated, _TIME, _EASY_BITS)
 
-    # and neither does no transaction list at all
-    with pytest.raises(BTClibValueError, match="empty merkle tree"):
+    # and neither does no transaction list at all -- checked here rather
+    # than left to merkle_root_and_mutated_from_transactions, which now
+    # answers Core's own all-zero root for one instead of raising
+    # (issue #2427)
+    with pytest.raises(BTClibValueError, match="empty transaction list"):
         candidate_block_header(_PREVIOUS, [], _TIME, _EASY_BITS)
 
 

@@ -11,7 +11,6 @@ from typing import Any
 import pytest
 
 from btclib import hashes
-from btclib.exceptions import BTClibValueError
 from btclib.hashes import (
     hash160,
     hash256,
@@ -210,8 +209,15 @@ def test_merkle_root_from_branch_empty_branch_is_bytes() -> None:
 
 
 def test_merkle_root_empty() -> None:
-    """Refuse an empty merkle tree rather than loop forever."""
-    # guards against looping forever, never reducing an empty level to a
-    # root
-    with pytest.raises(BTClibValueError, match="empty merkle tree"):
-        merkle_root([], hash256)
+    """An empty tree answers Core's own all-zero root rather than looping.
+
+    ComputeMerkleRoot's reduction loop never runs for zero hashes
+    (`while (hashes.size() > 1)` is false at zero), so it falls through
+    to `return uint256()` rather than raising -- read at
+    bitcoin/bitcoin@9be056a8a7, src/consensus/merkle.cpp, the v31.1 tag
+    (issue #2427). Not mutated either: CVE-2012-2459 is about two equal
+    siblings, and there is no sibling at all.
+    """
+    assert merkle_root([], hash256) == b"\x00" * 32
+    assert merkle_root_and_mutated([], hash256) == (b"\x00" * 32, False)
+    assert merkle_root_and_mutated_from_hashes([], hash256) == (b"\x00" * 32, False)

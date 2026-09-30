@@ -268,8 +268,9 @@ def test_build_block_refuses_a_malformed_non_coinbase_transaction() -> None:
 
     `Tx.assert_valid`'s own rule (bad-txns-prevout-null), reached through
     `assert_valid_structure`'s own per-transaction loop -- not by
-    `candidate_block_header`, which only refuses a CVE-2012-2459 merkle
-    mutation, and which this transaction does not trigger.
+    `candidate_block_header`, which only refuses an empty transaction
+    list or a CVE-2012-2459 merkle mutation, and which this transaction
+    triggers neither of.
     """
     coinbase = build_coinbase(1, ScriptPubKey(b"\x51"))
     malformed = Tx(

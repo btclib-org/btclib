@@ -881,18 +881,17 @@ def test_difficulty_decodes_bits_once() -> None:
 
 
 def test_block_without_transactions() -> None:
-    """A block with no coinbase is not a block with nothing in it.
+    """Core's bad-txnmrklroot or bad-blk-length, depending on the header.
 
-    One byte is all it takes: a var_int of zero where the transaction
-    count goes -- refused, rather than left for transactions[0] to
-    surface as an IndexError, by the merkle root check that now runs
-    first (issue #2425): merkle_root_and_mutated_from_transactions
-    raises on an empty list rather than answering Core's own all-zero
-    root for one (issue #2427, filed and not fixed here), so
-    `_assert_coinbase`'s own "block with no transactions" -- still what
-    a direct call raises, as `height`'s own docstring shows -- is not
-    what `Block.parse` or `Block()` answer for this input while #2427
-    stands.
+    An empty transaction list's own merkle root is Core's own all-zero
+    one, `ComputeMerkleRoot`'s fallthrough rather than a raise
+    (issue #2427). `CheckBlock` checks the merkle root before the size
+    limits (issue #2425), so a header whose own root is not all-zero --
+    every real header -- answers there, `invalid merkle root`, where a
+    real node reports `bad-txnmrklroot`. Only a header already carrying
+    the all-zero root passes the merkle check and reaches
+    `assert_valid_length`'s own "empty transaction list", Core's
+    `bad-blk-length`.
     """
     fname = "block_1.bin"
     filename = Path(__file__).parent / "_data" / fname
@@ -901,12 +900,22 @@ def test_block_without_transactions() -> None:
 
     # the count follows the 80 bytes of the header
     emptied = block_bytes[:80] + b"\x00"
-    with pytest.raises(BTClibValueError, match="empty merkle tree"):
+    with pytest.raises(BTClibValueError, match="invalid merkle root: "):
         Block.parse(emptied)
 
     header = Block.parse(block_bytes).header
-    with pytest.raises(BTClibValueError, match="empty merkle tree"):
+    with pytest.raises(BTClibValueError, match="invalid merkle root: "):
         Block(header, [])
+
+    # a header already carrying the all-zero root passes the merkle
+    # check and reaches assert_valid_length instead. Proof-of-work
+    # cannot survive a merkle_root change (a different header, a
+    # different hash), so assert_valid_structure is asked directly
+    # rather than assert_valid -- nothing here can grind block 1's real,
+    # mainnet-grade difficulty for a new header
+    header.merkle_root = b"\x00" * 32
+    with pytest.raises(BTClibValueError, match="empty transaction list"):
+        Block(header, [], check_validity=False).assert_valid_structure()
 
     # the message this test is named for, still reachable directly
     with pytest.raises(BTClibValueError, match="block with no transactions"):
@@ -1339,27 +1348,24 @@ def test_parse_reports_bad_blk_length_before_a_tx_reject_reason() -> None:
     that tells `Tx.parse`'s own `check_validity` apart from the
     hardcoded `False` `Block.parse` asks it with: parsed one at a time
     as they are read off the wire, with the caller's own flag rather
-    than the hardcoded one, the coinbase's own out-of-range script_sig
-    would answer under `_assert_valid_coinbase`'s "Invalid coinbase
-    script size" during the parse, before `Block.assert_valid` ever ran.
-    The script_sig defect is the discriminator here rather than an
-    oversize transaction, because nothing at this base yet bounds a
-    transaction's own serialized size -- #2420 does, on another branch,
-    and is not what this fix is answering for.
+    than the hardcoded one, this coinbase would answer for itself
+    during the parse -- `Tx.assert_valid`'s own oversize rule
+    (issue #2420) first, its huge output script alone crossing the cap
+    -- before `Block.assert_valid` ever ran.
     """
     limit = MAX_BLOCK_WEIGHT // WITNESS_SCALE_FACTOR
     huge_script = ScriptPubKey(b"\x00" * limit)
     coinbase = Tx(
         1,
         0,
-        # 101 bytes: one past _assert_valid_coinbase's own 2-100 bound,
-        # so a Tx.parse asked to validate this coinbase refuses it on
-        # its own, distinctly from assert_valid_length's stripped-size
-        # message below
-        [TxIn(OutPoint(), b"\x00" * 101, 0xFFFFFFFF)],
+        [TxIn(OutPoint(), b"\x00\x00", 0xFFFFFFFF)],
         [TxOut(1, huge_script)],
         check_validity=False,
     )
+
+    # the same single transaction is oversize on its own, exactly the
+    # shape test_oversize_is_refused (tests/tx/tx_test.py) refuses
+    assert coinbase._serialized_size(include_witness=False) > limit
 
     candidate = candidate_block_header(
         b"\x00" * 32,

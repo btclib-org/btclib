@@ -333,20 +333,33 @@ class Block:
     def assert_valid_length(self) -> None:
         """Assert the size limits of Core's CheckBlock (bad-blk-length).
 
-        Two comparisons against MAX_BLOCK_WEIGHT, and neither of them is
-        the weight: the transaction count times WITNESS_SCALE_FACTOR --
-        no transaction serializes to less than a byte, and a byte outside
-        the witness weighs four, so a block holds at most a quarter of the
-        cap in transactions -- and the stripped size times
-        WITNESS_SCALE_FACTOR. The second is what real blocks sit against:
-        3,954,076 of 4,000,000 for block 481,824, 98.9% of the cap. The
-        weight itself is bounded by assert_valid_weight, where Core bounds
-        it.
+        Three questions in Core's single condition: the transaction list
+        is empty, or its count times WITNESS_SCALE_FACTOR -- no
+        transaction serializes to less than a byte, and a byte outside
+        the witness weighs four, so a block holds at most a quarter of
+        the cap in transactions -- is over MAX_BLOCK_WEIGHT, or the
+        stripped size times WITNESS_SCALE_FACTOR is. The last is what
+        real blocks sit against: 3,954,076 of 4,000,000 for block
+        481,824, 98.9% of the cap. The weight itself is bounded by
+        assert_valid_weight, where Core bounds it.
 
-        The count is compared first, as in Core's single condition, and
-        that is what keeps this cheap: a list too long to be a block is
-        refused without serializing it.
+        Emptiness is checked first here, as Core's own first disjunct,
+        and the count second, both for the same reason: a list too long
+        or too short to be a block is refused without serializing it.
+        This is not always the first thing an empty list meets, though:
+        assert_valid_structure asks assert_valid_merkle_root before this,
+        and an empty transaction list's own merkle root is Core's own
+        all-zero one (issue #2427) -- so a header whose own root is not
+        already all-zero answers there instead, `invalid merkle root`,
+        the way a real node reports `bad-txnmrklroot` before it ever
+        reaches `bad-blk-length` for the same bytes. Only a header
+        already carrying the all-zero root reaches this method, and Core
+        answers `bad-blk-length` for it, the count-and-size questions
+        below both being vacuously satisfied by zero.
         """
+        if not self.transactions:
+            raise BTClibValueError("empty transaction list")
+
         count = len(self.transactions)
         if count * WITNESS_SCALE_FACTOR > MAX_BLOCK_WEIGHT:
             err_msg = f"invalid transaction count: {count}"
@@ -598,10 +611,11 @@ class Block:
         self.assert_valid_merkle_root()
 
         # Core's bad-blk-length is three questions in one condition -- an
-        # empty transaction list, too many transactions, too many bytes --
-        # and the first of them is answered by _assert_coinbase below: a
-        # block with no transactions has no coinbase, so refusing it in
-        # the size rule as well would be one refusal in two voices
+        # empty transaction list, too many transactions, too many bytes
+        # -- asked here, as Core asks it, ahead of _assert_coinbase's own
+        # emptiness question below: an empty list answers bad-blk-length,
+        # not bad-cb-missing, unless the merkle check above has already
+        # refused it under its own rule (issue #2427)
         self.assert_valid_length()
 
         self._assert_coinbase()

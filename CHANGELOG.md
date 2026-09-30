@@ -118,6 +118,12 @@ here checked before (closes #2420).
 proof-of-work, `CheckBlock`'s own position for it, rather than after every
 transaction and the sigop bound (closes #2425).
 
+### An empty transaction list's merkle root is the all-zero hash, not a raise
+
+`merkle_root_and_mutated_from_hashes` now answers Core's own
+`ComputeMerkleRoot([])`, so `assert_valid_length` refuses the empty list
+itself, `bad-blk-length`'s own first question (closes #2427).
+
 ## v2026.9.29
 
 ### `requires-python` moves to `>=3.11`
