@@ -94,6 +94,12 @@ the installer says the pin is not resolvable (issue btclib-org/.github#1458).
 `<tag>.intoto.jsonl`, the name `reusable-github-release.yml` attaches it under
 (issue btclib-org/.github#1468).
 
+### `Tx.assert_valid` reports a multi-violation transaction under Core's own rule
+
+The coinbase script length / null-prevout check now runs last in
+`assert_valid`, and each output's value and the running total are checked in
+one pass, matching `CheckTransaction`'s own order (closes #2417).
+
 ## v2026.9.29
 
 ### `requires-python` moves to `>=3.11`

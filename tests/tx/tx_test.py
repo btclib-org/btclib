@@ -504,6 +504,80 @@ def test_a_coinbase_input_belongs_to_a_coinbase_only() -> None:
         Tx(vin=[tx_in, coinbase_in], vout=[], check_validity=False).assert_valid()
 
 
+def test_the_checks_fire_in_cores_own_order() -> None:
+    """A transaction breaking several rules at once names Core's first one.
+
+    `CheckTransaction` (consensus/tx_check.cpp) checks, in order:
+    vin-empty, vout-empty, each output's value and the running total,
+    duplicate inputs, then the coinbase script length or a null prevout
+    in a non-coinbase transaction (issue #2417). Each transaction below
+    breaks the two rules its comment names at once, at the boundary
+    between two adjacent checks, and only the earlier of the two is
+    what `assert_valid` raises -- the running total against a later
+    output's own bad value included, the two being one pass over the
+    outputs and not two.
+    """
+    out_point = OutPoint(b"\x01" * 32, 0)
+    tx_out = TxOut(1, "")
+
+    # vin-empty before vout-empty
+    with pytest.raises(BTClibValueError, match="Missing inputs"):
+        Tx(vin=[], vout=[], check_validity=False).assert_valid()
+
+    # vout-empty before duplicate-inputs
+    with pytest.raises(BTClibValueError, match="Missing outputs"):
+        Tx(
+            vin=[TxIn(out_point), TxIn(out_point)], vout=[], check_validity=False
+        ).assert_valid()
+
+    # vout-empty before the coinbase/prevout-null rule -- the issue's own
+    # example: two inputs, one of them the null outpoint, no output
+    with pytest.raises(BTClibValueError, match="Missing outputs"):
+        Tx(
+            vin=[TxIn(out_point), TxIn(OutPoint())],
+            vout=[],
+            check_validity=False,
+        ).assert_valid()
+
+    # each output's value before duplicate-inputs
+    bad_out = TxOut(-1, "", check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount: "):
+        Tx(
+            vin=[TxIn(out_point), TxIn(out_point)],
+            vout=[bad_out],
+            check_validity=False,
+        ).assert_valid()
+
+    # the running total before duplicate-inputs
+    max_money = 2_100_000_000_000_000
+    with pytest.raises(BTClibValueError, match="invalid total output amount: "):
+        Tx(
+            vin=[TxIn(out_point), TxIn(out_point)],
+            vout=[TxOut(max_money, ""), TxOut(1, "")],
+            check_validity=False,
+        ).assert_valid()
+
+    # the running total before a later output's own bad value -- Core
+    # bounds each output and the running total in one pass over the
+    # outputs, so an earlier output already pushing the total past
+    # MAX_MONEY is reported before a later output's own negative value
+    # is ever looked at
+    with pytest.raises(BTClibValueError, match="invalid total output amount: "):
+        Tx(
+            vin=[TxIn(out_point)],
+            vout=[TxOut(max_money, ""), TxOut(1, ""), bad_out],
+            check_validity=False,
+        ).assert_valid()
+
+    # duplicate-inputs before the coinbase/prevout-null rule -- the null
+    # outpoint named twice is both at once
+    null = OutPoint()
+    with pytest.raises(BTClibValueError, match="the same outpoint is spent twice"):
+        Tx(
+            vin=[TxIn(null), TxIn(null)], vout=[tx_out], check_validity=False
+        ).assert_valid()
+
+
 # https://en.bitcoin.it/wiki/Protocol_documentation#tx
 def test_wiki_transaction() -> None:
     """Reproduce the wiki's protocol-documentation example transaction."""
