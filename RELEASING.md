@@ -514,7 +514,7 @@ to `deps-latest`'s own result.
    is the point of no return, PyPI accepting no file name twice even
    after deletion; the GitHub release follows it, with the distribution
    files attached, `btclib-<version>.cdx.json` and
-   `<tag>.attestation.jsonl` beside them, and the RELEASE_NOTES.md section
+   `<tag>.intoto.jsonl` beside them, and the RELEASE_NOTES.md section
    as its body. Read those notes once it lands: a run that logs
    `RELEASE_NOTES.md has no v<version> section` generated them from the
    merged pull requests instead — the fallback `version-check` exists to
@@ -690,7 +690,7 @@ publishes, unchanged, so "what was published" and "what that job built"
 are the same files (issue #1166). Anyone can check that, and the check is one command
 short of the provenance one above: verify the *rebuilt* file rather than a
 downloaded one, and it can only pass if the digests agree. A release whose
-assets carry `<tag>.attestation.jsonl` has the signed statement on disk
+assets carry `<tag>.intoto.jsonl` has the signed statement on disk
 too, so `--bundle <that file>` asks the same question of it without
 reaching the attestations API — which is the form for whoever mirrors the
 releases page rather than trusting it live. `--signer-workflow` is the
@@ -893,8 +893,8 @@ above needs no `uv sync` to produce the published bytes.
   materials:
 
   ```shell
-  mv attestation/attestation.jsonl "${tag:?}.attestation.jsonl" &&
+  mv attestation/attestation.jsonl "${tag:?}.intoto.jsonl" &&
   gh release create "${tag:?}" dist/*.whl dist/*.tar.gz \
-    sbom/*.cdx.json "${tag:?}.attestation.jsonl" \
+    sbom/*.cdx.json "${tag:?}.intoto.jsonl" \
     --title "${tag:?}" --notes-file <the tag's RELEASE_NOTES.md section>
   ```
