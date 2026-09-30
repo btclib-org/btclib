@@ -378,6 +378,19 @@ def test_a_non_str_hrp_is_a_type_error() -> None:
         Network.from_dict({**mainnet, "hrp": 0})
 
 
+def test_a_non_str_network_type_is_a_type_error() -> None:
+    """The network type is a str, whatever the json says.
+
+    A list or a dict is unhashable, which the membership test in
+    assert_valid would leak as the built-in TypeError.
+    """
+    mainnet = NETWORKS["mainnet"].to_dict()
+    wrong_types: list[object] = [[1], {}, 1, 1.5, True, None]
+    for wrong in wrong_types:
+        with pytest.raises(BTClibTypeError, match="invalid network_type type"):
+            Network.from_dict({**mainnet, "network_type": wrong})
+
+
 def test_the_literal_vocabularies_name_the_data() -> None:
     """NetworkField is every field of Network, NetworkName every network.
 

@@ -41,6 +41,12 @@ file per release is what keeps each of them under it.
 
 ## v2026.10 (work in progress, not released yet)
 
+### `Network.from_dict` refuses a non-string network type
+
+- **A non-string `network_type` leaves as `BTClibTypeError`** (closes #2434).
+  An array or an object leaked the built-in `TypeError`; a number, a bool or
+  `null` left as `BTClibValueError`, which `except ValueError` no longer catches.
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again
