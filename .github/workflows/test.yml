@@ -634,6 +634,17 @@ jobs:
         run: |
           uv run --no-project --python 3.15 \
             .github/scripts/verify_dist_contents.py dist/
+      # the script that writes the bill of materials is btclib-org/.github's,
+      # served from `main`. It goes under a `path:` and after the build, so
+      # it is not among the files `uv build` packed
+      - name: Check out the script that writes the bill of materials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: btclib-org/.github
+          ref: main
+          path: btclib-org-github
+          persist-credentials: false
+          sparse-checkout: .github/scripts
       # and what nothing said at all: what the files contain, as a
       # document rather than as a check. The bill of materials is
       # reproducible for the reason the two steps above are --
@@ -646,7 +657,7 @@ jobs:
       - name: Write the bill of materials
         run: |
           uv run --no-project --python 3.15 \
-            .github/scripts/generate_sbom.py dist/ sbom/
+            btclib-org-github/.github/scripts/generate_sbom.py dist/ sbom/
       # before anything is installed, and that ordering is the point: a
       # step below runs third-party code -- twine, check-wheel-contents
       # and pyroma come from a group uv installs, and a `.pth` file in a

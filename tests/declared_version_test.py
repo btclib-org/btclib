@@ -68,8 +68,8 @@ _ROOT = Path(__file__).parents[1]
 _PLACEHOLDER = re.compile(r"[0-9]+\.[0-9]+")
 _RELEASE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?")
 
-# resolved once, for the reason generate_sbom.py's own `_GIT` is: a bare
-# "git" in a subprocess list is a partial executable path
+# resolved once: a bare "git" in a subprocess list is a partial executable
+# path
 _GIT = shutil.which("git") or "git"
 
 

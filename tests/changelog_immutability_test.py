@@ -186,8 +186,8 @@ _FILES = (*_LIVE, *_ARCHIVED)
 _WIP = "work in progress, not released yet"
 _HEADING = re.compile(r"^## (\S+)(.*)$", re.MULTILINE)
 
-# resolved once, for the reason generate_sbom.py's own `_GIT` is: a bare
-# "git" in a subprocess list is a partial executable path
+# resolved once: a bare "git" in a subprocess list is a partial executable
+# path
 _GIT = shutil.which("git") or "git"
 
 

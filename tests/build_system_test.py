@@ -178,8 +178,7 @@ def _reaches_outside_the_sdist(tree: ast.Module) -> bool:
     reads a release's own tag with `subprocess.run([_GIT, ...])` rather
     than a `Path` join, `.git` not being a directory any test builds a
     path through. `_GIT` -- `shutil.which("git") or "git"`, resolved
-    once, the convention `generate_sbom.py` and its own test already
-    use -- is a bare name and not the string "git" itself, ruff's own
+    once -- is a bare name and not the string "git" itself, ruff's own
     start-process-with-partial-path check being what a literal there
     would trip; matching that name is what the shape actually looks like
     now, a call whose first argument is a list or tuple literal opening

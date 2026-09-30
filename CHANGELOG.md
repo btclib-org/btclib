@@ -65,6 +65,12 @@ drops what `CONTRIBUTING.md`, the standard and the tests already state
   types and solutions, read at bitcoin/bitcoin@9be056a8a7 (v31.1).
   `type_and_payload` stays narrower (issue #211).
 
+### `generate_sbom.py` is btclib-org/.github's
+
+- **The `dist` job writes the bill of materials with btclib-org/.github's
+  `generate_sbom.py`**, served from `main`, and the tree keeps no copy of it
+  (issue btclib-org/.github#1478).
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again
