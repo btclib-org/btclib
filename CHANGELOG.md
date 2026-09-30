@@ -47,6 +47,12 @@ file per release is what keeps each of them under it.
   An array or an object leaked the built-in `TypeError`; a number, a bool or
   `null` left as `BTClibValueError`, which `except ValueError` no longer catches.
 
+### `CLAUDE.md`'s primary-checkout section is the organization's shared text
+
+The section is the same in every repository, and the rest of the file
+drops what `CONTRIBUTING.md`, the standard and the tests already state
+(issue btclib-org/.github#1494).
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again
