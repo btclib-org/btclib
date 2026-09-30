@@ -57,6 +57,7 @@ own with its branch already in its path.
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/btclib-org/btclib/badge)](https://scorecard.dev/viewer/?uri=github.com/btclib-org/btclib)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14253/badge)](https://www.bestpractices.dev/projects/14253)
+[![OpenSSF Baseline](https://www.bestpractices.dev/projects/14253/baseline)](https://www.bestpractices.dev/projects/14253)
 
 ---
 
