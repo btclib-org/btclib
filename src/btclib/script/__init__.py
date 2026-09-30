@@ -24,8 +24,8 @@ shape, and tests/imports_test.py is what reports it.
 The other submodules are not named: `script`, `script_pub_key`,
 `sig_ops`, `spendability` and `witness` are where the flat names above
 are defined, `solver` is Bitcoin Core's `Solver`, and `limits` and
-`op_codes_tapscript` are tables the engine reads. Each declares its own `__all__` and is importable; none is a
-group.
+`op_codes_tapscript` are tables the engine reads. Each declares its own
+`__all__` and is importable; none is a group.
 """
 
 from importlib import import_module
