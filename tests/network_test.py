@@ -362,6 +362,11 @@ def test_the_network_type_default_is_test() -> None:
         # the type is not a network name, and the json is what says it
         Network.from_dict({**NETWORKS["mainnet"].to_dict(), "network_type": "mainnet"})
 
+    wrong_types: tuple[object, object] = ([1], {})
+    for wrong in wrong_types:
+        with pytest.raises(BTClibTypeError, match="invalid network_type type"):
+            Network.from_dict({**NETWORKS["mainnet"].to_dict(), "network_type": wrong})
+
 
 def test_a_non_str_hrp_is_a_type_error() -> None:
     """The hrp is the human-readable part of an address, so it is a str.

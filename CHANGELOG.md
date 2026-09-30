@@ -41,6 +41,11 @@ file per release is what keeps each of them under it.
 
 ## v2026.10 (work in progress, not released yet)
 
+### `Network.from_dict` refuses a non-string network type
+
+- **A malformed `network_type` field leaves as `BTClibTypeError`**, instead of
+  leaking the membership check's built-in `TypeError` (closes #2434).
+
 ### `generate_sbom.py` carries a not-affected list into the bill of materials
 
 - **`generate_sbom.py` reads `.github/vex.toml`**, where the tree lists the
