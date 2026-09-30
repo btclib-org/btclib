@@ -732,8 +732,12 @@ uv_version=$(unzip -p "$wheels"/*.whl '*.dist-info/WHEEL' |
 uvx "uv@$uv_version" build &&
 uv run --no-project --python "$python" \
   .github/scripts/normalize_sdist.py dist/ &&
+served=$(mktemp -d) &&
+git clone --depth 1 --filter=blob:none --sparse \
+  https://github.com/btclib-org/.github "$served" &&
+git -C "$served" sparse-checkout set .github/scripts &&
 uv run --no-project --python "$python" \
-  .github/scripts/generate_sbom.py dist/ sbom/ &&
+  "$served"/.github/scripts/generate_sbom.py dist/ sbom/ &&
 gh attestation verify "dist/btclib-${version:?}.tar.gz" \
   --repo "$repo" --signer-workflow "$signer" &&
 gh attestation verify "dist/btclib-${version:?}-py3-none-any.whl" \
@@ -774,6 +778,9 @@ The bill of materials is rebuilt with them and verified like them: its
 timestamp is `SOURCE_DATE_EPOCH` and its serial number is derived from the
 two digests, so it is the same bytes as the released copy — which is the
 only reason a third `gh attestation verify` can pass at all.
+`generate_sbom.py` comes from btclib-org/.github's `main`, not from
+the tag, so once `main` changes what it writes the third command fails
+with the files unchanged.
 
 Two things bound that guarantee, and both are worth knowing before reading
 a mismatch as tampering:

@@ -329,7 +329,6 @@ source-exclude = [
     "/tests/check_py_arm_authority_test.py",
     "/tests/check_vendored_vectors_test.py",
     "/tests/docs_commands_test.py",
-    "/tests/generate_sbom_test.py",
     "/tests/interpreters_test.py",
     "/tests/mutation_sessions_test.py",
     "/tests/normalize_sdist_test.py",
@@ -824,9 +823,8 @@ extend-ignore-re = ['`[^`]*`']
 # directions: it asks for a fix that CI does not want. Named, the job
 # and the local run are the same command, and the scripts lose nothing
 # by it, mypy taking them as CONTRIBUTING.md's command says. Covering
-# that guard instead would mean a test calling it in-process the way
-# `generate_sbom_test.py`'s own guard test does, for the sake of the
-# measurement alone
+# that guard instead would mean a test calling it in-process, for the
+# sake of the measurement alone
 source = ["btclib", "tests"]
 # tests/integration is omitted because the ratchet measures what an
 # ordinary run executes, and those tests skip themselves without
