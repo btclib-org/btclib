@@ -20,9 +20,7 @@ summarized -- and the Summary carries the `git ls-files` command that
 derives it on demand.
 
 CLAUDE.md states the rule this module enforces: "Never state how many of
-anything a file holds." Its one exception is "a count of what upstream
-published -- `tests/_data/README.md`'s '121 vectors, Core's entire
-file' -- which pins a vendored file rather than measuring this tree".
+anything a file holds." Its exception is "a count of what upstream published".
 Everything below is an application of that sentence, not a paraphrase of
 it: a numeral -- a digit run, or a spelled-out numeral as a word -- is
 forbidden anywhere in this README unless `_NOT_A_COUNT` accounts for it,

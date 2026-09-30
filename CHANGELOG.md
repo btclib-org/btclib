@@ -47,6 +47,18 @@ file per release is what keeps each of them under it.
   An array or an object leaked the built-in `TypeError`; a number, a bool or
   `null` left as `BTClibValueError`, which `except ValueError` no longer catches.
 
+### `CLAUDE.md`'s primary-checkout section is the organization's shared text
+
+The section is the same in every repository, and the rest of the file
+drops what `CONTRIBUTING.md`, the standard and the tests already state
+(issue btclib-org/.github#1494).
+
+### `release.yml` audits the lock before it publishes
+
+- **The `audit` job runs `uv audit` over what the wheel declares**, by calling
+  btclib-org/.github's `reusable-audit.yml`, and both publish jobs wait for
+  its success (closes btclib-org/.github#1466).
+
 ### `btclib.script.solver` is Bitcoin Core's `Solver`
 
 - **`solver` and `get_txn_output_type`** (closes #2456) answer Core's eleven
