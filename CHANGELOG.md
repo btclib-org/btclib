@@ -93,6 +93,12 @@ drops what `CONTRIBUTING.md`, the standard and the tests already state
 `SECURITY.md` gives the date of the latest security review and links the issue
 that records it (issue btclib-org/.github#1362).
 
+### A `Signed-off-by:` trailer on every commit of a pull request
+
+*Pull requests* says every commit of a pull request carries a
+`Signed-off-by:` trailer, and how to add it (issue
+btclib-org/.github#1467).
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again

@@ -56,6 +56,13 @@ the standard][s11]. Run the gates locally before opening anything —
 the last section of this file says which they are — because CI runs
 exactly them, so a red run there is a local run that was not done.
 
+**Every commit of a pull request carries a `Signed-off-by:` trailer
+naming its author**, which certifies the [Developer Certificate of
+Origin][dco]. `git commit -s` adds it, and `git rebase --signoff <base>`
+adds it to commits already made. [The standard's *Signatures*][s-sigs]
+says why a signature does not replace it, and which commits the
+`Sign-off` job skips.
+
 What a pull request's title and description have to say about the issues
 it closes, and why a manual link in the Development panel is a trap
 neither of them shows, is [the standard's *What a pull request says it
@@ -249,6 +256,7 @@ settings and why they are what they are.
 [s-title]: https://github.com/btclib-org/.github#what-a-pull-request-says-it-is
 [s-rev]: https://github.com/btclib-org/.github#review
 [s-sigs]: https://github.com/btclib-org/.github#signatures
+[dco]: https://developercertificate.org/
 [gh-merge]: https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request
 [governance]: https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md
 [roadmap]: https://github.com/btclib-org/.github/blob/main/ROADMAP.md
@@ -637,7 +645,7 @@ uv run --locked --only-group lint \
     pre-commit run --all-files --show-diff-on-failure
 ```
 
-`lint / Dependency review` is the same call's other job, and has no local
+`lint / Dependency review` is another job of the same call, and has no local
 command: it asks the forge's dependency graph what a pull request adds.
 
 `docs / Build the documentation` is `docs.yml`, calling
