@@ -21,7 +21,7 @@
 # writes: dependabot-core parses `v1` as a version, and a version tag is
 # the kind its `digest_only_update_suppressed?` can hold at the digest it
 # has, where `latest` is exempt from it.
-FROM gcr.io/oss-fuzz-base/base-builder-python:latest@sha256:d74383a516f17ae3300aee7160277adf0702a22ca400d2dc54cd79f4b4c86b70
+FROM gcr.io/oss-fuzz-base/base-builder-python:latest@sha256:58f80c90a90944b68b8e70b98e38997ee9396225311cfb0f3aea78671446ab4e
 
 COPY . $SRC/btclib
 WORKDIR $SRC/btclib
