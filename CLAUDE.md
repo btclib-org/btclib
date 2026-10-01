@@ -40,16 +40,21 @@ checkout=<checkout>
 git -C "${checkout:?}" pull --ff-only
 ```
 
-Read it only after that, once `git -C <checkout> rev-parse HEAD
-origin/main` prints one sha twice. A measurement that has to hold at a
-named revision reads `git -C <checkout> show <sha>:<path>` instead.
+Read it only after that, once this prints one sha twice:
+
+```shell
+git -C "${checkout:?}" rev-parse HEAD origin/main
+```
+
+A measurement that has to hold at a named revision reads
+`git -C "${checkout:?}" show <sha>:<path>` instead.
 
 Every session works in a worktree of its own, from its first edit, named
 `wt-<tracker>-<issue>-<repo>-<role>` — `wt-github-255-btclib-writer` for
 issue 255 of `btclib-org/.github`'s tracker, worked in `btclib` by a
 writer. The environment is created there, with the command `CONTRIBUTING.md`
 names under *The environment and the gates*. Every path is written out in
-full:
+full, `<scratchpad>` being the session's scratch directory:
 
 ```shell
 git worktree add \
@@ -63,7 +68,7 @@ git worktree remove --force <scratchpad>/wt-<tracker>-<issue>-<repo>-<role>
 ```
 
 `refs/stash` and the local `main` are shared by every worktree: never
-`git stash`, and move `main` only by the fast-forward above.
+`git stash`, and move `main` only by the `git pull --ff-only` above.
 
 ## Model
 
