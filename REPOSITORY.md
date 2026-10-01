@@ -63,6 +63,7 @@ repos/btclib-org/btclib/branches/main/protection --jq
 | `docs / Build the documentation` | `docs.yml`, calling `reusable-docs.yml` |
 | `lint / Lint and type-check` | `lint.yml`, calling `reusable-lint.yml` |
 | `regtest / Regtest against Bitcoin Core` | `integration-bitcoind.yml` |
+| `lint / Dependency review` | `lint.yml`, calling `reusable-lint.yml` |
 
 A workflow needs an aggregate when every one of its jobs has to gate:
 `test.yml` is the one with several, and a context naming any one of them
@@ -135,15 +136,16 @@ gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
     {"context": "test: every job passed", "app_id": 15368},
     {"context": "docs / Build the documentation", "app_id": 15368},
     {"context": "lint / Lint and type-check", "app_id": 15368},
-    {"context": "regtest / Regtest against Bitcoin Core", "app_id": 15368}
+    {"context": "regtest / Regtest against Bitcoin Core", "app_id": 15368},
+    {"context": "lint / Dependency review", "app_id": 15368}
   ]
 }
 JSON
 ```
 
-**`checks` and not `contexts`, and that is not a style.** All four are
-bound to the app that produces them — 15368, Actions — so nothing else
-reporting one of those names can satisfy it. `contexts` has no field for
+**`checks` and not `contexts`, and that is not a style.** Each is bound to
+the app that produces it — 15368, Actions — so nothing else reporting one
+of those names can satisfy it. `contexts` has no field for
 an app, so a `PATCH` sending it replaces the bound list with an unbound
 one: the rule keeps working, silently accepting any app's check of that
 name, and nothing in a run says so. Read it back rather than assume:
@@ -336,7 +338,7 @@ gh api repos/btclib-org/btclib --jq '.default_branch'
 # main
 ```
 
-Everything reaches it through a pull request: the four checks above with
+Everything reaches it through a pull request: the checks above with
 `strict`, one approving review, `dismiss_stale_reviews`, linear history,
 no force pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.

@@ -567,9 +567,9 @@ grep -n 'uses: \./\.github/workflows/' .github/workflows/release.yml
 ```
 
 The `test`, `lint`/`docs` and `integration-bitcoind` rows are what a
-merge waits for, and between them they report the required checks: `lint`
-and `docs` share a row and report one each. They run one image on one
-interpreter: `ubuntu-latest`, and the version `.python-version` names.
+merge waits for, and between them they report the required checks, which
+`REPOSITORY.md` names. They run one image on one interpreter: `ubuntu-latest`,
+and the version `.python-version` names.
 
 Which day each of the rest runs is section 10 of the organization
 standard, in `btclib-org/.github`, and not this file's to restate — one
@@ -636,6 +636,9 @@ the lock pins, which is what `uv run` above gives you too:
 uv run --locked --only-group lint \
     pre-commit run --all-files --show-diff-on-failure
 ```
+
+`lint / Dependency review` is the same call's other job, and has no local
+command: it asks the forge's dependency graph what a pull request adds.
 
 `docs / Build the documentation` is `docs.yml`, calling
 `btclib-org/.github`'s `reusable-docs.yml`, and its command is the one
