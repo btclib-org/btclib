@@ -106,7 +106,16 @@ myst_heading_anchors = 6
 # carries no public inventory, but the only name this tree imports from
 # it is the `override` decorator, which never appears in a signature or
 # a docstring type field, so it draws no reference for -n to raise on
-intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", (None, "_inventories/python.inv")),
+}
+# `_inventories/python.inv` is a copy of Python 3.14's inventory and no
+# cache: sphinx reads it only when `docs.python.org` fails, so a live site
+# always wins. It is the Wayback Machine's capture of 2026-08-28,
+# https://web.archive.org/web/20260828181213id_/https://docs.python.org/3/objects.inv
+# To refresh it, run this from the repository root and rewrite the version
+# and source above:
+# curl -fsSL -o docs/source/_inventories/python.inv https://docs.python.org/3/objects.inv
 
 # What the mapping above does not answer for is the shapes below, and each
 # entry carries its own reason rather than a nitpick_ignore_regex that
