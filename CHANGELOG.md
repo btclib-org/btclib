@@ -105,6 +105,12 @@ btclib-org/.github#1467).
   what `<scratchpad>` is and names the pull** (issue
   btclib-org/.github#1500).
 
+### The `python` inventory has a copy kept in the tree
+
+- **`docs/source/_inventories/python.inv` is read when `docs.python.org`
+  fails** (issue btclib-org/.github#1508), so an outage of that site no
+  longer fails the `-n -W` docs build.
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again
