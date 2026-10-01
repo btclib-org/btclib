@@ -64,7 +64,8 @@ message signature names.
   `var_bytes`, `consensus`, `amount`
 - **networks, keys and addresses**: `network`, `base58`, `bech32`, `key`,
   `b58`, `b32`
-- **the chain**: `script`, `tx`, `block`, `fee`, `coinstats`, `muhash`
+- **the chain**: `script`, `tx`, `block`, `fee`, `policy`, `coinstats`,
+  `muhash`
 - **the wire**: `p2p`, `electrum`
 
 `alias` holds the types the public API accepts, much of it taking anything

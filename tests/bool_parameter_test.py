@@ -104,6 +104,7 @@ from btclib.exceptions import BTClibTypeError
 from btclib.fee import FeeRate
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.p2p import BlockPayload, SendCmpct, TxPayload, Version
+from btclib.policy import assert_standard_tx
 from btclib.script.engine import script as engine
 from btclib.script.engine import script_op_codes, verify_transaction
 from btclib.script.engine.flags import NO_FLAGS, ScriptFlag
@@ -418,6 +419,15 @@ _KINDS = (
         " value: one octet for True or False and none for None, so a"
         " non-bool would serialize as the True a peer reading it takes"
         " for a request to relay transactions",
+    ),
+    _Case(
+        "btclib.policy.assert_standard_tx",
+        "permit_bare_multisig",
+        assert_standard_tx,
+        # an OP_RETURN output: _TX's OP_1 one is nonstandard
+        {"tx": Tx(vin=_TX.vin, vout=[TxOut(0, b"\x6a")])},
+        reason="`True` waives the refusal of a bare multisig output, so a"
+        " non-bool would relay what -permitbaremultisig=0 refuses",
     ),
 )
 

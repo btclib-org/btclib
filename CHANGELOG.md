@@ -76,6 +76,12 @@ drops what `CONTRIBUTING.md`, the standard and the tests already state
 - **`REPOSITORY.md` reads `lint / Dependency review` back with the other
   required checks** (issue btclib-org/.github#1465).
 
+### `btclib.policy` is Bitcoin Core's relay policy
+
+- **`assert_standard_tx`, `are_inputs_standard`, `is_witness_standard`,
+  `spends_non_anchor_witness_prog`, `is_dust`, `dust_outputs`, `virtual_size`
+  and `sig_ops_adjusted_weight`** (closes #2463) are Core's `policy.{h,cpp}`.
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again

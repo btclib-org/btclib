@@ -78,10 +78,11 @@ That runs `btclib.coinstats` against the node's own `gettxoutsetinfo`, at
 the tip of a chain the test builds, and the p2p handshake: a `Version`
 this library serialized, sent over a socket straight at the node's p2p
 port, and read back against whatever Core answers with, up to and
-including `verack`. The node is this session's own: a data directory under
-pytest's `tmp_path` and ephemeral rpc and p2p ports, so nothing reaches a
-node you are running. Name another binary with
-`BTCLIB_BITCOIND=/path/to/bitcoind`.
+including `verack`. It also compares `btclib.policy` with the node's own
+`testmempoolaccept`, transaction by transaction. The node is this
+session's own: a data directory under pytest's `tmp_path` and ephemeral
+rpc and p2p ports, so nothing reaches a node you are running. Name
+another binary with `BTCLIB_BITCOIND=/path/to/bitcoind`.
 
 Each of these tests is bounded by pytest-timeout, so a node that stops
 answering fails the test waiting on it instead of hanging the run. The
@@ -92,7 +93,7 @@ says where it omits them: the ratchet measures what an ordinary run
 executes, and a body that skips itself would be an uncovered line at
 every commit rather than a defect.
 
-Both run unattended in `integration-bitcoind.yml`, which fails the job if
+They run unattended in `integration-bitcoind.yml`, which fails the job if
 its tests skipped rather than ran, and downloads a pinned Core release
 weekly, on every pull request and on every push to `main`.
 

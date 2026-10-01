@@ -5,11 +5,13 @@ name: integration-bitcoind
 # a bitcoind to talk to. `tests/integration/` skips itself without
 # BTCLIB_INTEGRATION, so every other workflow reports those tests skipped
 # and nothing ever asks a real node whether its `gettxoutsetinfo` agrees
-# with what `btclib.coinstats` computes, or whether Core still speaks the
-# p2p octets this library emits and parses. This is where both questions
-# are asked, against a disposable regtest bitcoind: the chain state read
-# back on one side, and a `Version` this library serialized dialled
-# straight at the node's p2p port on the other.
+# with what `btclib.coinstats` computes, whether Core still speaks the
+# p2p octets this library emits and parses, or whether its
+# `testmempoolaccept` refuses what `btclib.policy` refuses. This is where
+# those questions are asked, against a disposable regtest bitcoind: the
+# chain state read back, a `Version` this library serialized dialled
+# straight at the node's p2p port, and transactions put to
+# `testmempoolaccept`.
 #
 # The checkout, the node install, the test run and the report upload are
 # btclib-org/.github's: reusable-integration-bitcoind.yml, called at

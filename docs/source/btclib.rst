@@ -121,6 +121,13 @@ btclib.network module
    :members:
    :show-inheritance:
 
+btclib.policy module
+--------------------
+
+.. automodule:: btclib.policy
+   :members:
+   :show-inheritance:
+
 btclib.utils module
 -------------------
 

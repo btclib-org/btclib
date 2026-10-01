@@ -50,7 +50,7 @@ SEGWIT_MARKER = b"\x00\x01"
 
 # Core v31.1's policy.h, TX_MIN_STANDARD_VERSION through
 # TX_MAX_STANDARD_VERSION: 1 and 2 are what v27.2 and v31.1 agree on, 3
-# is v31.1's own addition, BIP431's TRUC (issue #387)
+# is BIP431's TRUC, standard since v28.0 (issue #387)
 _TX_MIN_STANDARD_VERSION = 1
 _TX_MAX_STANDARD_VERSION = 3
 
@@ -317,7 +317,7 @@ class Tx:  # noqa: PLW1641
 
         Core v31.1's relay policy, `TX_MIN_STANDARD_VERSION` through
         `TX_MAX_STANDARD_VERSION`: 1 and 2 both v27.2 and v31.1 relay,
-        3 is v31.1's own addition, BIP431's TRUC, and every version
+        3 is BIP431's TRUC, standard since v28.0, and every version
         outside that window fails here and not in assert_valid, whose
         four-byte range takes it.
         """
