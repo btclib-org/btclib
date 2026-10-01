@@ -271,11 +271,11 @@ to `deps-latest`'s own result.
    of output is the only shape its answer takes.
 
    **`release.yml` runs this too, as its `public-api` job, and a red one
-   there is the expected shape of a cycle with breaking changes in it.**
+   there is a break `RELEASE_NOTES.md` does not name.**
    The job exists so the answer arrives while RELEASE_NOTES.md is being
    written; it is not a gate, and its own comment says so. Which means a
-   release run is *overall red* on a cycle like that while every job that
-   matters is green — read the job list and not the run's own badge, the
+   release run is *overall red* on a break the notes do not name while every
+   job that matters is green — read the job list and not the run's own badge, the
    same way `deps-latest` above is read per job. Nothing downstream waits
    on it: `publish-testpypi`, `publish-pypi` and `pypi-install` each open
    their `if:` with `always()` and name the dependencies they do require,
@@ -547,8 +547,8 @@ to `deps-latest`'s own result.
    ```
 
    `publish-testpypi` is `skipped` on a tag and `publish-pypi` on a
-   rehearsal — each is the other's trigger — `public-api` is red on any
-   cycle with breaking changes, and `documented` skipped on its own
+   rehearsal — each is the other's trigger — `public-api` is red for a
+   break `RELEASE_NOTES.md` does not name, and `documented` skipped on its own
    account, its guard being the push. Everything else should be
    `success`.
 

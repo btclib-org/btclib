@@ -111,6 +111,11 @@ btclib-org/.github#1467).
   fails** (issue btclib-org/.github#1508), so an outage of that site no
   longer fails the `-n -W` docs build.
 
+### `public-api` is red for a break `RELEASE_NOTES.md` does not name
+
+`RELEASING.md` says that a red `public-api` means `RELEASE_NOTES.md`
+misses a name (issue btclib-org/.github#1517).
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again
