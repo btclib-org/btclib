@@ -71,6 +71,11 @@ drops what `CONTRIBUTING.md`, the standard and the tests already state
   `generate_sbom.py`**, served from `main`, and the tree keeps no copy of it
   (issue btclib-org/.github#1478).
 
+### `Dependency review` is a required check
+
+- **`REPOSITORY.md` reads `lint / Dependency review` back with the other
+  required checks** (issue btclib-org/.github#1465).
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again
