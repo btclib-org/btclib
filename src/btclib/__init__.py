@@ -96,6 +96,7 @@ __all__ = [
     "muhash",
     "network",
     "p2p",
+    "policy",
     "script",
     "tx",
     "utils",

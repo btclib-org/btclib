@@ -684,6 +684,7 @@ def _run_ops(  # noqa: C901, PLR0912
     op_code_stops: list[int],
     script_index_ref: list[int],
     hash_types: list[int] | None,
+    check_signatures: bool,
 ) -> None:
     """Run verify_script's opcode dispatch loop.
 
@@ -734,7 +735,7 @@ def _run_ops(  # noqa: C901, PLR0912
         if op == "OP_CHECKSIG":
             pub_key = stack.pop()
             signature = stack.pop()
-            result = op_checksig(
+            result = check_signatures and op_checksig(
                 signature,
                 [signature],
                 pub_key,
@@ -772,7 +773,7 @@ def _run_ops(  # noqa: C901, PLR0912
                     break
                 pub_key = pub_keys[pub_key_index]
                 signature = signatures[signature_index]
-                signature_index += op_checksig(
+                signature_index += check_signatures and op_checksig(
                     signature,
                     signatures,
                     pub_key,
@@ -855,6 +856,42 @@ def verify_script(
     `op_checksig`; chaining scripts over one stack is chaining them
     over one collector too.
     """
+    _eval_script(
+        script_bytes,
+        stack,
+        prevout_value,
+        tx,
+        i,
+        flags,
+        segwit,
+        final,
+        precomputed,
+        hash_types,
+        True,
+    )
+
+
+def _eval_script(
+    script_bytes: bytes,
+    stack: list[bytes],
+    prevout_value: int,
+    tx: Tx,
+    i: int,
+    flags: ScriptFlag,
+    segwit: bool,
+    final: bool,
+    precomputed: PrecomputedTxData | None,
+    hash_types: list[int] | None,
+    check_signatures: bool,
+) -> None:
+    """`verify_script`'s body, with signature checks optional.
+
+    Without `check_signatures` every signature check fails, as with
+    Core's `BaseSignatureChecker`. `btclib.policy` asks for that under
+    `NO_FLAGS`, Core's `SCRIPT_VERIFY_NONE`: no encoding rule runs
+    before a check there and the lock-time op codes are NOPs, so a
+    failed check is all that checker changes.
+    """
     if len(script_bytes) > MAX_SCRIPT_SIZE:
         err_msg = f"script longer than {MAX_SCRIPT_SIZE} bytes: {len(script_bytes)}"
         raise ScriptError(err_msg, ScriptErrorCode.SCRIPT_SIZE)
@@ -899,6 +936,7 @@ def verify_script(
             op_code_stops,
             script_index_ref,
             hash_types,
+            check_signatures,
         )
     except ScriptError as e:
         raise ScriptError(e.args[0], e.code, script_index_ref[0], len(stack)) from e

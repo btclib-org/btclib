@@ -238,7 +238,7 @@ def test_a_standard_version_is_core_v31_1s_window() -> None:
     """Versions 1 through 3 are standard; 0, 4 and a set top bit are not.
 
     Core v31.1's policy.h: 1 and 2 are standard for v27.2 and v31.1
-    alike, 3 is v31.1's own addition, BIP431's TRUC, and everything
+    alike, 3 is BIP431's TRUC, standard since v28.0, and everything
     outside 1..3 is refused, immediately below and above it as well as
     every version whose top bit is set (issue #387).
 
