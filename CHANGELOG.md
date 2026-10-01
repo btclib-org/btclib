@@ -82,6 +82,12 @@ drops what `CONTRIBUTING.md`, the standard and the tests already state
   `spends_non_anchor_witness_prog`, `is_dust`, `dust_outputs`, `virtual_size`
   and `sig_ops_adjusted_weight`** (closes #2463) are Core's `policy.{h,cpp}`.
 
+### `[tool.uv] required-version` is `>=0.12.18`
+
+- **`required-version` reads `>=0.12.18`, not `>=0.12.19`** (issue
+  btclib-org/.github#1482): the Dependabot service refused `0.12.19` with
+  `tool_version_not_supported`.
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again
