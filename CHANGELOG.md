@@ -82,6 +82,12 @@ file per release is what keeps each of them under it.
   #2481): number operands follow the stack depth check, OP_CHECKSIGADD's number
   precedes its signature, OP_CHECKMULTISIG's dummy follows its signatures.
 
+### `electrum.decode_response` refuses a line nested past 16 levels
+
+- **A line nested deeper is refused before `json.loads` reads it**
+  (closes #2498). From about 3000 levels it killed CPython 3.12 and 3.13 in
+  a 512 KiB thread. The line is UTF-8 bytes; UTF-16, UTF-32 and `str` are refused.
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type
