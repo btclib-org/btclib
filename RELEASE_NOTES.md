@@ -19,14 +19,33 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
-## v2026.10 (work in progress, not released yet)
+## v2026.11 (work in progress, not released yet)
+
+## v2026.10.2
+
+### Breaking changes
+
+- **`Network.from_dict` refuses a non-string `network_type` with
+  `BTClibTypeError`** (closes #2434). A number, a bool or `null` left as
+  `BTClibValueError`, which `except ValueError` no longer catches; an array or
+  an object left as the built-in `TypeError`, now `BTClibTypeError`. Act on it
+  by catching `BTClibTypeError` or `TypeError` beside `ValueError`.
+- **`taproot.output_pubkey`, `output_pubkey_from_merkle_root` and
+  `check_output_pubkey` do not quote the x-coordinate they refuse.** They
+  raise `invalid x-coordinate` for an x below p and `x-coordinate not in
+  0..p-1` for one at or above it. `output_pubkey` and
+  `output_pubkey_from_merkle_root` raised `invalid x-coordinate: '<x>'` for
+  both, and `check_output_pubkey` added `: <x>` to each message. Act on it if
+  you match on the text of these refusals: match it without the x. It is still
+  a `BTClibValueError`, so an `except` on that class is unaffected.
+
+### Worth knowing, though nothing raises
 
 - **Verifying a release's attestation names a new signer and the tag.**
   `gh attestation verify` takes
   `--signer-workflow btclib-org/.github/.github/workflows/reusable-build.yml@refs/heads/main`
   and `--source-ref refs/tags/v<version>`; SECURITY.md names the signer of
   an earlier release.
-
 - **btclib requires btclib-ecc 2026.10.2, which fixes GHSA-r5pw-9wrg-m3mj
   and GHSA-m38m-987v-j55h.** Upgrading btclib installs it.
 
