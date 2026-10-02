@@ -33,6 +33,7 @@ from btclib.block import Block, BlockHeader
 from btclib.block.block_context import BlockContext
 from btclib.block.block_filter import BasicBlockFilter, prevout_scripts_from_utxos
 from btclib.block.header_context import (
+    assert_not_timewarp,
     header_at_height,
     median_time_past,
     next_bits_required,
@@ -195,6 +196,13 @@ _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
         -_HUGE,
         lambda v: next_bits_required(
             _header(), _header(), v, lambda h: h, CONSENSUS_PARAMS["mainnet"]
+        ),
+    ),
+    (
+        "timewarp parent height",
+        -_HUGE,
+        lambda v: assert_not_timewarp(
+            _header(), _header(), v, CONSENSUS_PARAMS["mainnet"]
         ),
     ),
     ("mining max tries", -_HUGE, lambda v: mine(_header(), v)),

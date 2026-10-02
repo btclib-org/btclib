@@ -29,6 +29,14 @@ full year, short month, short day (YYYY-M-D)
   0x<expected>)`. Act on it if you match on the text of the refusal: match
   `invalid checksum` alone. It is still a `NotAPrvKeyError`, so an `except` on
   that class is unaffected.
+- **`next_bits_required` no longer raises `invalid timestamp (timewarp
+  attack)`** (closes #2465). On a network with `enforce_bip94`, a header
+  opening a difficulty period more than `MAX_TIMEWARP` seconds behind its
+  parent now gets its target back, where it raised `BTClibValueError`. Act on
+  it if you relied on that refusal: call `assert_not_timewarp(header, parent,
+  parent_height, consensus)`, from `btclib.block` or
+  `btclib.block.header_context`, after the median-time-past check, which is
+  Core's order. Without the call the bound is not checked.
 
 ## v2026.10.2
 

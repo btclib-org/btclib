@@ -64,6 +64,12 @@ file per release is what keeps each of them under it.
 - **`estimate_fee_response` takes a finite rate of at least 0, or `-1`**
   (closes #2433). It returned `nan`, `inf` and `-5`.
 
+### `next_bits_required` leaves the timewarp bound to `assert_not_timewarp`
+
+- **`next_bits_required` returns the target and never raises the BIP94 bound**
+  (closes #2465). `assert_not_timewarp` is that check, so a caller can order
+  it after bad-diffbits and time-too-old, as Core does.
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type

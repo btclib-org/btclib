@@ -31,6 +31,7 @@ from btclib.block.block_header import BlockHeader
 from btclib.block.header_context import (
     MEDIAN_TIME_SPAN,
     ParentOf,
+    assert_not_timewarp,
     header_at_height,
     median_time_past,
     next_bits_required,
@@ -389,7 +390,7 @@ def test_regtest_min_difficulty_walk_stops_at_its_own_144_block_boundary() -> No
 
 
 # ---------------------------------------------------------------------------
-# next_bits_required -- BIP94
+# next_bits_required and assert_not_timewarp -- BIP94
 
 
 def test_bip94_rebases_the_retarget_on_the_periods_first_target() -> None:
@@ -436,18 +437,44 @@ def test_bip94_refuses_a_period_opening_too_far_behind_its_parent() -> None:
     consensus = _small_interval(enforce_bip94=True, pow_no_retargeting=False)
     interval = consensus.difficulty_adjustment_interval
     times = [EPOCH + timedelta(seconds=600 * h) for h in range(interval)]
-    headers, parent_of = a_chain(times, [HARD] * interval)
+    headers, _ = a_chain(times, [HARD] * interval)
     parent = headers[-1]
 
     too_early = parent.time - timedelta(seconds=MAX_TIMEWARP + 1)
     candidate = _header(parent.hash, too_early, HARD)
     with pytest.raises(BTClibValueError, match="timewarp attack"):
-        next_bits_required(candidate, parent, interval - 1, parent_of, consensus)
+        assert_not_timewarp(candidate, parent, interval - 1, consensus)
 
     # exactly at the bound is not refused
     at_bound = parent.time - timedelta(seconds=MAX_TIMEWARP)
     candidate = _header(parent.hash, at_bound, HARD)
-    next_bits_required(candidate, parent, interval - 1, parent_of, consensus)
+    assert_not_timewarp(candidate, parent, interval - 1, consensus)
+
+
+def test_next_bits_required_answers_a_header_breaking_the_timewarp_bound() -> None:
+    """The target does not depend on the bound, so a caller can check it first.
+
+    Core refuses a header with the wrong target as `bad-diffbits` and one
+    at or below the median time past as `time-too-old`, both before
+    `time-timewarp-attack`.
+    """
+    consensus = _small_interval(enforce_bip94=True, pow_no_retargeting=False)
+    interval = consensus.difficulty_adjustment_interval
+    times = [EPOCH + timedelta(seconds=600 * h) for h in range(interval)]
+    headers, parent_of = a_chain(times, [HARD] * interval)
+    parent = headers[-1]
+    too_early = parent.time - timedelta(seconds=MAX_TIMEWARP + 1)
+    candidate = _header(parent.hash, too_early, HARD)
+
+    expected = next_bits(
+        HARD, headers[0].time, parent.time, pow_limit_bits=consensus.pow_limit_bits
+    )
+    assert (
+        next_bits_required(candidate, parent, interval - 1, parent_of, consensus)
+        == expected
+    )
+    with pytest.raises(BTClibValueError, match="timewarp attack"):
+        assert_not_timewarp(candidate, parent, interval - 1, consensus)
 
 
 def test_bip94_timewarp_check_is_independent_of_no_retargeting() -> None:
@@ -461,13 +488,13 @@ def test_bip94_timewarp_check_is_independent_of_no_retargeting() -> None:
     consensus = _small_interval(enforce_bip94=True, pow_no_retargeting=True)
     interval = consensus.difficulty_adjustment_interval
     times = [EPOCH + timedelta(seconds=600 * h) for h in range(interval)]
-    headers, parent_of = a_chain(times, [HARD] * interval)
+    headers, _ = a_chain(times, [HARD] * interval)
     parent = headers[-1]
 
     too_early = parent.time - timedelta(seconds=MAX_TIMEWARP + 1)
     candidate = _header(parent.hash, too_early, HARD)
     with pytest.raises(BTClibValueError, match="timewarp attack"):
-        next_bits_required(candidate, parent, interval - 1, parent_of, consensus)
+        assert_not_timewarp(candidate, parent, interval - 1, consensus)
 
 
 def test_bip94_off_the_boundary_is_not_checked() -> None:
@@ -477,9 +504,30 @@ def test_bip94_off_the_boundary_is_not_checked() -> None:
     parent = headers[1]
     way_early = parent.time - timedelta(seconds=MAX_TIMEWARP * 10)
     candidate = _header(parent.hash, way_early, HARD)
-    # height 2 is not a multiple of the four-block interval, so this is
-    # answered instead of refused
+    # height 2 is not a multiple of the four-block interval
+    assert_not_timewarp(candidate, parent, 1, consensus)
     assert next_bits_required(candidate, parent, 1, parent_of, consensus) == HARD
+
+
+def test_assert_not_timewarp_is_off_without_bip94() -> None:
+    """A network that does not enforce BIP94 has no such bound."""
+    consensus = _small_interval(enforce_bip94=False, pow_no_retargeting=False)
+    interval = consensus.difficulty_adjustment_interval
+    times = [EPOCH + timedelta(seconds=600 * h) for h in range(interval)]
+    headers, _ = a_chain(times, [HARD] * interval)
+    parent = headers[-1]
+    way_early = parent.time - timedelta(seconds=MAX_TIMEWARP * 10)
+    candidate = _header(parent.hash, way_early, HARD)
+    assert_not_timewarp(candidate, parent, interval - 1, consensus)
+
+
+def test_assert_not_timewarp_refuses_a_bad_parent_height() -> None:
+    """A non-integer or negative parent height is refused up front."""
+    candidate = _header(b"\x00" * 32, EPOCH, HARD)
+    with pytest.raises(BTClibTypeError, match="invalid parent height type: str"):
+        assert_not_timewarp(candidate, candidate, "1", REGTEST)  # type: ignore[arg-type]
+    with pytest.raises(BTClibValueError, match="invalid parent height: -1"):
+        assert_not_timewarp(candidate, candidate, -1, REGTEST)
 
 
 # ---------------------------------------------------------------------------

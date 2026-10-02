@@ -18,6 +18,7 @@ from btclib.block.block_header import BlockHeader
 from btclib.block.genesis import genesis_block
 from btclib.block.header_context import (
     ParentOf,
+    assert_not_timewarp,
     header_at_height,
     median_time_past,
     next_bits_required,
@@ -36,10 +37,10 @@ from btclib.block.partial_merkle_tree import PartialMerkleTree
 # function rather than a second one written from the BIP. Same reasoning
 # for coinbase_witness_commitment and witness_commitment_output, the pair
 # assert_valid_witness_commitment and build.build_block share. ParentOf,
-# header_at_height, median_time_past, next_bits_required and genesis_block
-# are flattened the same way rather than left under their own modules:
-# each is the one operation a caller reaches for, not a namespace of
-# related constants the way proof_of_work and mining are
+# assert_not_timewarp, header_at_height, median_time_past, next_bits_required
+# and genesis_block are flattened the same way rather than left under their
+# own modules: each is the one operation a caller reaches for, not a
+# namespace of related constants the way proof_of_work and mining are
 __all__ = [
     "BasicBlockFilter",
     "Block",
@@ -47,6 +48,7 @@ __all__ = [
     "BlockHeader",
     "ParentOf",
     "PartialMerkleTree",
+    "assert_not_timewarp",
     "bip34_commitment",
     "build",
     "coinbase_witness_commitment",
