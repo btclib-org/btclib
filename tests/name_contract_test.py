@@ -360,7 +360,7 @@ def test_the_walk_reaches_what_it_claims() -> None:
 
     # an op code is named for the op code
     assert "btclib.script.engine.script_op_codes.op_verify" not in _NAMED
-    assert "btclib.script.engine.script_op_codes.op_equalverify" not in _NAMED
+    assert "btclib.script.engine.script_op_codes.op_checklocktimeverify" not in _NAMED
     # a private name, and a name that promises nothing
     assert "btclib.ecc.bms._assert_p2pkh" not in _NAMED
     assert "btclib.utils.bytes_from_octets" not in _NAMED

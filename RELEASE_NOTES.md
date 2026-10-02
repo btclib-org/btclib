@@ -50,6 +50,12 @@ full year, short month, short day (YYYY-M-D)
   `op_checkmultisigverify` was in `script_op_codes` at v2023.7.12; the table
   came later. Act on it if you call either: run the plain op code and then
   `op_verify`, which now leaves a false element on the stack.
+- **`op_equalverify`, `op_numequalverify` and `op_checksigverify` are gone from
+  `script_op_codes`, and `btclib.script.engine.tapscript.OPERATIONS` has no
+  `OP_EQUALVERIFY`, `OP_NUMEQUALVERIFY` or `OP_CHECKSIGVERIFY`** (closes #2509).
+  The tapscript loop runs the plain op code, then tests its result, as the
+  legacy loop does. Act on it if you call any of them: run `op_equal`,
+  `op_numequal` or the signature check, then `op_verify`.
 
 ## v2026.10.2
 

@@ -1526,6 +1526,37 @@ def test_a_tapscript_numequalverify_tests_the_numbers() -> None:
     assert exc_info.value.index == 2
 
 
+@pytest.mark.parametrize(
+    ("script", "code", "index"),
+    [
+        # the first half fails: the index is the op code's own
+        (["OP_EQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 0),
+        (["OP_1", "OP_EQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 1),
+        (["OP_NUMEQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 0),
+        (["OP_1", "OP_NUMEQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 1),
+        (["OP_CHECKSIGVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 0),
+        (["OP_1", "OP_CHECKSIGVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 1),
+        # the second half fails: the same index, the *VERIFY code
+        (["OP_1", "OP_2", "OP_EQUALVERIFY"], ScriptErrorCode.EQUALVERIFY, 2),
+        (["OP_1", "OP_2", "OP_NUMEQUALVERIFY"], ScriptErrorCode.NUMEQUALVERIFY, 2),
+        (
+            ["OP_0", "11" * 32, "OP_CHECKSIGVERIFY"],
+            ScriptErrorCode.CHECKSIGVERIFY,
+            2,
+        ),
+    ],
+)
+def test_a_tapscript_verify_op_code_fails_at_its_own_index(
+    script: list[str], code: ScriptErrorCode, index: int
+) -> None:
+    """The *VERIFY op codes run as the plain op code, then the test."""
+    prevouts, tx = taproot_script_spend(script, 0, 1)
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+    assert exc_info.value.code is code
+    assert exc_info.value.index == index
+
+
 def test_a_strict_der_signature_that_cannot_verify_is_a_false_check() -> None:
     """Strict DER is all SIG_DER asks, as Core's IsValidSignatureEncoding.
 

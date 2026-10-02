@@ -276,9 +276,7 @@ OPERATIONS: Mapping[str, ScriptOp] = {
     "OP_1NEGATE": script_op_codes.op_1negate,
     "OP_VERIFY": script_op_codes.op_verify,
     "OP_EQUAL": script_op_codes.op_equal,
-    "OP_CHECKSIGVERIFY": script_op_codes.op_checksigverify,
     "OP_CHECKSIGADD": op_checksigadd,
-    "OP_EQUALVERIFY": script_op_codes.op_equalverify,
     "OP_RETURN": script_op_codes.op_return,
     "OP_SIZE": script_op_codes.op_size,
     "OP_RIPEMD160": script_op_codes.op_ripemd160,
@@ -297,7 +295,6 @@ OPERATIONS: Mapping[str, ScriptOp] = {
     "OP_BOOLAND": script_op_codes.op_booland,
     "OP_BOOLOR": script_op_codes.op_boolor,
     "OP_NUMEQUAL": script_op_codes.op_numequal,
-    "OP_NUMEQUALVERIFY": script_op_codes.op_numequalverify,
     "OP_NUMNOTEQUAL": script_op_codes.op_numnotequal,
     "OP_LESSTHAN": script_op_codes.op_lessthan,
     "OP_GREATERTHAN": script_op_codes.op_greaterthan,
@@ -352,9 +349,6 @@ def _run_ops(  # noqa: C901, PLR0912
     """
     codesep_pos = 0xFFFFFFFF
     script_index = -1
-    # what the next OP_VERIFY fails with: VERIFY, unless a *VERIFY op code
-    # has just injected it
-    verify_code = ScriptErrorCode.VERIFY
     s = bytesio_from_binarydata(script_bytes)
     while True:
         script_index += 1
@@ -381,8 +375,12 @@ def _run_ops(  # noqa: C901, PLR0912
             # does: BAD_OPCODE where it executes, nothing where it does not
             script_op_codes.unknown_op_code(f"{t:#04x}")
         op = OP_CODE_NAMES[t]
+        # Core runs OP_EQUALVERIFY and its kind as one op code, which is
+        # the plain one followed by the test of its result
+        verify_code = VERIFY_CODES.get(op)
+        plain = op.removesuffix("VERIFY") if verify_code else op
 
-        if op == "OP_CHECKSIG":
+        if plain == "OP_CHECKSIG":
             sigops_budget = op_checksig(
                 stack,
                 script_bytes,
@@ -418,12 +416,10 @@ def _run_ops(  # noqa: C901, PLR0912
         elif "OP_NOP" in op:
             script_op_codes.op_nop(flags)
         elif op == "OP_VERIFY":
-            script_op_codes.op_verify(stack, altstack, flags, verify_code)
-            verify_code = ScriptErrorCode.VERIFY
-        elif op in OPERATIONS:
-            r = OPERATIONS[op](stack, altstack, flags)
+            script_op_codes.op_verify(stack, altstack, flags)
+        elif plain in OPERATIONS:
+            r = OPERATIONS[plain](stack, altstack, flags)
             if r:
-                verify_code = VERIFY_CODES.get(op, ScriptErrorCode.VERIFY)
                 script_index -= len(r)
                 s = bytesio_from_binarydata(serialize_script(r) + s.read())
         elif op in {"OP_CHECKMULTISIG", "OP_CHECKMULTISIGVERIFY"}:
@@ -433,6 +429,9 @@ def _run_ops(  # noqa: C901, PLR0912
             raise ScriptError(err_msg, ScriptErrorCode.TAPSCRIPT_CHECKMULTISIG)
         else:
             script_op_codes.unknown_op_code(op)
+
+        if verify_code is not None:
+            script_op_codes.op_verify(stack, altstack, flags, verify_code)
 
 
 def _has_op_success(script_bytes: bytes) -> bool:
