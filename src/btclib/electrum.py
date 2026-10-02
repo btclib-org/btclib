@@ -55,6 +55,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from dataclasses import dataclass
 from typing import Any, NoReturn, cast
 
@@ -117,15 +118,50 @@ def _refuse_constant(name: str) -> NoReturn:
     raise BTClibValueError(f"not JSON: {name}")
 
 
+# The deepest answer Electrum's own client reads, `server.peers.subscribe`,
+# nests 4 levels, the reply object counted. `json.loads` kills the
+# interpreter, where it should raise, from about 3000 levels in a thread
+# with a 512 KiB stack (CPython 3.12 and 3.13).
+_MAX_NESTING = 16
+
+# A string, whatever it holds. `_too_deep` appends two quotes, so that a
+# string left open still closes, this never fails and the scan stays linear.
+_STRING = re.compile(r'"[^"\\]*(?:\\.[^"\\]*)*"', re.DOTALL)
+_NOT_BRACKET = re.compile(r"[^\[\]{}]+")
+
+
+def _too_deep(text: str) -> bool:
+    """Return True if `text` nests brackets deeper than `_MAX_NESTING`.
+
+    A bracket inside a string does not count. The scan stops at the first
+    excess.
+    """
+    depth = 0
+    for bracket in _NOT_BRACKET.sub("", _STRING.sub("", text + '""')):
+        if bracket in "[{":
+            depth += 1
+            if depth > _MAX_NESTING:
+                return True
+        else:
+            depth -= 1
+    return False
+
+
 def decode_response(line: bytes, request_id: int) -> Any:
     """Return the `result` of one response line, matched to `request_id`.
 
+    `line` is bytes, UTF-8 as Electrum sends it, decoded once so that the
+    nesting check and the parser read the same text. A `str`, another
+    encoding or another type is refused.
+
     Refuses a line that is not one: not JSON (`NaN` and `Infinity`
-    included, and a nesting too deep to read), not an object, an id that
-    is not this request's own integer id, or neither a `result` nor an
-    `error` member. An `error` member is raised as `RpcError` rather than
-    returned -- a JSON-RPC error object, `{"code", "message"}` and an
-    optional `data`, every field this module's own caller in
+    included), nested more than 16 levels deep -- checked before
+    `json.loads` runs, which can kill the interpreter on a deeper one --
+    not an object, an id that is not this request's own integer id, or
+    neither a `result` nor an `error` member. An `error` member is raised
+    as `RpcError` rather than returned -- a JSON-RPC error object,
+    `{"code", "message"}` and an optional `data`, every field this
+    module's own caller in
     `btclib_wallet.fetch.electrum` asks for the way it asks a bitcoind
     JSON-RPC error's fields. A server that still answers the elder,
     non-object form of an error -- a bare string result under protocol
@@ -144,8 +180,16 @@ def decode_response(line: bytes, request_id: int) -> Any:
     compare equal to the integers they neighbour, and this module
     already refuses a bool as a number of any other kind (`is_integer`).
     """
+    if not isinstance(line, (bytes, bytearray)):
+        raise BTClibValueError(f"not a JSON-RPC line: {line!r}")
     try:
-        reply: Any = json.loads(line, parse_constant=_refuse_constant)
+        text = line.decode("utf-8")
+    except UnicodeDecodeError as e:
+        raise BTClibValueError(f"not a JSON-RPC line: {line!r}") from e
+    if _too_deep(text):
+        raise BTClibValueError(f"not a JSON-RPC line: nested beyond {_MAX_NESTING}")
+    try:
+        reply: Any = json.loads(text, parse_constant=_refuse_constant)
     except (TypeError, ValueError, RecursionError) as e:
         raise BTClibValueError(f"not a JSON-RPC line: {line!r}") from e
     if not isinstance(reply, dict):
@@ -324,7 +368,7 @@ def estimate_fee_response(line: bytes, request_id: int) -> float:
     wire carries, and deciding that "no answer" is a refusal is
     `btclib_wallet.fetch.electrum.ElectrumFetcher.estimate_fee`'s to make, the
     same split `decode_response` already draws for a JSON-RPC `error`
-    member. Any other rate that is not finite and at least 0 is refused.
+    member. Any other answer, below 0 or not finite, is refused.
     """
     result = decode_response(line, request_id)
     if isinstance(result, bool) or not isinstance(result, (int, float)):

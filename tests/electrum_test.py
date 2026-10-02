@@ -18,11 +18,15 @@ recomputed at collection time.
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
+import textwrap
 
 import pytest
 
 from btclib.block.block_header import BlockHeader
 from btclib.electrum import (
+    _MAX_NESTING,
     HeaderTip,
     MerkleProof,
     assert_merkle_proof,
@@ -130,12 +134,110 @@ def test_decode_response_refuses_a_line_that_is_not_json() -> None:
         decode_response(b"not json at all\n", 1)
 
 
-def test_decode_response_refuses_a_nesting_too_deep_to_read() -> None:
+def nested(depth: int, *, open_: bytes = b"[", close: bytes = b"]") -> bytes:
+    """Return a reply nested `depth` levels, the reply object counted."""
+    return b'{"id":1,"result":' + open_ * (depth - 1) + close * (depth - 1) + b"}"
+
+
+def test_decode_response_reads_a_nesting_at_the_bound() -> None:
+    """The reply object is the first level."""
+    assert decode_response(nested(_MAX_NESTING), 1) is not None
+
+
+@pytest.mark.parametrize("brackets", [(b"[", b"]"), (b'{"a":', b"}")])
+def test_decode_response_refuses_a_nesting_past_the_bound(
+    brackets: tuple[bytes, bytes],
+) -> None:
     """`RecursionError` is not the exception a caller of this module catches."""
-    depth = 10**6
-    line = b'{"id":1,"result":' + b"[" * depth + b"]" * depth + b"}"
+    line = nested(_MAX_NESTING + 1, open_=brackets[0], close=brackets[1])
+    with pytest.raises(BTClibValueError, match="nested beyond"):
+        decode_response(line, 1)
+
+
+def test_decode_response_refuses_a_nesting_far_past_the_bound() -> None:
+    """`json.loads` would take it a level at a time to the end."""
+    with pytest.raises(BTClibValueError, match="nested beyond"):
+        decode_response(nested(10**6), 1)
+
+
+def test_decode_response_does_not_count_a_bracket_inside_a_string() -> None:
+    """A legitimate line may hold `[` in a string, an escaped quote included."""
+    text = "[" * 100 + '\\"' + "{" * 100 + "\\\\"
+    line = json.dumps({"id": 1, "result": [text]}).encode()
+    assert decode_response(line, 1) == [text]
+
+
+def test_decode_response_counts_a_bracket_after_a_string() -> None:
+    """A string closes: its `]` closes nothing, and what follows counts."""
+    line = b'{"id":1,"s":"]]]]","result":' + b"[" * _MAX_NESTING
+    line += b"]" * _MAX_NESTING + b"}"
+    with pytest.raises(BTClibValueError, match="nested beyond"):
+        decode_response(line, 1)
+
+
+def test_decode_response_refuses_a_string_left_open() -> None:
+    """A line cut inside a string is not JSON, and is refused, not hung on."""
+    line = b'{"id":1,"result":"' + b'\\"' * 10**5
     with pytest.raises(BTClibValueError, match="not a JSON-RPC line"):
         decode_response(line, 1)
+
+
+# What kills CPython 3.12 and 3.13 in a thread with a small stack is not
+# an exception, so the thread runs in a subprocess: the test fails where
+# the suite would die. The brackets sit behind a non-ASCII string, which
+# is what flips the quote parity of a scan that reads the bytes as ASCII
+# when `json.loads` detects UTF-16 or UTF-32.
+SMALL_STACK_THREAD = textwrap.dedent(
+    """
+    import sys
+    import threading
+    from btclib.electrum import decode_response
+    from btclib.exceptions import BTClibValueError
+
+    threading.stack_size(524288)
+    text = '{"id":1,"result":["\\u2200",' + "[" * 20000 + "]" * 20000 + ',"y"]}'
+    line = text.encode(sys.argv[1])
+
+    def run():
+        try:
+            decode_response(line, 1)
+        except BTClibValueError:
+            print("refused")
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    thread.join()
+    """
+)
+
+
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-16-le", "utf-32-be"])
+def test_decode_response_refuses_a_deep_line_in_a_small_stack_thread(
+    encoding: str,
+) -> None:
+    """The issue's line: 20 KB, a 512 KiB stack, no `RecursionError`."""
+    done = subprocess.run(  # noqa: S603
+        [sys.executable, "-c", SMALL_STACK_THREAD, encoding],
+        capture_output=True,
+        check=False,
+        timeout=60,
+    )
+    assert (done.returncode, done.stdout.strip()) == (0, b"refused"), done.stderr
+
+
+@pytest.mark.parametrize("encoding", ["utf-16", "utf-32-le", "utf-8-sig"])
+def test_decode_response_refuses_a_line_that_is_not_plain_utf8(encoding: str) -> None:
+    """Electrum speaks UTF-8; `json.loads` would have guessed another."""
+    line = reply(id=1, result="ok").decode().encode(encoding)
+    with pytest.raises(BTClibValueError, match="not a JSON-RPC line"):
+        decode_response(line, 1)
+
+
+@pytest.mark.parametrize("line", ['{"id":1,"result":0}', memoryview(b"{}"), 7])
+def test_decode_response_refuses_what_is_not_bytes(line: object) -> None:
+    """The line is bytes: a `str` or another type is refused."""
+    with pytest.raises(BTClibValueError, match="not a JSON-RPC line"):
+        decode_response(line, 1)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
