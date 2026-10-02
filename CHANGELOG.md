@@ -132,6 +132,12 @@ CONTRIBUTING.md and `ASSURANCE_CASE.md` no longer say that every job passes
 `--locked`: they list the exceptions, none of which installs the project's
 dependencies unpinned in the job that builds the published files (closes #2440).
 
+### The weekly vendored-vectors check compares bytes
+
+`check_vendored_vectors.py` hashes each vendored file against the blob
+`tests/_data/README.md` records and compares that blob with upstream's at the
+pinned commit, failing the run on a mismatch (closes #2439).
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again

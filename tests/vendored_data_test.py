@@ -199,7 +199,7 @@ _EXEMPT: dict[str, str] = {
     "The twelve `scriptPubKey`s reported in issue #123, the five transactions": _UPSTREAM_FACT,
     "that carry them being the five the issue lists. Each entry holds the": _UPSTREAM_FACT,
     "  in a repository that rewrites its history. The blob SHA-1 is the pin": _UPSTREAM_FACT,
-    "  reach is an entry whose `behind` already reads other than 0, a gap": _UPSTREAM_FACT,
+    "  check skips an entry whose `behind` reads other than 0, a gap somebody": _UPSTREAM_FACT,
     "request vendoring a file is guaranteed to have -- and two branches moving": _UPSTREAM_FACT,
 }
 
