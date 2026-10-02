@@ -118,6 +118,12 @@ file per release is what keeps each of them under it.
   (closes #2489). `verify_script` stops on that stack, a `*VERIFY` op code fails
   at its own index, and `op_checkmultisigverify` goes (RELEASE_NOTES.md).
 
+### `STRICTENC` refuses hash type 0 as `SIG_HASHTYPE`
+
+- **A legacy or segwit v0 signature ending in `00` fails with `SIG_HASHTYPE`**
+  (closes #2510), Core's `IsDefinedHashtypeSignature`. `00` is
+  SIGHASH_DEFAULT, taproot's alone.
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type

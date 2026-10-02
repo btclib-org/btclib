@@ -114,8 +114,8 @@ def test_default_flags_cannot_be_mutated() -> None:
 
     A mutable module-level ALL_FLAGS is one missed copy away from a
     caller's `flags.remove("P2SH")` disabling BIP16 for the rest of the
-    process; likewise SIG_HASH_TYPES, whose membership test is what the
-    engine accepts as a signature's hash type.
+    process; likewise SIG_HASH_TYPES, which the engine's STRICTENC set
+    is derived from.
     """
     assert ALL_FLAGS & ~ScriptFlag.P2SH != ALL_FLAGS  # a new value, not a change
     assert ScriptFlag.P2SH in ALL_FLAGS
