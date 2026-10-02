@@ -21,7 +21,13 @@ follows within 90 days.
 
 ## What belongs here, and what belongs upstream
 
-secp256k1 arithmetic is delegated to
+The elliptic curve arithmetic and the schemes built on it, `ecc.bms` and
+`ecc.ellswift.xdh` excepted, are
+[btclib-ecc](https://github.com/btclib-org/btclib-ecc/security/advisories/new)'s,
+the Python arithmetic included: btclib imports them and does not
+re-export them. A flaw in them belongs there.
+
+btclib-ecc delegates secp256k1 arithmetic to
 [btclib-secp256k1](https://github.com/btclib-org/btclib-secp256k1/security/advisories/new),
 the Python bindings, and through them to
 [libsecp256k1](https://github.com/bitcoin-core/secp256k1/security/advisories/new)
@@ -29,22 +35,22 @@ itself, which has its own security policy and its own address. Not every
 call: one predicate decides — a process-wide dispatch switch, the curve
 and the hash function — with whatever further conditions the call site
 ands onto it, and *Limitations, not vulnerabilities* below states each of
-them. A flaw in the elliptic curve arithmetic, or in how the bindings
-drive it, most likely belongs to one of those.
+them. A flaw in what the bindings compute, or in how they drive
+libsecp256k1, most likely belongs to one of those two.
 
-What belongs here is everything btclib does around them:
+What belongs here is everything btclib does around the arithmetic:
 
 - the parsing and serialization of what comes from outside — keys,
     addresses, signatures, scripts, transactions — and the validation
     that decides what is accepted
 - the script engine, and the taproot construction it validates against
-- the pure Python implementations, which are what runs whenever the
-    conditions below are not met
+- the Python arm of each operation btclib delegates itself, which is what
+    runs whenever the conditions below are not met
 - the distributions published to PyPI and their provenance
 
 Report it wherever you found it, though: routing a report is the
-maintainers' job, not the reporter's, and a doubt about which of three
-projects owns a flaw is not a reason to keep it to yourself.
+maintainers' job, not the reporter's, and a doubt about which project
+owns a flaw is not a reason to keep it to yourself.
 
 ## Security review
 
@@ -128,7 +134,7 @@ These are known and inherent. They are worth stating because btclib is
 used to teach and to prototype as much as to build.
 
 The curve arithmetic and the schemes, `ecc.bms` and `ecc.ellswift.xdh`
-excepted, are [btclib_ecc](https://github.com/btclib-org/ellipticcurves)'s,
+excepted, are [btclib_ecc](https://github.com/btclib-org/btclib-ecc)'s,
 which btclib imports and does not re-export, so what follows of them is said
 of that package's code, and a citation into it links its source at the
 commit it was read at:

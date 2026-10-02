@@ -70,6 +70,12 @@ file per release is what keeps each of them under it.
   (closes #2465). `assert_not_timewarp` is that check, so a caller can order
   it after bad-diffbits and time-too-old, as Core does.
 
+### The documents name btclib_ecc's code as btclib_ecc's
+
+- **`README.md` lists the curve schemes under btclib_ecc** (closes #2444),
+  `SECURITY.md` routes a report on them to its advisory page, and
+  `ASSURANCE_CASE.md` says btclib reads no environment variable (closes #2441).
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type

@@ -74,11 +74,14 @@ argument*](./CONTRIBUTING.md#breaking-a-caller-is-not-an-argument) says
 what that promises a caller and what it does not).
 
 The test suite covers virtually the whole code base, a floor the build
-enforces, and it answers to vectors their authors publish: the BIPs' own,
-Bitcoin Core's script, transaction, sighash and key-encoding files, and
-Appendix A.2 of RFC 6979. `tests/_data/README.md` pins each vendored file to the
+enforces, and it answers to vectors their authors publish: the BIPs' own
+and Bitcoin Core's script, transaction, sighash and key-encoding files.
+`tests/_data/README.md` pins each vendored file to the
 upstream commit it was copied from, and says whether the two still match —
 including the few vectors that are btclib's own, having no upstream.
+The elliptic curve schemes are answered for by
+[btclib_ecc](https://github.com/btclib-org/btclib-ecc)'s suite, with the
+vectors RFC 6979 and the BIPs publish for them.
 
 The library is not limited to secp256k1, and for that curve it delegates
 to
@@ -96,42 +99,13 @@ the right answer is, being what bitcoin consensus relies on.
 
 Included features are:
 
-- modulo algebra functions (gcd, inverse, legendre symbol, square root)
-- octets / integer / point / var_int / var_bytes helper functions
-- elliptic curve class
-    - fast algebra implemented using Jacobian coordinates
-    - double scalar multiplication (Straus's algorithm, also known as
-      Shamir's trick)
-    - multi scalar multiplication (Bos-coster's algorithm)
-    - point symmetry solution: odd/even, low/high, and quadratic residue
-    - elliptic curves: SEC 1 v1 and v2, NIST, Brainpool, and
-      low cardinality test curves
-- ECDSA signature with (transaction) DER encoding
-- ECDSA signature with (message) compact encoding: standard p2pkh and
+- octets / integer / var_int / var_bytes helper functions
+- ECDSA message signatures with compact encoding: standard p2pkh and
   [BIP137](https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki)/[Electrum](https://electrum.org/#home)
   extensions to p2wpkh and p2wpkh-p2sh
-- [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979.html) for deterministic signature
-  schemes
-- EC Schnorr signature (according to
-  [BIP340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki)
-  bitcoin standardization)
-    - batch validation
-    - threshold signature (see test-suite)
-    - [MuSig2](https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki)
-      multi-signature: key aggregation with plain and x-only tweaking,
-      nonce aggregation, partial signatures and their aggregation, one
-      primitive per round of the protocol
-- Borromean ring signature
-- Sign-to-contract commitment
-- Diffie-Hellman, and the x-only ECDH on the
-  [BIP324](https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki)
-  ElligatorSwift encoding of a public key
-- [BIP374](https://github.com/bitcoin/bips/blob/master/bip-0374.mediawiki)
-  discrete logarithm equality proofs: 64 bytes proving that an ECDH shared
-  secret was computed from the key that signed, without revealing that key,
-  over an arbitrary generator and an optional message
-- ECIES in the BIE1 layout, the block cipher supplied by the caller
-- Pedersen commitment
+- the x-only ECDH of
+  [BIP324](https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki),
+  over the ElligatorSwift encoding of a public key
 - Base58 encoding/decoding
 - p2pkh/p2sh addresses and WIFs
 - Bech32 encoding/decoding
@@ -150,6 +124,45 @@ Included features are:
   owes for the unconfirmed ancestors it is mined with, and the dust
   threshold of any output type, computed as Bitcoin Core computes it
   rather than tabulated
+
+The elliptic curve arithmetic and the schemes built on it are the
+[btclib_ecc](https://github.com/btclib-org/btclib-ecc) distribution,
+which btclib depends on and does not re-export: import them from
+`btclib_ecc`. It provides:
+
+- modulo algebra functions (gcd, inverse, legendre symbol, square root)
+- the elliptic curve class
+    - fast algebra implemented using Jacobian coordinates
+    - double scalar multiplication (Straus's algorithm, also known as
+      Shamir's trick)
+    - multi scalar multiplication (Bos-coster's algorithm)
+    - point symmetry solution: odd/even, low/high, and quadratic residue
+    - SEC 1 octet encodings of points
+    - elliptic curves: SEC 1 v1 and v2, NIST, Brainpool, and
+      low cardinality test curves
+- ECDSA signature with (transaction) DER encoding
+- [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979.html) for deterministic signature
+  schemes
+- EC Schnorr signature (according to
+  [BIP340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki)
+  bitcoin standardization)
+    - batch validation
+    - threshold signature (FROST)
+    - [MuSig2](https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki)
+      multi-signature: key aggregation with plain and x-only tweaking,
+      nonce aggregation, partial signatures and their aggregation, one
+      primitive per round of the protocol
+- Borromean ring signature
+- Sign-to-contract commitment
+- Diffie-Hellman
+- the ElligatorSwift encoding of a public key
+  ([BIP324](https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki))
+- [BIP374](https://github.com/bitcoin/bips/blob/master/bip-0374.mediawiki)
+  discrete logarithm equality proofs: 64 bytes proving that an ECDH shared
+  secret was computed from the key that signed, without revealing that key,
+  over an arbitrary generator and an optional message
+- ECIES in the BIE1 layout, the block cipher supplied by the caller
+- Pedersen commitment
 
 The wallet side — key derivation, mnemonics, PSBTs, output descriptors,
 signers and chain backends — is the `btclib-wallet` distribution, imported

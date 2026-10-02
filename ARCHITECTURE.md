@@ -9,7 +9,7 @@ expectations hold is the [assurance case](./ASSURANCE_CASE.md).
 ## The curve arithmetic is btclib_ecc's
 
 Elliptic-curve arithmetic and the cryptography built on it are
-[btclib_ecc](https://github.com/btclib-org/ellipticcurves), a required
+[btclib_ecc](https://github.com/btclib-org/btclib-ecc), a required
 dependency: `curves`, `number_theory`, `kdf`, `ecc` and the SwiftEC map
 of `ecc.ellswift`. btclib imports each name it uses from
 `btclib_ecc` and publishes none of them: `btclib_ecc.curves.mult` is spelt

@@ -36,24 +36,25 @@ points at it instead of repeating it. The components named here are the ones
 
 btclib is a library in its caller's process. It loads no network client
 and no way to start a process, and the only files it opens are its own
-package data and its own distribution's metadata, so every input it has,
-but for one environment variable, is one a caller handed it. The command
-below lists the top-level name of every module `src/` imports, at any
-depth of the code and in any spelling of the statement. Beside btclib's
-own, what it lists is the dependencies `pyproject.toml` declares,
-`btclib_secp256k1` being the `secp256k1` extra, and standard-library
-modules none of which is a network client or a process launcher; `os` is
-there for `os.environ` alone, and `importlib` to import btclib's own
-submodules and read its version.
+package data and its own distribution's metadata, so every input it has is
+one a caller handed it. The command below lists the top-level name of
+every module `src/` imports, at any depth of the code and in any spelling
+of the statement. Beside btclib's own, what it lists is the dependencies
+`pyproject.toml` declares, `btclib_secp256k1` being the `secp256k1` extra,
+and standard-library modules none of which is a network client or a
+process launcher; `importlib` is there to import btclib's own submodules
+and read its version. btclib reads no environment variable; btclib_ecc
+reads one, as *Trust boundaries* says.
 
 One of those dependencies, `bitcoin_core_rpc`, is an RPC client package,
 and btclib does not load the client in it. `src/btclib/p2p/magic.py` is
-the one module importing it, and it takes three names of the package's
-`chains` vocabulary; the package's `__init__` imports `chains` and
-`errors` eagerly and its `client` and `transport` only when one of their
-names is asked for, which btclib never does, so nothing it loads opens a
-socket. ARCHITECTURE.md's *What sits outside the package* describes that
-edge, and `tests/imports_test.py`'s
+the one module importing it, and it takes two names of the package's
+`chains` vocabulary, `chain_from_network` and `magic_from_chain`; the
+package's `__init__` imports `chains` and `errors` eagerly and its
+`client` and `transport` only when one of their names is asked for,
+which btclib never does, so nothing it loads opens a socket.
+ARCHITECTURE.md's *What sits outside the package* describes that edge,
+and `tests/imports_test.py`'s
 `test_the_codec_does_not_pay_for_the_rpc_package` asserts that asking
 `btclib.p2p` for a message start loads the package without
 `urllib.request`.
@@ -203,8 +204,8 @@ describes beside them.
   and transport included, which btclib never loads. `btclib.p2p` and
   `btclib.electrum` turn octets into objects and back, and
   `tests/imports_test.py` holds both to import closures without
-  `urllib.request`. The one environment variable btclib reads can only
-  take the bindings away.
+  `urllib.request`. The one environment variable
+  btclib_ecc reads can only take the bindings away.
 - **Psychological acceptability.** The choice that matters is made at
   the call site and read there: `mod_inv` beside `mod_inv_var`, `mult`
   beside `double_mult_var`. A verification answers `False` for a
@@ -212,9 +213,9 @@ describes beside them.
   so a caller can tell a forgery from a mistake (CONTRIBUTING.md's *The
   public surface*).
 - **Layering.** The curve arithmetic does not import the schemes built
-  on it, the codecs do not import the bitcoin semantics on top of them,
-  and nothing in btclib imports `btclib_wallet`: `tests/imports_test.py`
-  holds each of those edges.
+  on it, which btclib_ecc's `tests/imports_test.py` holds. The codecs do
+  not import the bitcoin semantics on top of them, and nothing in btclib
+  imports `btclib_wallet`: btclib's `tests/imports_test.py` holds both.
 
 **Constant time where it is claimed.** It is claimed only of
 libsecp256k1: CONTRIBUTING.md's `_var` section sets out the tiers of
