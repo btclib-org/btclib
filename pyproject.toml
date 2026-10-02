@@ -331,6 +331,7 @@ source-exclude = [
     "/tests/interpreters_test.py",
     "/tests/mutation_sessions_test.py",
     "/tests/normalize_sdist_test.py",
+    "/tests/release_digests_test.py",
     "/tests/verify_dist_contents_test.py",
     "/tests/what_runs_when_test.py",
     # the same reasoning, for fuzz/ rather than .github/scripts: git-only
