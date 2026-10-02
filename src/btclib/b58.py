@@ -29,6 +29,7 @@ from btclib_ecc.curves import scalar_from_prv_key
 from btclib import b32
 from btclib.alias import Integer, Octets, ScriptType, String
 from btclib.b32 import _v0_witness_program_from_key, _v0_witness_program_from_script
+from btclib.base58 import _decode as _b58decode_quietly
 from btclib.base58 import decode as b58decode
 from btclib.base58 import encode as b58encode
 from btclib.consensus import MAX_SCRIPT_ELEMENT_SIZE
@@ -146,8 +147,8 @@ def prv_key_data_from_wif(
     the version prefix answers "is this a WIF at all", and a no is a
     NotAPrvKeyError; everything after it answers "is this WIF sound", and
     a no is an InvalidPrvKeyError. Both are BTClibValueError. No message
-    echoes the input, which is candidate key material: a checksum, a
-    prefix and a size are not secret.
+    echoes the input, which is candidate key material, or the checksum
+    its key hashes to; a prefix and a size are not secret.
     """
     # None is a declared value here and means "whatever the WIF says", so
     # it is the one non-bool this position takes
@@ -159,9 +160,11 @@ def prv_key_data_from_wif(
     wif = str_from_string(wif, "WIF").strip(string.whitespace)
 
     # only a value no WIF has is re-classed: a wrong type leaves b58decode
-    # as the BTClibTypeError it is, that being the caller's own mistake
+    # as the BTClibTypeError it is, that being the caller's own mistake.
+    # The checksum is not quoted: on a WIF mistyped in its last characters
+    # the key is intact, and the checksum it hashes to confirms a guess
     try:
-        payload = b58decode(wif)
+        payload = _b58decode_quietly(wif, None, quote_checksum=False)
     except BTClibValueError as e:
         raise NotAPrvKeyError(f"not a WIF ({e})") from e
 

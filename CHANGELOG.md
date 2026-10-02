@@ -42,6 +42,12 @@ file per release is what keeps each of them under it.
 
 ## v2026.11 (work in progress, not released yet)
 
+### `b58.prv_key_data_from_wif` does not quote the checksum
+
+- **A WIF with a bad checksum is refused as `not a WIF (invalid checksum)`**
+  (closes #2436). It quoted the checksum the key hashes to, which confirms a
+  guess at a WIF mistyped in its last characters. Addresses still quote both.
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type

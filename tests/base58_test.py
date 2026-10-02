@@ -16,6 +16,7 @@ from btclib.base58 import (
     _b58decode_to_int,
     _b58encode,
     _b58encode_from_int,
+    _decode,
     decode,
     encode,
 )
@@ -97,6 +98,11 @@ def test_exceptions() -> None:
     invalid_checksum = encoded[:-4] + b"1111"
     with pytest.raises(BTClibValueError, match="invalid checksum: "):
         decode(invalid_checksum, 4)
+
+    # the expected checksum is quoted unless the caller says its payload is
+    # secret
+    with pytest.raises(BTClibValueError, match="^invalid checksum$"):
+        _decode(invalid_checksum, 4, quote_checksum=False)
 
     # a character outside ascii is an invalid base58 character like any
     # other, not a UnicodeEncodeError

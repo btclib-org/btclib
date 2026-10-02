@@ -16,9 +16,10 @@ from hypothesis import strategies as st
 
 from btclib import b32, b58
 from btclib.alias import ScriptList, ScriptType
+from btclib.base58 import decode as b58decode
 from btclib.base58 import encode as b58encode
 from btclib.exceptions import BTClibValueError, InvalidPrvKeyError, NotAPrvKeyError
-from btclib.hashes import hash160, sha256
+from btclib.hashes import hash160, hash256, sha256
 from btclib.key import PubKeyData
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_SCRIPT_SIZE
 from btclib.script.script import serialize
@@ -136,9 +137,16 @@ def test_a_mistyped_wif_is_reported_as_one() -> None:
     with pytest.raises(NotAPrvKeyError, match="not a WIF") as exc_info:
         b58.prv_key_data_from_wif(mistyped)
     message = str(exc_info.value)
-    assert "invalid checksum" in message
+    assert message == "not a WIF (invalid checksum)"
     # never the input itself, which is candidate key material
     assert mistyped not in message
+
+    # nor the checksum of the key it carries: the typo is in the last
+    # characters, so the key is intact and that checksum confirms a guess
+    good_checksum = hash256(b58decode(good))[:4].hex()
+    assert good_checksum not in message
+    assert exc_info.value.__cause__ is not None
+    assert good_checksum not in str(exc_info.value.__cause__)
 
 
 def test_a_faulty_wif_keeps_its_diagnosis() -> None:
