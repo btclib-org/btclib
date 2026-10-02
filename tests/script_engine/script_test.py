@@ -254,10 +254,11 @@ def test_script_error_stack_underflow() -> None:
     assert exc_info.value.index == 0
     assert exc_info.value.stack_depth == 0
 
-    # OP_1, OP_EQUAL: the second pop is the one that underflows
-    with pytest.raises(ScriptError, match="stack underflow") as exc_info:
+    # OP_1, OP_EQUAL: Core checks the depth first, so the 1 stays
+    with pytest.raises(ScriptError, match="OP_EQUAL on a stack of less") as exc_info:
         verify_script(b"\x51\x87", [], 0, tx, 0, NO_FLAGS, False)
     assert exc_info.value.index == 1
+    assert exc_info.value.stack_depth == 1
 
 
 def test_unknown_op_code_is_not_a_key_error() -> None:
@@ -1507,6 +1508,22 @@ def test_a_refusal_without_a_code_is_core_s_unknown_error(
         verify_input(prevouts, tx, 0, ALL_FLAGS)
     assert exc_info.value.code is ScriptErrorCode.UNKNOWN_ERROR
     assert exc_info.value.index == 1
+
+
+def test_a_tapscript_numequalverify_tests_the_numbers() -> None:
+    """The tapscript loop runs OP_NUMEQUALVERIFY as its two halves."""
+    prevouts, tx = taproot_script_spend(
+        ["OP_1", "OP_1", "OP_NUMEQUALVERIFY", "OP_1"], 0, 1
+    )
+    verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+    prevouts, tx = taproot_script_spend(
+        ["OP_1", "OP_2", "OP_NUMEQUALVERIFY", "OP_1"], 0, 1
+    )
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+    assert exc_info.value.code is ScriptErrorCode.NUMEQUALVERIFY
+    assert exc_info.value.index == 2
 
 
 def test_a_strict_der_signature_that_cannot_verify_is_a_false_check() -> None:

@@ -43,6 +43,13 @@ full year, short month, short day (YYYY-M-D)
   refuses. Act on it if you parse such a transaction, a PSBT's unsigned one
   (Core reads it as `TX_NO_WITNESS`): call
   `Tx.parse_without_witness(data, check_validity=False)`.
+- **`op_checkmultisigverify` is gone, and `btclib.script.engine.script.OPERATIONS`
+  has no `OP_CHECKSIGVERIFY`, `OP_EQUALVERIFY`, `OP_NUMEQUALVERIFY` or
+  `OP_CHECKMULTISIGVERIFY`** (closes #2489). The loop runs the plain op code,
+  then tests its result, so those four are no longer expansions to look up.
+  `op_checkmultisigverify` was in `script_op_codes` at v2023.7.12; the table
+  came later. Act on it if you call either: run the plain op code and then
+  `op_verify`, which now leaves a false element on the stack.
 
 ## v2026.10.2
 

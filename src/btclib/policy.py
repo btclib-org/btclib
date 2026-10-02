@@ -27,10 +27,9 @@ from collections.abc import Sequence
 from btclib.alias import TxoutType
 from btclib.block.limits import MAX_BLOCK_SIGOPS_COST
 from btclib.consensus import WITNESS_SCALE_FACTOR
-from btclib.exceptions import BTClibTypeError, BTClibValueError, ScriptError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.fee import DUST_RELAY_FEE_RATE, FeeRate, dust_threshold
-from btclib.script.engine.flags import NO_FLAGS
-from btclib.script.engine.script import _eval_script
+from btclib.script.engine.script import eval_script
 from btclib.script.sig_ops import p2sh_sig_op_count, sig_op_count
 from btclib.script.solver import (
     _is_pay_to_anchor,
@@ -147,29 +146,10 @@ def _redeem_script(script_sig: bytes) -> bytes | None:
     None where the script fails or leaves an empty stack. The script
     runs as Core's policy runs it to read a redeem script without
     verifying the spend: `EvalScript` under `SCRIPT_VERIFY_NONE` with a
-    `BaseSignatureChecker`, so no flag is on and every signature check
-    fails.
+    `BaseSignatureChecker`, which is `eval_script`'s default.
     """
-    stack: list[bytes] = []
-    try:
-        _eval_script(
-            script_sig,
-            stack,
-            0,
-            # read by nothing: a signature check never runs, and the
-            # lock-time op codes are NOPs without their flags
-            Tx(check_validity=False),
-            0,
-            NO_FLAGS,
-            False,
-            False,
-            None,
-            None,
-            False,
-        )
-    except ScriptError:
-        return None
-    return stack[-1] if stack else None
+    stack, error = eval_script(script_sig)
+    return None if error else stack[-1] if stack else None
 
 
 def _is_standard(tx_out_type: TxoutType, solutions: list[bytes]) -> bool:

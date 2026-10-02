@@ -112,6 +112,12 @@ file per release is what keeps each of them under it.
   #2503), Core's "Unknown transaction optional data". It read the flag as an
   output count. `Tx.parse_without_witness` does.
 
+### `eval_script` returns the stack where Core's `EvalScript` stops
+
+- **`eval_script(script_bytes, stack, flags)` returns the stack and the error**
+  (closes #2489). `verify_script` stops on that stack, a `*VERIFY` op code fails
+  at its own index, and `op_checkmultisigverify` goes (RELEASE_NOTES.md).
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type
