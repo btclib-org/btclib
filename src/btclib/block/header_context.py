@@ -11,13 +11,13 @@ than over an index: a batch of headers off the wire is checked before any
 of it is indexed, so its own members are what the header after them is
 checked against, and btclib does not learn what a block index is.
 
-`ConsensusParams` is what tells `next_bits_required` which network it is
-answering for -- `pow_limit_bits`, `pow_allow_min_difficulty_blocks`,
-`pow_no_retargeting`, `enforce_bip94`, and the retarget window
-`pow_target_spacing`/`pow_target_timespan` -- and `btclib.block.proof_of_work`
-is where the arithmetic of a single retarget lives; this module is the
-walk that feeds it a period's first header and the two chain-wide
-readings that do not need the whole retarget.
+`ConsensusParams` is what tells `next_bits_required` and
+`assert_not_timewarp` which network they answer for -- `pow_limit_bits`,
+`pow_allow_min_difficulty_blocks`, `pow_no_retargeting`, `enforce_bip94`, and
+the retarget window `pow_target_spacing`/`pow_target_timespan` -- and
+`btclib.block.proof_of_work` is where the arithmetic of a single retarget
+lives; this module is the walk that feeds it a period's first header and the
+two chain-wide readings that do not need the whole retarget.
 
 Bitcoin Core v31.1 (bitcoin/bitcoin@9be056a8a7) is the reference for
 every rule, `src/chain.h`, `src/pow.cpp` and `src/validation.cpp`'s
@@ -38,6 +38,7 @@ from btclib.utils import _message_text, is_integer
 __all__ = [
     "MEDIAN_TIME_SPAN",
     "ParentOf",
+    "assert_not_timewarp",
     "header_at_height",
     "median_time_past",
     "next_bits_required",
@@ -142,6 +143,43 @@ def _min_difficulty_bits(
     return candidate.bits
 
 
+def _assert_valid_parent_height(parent_height: int) -> None:
+    if not is_integer(parent_height):
+        err_msg = f"invalid parent height type: {type(parent_height).__name__}"
+        raise BTClibTypeError(err_msg)
+    if parent_height < 0:
+        raise BTClibValueError(f"invalid parent height: {_message_text(parent_height)}")
+
+
+def assert_not_timewarp(
+    header: BlockHeader,
+    parent: BlockHeader,
+    parent_height: int,
+    consensus: ConsensusParams,
+) -> None:
+    """Refuse a period's first header timestamped too far behind its parent.
+
+    Core's `time-timewarp-attack`, in `ContextualCheckBlockHeader`: where
+    the network enforces BIP94 (`consensus.enforce_bip94`) and `header`
+    opens a difficulty period, it must not be timestamped more than
+    `MAX_TIMEWARP` seconds before `parent`. Any other header passes.
+
+    Core asks this after bad-diffbits and time-too-old, so a caller
+    checking in Core's order calls `next_bits_required`, compares, tests
+    the median time past, and only then calls this.
+    """
+    _assert_valid_parent_height(parent_height)
+
+    if (
+        consensus.enforce_bip94
+        and (parent_height + 1) % consensus.difficulty_adjustment_interval == 0
+        and _block_time(header) < _block_time(parent) - MAX_TIMEWARP
+    ):
+        err_msg = "invalid timestamp (timewarp attack): "
+        err_msg += f"{_block_time(header)} < {_block_time(parent)} - {MAX_TIMEWARP}"
+        raise BTClibValueError(err_msg)
+
+
 def next_bits_required(
     header: BlockHeader,
     parent: BlockHeader,
@@ -157,40 +195,18 @@ def next_bits_required(
     the rest of the time, unless the network allows min-difficulty blocks,
     in which case `_min_difficulty_bits` answers instead.
 
-    Where the network enforces BIP94 (`consensus.enforce_bip94`) and
-    `header` opens a new difficulty period, this also asks Core's own
-    `time-timewarp-attack` question -- whether `header` is timestamped
-    more than `MAX_TIMEWARP` seconds behind its own parent -- and raises
-    rather than returning a target for it: Core asks it in
-    `ContextualCheckBlockHeader`, apart from `GetNextWorkRequired`, but it
-    reads exactly the data this function already holds at exactly the
-    height this function already singles out, so it is answered here
-    instead of asking every caller to open a period boundary a second
-    time.
-
-    Core checks bad-diffbits first and unconditionally, ahead of
-    time-too-old, the timewarp bound and time-too-new
-    (`ContextualCheckBlockHeader`, `src/validation.cpp` at
-    bitcoin/bitcoin@9be056a8a7). Folding the timewarp question in here
-    does not preserve that order: a header failing both bad-diffbits and
-    the timewarp bound never gets a `required_bits` out of this function
-    at all, so the comparison `Block.assert_valid_contextual` would make
-    against it never runs, and no caller-side reordering recovers it --
-    what such a header is reported as failing is the timewarp bound, not
-    the wrong target. It is refused either way, by Core and by this
-    library; only the reported reason can differ, for a header that
-    fails both.
+    It does not check the BIP94 timewarp bound: Core asks it after
+    time-too-old, so `assert_not_timewarp` is a call of its own, and the
+    caller puts it where Core does (`ContextualCheckBlockHeader`,
+    `src/validation.cpp` at bitcoin/bitcoin@9be056a8a7: bad-diffbits,
+    time-too-old, time-timewarp-attack).
 
     At a period boundary and `consensus.enforce_bip94`, the retarget
     scales the period's own first target rather than the parent's,
     which is what keeps a period's real difficulty from being
     overwritten by a min-difficulty block mined at its very end.
     """
-    if not is_integer(parent_height):
-        err_msg = f"invalid parent height type: {type(parent_height).__name__}"
-        raise BTClibTypeError(err_msg)
-    if parent_height < 0:
-        raise BTClibValueError(f"invalid parent height: {_message_text(parent_height)}")
+    _assert_valid_parent_height(parent_height)
 
     interval = consensus.difficulty_adjustment_interval
     height = parent_height + 1
@@ -201,13 +217,6 @@ def next_bits_required(
                 header, parent, parent_height, parent_of, consensus
             )
         return parent.bits
-
-    if consensus.enforce_bip94 and (
-        _block_time(header) < _block_time(parent) - MAX_TIMEWARP
-    ):
-        err_msg = "invalid timestamp (timewarp attack): "
-        err_msg += f"{_block_time(header)} < {_block_time(parent)} - {MAX_TIMEWARP}"
-        raise BTClibValueError(err_msg)
 
     if consensus.pow_no_retargeting:
         return parent.bits

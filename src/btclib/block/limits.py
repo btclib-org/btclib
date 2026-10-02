@@ -36,7 +36,7 @@ first block of a new retarget period, checked against that block's own
 parent -- the last block of the period before it -- so it needs one
 header rather than the whole chain, which is what makes it a bound
 rather than a rule of its own.
-`btclib.block.header_context.next_bits_required` is where it is read,
+`btclib.block.header_context.assert_not_timewarp` is where it is read,
 behind `ConsensusParams.enforce_bip94`.
 
 `MIN_SERIALIZABLE_TRANSACTION_WEIGHT` is here, where its neighbour
