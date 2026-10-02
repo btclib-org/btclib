@@ -440,6 +440,47 @@ def test_fix_signature_asks_for_strict_der_as_one_mask() -> None:
     assert fix_signature(signature, NO_FLAGS) == sig.serialize() + signature[-1:]
 
 
+@pytest.mark.parametrize(
+    "hash_type, defined",
+    [
+        (0x00, False),
+        (0x01, True),
+        (0x02, True),
+        (0x03, True),
+        (0x04, False),
+        (0x80, False),
+        (0x81, True),
+        (0x82, True),
+        (0x83, True),
+        (0x84, False),
+    ],
+)
+def test_fix_signature_strictenc_hash_type(hash_type: int, defined: bool) -> None:
+    """STRICTENC accepts 1, 2, 3 with or without ANYONECANPAY, and no other.
+
+    Core's IsDefinedHashtypeSignature masks off ANYONECANPAY and requires
+    1, 2 or 3, so 0x00 and 0x80 are SCRIPT_ERR_SIG_HASHTYPE: 0x00 is
+    BIP341's SIGHASH_DEFAULT, which only taproot has (issue #2510).
+    """
+    # the padding in r is taken out, so that STRICTENC reaches the hash type
+    der = Sig.parse(
+        bytes.fromhex(
+            "304402200060558477337b9022e70534f1fea71a318caf836812465a2509931c5e7c4987"
+            "022078ec32bd50ac9e03a349ba953dfd9fe1c8d2dd8bdb1d38ddca844d3d5c78c118"
+        ),
+        strict=False,
+    ).serialize()
+    signature = der + bytes([hash_type])
+    # without the flag any byte goes on to verification
+    assert fix_signature(signature, NO_FLAGS)[-1] == hash_type
+    if defined:
+        assert fix_signature(signature, ScriptFlag.STRICTENC)[-1] == hash_type
+    else:
+        with pytest.raises(ScriptError, match="invalid sighash type") as exc_info:
+            fix_signature(signature, ScriptFlag.STRICTENC)
+        assert exc_info.value.code is ScriptErrorCode.SIG_HASHTYPE
+
+
 def test_fix_signature_high_s() -> None:
     """A high s is an error under LOW_S and negated away without it.
 
