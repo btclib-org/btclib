@@ -59,7 +59,7 @@ def test_the_jobs_that_publish_check_the_digests_first() -> None:
 def test_the_dist_job_checks_what_it_downloads_on_a_release() -> None:
     """`test.yml` takes the digests as an input and checks the download."""
     release = (_WORKFLOWS / "release.yml").read_text(encoding="utf-8")
-    assert "digests: ${{ needs.build.outputs.digests }}" in release
+    assert "digests: ${{ needs.build.outputs.digests }}" in _jobs(release)["test"]
     test = (_WORKFLOWS / "test.yml").read_text(encoding="utf-8")
     body = _jobs(test)["dist"]
     step = _check_step(body)
