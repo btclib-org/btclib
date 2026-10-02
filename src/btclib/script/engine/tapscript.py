@@ -24,7 +24,12 @@ from btclib.script.engine.script import (
     VERIFY_CODES,
     _assert_bytes_arguments,
 )
-from btclib.script.engine.script_op_codes import ScriptOp
+from btclib.script.engine.script_op_codes import (
+    _MAX_NUM_SIZE,
+    ScriptOp,
+    _assert_operands,
+    _to_num,
+)
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.op_codes_tapscript import OP_CODE_NAMES, OP_SUCCESS
 from btclib.script.script import op_code_spans
@@ -152,7 +157,13 @@ def op_checksigadd(
     the returned pair is re-run by the loop as the ``*VERIFY``
     expansions are. BIP342 defines it as this composition,
     batch-verifiable where the CHECKMULTISIGs it replaces are not.
+
+    The number is read first, as Core's EvalScript builds it before the
+    check: a bad one is SCRIPTNUM whatever the signature and key would
+    answer.
     """
+    _assert_operands(stack, 3, "OP_CHECKSIGADD")
+    _to_num(stack[-2], flags, _MAX_NUM_SIZE)
     stack[-2], stack[-3] = stack[-3], stack[-2]
     return ["OP_CHECKSIG", "OP_ADD"]
 

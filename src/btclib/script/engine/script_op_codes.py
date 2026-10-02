@@ -18,8 +18,10 @@ restated on each:
   is a ScriptError carrying the ScriptErrorCode Core fails with at the
   same place; the loop re-raises both with the index of the failing
   command added. The op codes that check the depth themselves do so
-  only where popping would not fail on its own, or where the altstack
-  is the one short: an IndexError cannot say which stack it came from.
+  only where popping would not fail on its own, where a number is read
+  first and Core checks the depth before reading it, or where the
+  altstack is the one short: an IndexError cannot say which stack it
+  came from.
 """
 
 from __future__ import annotations
@@ -142,6 +144,18 @@ def _to_num(element: bytes, flags: ScriptFlag, max_size: int) -> int:
         err_msg = f"non-minimal encoding of {x}: {element.hex()}"
         raise ScriptError(err_msg, ScriptErrorCode.SCRIPTNUM)
     return x
+
+
+def _assert_operands(stack: list[bytes], count: int, op: str) -> None:
+    """Refuse a stack shorter than `count`, before any operand is read.
+
+    Core's EvalScript tests the depth before it builds a CScriptNum, so a
+    bad number on a stack too short for the op code is
+    INVALID_STACK_OPERATION and not SCRIPTNUM.
+    """
+    if len(stack) < count:
+        err_msg = f"{op} on a stack of less than {count} elements"
+        raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
 
 
 def _to_bool(element: bytes) -> bool:
@@ -542,6 +556,7 @@ def op_0notequal(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -
 
 def op_add(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push their sum."""
+    _assert_operands(stack, 2, "OP_ADD")
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     stack.append(encode_num(a + b))
@@ -549,6 +564,7 @@ def op_add(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None
 
 def op_sub(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push the deeper one minus the top one."""
+    _assert_operands(stack, 2, "OP_SUB")
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     stack.append(encode_num(a - b))
@@ -556,6 +572,7 @@ def op_sub(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None
 
 def op_booland(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push whether both are non-zero."""
+    _assert_operands(stack, 2, "OP_BOOLAND")
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a != 0 and b != 0:
@@ -566,6 +583,7 @@ def op_booland(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> 
 
 def op_boolor(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push whether either is non-zero."""
+    _assert_operands(stack, 2, "OP_BOOLOR")
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a != 0 or b != 0:
@@ -580,6 +598,7 @@ def op_numequal(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) ->
     Numeric equality, not byte equality: without MINIMALDATA, 0x00
     equals the empty element here and not in op_equal.
     """
+    _assert_operands(stack, 2, "OP_NUMEQUAL")
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a == b:
@@ -599,6 +618,7 @@ def op_numnotequal(
     stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
 ) -> None:
     """Pop two numbers and push whether they differ."""
+    _assert_operands(stack, 2, "OP_NUMNOTEQUAL")
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a != b:
@@ -609,6 +629,7 @@ def op_numnotequal(
 
 def op_lessthan(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push whether the deeper is below the top."""
+    _assert_operands(stack, 2, "OP_LESSTHAN")
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a < b:
@@ -621,6 +642,7 @@ def op_greaterthan(
     stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
 ) -> None:
     """Pop two numbers and push whether the deeper is above the top."""
+    _assert_operands(stack, 2, "OP_GREATERTHAN")
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a > b:
@@ -633,6 +655,7 @@ def op_lessthanorequal(
     stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
 ) -> None:
     """Pop two numbers and push whether the deeper is at most the top."""
+    _assert_operands(stack, 2, "OP_LESSTHANOREQUAL")
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a <= b:
@@ -645,6 +668,7 @@ def op_greaterthanorequal(
     stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
 ) -> None:
     """Pop two numbers and push whether the deeper is at least the top."""
+    _assert_operands(stack, 2, "OP_GREATERTHANOREQUAL")
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a >= b:
@@ -655,6 +679,7 @@ def op_greaterthanorequal(
 
 def op_min(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push the smaller."""
+    _assert_operands(stack, 2, "OP_MIN")
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     stack.append(encode_num(min(a, b)))
@@ -662,6 +687,7 @@ def op_min(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None
 
 def op_max(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push the larger."""
+    _assert_operands(stack, 2, "OP_MAX")
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     stack.append(encode_num(max(a, b)))
@@ -672,6 +698,7 @@ def op_within(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> N
 
     Left-closed and right-open, which is Core's comparison.
     """
+    _assert_operands(stack, 3, "OP_WITHIN")
     M = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     m = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     x = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
@@ -729,6 +756,7 @@ def op_pick(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> Non
     Zero is the top; a negative depth is refused, one past the stack
     underflows.
     """
+    _assert_operands(stack, 2, "OP_PICK")
     n = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if n < 0:
         err_msg = f"negative OP_PICK depth: {n}"
@@ -742,6 +770,7 @@ def op_roll(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> Non
     Zero is the top and leaves the stack as it is; a negative depth or
     one past the stack is refused.
     """
+    _assert_operands(stack, 2, "OP_ROLL")
     n = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if n < 0:
         err_msg = f"negative OP_ROLL depth: {n}"

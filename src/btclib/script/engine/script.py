@@ -764,7 +764,6 @@ def _run_ops(  # noqa: C901, PLR0912
             assert_signature_num(signature_num, pub_key_num)
             signatures = [stack.pop() for _ in range(signature_num)]
 
-            assert_nulldummy(stack.pop(), flags)  # dummy value
             signature_index = 0
             for pub_key_index in range(pub_key_num):
                 if signature_index == signature_num:
@@ -789,10 +788,14 @@ def _run_ops(  # noqa: C901, PLR0912
                 )
 
             if signature_index == signature_num:
-                stack.append(b"\x01")
+                verdict = b"\x01"
             else:
                 assert_nullfail(flags, False, signatures, "OP_CHECKMULTISIG")
-                stack.append(b"")
+                verdict = b""
+            # Core asks NULLDUMMY of the dummy last, after the signatures
+            # and NULLFAIL
+            assert_nulldummy(stack.pop(), flags)
+            stack.append(verdict)
 
         elif op == "OP_CHECKLOCKTIMEVERIFY":
             script_op_codes.op_checklocktimeverify(stack, tx, i, flags)
