@@ -1,0 +1,31 @@
+# BIP324's v2 transport cipher, mutated: the rekeying, the key schedule and
+# the packet framing of `p2p/bip324.py`. A rekeying one packet early or a
+# nonce field swapped between sender and receiver is a cipher that agrees
+# with itself and with no other implementation, which a round trip cannot
+# tell from the correct one: only BIP324's vectors can, and these are the
+# question #219 asks of the consensus code -- would the suite notice.
+
+[cosmic-ray]
+module-path = "src/btclib/p2p/bip324.py"
+
+test-command = "python -m pytest -x -q -n0 -p no:randomly tests/p2p/bip324_test.py tests/keyword_only_test.py -k bip324"
+
+timeout = 300
+
+excluded-modules = []
+
+# The survivors of the last run, each weighed:
+#
+# - `len(x) != N` against `is not`, `initiator != self_decrypt` against
+#   `is not`, and `== REKEY_INTERVAL` against `is`: the operands are
+#   small ints or bools, which CPython caches, so `is` answers as `==`.
+# - `self._chunks == REKEY_INTERVAL` and `self._packets == REKEY_INTERVAL`
+#   against `>=`: both counters are set back to 0 at that value, so
+#   neither exceeds it.
+# - `+` against `|` and `^` in `EXPANSION` and in the `HEADER_LEN +
+#   TAG_LEN` length check: 4 + 16 and 1 + 16 have no bit in common.
+# - `plaintext[0] & IGNORE_BIT` against `//`: for a byte, `// 0x80` is
+#   non-zero exactly when bit 7 is set.
+
+[cosmic-ray.distributor]
+name = "local"

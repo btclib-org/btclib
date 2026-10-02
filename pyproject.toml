@@ -149,6 +149,14 @@ secp256k1 = [
     # what states which release that takes
     "btclib-ecc[secp256k1]>=2026.10.2",
 ]
+# `btclib.p2p.bip324`, BIP324's v2 transport cipher, `pip install
+# "btclib[bip324]"`. Issue #1066 keeps a hand-written cipher out of
+# btclib, and none is written: the ciphers are `cryptography`'s. An extra
+# so that an installation which did not ask for a cipher has none, which
+# is btclib-org/btclib-node#1190's plan, approved by the maintainer. The
+# floor is the oldest release BIP324's packet vectors were run against,
+# and they pass at it
+bip324 = ["cryptography>=42.0.0"]
 
 [project.urls]
 homepage = "https://btclib.readthedocs.io/"
@@ -208,6 +216,11 @@ pull_requests = "https://github.com/btclib-org/btclib/pulls"
 # documented command had to grow an `--extra`, and that the job of issue
 # #991 is those same commands with this group left out
 bindings = ["btclib-secp256k1>=0.8.0.9", "btclib-ecc[secp256k1]>=2026.10.2"]
+# the `bip324` extra again, for the reason `bindings` is a group: the
+# suite, the type check and the docs build import `btclib.p2p.bip324`,
+# and `tests/build_system_test.py` holds the two declarations equal.
+# `harness` alone has no `cryptography`, and the tests of the module skip
+bip324 = ["cryptography>=42.0.0"]
 # what runs the suite, without what the suite delegates to: `test` is the
 # two together and is what every documented command asks for, while
 # `harness` alone is the environment the no-bindings job of test.yml
@@ -226,9 +239,14 @@ harness = [
     "pytest-timeout>=2.4.0",
     "pytest-xdist>=3.8.0",
 ]
-test = [{ include-group = "harness" }, { include-group = "bindings" }]
+test = [
+    { include-group = "harness" },
+    { include-group = "bindings" },
+    { include-group = "bip324" },
+]
 lint = [
     { include-group = "bindings" },
+    { include-group = "bip324" },
     "mypy>=2.3.1",
     "pre-commit>=4.6.2",
     "ruff>=0.16.7",
@@ -260,6 +278,7 @@ fuzz = ["uv_build>=0.12.0,<0.13"]
 mutation = ["cosmic-ray>=8.7.0"]
 docs = [
     { include-group = "bindings" },
+    { include-group = "bip324" },
     "furo>=2025.12.19; python_full_version >= '3.12'",
     "myst-parser>=5.1.0; python_full_version >= '3.12'",
     "sphinx>=9.1.0; python_full_version >= '3.12'",

@@ -221,11 +221,12 @@ repository is LF throughout, which `mixed-line-ending` enforces with
 `in_priv_ours`, `in_ellswift_ours`, `in_ellswift_theirs`,
 `in_initiating`, `mid_x_shared` and `mid_shared_secret` -- and holds
 `ecc.ellswift.xdh` to every row on the bindings and on the Python
-arithmetic. Nothing else in the row is asserted: `mid_x_ours` and
-`mid_x_theirs` are the x-coordinates the encodings decode to, a question
-for btclib_ecc's map, and the packet columns and every column after
-`mid_shared_secret` are the v2 transport's, which btclib does not
-implement. `in_idx` names each case.
+arithmetic. `mid_x_ours` and `mid_x_theirs` are the x-coordinates the
+encodings decode to, a question for btclib_ecc's map, and are not
+asserted. `tests/p2p/bip324_test.py` reads the session id, the garbage
+terminators and the packet columns, and holds `p2p.bip324.Cipher` to
+them; the `mid_*_l` and `mid_*_p` keys are not read, and the ciphertext
+pins the send keys only. `in_idx` names each case in both files.
 
 ## bitcoin/bitcoin
 

@@ -315,6 +315,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+bip324 = [
+    { name = "cryptography" },
+]
 secp256k1 = [
     { name = "btclib-ecc", extra = ["secp256k1"] },
     { name = "btclib-secp256k1" },
@@ -324,6 +327,9 @@ secp256k1 = [
 bindings = [
     { name = "btclib-ecc", extra = ["secp256k1"] },
     { name = "btclib-secp256k1" },
+]
+bip324 = [
+    { name = "cryptography" },
 ]
 check = [
     { name = "check-sdist" },
@@ -339,6 +345,7 @@ dev = [
     { name = "check-wheel-contents" },
     { name = "cosmic-ray" },
     { name = "coverage" },
+    { name = "cryptography" },
     { name = "furo", marker = "python_full_version >= '3.12'" },
     { name = "hypothesis" },
     { name = "mypy" },
@@ -358,6 +365,7 @@ dev = [
 docs = [
     { name = "btclib-ecc", extra = ["secp256k1"] },
     { name = "btclib-secp256k1" },
+    { name = "cryptography" },
     { name = "furo", marker = "python_full_version >= '3.12'" },
     { name = "myst-parser", marker = "python_full_version >= '3.12'" },
     { name = "sphinx", marker = "python_full_version >= '3.12'" },
@@ -377,6 +385,7 @@ harness = [
 lint = [
     { name = "btclib-ecc", extra = ["secp256k1"] },
     { name = "btclib-secp256k1" },
+    { name = "cryptography" },
     { name = "mypy" },
     { name = "pre-commit" },
     { name = "ruff" },
@@ -388,6 +397,7 @@ test = [
     { name = "btclib-ecc", extra = ["secp256k1"] },
     { name = "btclib-secp256k1" },
     { name = "coverage" },
+    { name = "cryptography" },
     { name = "hypothesis" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -402,15 +412,17 @@ requires-dist = [
     { name = "btclib-ecc", specifier = ">=2026.10.2" },
     { name = "btclib-ecc", extras = ["secp256k1"], marker = "extra == 'secp256k1'", specifier = ">=2026.10.2" },
     { name = "btclib-secp256k1", marker = "extra == 'secp256k1'", specifier = ">=0.8.0.9" },
+    { name = "cryptography", marker = "extra == 'bip324'", specifier = ">=42.0.0" },
     { name = "typing-extensions", specifier = ">=4.10" },
 ]
-provides-extras = ["secp256k1"]
+provides-extras = ["secp256k1", "bip324"]
 
 [package.metadata.requires-dev]
 bindings = [
     { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.2" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0.9" },
 ]
+bip324 = [{ name = "cryptography", specifier = ">=42.0.0" }]
 check = [
     { name = "check-sdist", specifier = ">=1.6.0" },
     { name = "check-wheel-contents", specifier = ">=0.6.3" },
@@ -425,6 +437,7 @@ dev = [
     { name = "check-wheel-contents", specifier = ">=0.6.3" },
     { name = "cosmic-ray", specifier = ">=8.7.0" },
     { name = "coverage", specifier = ">=7.16.0" },
+    { name = "cryptography", specifier = ">=42.0.0" },
     { name = "furo", marker = "python_full_version >= '3.12'", specifier = ">=2025.12.19" },
     { name = "hypothesis", specifier = ">=6.168.0" },
     { name = "mypy", specifier = ">=2.3.1" },
@@ -444,6 +457,7 @@ dev = [
 docs = [
     { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.2" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0.9" },
+    { name = "cryptography", specifier = ">=42.0.0" },
     { name = "furo", marker = "python_full_version >= '3.12'", specifier = ">=2025.12.19" },
     { name = "myst-parser", marker = "python_full_version >= '3.12'", specifier = ">=5.1.0" },
     { name = "sphinx", marker = "python_full_version >= '3.12'", specifier = ">=9.1.0" },
@@ -461,6 +475,7 @@ harness = [
 lint = [
     { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.2" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0.9" },
+    { name = "cryptography", specifier = ">=42.0.0" },
     { name = "mypy", specifier = ">=2.3.1" },
     { name = "pre-commit", specifier = ">=4.6.2" },
     { name = "ruff", specifier = ">=0.16.7" },
@@ -470,6 +485,7 @@ test = [
     { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.2" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0.9" },
     { name = "coverage", specifier = ">=7.16.0" },
+    { name = "cryptography", specifier = ">=42.0.0" },
     { name = "hypothesis", specifier = ">=6.168.0" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-cov", specifier = ">=7.1.0" },

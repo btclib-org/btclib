@@ -79,6 +79,7 @@ on:
           - block
           - shared
           - script
+          - bip324
 
 # least privilege for the GITHUB_TOKEN: everything running in a job can
 # read it, and nothing here writes. In particular no issues: write --
@@ -178,6 +179,10 @@ jobs:
       # is what this profile is for. If it dies here again the budget was
       # the only thing holding it, and that is a mechanism still to find
       # rather than one this file should hide.
+      #
+      # `bip324`: bip324.toml's session ran in 6 minutes of wall clock on
+      # the machine that measured it, at a load of 6 to 12. 20 minutes is
+      # three times that.
       profiles: >-
         [{"profile": "the consensus code", "slug": "consensus", "ceiling": 200, "sessions":
         "sig_hash.toml 90m\nengine.toml 90m"},
@@ -192,7 +197,9 @@ jobs:
         {"profile": "shared helpers and numeric bounds", "slug": "shared", "ceiling": 65,
         "sessions": "utils.toml 30m\nnumeric.toml 25m"},
         {"profile": "the script encodings", "slug": "script", "ceiling": 60, "sessions":
-        "script.toml 45m"}]
+        "script.toml 45m"},
+        {"profile": "the v2 transport cipher", "slug": "bip324", "ceiling": 35, "sessions":
+        "bip324.toml 20m"}]
       # the dropdown above, forwarded. A schedule has no `inputs` at all,
       # so this arrives at the callee as an empty string, which its own
       # `SELECTED` expression reads as every profile rather than as none

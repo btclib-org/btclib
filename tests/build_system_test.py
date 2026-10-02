@@ -45,6 +45,8 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from tests import NEEDS_AN_EXTRA
+
 _PYPROJECT = tomllib.loads(
     (Path(__file__).parents[1] / "pyproject.toml").read_text(encoding="utf-8")
 )
@@ -126,6 +128,37 @@ def test_the_bindings_extra_and_group_ask_for_the_same_thing() -> None:
     # puts them behind that package's delegations as well as btclib's
     names = sorted(requirement.split(">=")[0] for requirement in extra)
     assert names == ["btclib-ecc[secp256k1]", "btclib-secp256k1"], extra
+
+
+def test_the_bip324_extra_and_group_ask_for_the_same_thing() -> None:
+    """The extra is the published fact and the group is this tree's copy of it.
+
+    The reason is `test_the_bindings_extra_and_group_ask_for_the_same_thing`'s,
+    and so is the refusal to spell the requirement here.
+    """
+    extra = _PYPROJECT.get("project", {}).get("optional-dependencies", {})
+    group = _PYPROJECT.get("dependency-groups", {}).get("bip324")
+    assert "bip324" in extra, "no bip324 extra in pyproject.toml"
+    assert group is not None, "no bip324 dependency group in pyproject.toml"
+    assert extra["bip324"] == group, (
+        f"the extra asks {extra['bip324']}, the group {group}"
+    )
+    names = [requirement.split(">=")[0] for requirement in group]
+    assert names == ["cryptography"], group
+
+
+def test_every_module_needing_an_extra_names_a_dependency_of_it() -> None:
+    """`tests/__init__.py` leaves such a module out where the extra is absent.
+
+    The dependency it names is then one the extra installs, or the walk
+    would drop a module a plain install imports.
+    """
+    extra = _PYPROJECT.get("project", {}).get("optional-dependencies", {})
+    named = {
+        requirement.split(">=")[0] for group in extra.values() for requirement in group
+    }
+    for module, dependency in NEEDS_AN_EXTRA.items():
+        assert dependency in named, f"{module} needs {dependency}, no extra has it"
 
 
 # `[tool.uv.build-backend] source-exclude` carries its own reasoning in
