@@ -97,11 +97,14 @@ Already done for btclib-org/btclib; kept here for the record.
    directly, or — the `attest` job of `btclib-org/.github`'s
    `reusable-build.yml`, which `release.yml`'s `build` job calls — signs
    the distribution files before either reviewed job starts, and signs
-   only files whose digests the build job printed. `pypi` is additionally
-   restricted to
-   `v*` tags, which is the only ref its job runs on anyway — the
-   restriction is what makes that true of the environment and not just
-   of an `if:` in a file a pull request could change.
+   only files whose digests the build job printed. `publish-testpypi`,
+   `publish-pypi`, `github-release` and the `dist` job check what they
+   download against those digests, and fail where a file differs, is added
+   or is missing.
+   `pypi` is additionally restricted to `v*` tags, which is the only ref
+   its job runs on anyway — the restriction is what makes that true of
+   the environment and not just of an `if:` in a file a pull request could
+   change.
 
    Self-review stays allowed on purpose: whichever owner pushes the tag
    may also approve its deployment, so a release does not wait on

@@ -90,6 +90,14 @@ on:
           or `sbom` in the same run would collide with that job's.
         type: boolean
         default: false
+      digests:
+        description: >
+          The `digests` output of reusable-build.yml, which the `dist`
+          job checks the downloaded files against when `use-signed-dist`
+          is set, so that what it verified is what release.yml publishes.
+          Ignored otherwise.
+        type: string
+        default: ""
   # the escape hatch: the gate on demand for a branch whose pull
   # request is not open yet
   workflow_dispatch:
@@ -527,6 +535,17 @@ jobs:
         with:
           name: dist
           path: dist/
+      # the same check as the publish jobs make in release.yml: the files
+      # the checks below read are the ones the build job printed the
+      # digests of, and so the ones published
+      - name: Check the files are the ones the build job built
+        if: inputs.use-signed-dist
+        env:
+          DIGESTS: ${{ inputs.digests }}
+        shell: bash
+        run: |
+          sha256sum dist/* | LC_ALL=C sort -k2 \
+            | diff - <(printf '%s\n' "$DIGESTS" | grep -F '  dist/')
       # what the sdist normalizer and the sbom below read. `uv build`
       # itself ignores it: it writes a fixed timestamp into every member
       # of both archives -- (1980, 1, 1) in the zip, 0 in the tar --
@@ -601,8 +620,10 @@ jobs:
         run: |
           uv run --no-project --python 3.15 \
             btclib-org-github/.github/scripts/generate_sbom.py dist/ sbom/
-      # before anything is installed: a step below runs third-party code, so
-      # the worst a compromised dependency can do here is fail this job
+      # this upload does not freeze `dist`: a later step can upload an
+      # artifact of the same name over it. A release does not publish
+      # this upload: its publish jobs check the files they download
+      # against the digests of release.yml's build job
       - name: Upload the distribution files
         if: ${{ !inputs.use-signed-dist }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

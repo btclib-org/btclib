@@ -128,6 +128,8 @@ jobs:
       check-newest-bindings: true
       # the files the dist job checks are the ones the build job signed
       use-signed-dist: true
+      # and refuses them unless their digests are the ones the build job printed
+      digests: ${{ needs.build.outputs.digests }}
 
   # and the same checks a pull request lints with: without this, a tag
   # push could publish code the pre-commit hooks reject. Not gated on
@@ -209,6 +211,7 @@ jobs:
     # review never fired (issue #1461)
     needs:
       [
+        build,
         public-api,
         audit,
         test,
@@ -242,6 +245,16 @@ jobs:
         with:
           name: dist
           path: dist/
+      # a job that ran after the build could have uploaded another
+      # artifact named `dist`: what is published is the files the build
+      # job printed the digests of, or nothing
+      - name: Check the files are the ones the build job built
+        env:
+          DIGESTS: ${{ needs.build.outputs.digests }}
+        shell: bash
+        run: |
+          sha256sum dist/* | LC_ALL=C sort -k2 \
+            | diff - <(printf '%s\n' "$DIGESTS" | grep -F '  dist/')
       # generates PEP 740 attestations by default
       - name: Publish to TestPyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
@@ -255,6 +268,7 @@ jobs:
     # push as to a rehearsal
     needs:
       [
+        build,
         public-api,
         audit,
         test,
@@ -290,6 +304,16 @@ jobs:
         with:
           name: dist
           path: dist/
+      # a job that ran after the build could have uploaded another
+      # artifact named `dist`: what is published is the files the build
+      # job printed the digests of, or nothing
+      - name: Check the files are the ones the build job built
+        env:
+          DIGESTS: ${{ needs.build.outputs.digests }}
+        shell: bash
+        run: |
+          sha256sum dist/* | LC_ALL=C sort -k2 \
+            | diff - <(printf '%s\n' "$DIGESTS" | grep -F '  dist/')
       # generates PEP 740 attestations by default
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
@@ -351,6 +375,8 @@ jobs:
     uses: btclib-org/.github/.github/workflows/reusable-github-release.yml@main
     with:
       dist-artifact: dist
+      # refuses the files unless their digests are the ones the build job printed
+      digests: ${{ needs.build.outputs.digests }}
 
   # the wait for read the docs to build the tag is btclib-org/.github's,
   # called at @main so a fix there reaches this tree in one landing

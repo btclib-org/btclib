@@ -144,6 +144,12 @@ pinned commit, failing the run on a mismatch (closes #2439).
 off, and that a local review of a named sha by a reviewer other than the
 author stands in for it (issue btclib-org/.github#1527) (closes #2445).
 
+### The release publishes the files the build job built
+
+The publish jobs, `github-release` and `test.yml`'s `dist` job on a release
+stop where the `dist` they download differs from the digests
+`reusable-build.yml` outputs (closes #2449).
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again
