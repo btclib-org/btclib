@@ -192,7 +192,7 @@ jobs:
       # uv rather than actions/setup-python, which is what every other
       # workflow here already uses
       - name: Setup uv with Python ${{ matrix.python }}
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           python-version: ${{ matrix.python }}
       # the install runs through btclib-org/.github's
@@ -324,7 +324,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Setup uv with Python ${{ matrix.python }}
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           python-version: ${{ matrix.python }}
       # install-published's own checkout of the install script, for the
