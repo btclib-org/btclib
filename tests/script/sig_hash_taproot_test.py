@@ -33,6 +33,7 @@ from btclib.script import (
     input_script_sig,
     is_p2tr,
     output_prvkey,
+    output_prvkey_from_merkle_root,
     parse,
     serialize,
     sig_hash,
@@ -361,13 +362,12 @@ def test_bip_test_vector(spending: dict[str, Any]) -> None:
     pub_key = type_and_payload(utxos[index].script_pub_key.script)[1]
     ssa.assert_as_valid_(signature_hash, pub_key, signature)
 
-    # btclib's own tweak against the BIP's number, for the one input that
-    # commits to no script: output_prvkey takes the tree, and these
-    # vectors give a merkle root, so the six that have one are covered by
-    # the signature above rather than here
-    if spending["given"]["merkleRoot"] is None:
-        internal_prv_key = bytes.fromhex(spending["given"]["internalPrivkey"])
-        assert output_prvkey(internal_prv_key) == int.from_bytes(tweaked_prv_key, "big")
+    # btclib's own tweak against the BIP's number, for all seven inputs: the
+    # signature above is made with the vector's key, so it does not check it
+    internal_prv_key = bytes.fromhex(spending["given"]["internalPrivkey"])
+    merkle_root = bytes.fromhex(spending["given"]["merkleRoot"] or "")
+    tweaked = output_prvkey_from_merkle_root(internal_prv_key, merkle_root)
+    assert tweaked == int.from_bytes(tweaked_prv_key, "big")
 
 
 @pytest.mark.parametrize(
