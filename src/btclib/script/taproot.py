@@ -23,7 +23,6 @@ from btclib_ecc.curves import (
     scalar_from_prv_key,
     secp256k1,
 )
-from btclib_ecc.curves.curve_group import HEX_THRESHOLD
 from btclib_ecc.ecc.ssa import point_from_bip340pub_key
 from btclib_ecc.exceptions import BTClibEccValueError
 from btclib_ecc.hashes import tagged_hash
@@ -56,7 +55,6 @@ from btclib.utils import (
     assert_type,
     bytes_from_octets,
     bytesio_from_binarydata,
-    hex_string,
     is_integer,
 )
 
@@ -453,15 +451,14 @@ def _tweaked_pubkey(pub_key: PubKeyData, h: bytes) -> tuple[bytes, int]:
             # catching BTClibValueError not having to know which arm
             # answered.
             #
-            # Two messages, and what decides between them is what the
+            # Which message, and what decides it is what the
             # octets are rather than which caller handed them over. A
             # compressed key names its y by its prefix, so its x is all
             # that is left for tweak_add to object to, and the wording is
             # the lift's below, so that the two arms say one sentence for
-            # one input: `point_from_octets` is that lift, and it answers
-            # both of `curve_group.y_var`'s complaints -- an x out of
-            # range and an x that is no coordinate -- in the one sentence
-            # this reproduces.
+            # one input: `point_from_octets` is that lift, and this
+            # repeats its two sentences: one for an x out of range, one
+            # for an x that is no coordinate.
             #
             # Anything else carries more than an x. An uncompressed key's
             # y is unproven for the same reason as its x, and a valid x
@@ -475,7 +472,12 @@ def _tweaked_pubkey(pub_key: PubKeyData, h: bytes) -> tuple[bytes, int]:
             if not pub_key.is_compressed:
                 raise BTClibValueError(f"invalid internal public key: {e}") from e
             x_Q = int.from_bytes(pub_key.sec[1:33], "big")
-            raise BTClibValueError(f"invalid x-coordinate: '{hex_string(x_Q)}'") from e
+            err_msg = (
+                "invalid x-coordinate"
+                if x_Q < secp256k1.p
+                else "x-coordinate not in 0..p-1"
+            )
+            raise BTClibValueError(err_msg) from e
 
     # which of the two roots the key names is its prefix's business and
     # not BIP341's, whose lift wants the even one: an 03 key is the odd-y
@@ -680,11 +682,10 @@ def check_output_pubkey(q: Octets, script: Octets, control: Octets) -> bool:
             # the lift's below, range check included, and the two arms
             # answer the same sentence for the same control block
             err_msg = (
-                "invalid x-coordinate: "
+                "invalid x-coordinate"
                 if p < secp256k1.p
-                else "x-coordinate not in 0..p-1: "
+                else "x-coordinate not in 0..p-1"
             )
-            err_msg += f"{hex_string(p)}" if p > HEX_THRESHOLD else f"{p}"
             raise BTClibValueError(err_msg) from e
 
     # the lift with its modular square root delegated, as a BIP340 key is:

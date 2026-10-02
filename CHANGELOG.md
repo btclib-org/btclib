@@ -156,6 +156,12 @@ stop where the `dist` they download differs from the digests
 `pip3 install --require-hashes`. The mypy hook's comment gives its reason
 for `--locked` without calling it universal (closes #2484).
 
+### btclib requires btclib-ecc 2026.10.2
+
+btclib-ecc 2026.10.2 fixes GHSA-r5pw-9wrg-m3mj and GHSA-m38m-987v-j55h. The
+tweak's bindings arm says `x-coordinate not in 0..p-1` for x >= p, where it
+said `invalid x-coordinate: '...'`, and no taproot message quotes the x.
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again

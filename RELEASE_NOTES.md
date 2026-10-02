@@ -27,6 +27,9 @@ full year, short month, short day (YYYY-M-D)
   and `--source-ref refs/tags/v<version>`; SECURITY.md names the signer of
   an earlier release.
 
+- **btclib requires btclib-ecc 2026.10.2, which fixes GHSA-r5pw-9wrg-m3mj
+  and GHSA-m38m-987v-j55h.** Upgrading btclib installs it.
+
 ## v2026.9.30
 
 ### Breaking changes

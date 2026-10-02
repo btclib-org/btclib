@@ -419,15 +419,14 @@ def test_check_output_pubkey_of_an_internal_key_that_is_not_a_point(
     internal key's x alone, so a refusal is about that x and nothing
     else (issue 1218).
 
-    Three shapes, as the tweak's own test has: 5 is no x-coordinate and
-    is written as a decimal, p - 1 is no x-coordinate and is written as
-    hex, and p is not a field element at all, which `y_even_var` says in
-    words of its own.
+    Three shapes, as the tweak's own test has: 5 and p - 1 are no
+    x-coordinate, and p is not a field element at all, which `y_even_var`
+    says in words of its own. Neither sentence quotes the x.
     """
     for x, err_msg in (
-        (5, "invalid x-coordinate: 5"),
-        (secp256k1.p - 1, "invalid x-coordinate: FFFFFFFF"),
-        (secp256k1.p, r"x-coordinate not in 0\.\.p-1: FFFFFFFF"),
+        (5, "^invalid x-coordinate$"),
+        (secp256k1.p - 1, "^invalid x-coordinate$"),
+        (secp256k1.p, r"^x-coordinate not in 0\.\.p-1$"),
     ):
         control = b"\xc0" + x.to_bytes(32, "big")
         with pytest.raises(BTClibValueError, match=err_msg):
@@ -449,24 +448,17 @@ def test_the_tweak_refuses_an_internal_key_that_is_no_point_alike(
     the two answered is a `pip install`, and a caller catching
     `BTClibValueError` is not meant to have to know (issue 1214).
 
-    On the x-only path the sentence agrees too, and it is one sentence
-    rather than three: the lift is `point_from_octets`, which wraps both
-    of `curve_group.y_var`'s complaints -- an x that is no coordinate and
-    an x that is no field element -- in a single "invalid x-coordinate",
-    and this arm reproduces what the lift says rather than what the
-    lift's own caller would have said. Nothing is lost that the message
-    carried: the three cases below are 5, p - 1 and p, and the hex the
-    sentence quotes still tells them apart.
+    On the x-only path the sentence agrees too: the lift is
+    `point_from_octets`, which gives `curve_group.y_var`'s two complaints,
+    an x that is no coordinate and an x that is no field element, in their
+    own words, and this arm repeats them rather than what the lift's own
+    caller would have said. The sentence quotes no x, which may
+    be a private key passed as a public one.
     """
-    # the whole sentence on the last two, and not a prefix of it: they
-    # differ in their final hex group alone, so a pattern stopping short
-    # of it matches either message -- which is the discrimination this
-    # docstring claims, and the one a truncation silently drops
-    head = "FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE"
     for x, err_msg in (
-        (5, "invalid x-coordinate: '05'"),
-        (secp256k1.p - 1, f"invalid x-coordinate: '{head} FFFFFC2E'"),
-        (secp256k1.p, f"invalid x-coordinate: '{head} FFFFFC2F'"),
+        (5, "^invalid x-coordinate$"),
+        (secp256k1.p - 1, "^invalid x-coordinate$"),
+        (secp256k1.p, r"^x-coordinate not in 0\.\.p-1$"),
     ):
         x_only = x.to_bytes(32, "big")
         with pytest.raises(BTClibValueError, match=err_msg):
