@@ -233,12 +233,12 @@ to, and what counters each.
   boundaries*, and `tests/integer_policy_test.py`, which refuses a
   `bool` where an integer field is expected.
 - **Uncaught exceptions on hostile input (CWE-248, CWE-755).**
-  `tests/fuzz_test.py` asserts that every parser fails the way the
-  library says it fails, whatever it is handed. The targets under `fuzz/`
-  run under ClusterFuzzLite in `.github/workflows/fuzz.yml`, ranked by
-  whether they are reached from the network before any signature is
-  checked, and `tests/fuzz_corpus_test.py` checks that every seed of
-  their corpus still parses.
+  `tests/fuzz_test.py` asserts that every parser, and every response
+  decoder of `btclib.electrum`, fails the way the library says it fails,
+  whatever it is handed. The targets under `fuzz/` run under
+  ClusterFuzzLite in `.github/workflows/fuzz.yml`, which gives each at
+  least an equal share of the time, and `tests/fuzz_corpus_test.py`
+  checks that every seed of their corpus is still accepted by its target.
 - **Uncontrolled resource consumption (CWE-400, CWE-770).** The bounds
   under *Trust boundaries*, read before anything is built.
 - **Observable timing (CWE-208).** The `_var` convention and the

@@ -21,7 +21,9 @@ green rather than for having written it once.
 import base64
 import contextlib
 import importlib
+import json
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -31,10 +33,10 @@ from btclib_ecc.exceptions import (
     BTClibEccTypeError,
     BTClibEccValueError,
 )
-from hypothesis import given
+from hypothesis import example, given
 from hypothesis import strategies as st
 
-from btclib import b32, b58, base58, bech32, var_bytes, var_int
+from btclib import b32, b58, base58, bech32, electrum, var_bytes, var_int
 from btclib.block.block import Block
 from btclib.block.block_filter import BasicBlockFilter
 from btclib.block.block_header import BlockHeader
@@ -224,6 +226,18 @@ _CLASS_DECODER_METHODS = ("parse", "b64decode", "b58decode")
 # the dicts, by hand, not on this walk
 _MODULE_DECODER_NAMES = ("parse", "decode")
 
+# What a hostile Electrum server sends: one line of bytes, answering the
+# request whose id the decoder is given. `decode_response` reads the line
+# and each `*_response` function the `result` it returns, so a decoder
+# is driven by the lines its own result shape accepts as well as by
+# bytes that are no JSON at all
+ELECTRUM_REQUEST_ID = 1
+ELECTRUM_RESPONSES: dict[str, Callable[[bytes], Any]] = {
+    name: partial(getattr(electrum, name), request_id=ELECTRUM_REQUEST_ID)
+    for name in electrum.__all__
+    if name.endswith("_response")
+}
+
 
 def _classes_driven_here() -> set[str]:
     """Every class the two dicts above drive, through which decoder.
@@ -301,6 +315,21 @@ def test_every_module_function_that_decodes_is_driven_here() -> None:
     # above having an equality to fail instead
     assert found
     assert found - _functions_driven_here() == set()
+
+
+def test_every_electrum_response_decoder_is_driven_here() -> None:
+    """A decoder the module exports and the dict above lacks fails here.
+
+    The module-function walk above reads the names `parse` and `decode`,
+    which none of these has.
+    """
+    assert "decode_response" in ELECTRUM_RESPONSES
+    assert len(ELECTRUM_RESPONSES) > 1
+    assert {
+        name
+        for name in dir(electrum)
+        if name.endswith("_response") and not name.startswith("_")
+    } == set(ELECTRUM_RESPONSES)
 
 
 def _assert_contract(parse: Callable[[Any], Any], data: Any) -> None:
@@ -579,3 +608,115 @@ def test_witness_consumer_honors_the_exception_contract(
 ) -> None:
     """Fuzz witness stacks: consumers keep the exception contract."""
     _assert_contract(consume, stack)
+
+
+# A line that is valid JSON of the right shape right up to the field a
+# decoder reads: random bytes are refused by the JSON parser and reach
+# nothing beneath it. The leaves are what the helpers ask of a field, an
+# integer, a hex string, a list, a number, and what they refuse
+_ELECTRUM_KEYS = st.sampled_from(
+    ["id", "result", "error", "height", "hex", "block_height", "merkle", "pos"]
+)
+_ELECTRUM_HEX = st.binary(max_size=80).map(bytes.hex) | st.just("00" * 32)
+_ELECTRUM_JSON = st.recursive(
+    st.none()
+    | st.booleans()
+    | st.integers()
+    | st.floats(allow_nan=False)
+    | st.text(max_size=8)
+    | _ELECTRUM_HEX,
+    lambda children: (
+        st.lists(children, max_size=3)
+        | st.dictionaries(_ELECTRUM_KEYS, children, max_size=4)
+    ),
+    max_leaves=12,
+)
+# a `result` shaped as each decoder reads it, each field either what it
+# asks for or anything at all: the shape is what gets a line past the
+# first checks, and a recursive strategy rarely draws it by chance
+_ELECTRUM_RESULTS = (
+    _ELECTRUM_JSON
+    | st.fixed_dictionaries(
+        {
+            "height": st.integers() | _ELECTRUM_JSON,
+            "hex": _ELECTRUM_HEX | _ELECTRUM_JSON,
+        }
+    )
+    | st.fixed_dictionaries(
+        {
+            "block_height": st.integers() | _ELECTRUM_JSON,
+            "merkle": st.lists(_ELECTRUM_HEX | _ELECTRUM_JSON, max_size=3)
+            | _ELECTRUM_JSON,
+            "pos": st.integers() | _ELECTRUM_JSON,
+        }
+    )
+    | st.floats(allow_nan=False, allow_infinity=False)
+)
+_ELECTRUM_REPLIES = st.builds(
+    lambda reply: json.dumps(reply).encode(),
+    st.fixed_dictionaries(
+        {"id": st.just(ELECTRUM_REQUEST_ID) | _ELECTRUM_JSON},
+        optional={"result": _ELECTRUM_RESULTS, "error": _ELECTRUM_JSON},
+    ),
+)
+# and a result nested around the bound `electrum._MAX_NESTING` sets, which
+# a recursive strategy never reaches
+_ELECTRUM_NESTED = st.integers(min_value=0, max_value=40).map(
+    lambda depth: b'{"id":1,"result":' + b"[" * depth + b"]" * depth + b"}"
+)
+ELECTRUM_LINES = st.binary(max_size=MAX_INPUT) | _ELECTRUM_REPLIES | _ELECTRUM_NESTED
+
+
+@pytest.mark.parametrize(
+    "decode", ELECTRUM_RESPONSES.values(), ids=list(ELECTRUM_RESPONSES.keys())
+)
+@given(line=ELECTRUM_LINES)
+def test_electrum_response_honors_the_exception_contract(
+    decode: Callable[[bytes], Any], line: bytes
+) -> None:
+    """Fuzz every Electrum decoder: refusals stay within the contract."""
+    _assert_contract(decode, line)
+
+
+# What a stray-exception test cannot see: input the decoder must refuse
+# and used to return, as a value, with no exception to catch. Each case
+# asserts the refusal itself
+_ELECTRUM_REFUSED = pytest.mark.parametrize(
+    "decode", ELECTRUM_RESPONSES.values(), ids=list(ELECTRUM_RESPONSES.keys())
+)
+
+
+@_ELECTRUM_REFUSED
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_electrum_response_refuses_a_constant_json_lacks(
+    decode: Callable[[bytes], Any], constant: str
+) -> None:
+    """RFC 8259 has no `NaN` or `Infinity`, which `json` writes and reads."""
+    line = json.dumps({"id": ELECTRUM_REQUEST_ID, "result": float(constant)})
+    assert constant in line
+    with pytest.raises(BTClibValueError, match="not a JSON-RPC line"):
+        decode(line.encode())
+
+
+@given(depth=st.integers(min_value=2, max_value=40) | st.just(2000))
+@example(depth=16)
+@example(depth=17)
+def test_decode_response_refuses_nesting_past_the_bound(depth: int) -> None:
+    """The reply object is level 1, and 16 levels are read."""
+    line = b'{"id":1,"result":' + b"[" * (depth - 1) + b"]" * (depth - 1) + b"}"
+    if depth > 16:
+        with pytest.raises(BTClibValueError, match="nested beyond"):
+            electrum.decode_response(line, ELECTRUM_REQUEST_ID)
+    else:
+        electrum.decode_response(line, ELECTRUM_REQUEST_ID)
+
+
+@_ELECTRUM_REFUSED
+@pytest.mark.parametrize("encoding", ["utf-16", "utf-32", "utf-16-le", "utf-8-sig"])
+def test_electrum_response_refuses_a_line_that_is_not_plain_utf8(
+    decode: Callable[[bytes], Any], encoding: str
+) -> None:
+    """`json.loads` guesses UTF-16 and UTF-32 from bytes; Electrum is UTF-8."""
+    line = json.dumps({"id": ELECTRUM_REQUEST_ID, "result": "00" * 32})
+    with pytest.raises(BTClibValueError, match="not a JSON-RPC line"):
+        decode(line.encode(encoding))

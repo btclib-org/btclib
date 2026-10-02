@@ -2,20 +2,27 @@
 name: fuzz
 
 # ClusterFuzzLite over the parsers of this library that read octets
-# nobody signed first, in two ranks. Reached from the network ahead of
-# any signature check: the wire-format envelope parser
-# `btclib.p2p.message.Message.parse`, and the payload deserializers it
-# hands off to once a caller has read `message.command` -- `handshake`,
-# `addrv2`, `inventory`, `compact_blocks`, `block_filters`, `keepalive`,
-# `negotiation`, `address` and `data`. Reached only once a transaction,
-# a script or a signature is already being handled: `Tx`, `Block`,
-# `Witness`, `var_int`, `var_bytes`, and the script and tapscript
-# decoders. btclib-org/.github#342 is where that ranking -- an
-# entry point reached from the network before verification, over one
-# reached only after -- and the choice of `atheris` under
-# ClusterFuzzLite rather than an OSS-Fuzz application, are argued;
+# nobody signed first. Reached from the network ahead of any signature
+# check: the wire-format envelope parser `btclib.p2p.message.Message.parse`,
+# the payload deserializers it hands off to once a caller has read
+# `message.command` -- `handshake`, `addrv2`, `inventory`,
+# `compact_blocks`, `block_filters`, `keepalive`, `negotiation`,
+# `address`, `data` and `merkleblock` -- and the response decoders of
+# `btclib.electrum`. Reached only once a transaction, a script or a
+# signature is already being handled: `Tx`, `Block`, `Witness`,
+# `var_int`, `var_bytes`, and the script and tapscript decoders.
+# btclib-org/.github#342 is where that distinction, and the choice of
+# `atheris` under ClusterFuzzLite rather than an OSS-Fuzz application,
+# are argued;
 # section 10 of the organization standard is where `fuzz` is named as a
 # sentinel every tree parsing a stranger's own bytes owes.
+#
+# The distinction does not decide how long a target runs. `run_fuzzers`
+# gives every target at least an equal share of `fuzz-seconds` below
+# (`run_fuzz_targets` in google/oss-fuzz's infra/cifuzz/run_fuzzers.py),
+# and neither action below takes an input that selects targets: a budget
+# per tier would take a build per tier.
+#
 # Every `fuzz/fuzz_*.py` is a target this workflow builds and runs, and
 # `.clusterfuzzlite/` is ClusterFuzzLite's own configuration for
 # building them -- `project.yaml`, `Dockerfile` and `build.sh`, read by

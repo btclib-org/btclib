@@ -14,12 +14,12 @@ code -- it parses the source with `ast` and resolves what a harness
 `ENTRY_POINTS`, a module-level tuple of `"module:Qual.name"` string
 literals, is what each harness names. `test_entry_points_are_declared`
 below finds it with `ast.literal_eval`; `test_entry_points_match_the_calls`
-cross-checks it against the `.parse`/`.b64decode` calls `fuzz_target`'s
-own body makes, walked with `ast` rather than matched with a regex --
-a character class for the callee, `[A-Za-z_]+.parse`, would still have
-to answer which import a bare name resolves to, and one reaching for
-the whole dotted call loses `AddrV2.parse` to a class that excludes
-the digit.
+cross-checks it against the `.parse`, `.b64decode` and `.*_response` calls
+`fuzz_target`'s own body makes, walked with `ast` rather than matched with
+a regex -- a character class for the callee, `[A-Za-z_]+.parse`, would
+still have to answer which import a bare name resolves to, and one
+reaching for the whole dotted call loses `AddrV2.parse` to a class that
+excludes the digit.
 
 `fuzz_block_filters`, `fuzz_compact_blocks`, `fuzz_inventory` and
 `fuzz_negotiation` call `cls.parse(data)` inside a
@@ -83,6 +83,8 @@ import pytest
 from btclib.exceptions import BTClibException
 
 _FUZZ = Path(__file__).parent.parent / "fuzz"
+# the id every seed of fuzz/corpus/fuzz_electrum/ answers
+_REQUEST_ID = 1
 _CORPUS = _FUZZ / "corpus"
 
 
@@ -170,7 +172,7 @@ def _canonical_spec(module: str, remote: str, attr: str) -> str:
 def _called_specs(
     func: ast.FunctionDef, bindings: dict[str, tuple[str, str]]
 ) -> set[str]:
-    """Every .parse/.b64decode call `func`'s body makes, as canonical specs."""
+    """Every .parse, .b64decode and .*_response call `func` makes, as specs."""
     expansions = _loop_expansions(func)
     specs: set[str] = set()
     for node in ast.walk(func):
@@ -179,7 +181,9 @@ def _called_specs(
         callee = node.func
         if not isinstance(callee, ast.Attribute):
             continue
-        if callee.attr not in ("parse", "b64decode"):
+        if callee.attr not in ("parse", "b64decode") and not callee.attr.endswith(
+            "_response"
+        ):
             continue
         if not isinstance(callee.value, ast.Name):
             continue
@@ -237,8 +241,10 @@ def _seed_paths(name: str) -> tuple[Path, ...]:
 def _accept(spec: str, data: bytes) -> tuple[bool, bool | None]:
     """Try `spec` against `data`; return (accepted, round_trip)."""
     entry_point = _resolve(spec)
+    # an Electrum decoder also takes the id of the request it answers
+    args = (data, _REQUEST_ID) if spec.endswith("_response") else (data,)
     try:
-        obj = entry_point(data)
+        obj = entry_point(*args)
     except BTClibException:
         return False, None
     return True, _round_trip(spec, obj, data)
