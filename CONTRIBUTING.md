@@ -192,6 +192,13 @@ has which is which, and `REVIEWING.md` has how each is written. A
 disagreement that survives a second exchange goes to the maintainer
 instead of into a third round.
 
+**While `claude-review.yml` is off, there is no ack of record**
+([decision 70a of ISS 452][i452]). The maintainer lands their own pull
+requests through the bypass below. What stands in for the ack is a local
+review of a named sha, by a reviewer other than the author, before the
+pull request opens. The OpenSSF Best Practices criterion
+`two_person_review` is unmet ([decision 1 of ISS 1362][i1362]).
+
 ### Landing it
 
 CI is read once, and this is where. Rebase onto `main`'s tip, push that
@@ -256,6 +263,8 @@ settings and why they are what they are.
 [s-title]: https://github.com/btclib-org/.github#what-a-pull-request-says-it-is
 [s-rev]: https://github.com/btclib-org/.github#review
 [s-sigs]: https://github.com/btclib-org/.github#signatures
+[i452]: https://github.com/btclib-org/.github/issues/452#issuecomment-5931807223
+[i1362]: https://github.com/btclib-org/.github/issues/1362#issuecomment-5856584452
 [dco]: https://developercertificate.org/
 [gh-merge]: https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request
 [governance]: https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md
