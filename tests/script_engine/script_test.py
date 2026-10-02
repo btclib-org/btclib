@@ -1511,7 +1511,7 @@ def test_a_refusal_without_a_code_is_core_s_unknown_error(
 
 
 def test_a_tapscript_numequalverify_tests_the_numbers() -> None:
-    """Equal numbers pass OP_NUMEQUALVERIFY and leave the stack to the next op code."""
+    """Equal numbers pass OP_NUMEQUALVERIFY."""
     prevouts, tx = taproot_script_spend(
         ["OP_1", "OP_1", "OP_NUMEQUALVERIFY", "OP_1"], 0, 1
     )
