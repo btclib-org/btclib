@@ -186,6 +186,16 @@ def test_xdh_invalid_party() -> None:
             ellswift.xdh(ell, ell, 1, party)
 
 
+def test_xdh_party_refusal_does_not_quote_a_swapped_key() -> None:
+    """With `prv_key` and `party` swapped, the key is not in the message."""
+    ell = ecc_ellswift.create_var(_key())
+    q = _key()
+
+    with pytest.raises(BTClibValueError, match="invalid party") as excinfo:
+        ellswift.xdh(ell, ell, 1, q)
+    assert str(q) not in str(excinfo.value)
+
+
 def test_xdh_invalid_private_key() -> None:
     """A key outside 1..n-1 is refused, by `scalar_from_prv_key`."""
     ell = ecc_ellswift.create_var(_key())

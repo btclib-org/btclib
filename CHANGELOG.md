@@ -48,6 +48,12 @@ file per release is what keeps each of them under it.
   (closes #2436). It quoted the checksum the key hashes to, which confirms a
   guess at a WIF mistyped in its last characters. Addresses still quote both.
 
+### `ellswift.xdh` does not quote a bad `party`
+
+- **The refusal of a `party` outside 0 and 1 does not print it** (closes #2435),
+  so a swapped `prv_key` stays out of the message. `SECURITY.md` cites
+  `xdh`'s delegated return by its text (closes #2437).
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type

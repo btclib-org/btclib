@@ -43,7 +43,6 @@ from btclib.block.proof_of_work import hash_rate, retarget_first_height
 from btclib.coinstats import tx_out_ser
 from btclib.consensus import CONSENSUS_PARAMS, subsidy
 from btclib.ecc import bms
-from btclib.ecc.ellswift import xdh
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import merkle_root_from_branch, sha256, siphash
 from btclib.key import PrvKeyData
@@ -255,7 +254,6 @@ _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
         _HUGE,
         lambda v: sig_hash.from_tx([_P2PKH_PREVOUT], _tx(), 0, 1, codesep_index=v),
     ),
-    ("ellswift party", _HUGE, lambda v: xdh(b"\x00" * 64, b"\x00" * 64, 1, v)),
     (
         "bms recovery flag",
         _HUGE,

@@ -190,7 +190,8 @@ commit it was read at:
     nothing, short of btclib no longer
     holding a private key as a Python `int`, which is a change to that
     representation and not to a call site. `ellswift.xdh`
-    (`src/btclib/ecc/ellswift.py:117`) is the one of them that returns
+    at `return libsecp256k1_ellswift.xdh(ell_a, ell_b, q, party)`
+    (`src/btclib/ecc/ellswift.py:113`) is the one of them that returns
     octets rather than an `int`, so a caller-owned buffer there would
     hold what it wiped: taking it means growing `xdh`'s public
     signature with `into=` and owning the contract that comes with
