@@ -100,6 +100,12 @@ file per release is what keeps each of them under it.
   (closes #2461): `0151` is `81`, and with `attempt_sighash_decode=True` a
   signature's hash type is `[ALL]`. `script_to_dict` keeps its own `asm`.
 
+### `Tx.parse_without_witness` reads without the BIP144 marker
+
+- **`Tx.parse_without_witness` reads `00 01` after the version as no input and
+  one output** (closes #2462), Core's `TX_NO_WITNESS`. `Tx.parse` reads a marker
+  and a flag. `check_validity=False` is what a transaction with no input needs.
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type
