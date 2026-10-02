@@ -490,6 +490,12 @@ class Tx:  # noqa: PLW1641
         transaction here is valid -- what is malformed is the encoding,
         which no field records and nothing downstream could ask about.
 
+        A zero input count followed by a flag above 1 is refused as well,
+        Core's "Unknown transaction optional data": the flag octet is not
+        an output count there. A transaction with no input and two or more
+        outputs is read by `parse_without_witness`, as is the unsigned
+        transaction of a PSBT.
+
         `parse_without_witness` is the reading without the marker, for a
         caller that has to take those two octets as counts.
         """
@@ -554,6 +560,8 @@ class Tx:  # noqa: PLW1641
         if allow_witness:
             marker = stream.read(2)
             segwit = marker == SEGWIT_MARKER
+            if len(marker) == 2 and marker[0] == 0 and marker[1] > 1:
+                raise BTClibValueError("unknown transaction optional data")
             if not segwit:
                 # put back what the probe read
                 stream.seek(-len(marker), SEEK_CUR)  # current position
