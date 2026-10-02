@@ -199,9 +199,20 @@ def decode(v: String, out_size: int | None = None) -> bytes:
 
     Optionally, it also ensures required output size.
 
+    A checksum mismatch quotes both checksums.
+
     Capped at `MAX_LENGTH` characters, unlike `encode`: a string `encode`
     wrote from a payload of roughly 80 bytes or more is refused here
     (issue #2296).
+    """
+    return _decode(v, out_size, quote_checksum=True)
+
+
+def _decode(v: String, out_size: int | None, *, quote_checksum: bool) -> bytes:
+    """Decode as `decode` does, quoting the checksums only if asked.
+
+    The expected checksum is a hash of the payload, so a caller whose
+    payload is secret must not publish it.
     """
     if isinstance(v, str):
         # do not trim spaces.
@@ -244,7 +255,9 @@ def decode(v: String, out_size: int | None = None) -> bytes:
     result, checksum = result[:-4], result[-4:]
     h256 = hash256(result)
     if checksum != h256[:4]:
-        err_msg = f"invalid checksum: 0x{checksum.hex()} instead of 0x{h256[:4].hex()}"
+        err_msg = "invalid checksum"
+        if quote_checksum:
+            err_msg += f": 0x{checksum.hex()} instead of 0x{h256[:4].hex()}"
         raise BTClibValueError(err_msg)
 
     # the size policy of btclib/utils.py, at the boundary that does its own

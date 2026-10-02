@@ -21,6 +21,15 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.11 (work in progress, not released yet)
 
+### Breaking changes
+
+- **`b58.prv_key_data_from_wif` does not quote the checksum it refuses**
+  (closes #2436). It raises `NotAPrvKeyError: not a WIF (invalid checksum)`
+  where it raised `not a WIF (invalid checksum: 0x<found> instead of
+  0x<expected>)`. Act on it if you match on the text of the refusal: match
+  `invalid checksum` alone. It is still a `NotAPrvKeyError`, so an `except` on
+  that class is unaffected.
+
 ## v2026.10.2
 
 ### Breaking changes
