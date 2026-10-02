@@ -795,51 +795,45 @@ command further up against the `env:` `test.yml`'s `coverage` and
 writes the assignment as a yaml mapping where a shell writes it as a
 prefix, so that is the half of the spelling the two sites cannot share.
 
-The `dist` job, which builds the distribution files, checks them and
-then installs one. This is the one build there is (issue #1166):
-`release.yml`'s `test` job calls this workflow, so a tag runs the very
-same job, and its own `publish-testpypi` and `publish-pypi` jobs download
-the `dist` artifact this job uploads rather than building a second copy —
-so what the checks below judge is what an index ends up serving, byte for
-byte. The first two commands after the build do not make two checkouts of
-one commit agree: `uv_build` ignores `SOURCE_DATE_EPOCH` and writes the
-same fixed metadata into the wheel and the sdist either way, so those two
-archives are already byte for byte the same file across checkouts before
-either command runs. What the two buy instead is that the published bytes
-are this repository's own choice rather than the backend's — the first
-pins `mtime` to the commit date, and the second, `normalize_sdist.py`,
-rewrites the sdist's member metadata to it — so a rebuild of a released
-tag reproduces what was *published* rather than only reproducing itself.
-`sha256sum` after them is the digest a rebuild from the tag is compared
-against. The two after that read the *members* of the two archives,
-which the three checks further down do not: an allowlist of what may be
-in a wheel and an sdist, and the bill of materials a release attaches.
-That allowlist is stated in prose in
-[the package-content policy](./docs/source/package-content-policy.md),
-which the suite compares against the script's own constants, so changing
-a rule means changing both. Both are written before anything is
-installed and uploaded before anything below reads `dist/` — installing
-a dependency executes its code, and a compromised one must not reach a
-`dist/` that still has to be handed on, so what the publish jobs will
-download is frozen before the twine, check-wheel-contents and pyroma
-steps below install anything at all. The two smoke tests ask for the
-wheel and nothing else, so what pulls btclib-secp256k1 in is the
-`Requires-Dist` the wheel carries for the `secp256k1` extra — which they
-name on both sides, a wheel installed without it declaring nothing to
-resolve. The first pins the lock as constraints, which bind a version
-without requesting a package, so a release of the bindings cannot turn a
-required check red while the wheel's own metadata still does the work;
-the second is unconstrained and release-only, asking instead whether the
-*newest* published bindings still satisfy the wheel, which is what a
-user installing it resolves — no pull request waits on it, only
-`release.yml`'s call sets the input that turns it on. That the bindings
-then *serve* is asserted rather than assumed in both: with the extra
-resolving to nothing, or to a release this tree cannot import, btclib
-falls back to the Python arithmetic and answers the version and the
-signature correctly — the supported configuration `no-bindings` runs the
-whole suite in — so the assertion is the only thing between that
-resolution and a green check. They run from an empty directory, or the
-import finds the source tree instead of the wheel:
+The `dist` job, which checks the distribution files and then installs one. A
+pull request builds its own files there. `release.yml`'s `test` job calls this
+workflow with `use-signed-dist`, and the job then checks the files
+`reusable-build.yml` built, signed and uploaded instead, which the publish jobs
+download — so what the checks below judge is what an index ends up serving,
+byte for byte. The first two commands after the build do not make two checkouts
+of one commit agree: `uv_build` ignores `SOURCE_DATE_EPOCH` and writes the same
+fixed metadata into the wheel and the sdist either way, so those two archives
+are already byte for byte the same file across checkouts before either command
+runs. What the two buy instead is that the published bytes are this
+repository's own choice rather than the backend's — the first pins `mtime` to
+the commit date, and the second, `normalize_sdist.py`, rewrites the sdist's
+member metadata to it — so a rebuild of a released tag reproduces what was
+*published* rather than only reproducing itself. `sha256sum` after them is the
+digest a rebuild from the tag is compared against. The two after that read the
+*members* of the two archives, which the three checks further down do not: an
+allowlist of what may be in a wheel and an sdist, and the bill of materials a
+release attaches. That allowlist is stated in prose in [the package-content
+policy](./docs/source/package-content-policy.md), which the suite compares
+against the script's own constants, so changing a rule means changing both.
+Both are written before anything is installed: the twine, check-wheel-contents
+and pyroma steps below install tools that run third-party code, so the worst
+a compromised one can do there is fail the job. The two
+smoke tests ask for the wheel and nothing else, so what pulls btclib-secp256k1
+in is the `Requires-Dist` the wheel carries for the `secp256k1` extra — which
+they name on both sides, a wheel installed without it declaring nothing to
+resolve. The first pins the lock as constraints, which bind a version without
+requesting a package, so a release of the bindings cannot turn a required check
+red while the wheel's own metadata still does the work; the second is
+unconstrained and release-only, asking instead whether the *newest* published
+bindings still satisfy the wheel, which is what a user installing it resolves —
+no pull request waits on it, only `release.yml`'s call sets the input that
+turns it on. That the bindings then *serve* is asserted rather than assumed in
+both: with the extra resolving to nothing, or to a release this tree cannot
+import, btclib falls back to the Python arithmetic and answers the version and
+the signature correctly — the supported configuration `no-bindings` runs the
+whole suite in — so the assertion is the only thing between that resolution and
+a green check. They run from an empty directory, or the import finds the source
+tree instead of the wheel:
 
 ```shell
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
@@ -888,11 +882,11 @@ cd "$OLDPWD" &&
         dsa.sign(b'btclib', 1))"
 ```
 
-A rehearsal (`workflow_dispatch`) runs one command ahead of the block
-above, which the tag path skips: `.github/actions/dev-version` rewrites
-`pyproject.toml`'s version with the `.dev<run*100+attempt>` suffix
-`release.yml`'s `version-check` job computed and re-locks, so that
-`uv build` above ships a version TestPyPI has not already seen. None
+A rehearsal's build, in `reusable-build.yml`, first runs
+`.github/actions/dev-version`, which rewrites `pyproject.toml`'s version
+with the `.dev<run*100+attempt>` suffix `version-check` computed and
+re-locks, so that `uv build` ships a version TestPyPI has not already
+seen. None
 of the three checks minds — what they judge is metadata syntax, README
 rendering, wheel layout and metadata quality, none of which a `.dev<N>`
 suffix changes — and both smoke tests do mind, installing the wheel that

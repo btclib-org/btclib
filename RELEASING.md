@@ -49,7 +49,7 @@ Telling these apart is most of what can go wrong when cutting a release.
 - **`2026.8.4.dev701`** is a rehearsal, and nobody types it either half
   at a time: `.dev<run*100+attempt>` is the template `version-check`
   computes and the `dev-version` action patches into `pyproject.toml`
-  in test.yml's `dist` job when `workflow_dispatch` starts the
+  in reusable-build.yml's `build` job when `workflow_dispatch` starts the
   workflow, `github.run_number` counted for `release.yml` alone and
   `github.run_attempt` counted for one dispatch of it, so the seventh
   such run's first attempt, rehearsing `2026.8.4`, produces exactly
@@ -94,9 +94,11 @@ Already done for btclib-org/btclib; kept here for the record.
    or `pmazzocchi`, so neither index is uploaded to without one of the
    organization's owners approving that run; every job holding
    `id-token: write` either runs under one of those two environments
-   directly, or — `attest` — only after one of them has already
-   succeeded, so nothing exchanges for an OIDC token ahead of the
-   review. `pypi` is additionally restricted to
+   directly, or — the `attest` job of `btclib-org/.github`'s
+   `reusable-build.yml`, which `release.yml`'s `build` job calls — signs
+   the distribution files before either reviewed job starts, and signs
+   only files whose digests the build job printed. `pypi` is additionally
+   restricted to
    `v*` tags, which is the only ref its job runs on anyway — the
    restriction is what makes that true of the environment and not just
    of an `if:` in a file a pull request could change.
@@ -110,9 +112,10 @@ Already done for btclib-org/btclib; kept here for the record.
 ## Rehearse on TestPyPI
 
 A rehearsal runs the identical pipeline — lint gate, test matrix, the
-`dist` job's build, its packaging checks (twine, check-wheel-contents,
-pyroma) and its two wheel smoke tests, one pinned by `uv.lock` and one
-unconstrained — and publishes the very files those checks passed to
+`build` job's build and signature, the `dist` job's packaging checks
+(twine, check-wheel-contents, pyroma) and its two wheel smoke tests, one
+pinned by `uv.lock` and one unconstrained — and publishes the very files
+those checks passed to
 [TestPyPI](https://test.pypi.org/project/btclib/) instead of PyPI.
 
 1. On GitHub, Actions → release → Run workflow, and pick the branch to
@@ -127,6 +130,15 @@ unconstrained — and publishes the very files those checks passed to
    `github.run_attempt`, which the run number is multiplied by 100 to
    make room for, so re-running a failed or finished rehearsal mints
    its own version instead of colliding with the one it repeats.
+
+1. Check that the `build` job is green. It signs a rehearsal's files too,
+   which is what it is here for: a permission or an API that only works
+   on release day is one this job would find there. The signature is
+   made before the `testpypi` approval, so the rehearsal's certificate
+   can be read without approving anything. The attestation it records
+   names a `.dev` version nothing resolves, and a branch as its source
+   ref, so the `--source-ref` of *Rebuild a release from its tag*
+   refuses it.
 
 1. Check the upload on <https://test.pypi.org/project/btclib/>, and
    optionally install it (its dependencies come from the real PyPI). The
@@ -683,19 +695,22 @@ to `deps-latest`'s own result.
 
 ## Rebuild a release from its tag
 
-test.yml's `dist` job exports `SOURCE_DATE_EPOCH` from the commit date and
-normalizes the sdist, so a rebuild of a released tag is the same bytes as
-what was published — that job's own upload is what `publish-pypi`
-publishes, unchanged, so "what was published" and "what that job built"
-are the same files (issue #1166). Anyone can check that, and the check is one command
-short of the provenance one above: verify the *rebuilt* file rather than a
-downloaded one, and it can only pass if the digests agree. A release whose
+`reusable-build.yml`'s `build` job exports `SOURCE_DATE_EPOCH` from the
+commit date and normalizes the sdist, so a rebuild of a released tag is
+the same bytes as what was published — that job's own upload is what
+`publish-pypi` publishes, unchanged, so "what was published" and "what
+that job built" are the same files (issue #1166). Anyone can check that,
+and the check is one command short of the provenance one above: verify
+the *rebuilt* file rather than a downloaded one, and it can only pass if
+the digests agree. A release whose
 assets carry `<tag>.intoto.jsonl` has the signed statement on disk
 too, so `--bundle <that file>` asks the same question of it without
 reaching the attestations API — which is the form for whoever mirrors the
 releases page rather than trusting it live. `--signer-workflow` is the
 flag that makes either form say *which* workflow signed: without it a
 valid attestation from any workflow in the repository passes.
+`--source-ref` names the tag, which is what stops a rehearsal dispatched
+from a branch from verifying as the release.
 
 A worktree and not `git checkout`, for the reason CLAUDE.md gives: the
 primary checkout is the maintainer's, and a rebuild wants a tree of its
@@ -720,12 +735,14 @@ cd /tmp/btclib-rebuild &&
 python=$(grep -Ev '^[[:space:]]*(#|$)' .python-version) &&
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) &&
 repo=btclib-org/btclib &&
-signer=btclib-org/.github/.github/workflows/reusable-attest.yml &&
+workflows=btclib-org/.github/.github/workflows &&
+signer=$workflows/reusable-build.yml@refs/heads/main &&
+tag="v${version:?}" &&
 wheels=$(mktemp -d) &&
 gh release download "v${version:?}" --repo "$repo" --dir "$wheels" \
   --pattern '*.whl' &&
 gh attestation verify "$wheels"/*.whl \
-  --repo "$repo" --signer-workflow "$signer" &&
+  --repo "$repo" --signer-workflow "$signer" --source-ref "refs/tags/$tag" &&
 uv_version=$(unzip -p "$wheels"/*.whl '*.dist-info/WHEEL' |
   sed -n 's/^Generator: uv //p') &&
 [[ $uv_version =~ ^[0-9]+([.][0-9]+)*$ ]] &&
@@ -739,19 +756,21 @@ git -C "$served" sparse-checkout set .github/scripts &&
 uv run --no-project --python "$python" \
   "$served"/.github/scripts/generate_sbom.py dist/ sbom/ &&
 gh attestation verify "dist/btclib-${version:?}.tar.gz" \
-  --repo "$repo" --signer-workflow "$signer" &&
+  --repo "$repo" --signer-workflow "$signer" --source-ref "refs/tags/$tag" &&
 gh attestation verify "dist/btclib-${version:?}-py3-none-any.whl" \
-  --repo "$repo" --signer-workflow "$signer" &&
+  --repo "$repo" --signer-workflow "$signer" --source-ref "refs/tags/$tag" &&
 gh attestation verify "sbom/btclib-${version:?}.cdx.json" \
-  --repo "$repo" --signer-workflow "$signer"
+  --repo "$repo" --signer-workflow "$signer" --source-ref "refs/tags/$tag"
 ```
 
-`signer` is the workflow that signed the tag's attestation, which is
-`reusable-attest.yml` from v2026.9.24 on, and for those tags
-`--signer-workflow` is required: without it the command refuses the
-release. A tag through v2026.9.13 was signed by `release.yml` itself, and
-for one of those `signer` is `"$repo/.github/workflows/release.yml"`, the
-flag there only narrowing what passes. Each path verifies only the
+`signer` is the workflow that signed the tag's attestation,
+`reusable-build.yml`, and `--signer-workflow` is required: without it the
+command refuses the release. A tag from v2026.9.24 on, made before this
+repository called `reusable-build.yml`, was signed by
+`reusable-attest.yml`, with no `--source-ref`. A tag through v2026.9.13
+was signed by `release.yml` itself, and for one of those `signer` is
+`"$repo/.github/workflows/release.yml"`, the flag there only narrowing
+what passes. Each path verifies only the
 releases its own workflow signed.
 
 `python` is the interpreter the tag's own `.python-version` pins, its
@@ -848,7 +867,7 @@ above needs no `uv sync` to produce the published bytes.
 - Only the `github-release` job failed: the PyPI upload is already
   done. `gh run rerun <run id> --failed` reaches it when the run marks
   it *failed* — a dependent of a failed job is reached too, which is
-  what usually gets `github-release` from `attest` or `publish-pypi`
+  what usually gets `github-release` from `build` or `publish-pypi`
   failing under it. It does not reach a job the run marks *skipped*:
   a skip is neither a failure nor within that flag's blast radius,
   which is how v2026.8.21 kept a version on PyPI and no release at

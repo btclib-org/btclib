@@ -8,8 +8,8 @@ are read before either is published.
 `.github/scripts/verify_dist_contents.py` enforces every rule down to the
 last section — the `dist` job of `test.yml` runs it on a build of every
 pull request, and the same job, reached through `release.yml`'s `test`
-call, on the files it is about to upload. The last section is the rules
-nothing here enforces, which say so one by one rather than leaving the
+call, on the files `reusable-build.yml` signed. The last section is the
+rules nothing here enforces, which say so one by one rather than leaving the
 list looking complete.
 
 The script's constants are those rules, and the paragraph introducing
