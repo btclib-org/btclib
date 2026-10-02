@@ -118,11 +118,6 @@ file per release is what keeps each of them under it.
   (closes #2489). `verify_script` stops on that stack, a `*VERIFY` op code fails
   at its own index, and `op_checkmultisigverify` goes (RELEASE_NOTES.md).
 
-### `btclib.p2p.bip324` is BIP324's v2 transport cipher
-
-- **`btclib.p2p.bip324` encrypts and decrypts BIP324 packets** (issue #2474)
-  with `cryptography`, behind `pip install "btclib[bip324]"`, and passes the
-  BIP324 packet vectors. A btclib without the extra answers as before.
 ### `STRICTENC` refuses hash type 0 as `SIG_HASHTYPE`
 
 - **A legacy or segwit v0 signature ending in `00` fails with `SIG_HASHTYPE`**
@@ -134,6 +129,12 @@ file per release is what keeps each of them under it.
 - **A tapscript `*VERIFY` op code and `OP_CHECKSIGADD` run as one op code**
   (closes #2509) (closes #2513). A failure inside one has that op code's own
   `ScriptError.index`; `op_equalverify` and its kin go (RELEASE_NOTES.md).
+
+### `btclib.p2p.bip324` is BIP324's v2 transport cipher
+
+- **`btclib.p2p.bip324` encrypts and decrypts BIP324 packets** (issue #2474)
+  with `cryptography`, behind `pip install "btclib[bip324]"`, and passes the
+  BIP324 packet vectors. A btclib without the extra answers as before.
 
 ## v2026.10.2
 
