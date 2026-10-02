@@ -54,6 +54,7 @@ arithmetic nor CVE-2017-12842's hardening.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from typing import Any, NoReturn, cast
 
@@ -111,10 +112,16 @@ def _raise_rpc_error(error: object) -> NoReturn:
     raise RpcError(str(error), 0)
 
 
+def _refuse_constant(name: str) -> NoReturn:
+    """Refuse `NaN`, `Infinity` and `-Infinity`, which RFC 8259 lacks."""
+    raise BTClibValueError(f"not JSON: {name}")
+
+
 def decode_response(line: bytes, request_id: int) -> Any:
     """Return the `result` of one response line, matched to `request_id`.
 
-    Refuses a line that is not one: not JSON, not an object, an id that
+    Refuses a line that is not one: not JSON (`NaN` and `Infinity`
+    included, and a nesting too deep to read), not an object, an id that
     is not this request's own integer id, or neither a `result` nor an
     `error` member. An `error` member is raised as `RpcError` rather than
     returned -- a JSON-RPC error object, `{"code", "message"}` and an
@@ -138,8 +145,8 @@ def decode_response(line: bytes, request_id: int) -> Any:
     already refuses a bool as a number of any other kind (`is_integer`).
     """
     try:
-        reply: Any = json.loads(line)
-    except (TypeError, ValueError) as e:
+        reply: Any = json.loads(line, parse_constant=_refuse_constant)
+    except (TypeError, ValueError, RecursionError) as e:
         raise BTClibValueError(f"not a JSON-RPC line: {line!r}") from e
     if not isinstance(reply, dict):
         raise BTClibTypeError(f"not a JSON-RPC response object: {reply!r}")
@@ -317,9 +324,13 @@ def estimate_fee_response(line: bytes, request_id: int) -> float:
     wire carries, and deciding that "no answer" is a refusal is
     `btclib_wallet.fetch.electrum.ElectrumFetcher.estimate_fee`'s to make, the
     same split `decode_response` already draws for a JSON-RPC `error`
-    member.
+    member. Any other rate that is not finite and at least 0 is refused.
     """
     result = decode_response(line, request_id)
     if isinstance(result, bool) or not isinstance(result, (int, float)):
         raise BTClibTypeError(f"estimatefee: not a number: {result!r}")
+    if (isinstance(result, float) and not math.isfinite(result)) or not (
+        result >= 0 or result == -1
+    ):
+        raise BTClibValueError(f"estimatefee: not a rate or -1: {result!r}")
     return result
