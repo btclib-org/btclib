@@ -4,8 +4,8 @@
 # issue #2443's question: a bound or a count moved by one, in code the
 # suite already runs at 100% statement coverage.
 #
-# p2p_connection.toml holds the rest of `src/btclib/p2p` and carries the
-# reasoning the two share.
+# p2p_connection.toml and bip324.toml hold the rest of `src/btclib/p2p`,
+# and p2p_connection.toml carries the reasoning the two share.
 
 [cosmic-ray]
 module-path = [

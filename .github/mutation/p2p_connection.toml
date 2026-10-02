@@ -5,8 +5,8 @@
 # coverage says only that each bound and refusal ran once, not that a
 # bound moved by one is noticed (issue #2443).
 #
-# p2p_relay.toml holds the rest of `src/btclib/p2p`: the whole package in
-# one session does not fit one budget, so it is two.
+# p2p_relay.toml and bip324.toml hold the rest of `src/btclib/p2p`: the
+# rest of the package in one session does not fit one budget, so it is two.
 
 [cosmic-ray]
 module-path = [
