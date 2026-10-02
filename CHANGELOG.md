@@ -76,6 +76,12 @@ file per release is what keeps each of them under it.
   `SECURITY.md` routes a report on them to its advisory page, and
   `ASSURANCE_CASE.md` says btclib reads no environment variable (closes #2441).
 
+### A script refusal carries Core's code
+
+- **A script breaking two rules fails with the code Core gives it** (closes
+  #2481): number operands follow the stack depth check, OP_CHECKSIGADD's number
+  precedes its signature, OP_CHECKMULTISIG's dummy follows its signatures.
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type
