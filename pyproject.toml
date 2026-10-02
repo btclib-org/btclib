@@ -61,8 +61,11 @@ dependencies = [
     "bitcoin-core-rpc>=2026.9.29",
     # the curve arithmetic and the schemes built on it, which btclib
     # imports from `btclib_ecc` where it uses them and does not
-    # re-export
-    "btclib-ecc>=2026.9.28",
+    # re-export. 2026.10.2 fixes GHSA-r5pw-9wrg-m3mj and
+    # GHSA-m38m-987v-j55h, and its lift words an invalid x as `invalid
+    # x-coordinate` or `x-coordinate not in 0..p-1`, which the taproot
+    # tests rely on
+    "btclib-ecc>=2026.10.2",
     # `typing.override` is 3.12's, `typing.TypeIs` is 3.13's, and the
     # floor is 3.11, so both come from the backport; 4.4 is the release
     # that adds `override`, 4.10 the one that adds `TypeIs`, and the
@@ -144,7 +147,7 @@ secp256k1 = [
     # what the rest of the delegation is: btclib_ecc imports the
     # bindings for the curve arithmetic and the schemes, and its extra is
     # what states which release that takes
-    "btclib-ecc[secp256k1]>=2026.9.28",
+    "btclib-ecc[secp256k1]>=2026.10.2",
 ]
 
 [project.urls]
@@ -204,7 +207,7 @@ pull_requests = "https://github.com/btclib-org/btclib/pulls"
 # refuses the day the two stop agreeing. What the group buys is that no
 # documented command had to grow an `--extra`, and that the job of issue
 # #991 is those same commands with this group left out
-bindings = ["btclib-secp256k1>=0.8.0.9", "btclib-ecc[secp256k1]>=2026.9.28"]
+bindings = ["btclib-secp256k1>=0.8.0.9", "btclib-ecc[secp256k1]>=2026.10.2"]
 # what runs the suite, without what the suite delegates to: `test` is the
 # two together and is what every documented command asks for, while
 # `harness` alone is the environment the no-bindings job of test.yml

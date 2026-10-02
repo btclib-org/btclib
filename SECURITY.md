@@ -180,10 +180,10 @@ commit it was read at:
     straight into a Python `int`: `commit_nonce.commit_nonce_` at
     `int.from_bytes(tweaked, byteorder="big", signed=False)`
     ([`src/btclib_ecc/ecc/commit_nonce.py:157`](
-    https://github.com/btclib-org/ellipticcurves/blob/80270c9ec3e42272f096a0faf4c8e329642e421f/src/btclib_ecc/ecc/commit_nonce.py#L157
+    https://github.com/btclib-org/btclib-ecc/blob/2f28aa691d801d6a129216b021f4a589bbcf766d/src/btclib_ecc/ecc/commit_nonce.py#L157
     )) and `taproot._tweaked_prvkey`
     at `int.from_bytes(tweaked, "big")`
-    (`src/btclib/script/taproot.py:561`). A caller-owned buffer can be
+    (`src/btclib/script/taproot.py:563`). A caller-owned buffer can be
     wiped once the call that filled it returns; the `int` it is read
     into cannot be, and outlives the call regardless, so taking the
     buffer at these call sites would cost a public signature and buy
@@ -231,8 +231,8 @@ commit it was read at:
     whether it can: btclib_ecc's `curve._libsecp256k1_serves` asks for
     the switch above, then for secp256k1 as the curve, then for a hash
     function that is sha256 or absent — `hf is None or hf is sha256`
-    ([`src/btclib_ecc/curves/curve.py:645`](
-    https://github.com/btclib-org/btclib-ecc/blob/3b14ec0bac0fbe1b50cfae4d4ea09cb55002df73/src/btclib_ecc/curves/curve.py#L645
+    ([`src/btclib_ecc/curves/curve.py:643`](
+    https://github.com/btclib-org/btclib-ecc/blob/2f28aa691d801d6a129216b021f4a589bbcf766d/src/btclib_ecc/curves/curve.py#L643
     )) — with whatever further
     conditions the call site ands onto it. The hash function is matched
     by identity rather than by what it computes, so
@@ -355,16 +355,16 @@ commit it was read at:
     that arm and infinity is not delegated at all —
     `curve._libsecp256k1_mult` at
     `libsecp256k1_shared_point(_sec_from_point(Q), m, False)`
-    ([`src/btclib_ecc/curves/curve.py:909`](
-    https://github.com/btclib-org/btclib-ecc/blob/3b14ec0bac0fbe1b50cfae4d4ea09cb55002df73/src/btclib_ecc/curves/curve.py#L909
+    ([`src/btclib_ecc/curves/curve.py:906`](
+    https://github.com/btclib-org/btclib-ecc/blob/2f28aa691d801d6a129216b021f4a589bbcf766d/src/btclib_ecc/curves/curve.py#L906
     )). `dh.diffie_hellman` at
     `sec = libsecp256k1_shared_point(`
     ([`src/btclib_ecc/ecc/dh.py:119`](
     https://github.com/btclib-org/btclib-ecc/blob/3b14ec0bac0fbe1b50cfae4d4ea09cb55002df73/src/btclib_ecc/ecc/dh.py#L119
     )) and `sec_point._mult_sec` at
     `libsecp256k1_shared_point(sec, m, False)`
-    ([`src/btclib_ecc/curves/sec_point.py:384`](
-    https://github.com/btclib-org/btclib-ecc/blob/3b14ec0bac0fbe1b50cfae4d4ea09cb55002df73/src/btclib_ecc/curves/sec_point.py#L384
+    ([`src/btclib_ecc/curves/sec_point.py:389`](
+    https://github.com/btclib-org/btclib-ecc/blob/2f28aa691d801d6a129216b021f4a589bbcf766d/src/btclib_ecc/curves/sec_point.py#L389
     )), under `sec_point.mult_pub_key`
     and `ecies.derive_keys`, make the same call on the octets they
     already hold.
@@ -379,13 +379,13 @@ commit it was read at:
     scalars are secrets, is a `mult` of each and their sum instead —
     `pedersen._commit` at
     `return _add(mult(r, ec.G, ec), mult(v, gen, ec), ec)`
-    ([`src/btclib_ecc/ecc/pedersen.py:357`](
-    https://github.com/btclib-org/ellipticcurves/blob/80270c9ec3e42272f096a0faf4c8e329642e421f/src/btclib_ecc/ecc/pedersen.py#L357
+    ([`src/btclib_ecc/ecc/pedersen.py:375`](
+    https://github.com/btclib-org/btclib-ecc/blob/2f28aa691d801d6a129216b021f4a589bbcf766d/src/btclib_ecc/ecc/pedersen.py#L375
     )), under `pedersen.commit`,
     `rangeproof.sign` and `rangeproof.rewind`. The sum is
     `curve._add` at `return _libsecp256k1_sum((P, Q))`
-    ([`src/btclib_ecc/curves/curve.py:1355`](
-    https://github.com/btclib-org/btclib-ecc/blob/3b14ec0bac0fbe1b50cfae4d4ea09cb55002df73/src/btclib_ecc/curves/curve.py#L1355
+    ([`src/btclib_ecc/curves/curve.py:1352`](
+    https://github.com/btclib-org/btclib-ecc/blob/2f28aa691d801d6a129216b021f4a589bbcf766d/src/btclib_ecc/curves/curve.py#L1352
     )): `secp256k1_ec_pubkey_combine`,
     whose group law `secp256k1_gej_add_ge` and whose inversion
     `secp256k1_fe_inv` are constant time. A commitment to a zero value
