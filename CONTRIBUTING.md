@@ -310,7 +310,10 @@ moves whenever this tree starts calling something newer, so a copy of the
 number here would be a second place to remember and the first to go
 stale. `typing-extensions` is the backport of what the 3.11 floor does
 not have, and its floor is the release adding the latest name this tree
-imports from it. The others are btclib-org projects developed by the
+imports from it. `cryptography` is pyca's, and no coordinated release
+stands in for a ceiling there: `deps-latest.yml` runs the suite on its
+newest release every week, which is what tells this tree it has moved.
+The others are btclib-org projects developed by the
 same people, and the bindings' whole purpose is to be the bindings this
 library calls, so a breaking change there is coordinated with the release
 here —

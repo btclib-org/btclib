@@ -225,8 +225,8 @@ arithmetic. `mid_x_ours` and `mid_x_theirs` are the x-coordinates the
 encodings decode to, a question for btclib_ecc's map, and are not
 asserted. `tests/p2p/bip324_test.py` reads the session id, the garbage
 terminators and the packet columns, and holds `p2p.bip324.Cipher` to
-them; the `mid_*_l` and `mid_*_p` keys are not read, the ciphertext being
-a function of them. `in_idx` names each case in both files.
+them; the `mid_*_l` and `mid_*_p` keys are not read, and the ciphertext
+pins the send keys only. `in_idx` names each case in both files.
 
 ## bitcoin/bitcoin
 

@@ -14,16 +14,16 @@ answers without the extra.
 
 What is here is the part of the transport that is a function of bytes:
 
-- `Cipher`, the key schedule and the encryption of one direction's
+- `Cipher`, the key schedule and the encryption of a connection's
   packets, as Bitcoin Core's `BIP324Cipher`;
 - `FSChaCha20` and `FSChaCha20Poly1305`, the two ciphers it holds, each
   rekeying every `REKEY_INTERVAL` packets;
 - `MESSAGE_IDS`, `contents_from_message` and `message_from_contents`,
   how a message's type is spelled inside a packet.
 
-The handshake, the garbage and its terminator, the version packet and
-every limit are the caller's: this module derives the terminators and the
-session id, and does not read or write a socket.
+The handshake, the garbage, the version packet and every limit are the
+caller's. This module derives the garbage terminators and the session
+id, and reads and writes no socket.
 
 Decrypting fails with `BTClibValueError`, and Core closes the connection
 on it. The failed packet is still counted, as in Core.
@@ -95,8 +95,8 @@ _FIRST_TYPE_BYTE = 0x20
 _LAST_TYPE_BYTE = 0x7F
 
 # Core's V2_MESSAGE_IDS (src/net.cpp, v31.1): the type of each short id,
-# "" for id 0, which announces 12 bytes of type, and for the ids BIP324
-# assigns and Core does not implement
+# "" for id 0, which announces 12 bytes of type, and for ids 29 to 32,
+# which the table holds without a type
 MESSAGE_IDS = (
     "",
     "addr",
@@ -355,7 +355,9 @@ def contents_from_message(command: str, payload: bytes) -> bytes:
     """Return a packet's contents: the type, then the payload.
 
     The type is the 1-byte short id when `MESSAGE_IDS` has one, and
-    otherwise a NUL and the command padded with NULs to 12 bytes.
+    otherwise a NUL and the command padded with NULs to 12 bytes. A
+    command with a 0x7F byte is refused on send, as Core's v1 check
+    refuses it.
     """
     assert_type(command, str, "command")
     _assert_bytes(payload, "payload")
@@ -374,13 +376,14 @@ def contents_from_message(command: str, payload: bytes) -> bytes:
 def message_from_contents(contents: bytes) -> tuple[str, bytes]:
     """Return the command and the payload of a packet's contents.
 
-    The command is "" for a short id BIP324 assigns and `MESSAGE_IDS`
-    does not name, as in Core, whose caller has no handler for it.
+    The command is "" for a short id in the table without a type, as in
+    Core, whose caller has no handler for it.
     Contents without a type, a short id beyond the table and a long type
     that is not ' ' to 0x7F padded with NULs raise `BTClibValueError`.
     Core's v2 reader accepts 0x7F, which its v1 header check does not,
-    and so does this. Such a raise is a message Core rejects: the caller
-    drops the message, and the connection is not ended by it.
+    and so does this on receive. Such a raise is a message Core
+    rejects: the caller drops the message, and the connection is not
+    ended by it.
     """
     _assert_bytes(contents, "contents")
     if not contents:

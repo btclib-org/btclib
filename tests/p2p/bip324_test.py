@@ -348,7 +348,7 @@ def test_contents_without_a_type_are_refused(contents: bytes, match: str) -> Non
 
 @pytest.mark.parametrize("short_id", [29, 30, 31, 32])
 def test_an_unimplemented_short_id_has_no_command(short_id: int) -> None:
-    """An id BIP324 assigns and Core does not implement reads as `""`."""
+    """An id the table holds without a type reads as `""`."""
     assert bip324.message_from_contents(bytes([short_id]) + b"x") == ("", b"x")
 
 
