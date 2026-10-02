@@ -828,12 +828,12 @@ repos:
   # against a version the suite never ran. This is the very command the
   # lint workflow runs, against the project environment and the real
   # pytest.
-  # --locked, as everywhere else, and not --frozen, which takes uv.lock
-  # as it finds it: a dependency added to pyproject.toml without a re-lock
-  # leaves mypy type checking a stale environment and saying nothing about
-  # it. The uv-lock hook below catches the stale lock in the same run, but
-  # only after this one has already produced a verdict on the wrong
-  # environment, and the lint workflow runs this file, so CI inherits that.
+  # --locked, not --frozen, which takes uv.lock as it finds it: a dependency
+  # added to pyproject.toml without a re-lock leaves mypy type checking a
+  # stale environment and saying nothing about it. The uv-lock hook below
+  # catches the stale lock in the same run, but only after this one has
+  # already produced a verdict on the wrong environment, and the lint
+  # workflow runs this file, so CI inherits that.
   # .github/scripts is in the scope because what lives there imports btclib
   # and no test collects it: the smoke script needs a node, so a workflow
   # dispatch is the only thing that runs it, and strict mode is the whole of

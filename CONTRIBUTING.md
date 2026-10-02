@@ -368,6 +368,9 @@ project's dependencies:
 - `public-api`, in btclib-org/.github's `reusable-public-api.yml`, runs
   `uvx griffe==2.2.0`: a pinned version, with its own dependencies
   unlocked. It is not the build job.
+- `fuzz.yml`'s ClusterFuzzLite build installs
+  `.clusterfuzzlite/requirements.txt`, the lock exported with its hashes by
+  the `uv-export` hook, with `pip3 install --require-hashes`.
 
 Calling an entry point merged upstream but not yet released is what a
 `[tool.uv.sources]` entry pointing a sibling at a commit of its `main`

@@ -150,6 +150,12 @@ The publish jobs, `github-release` and `test.yml`'s `dist` job on a release
 stop where the `dist` they download differs from the digests
 `reusable-build.yml` outputs (closes #2449).
 
+### CONTRIBUTING.md lists the fuzz build among the jobs without `--locked`
+
+`fuzz.yml`'s ClusterFuzzLite build installs the exported lock with
+`pip3 install --require-hashes`. The mypy hook's comment gives its reason
+for `--locked` without calling it universal (closes #2484).
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again
