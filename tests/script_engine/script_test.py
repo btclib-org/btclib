@@ -440,6 +440,47 @@ def test_fix_signature_asks_for_strict_der_as_one_mask() -> None:
     assert fix_signature(signature, NO_FLAGS) == sig.serialize() + signature[-1:]
 
 
+@pytest.mark.parametrize(
+    "hash_type, defined",
+    [
+        (0x00, False),
+        (0x01, True),
+        (0x02, True),
+        (0x03, True),
+        (0x04, False),
+        (0x80, False),
+        (0x81, True),
+        (0x82, True),
+        (0x83, True),
+        (0x84, False),
+    ],
+)
+def test_fix_signature_strictenc_hash_type(hash_type: int, defined: bool) -> None:
+    """STRICTENC accepts 1, 2, 3 with or without ANYONECANPAY, and no other.
+
+    Core's IsDefinedHashtypeSignature masks off ANYONECANPAY and requires
+    1, 2 or 3, so 0x00 and 0x80 are SCRIPT_ERR_SIG_HASHTYPE: 0x00 is
+    BIP341's SIGHASH_DEFAULT, which only taproot has (issue #2510).
+    """
+    # the padding in r is taken out, so that STRICTENC reaches the hash type
+    der = Sig.parse(
+        bytes.fromhex(
+            "304402200060558477337b9022e70534f1fea71a318caf836812465a2509931c5e7c4987"
+            "022078ec32bd50ac9e03a349ba953dfd9fe1c8d2dd8bdb1d38ddca844d3d5c78c118"
+        ),
+        strict=False,
+    ).serialize()
+    signature = der + bytes([hash_type])
+    # without the flag any byte goes on to verification
+    assert fix_signature(signature, NO_FLAGS)[-1] == hash_type
+    if defined:
+        assert fix_signature(signature, ScriptFlag.STRICTENC)[-1] == hash_type
+    else:
+        with pytest.raises(ScriptError, match="invalid sighash type") as exc_info:
+            fix_signature(signature, ScriptFlag.STRICTENC)
+        assert exc_info.value.code is ScriptErrorCode.SIG_HASHTYPE
+
+
 def test_fix_signature_high_s() -> None:
     """A high s is an error under LOW_S and negated away without it.
 
@@ -1511,19 +1552,60 @@ def test_a_refusal_without_a_code_is_core_s_unknown_error(
 
 
 def test_a_tapscript_numequalverify_tests_the_numbers() -> None:
-    """The tapscript loop runs OP_NUMEQUALVERIFY as its two halves."""
+    """Equal numbers pass OP_NUMEQUALVERIFY."""
     prevouts, tx = taproot_script_spend(
         ["OP_1", "OP_1", "OP_NUMEQUALVERIFY", "OP_1"], 0, 1
     )
     verify_input(prevouts, tx, 0, ALL_FLAGS)
 
-    prevouts, tx = taproot_script_spend(
-        ["OP_1", "OP_2", "OP_NUMEQUALVERIFY", "OP_1"], 0, 1
-    )
+
+@pytest.mark.parametrize(
+    "script, code, index",
+    [
+        # the first half fails: the index is the op code's own
+        (["OP_EQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 0),
+        (["OP_1", "OP_EQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 1),
+        (["OP_NUMEQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 0),
+        (["OP_1", "OP_NUMEQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 1),
+        (["OP_CHECKSIGVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 0),
+        (["OP_1", "OP_CHECKSIGVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 1),
+        # the second half fails: the same index, the *VERIFY code
+        (["OP_1", "OP_2", "OP_EQUALVERIFY"], ScriptErrorCode.EQUALVERIFY, 2),
+        (["OP_1", "OP_2", "OP_NUMEQUALVERIFY"], ScriptErrorCode.NUMEQUALVERIFY, 2),
+        (
+            ["OP_0", "11" * 32, "OP_CHECKSIGVERIFY"],
+            ScriptErrorCode.CHECKSIGVERIFY,
+            2,
+        ),
+        # the check itself fails
+        (["22" * 64, "11" * 32, "OP_CHECKSIGVERIFY"], ScriptErrorCode.SCHNORR_SIG, 2),
+        # OP_CHECKSIGADD is one op code too
+        (
+            ["OP_1", "OP_1", "OP_CHECKSIGADD"],
+            ScriptErrorCode.INVALID_STACK_OPERATION,
+            2,
+        ),
+        (
+            ["22" * 64, "OP_0", "11" * 32, "OP_CHECKSIGADD"],
+            ScriptErrorCode.SCHNORR_SIG,
+            3,
+        ),
+        (
+            ["OP_1", "22" * 64, "OP_0", "11" * 32, "OP_CHECKSIGADD"],
+            ScriptErrorCode.SCHNORR_SIG,
+            4,
+        ),
+    ],
+)
+def test_a_tapscript_op_code_fails_at_its_own_index(
+    script: list[str], code: ScriptErrorCode, index: int
+) -> None:
+    """The *VERIFY op codes and OP_CHECKSIGADD fail at their own index."""
+    prevouts, tx = taproot_script_spend(script, 0, 1)
     with pytest.raises(ScriptError) as exc_info:
         verify_input(prevouts, tx, 0, ALL_FLAGS)
-    assert exc_info.value.code is ScriptErrorCode.NUMEQUALVERIFY
-    assert exc_info.value.index == 2
+    assert exc_info.value.code is code
+    assert exc_info.value.index == index
 
 
 def test_a_strict_der_signature_that_cannot_verify_is_a_false_check() -> None:

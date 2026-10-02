@@ -104,6 +104,18 @@ def test_build_coinbase_refuses_what_tx_refuses() -> None:
         build_coinbase(1, ScriptPubKey(b"\x51"), fees=-(subsidy(1) + 1))
 
 
+def test_build_coinbase_check_validity_defaults_to_true() -> None:
+    """The default check_validity=True refuses an oversize extra_nonce."""
+    oversize = b"x" * 200
+    with pytest.raises(BTClibValueError, match="Invalid coinbase script size"):
+        build_coinbase(1, ScriptPubKey(b"\x51"), extra_nonce=oversize)
+
+    tx = build_coinbase(
+        1, ScriptPubKey(b"\x51"), extra_nonce=oversize, check_validity=False
+    )
+    assert len(tx.vin[0].script_sig) > 100
+
+
 def test_build_block_reproduces_block_1() -> None:
     """Rebuild mainnet's block 1 from its own transactions and header."""
     block = _parse("block_1.bin")
