@@ -121,6 +121,11 @@ misses a name (issue btclib-org/.github#1517).
 `release.yml` calls `reusable-build.yml`, which signs the files before the
 publish jobs wait for approval (issue btclib-org/.github#1506).
 
+### The verification command pins the tag for every signer
+
+SECURITY.md and RELEASING.md said a release signed by `reusable-attest.yml`
+took no `--source-ref`; it takes the tag (closes #2447).
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again
