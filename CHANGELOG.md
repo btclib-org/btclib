@@ -54,6 +54,16 @@ file per release is what keeps each of them under it.
   so a swapped `prv_key` stays out of the message. `SECURITY.md` cites
   `xdh`'s delegated return by its text (closes #2437).
 
+### `electrum.decode_response` refuses a nesting too deep to read
+
+- **The line leaves as `BTClibValueError`** (closes #2432). `RecursionError`
+  escaped, and `except BTClibException` does not catch it.
+
+### `electrum.decode_response` refuses `NaN` and `Infinity`
+
+- **`estimate_fee_response` takes a finite rate of at least 0, or `-1`**
+  (closes #2433). It returned `nan`, `inf` and `-5`.
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type

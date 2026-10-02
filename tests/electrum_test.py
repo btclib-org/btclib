@@ -130,6 +130,22 @@ def test_decode_response_refuses_a_line_that_is_not_json() -> None:
         decode_response(b"not json at all\n", 1)
 
 
+def test_decode_response_refuses_a_nesting_too_deep_to_read() -> None:
+    """`RecursionError` is not the exception a caller of this module catches."""
+    depth = 10**6
+    line = b'{"id":1,"result":' + b"[" * depth + b"]" * depth + b"}"
+    with pytest.raises(BTClibValueError, match="not a JSON-RPC line"):
+        decode_response(line, 1)
+
+
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_decode_response_refuses_a_constant_json_lacks(constant: str) -> None:
+    """RFC 8259 has no `NaN` or `Infinity`, which Python reads."""
+    line = b'{"id":1,"result":' + constant.encode() + b"}"
+    with pytest.raises(BTClibValueError, match="not a JSON-RPC line"):
+        decode_response(line, 1)
+
+
 def test_decode_response_refuses_a_json_value_that_is_not_an_object() -> None:
     """Valid JSON, the wrong shape: a JSON-RPC reply is an object."""
     with pytest.raises(BTClibTypeError, match="not a JSON-RPC response object"):
@@ -354,6 +370,28 @@ def test_estimate_fee_round_trips_the_btc_per_kb_rate() -> None:
 def test_estimate_fee_response_returns_the_decline_sentinel_unmodified() -> None:
     """-1 is the protocol's own way of saying no estimate is available."""
     assert estimate_fee_response(reply(id=1, result=-1), 1) == -1
+
+
+@pytest.mark.parametrize("result", [0, 0.0, 0.00001, 3, 10**400])
+def test_estimate_fee_response_returns_a_finite_rate(result: float) -> None:
+    """Zero and every positive finite rate is a rate."""
+    assert estimate_fee_response(reply(id=1, result=result), 1) == result
+
+
+@pytest.mark.parametrize("result", [-5, -0.5, -1.5, -(10**400)])
+def test_estimate_fee_response_refuses_a_negative_rate_but_the_sentinel(
+    result: float,
+) -> None:
+    """The protocol allows a rate of at least 0, or -1 for no estimate."""
+    with pytest.raises(BTClibValueError, match="not a rate or -1"):
+        estimate_fee_response(reply(id=1, result=result), 1)
+
+
+@pytest.mark.parametrize("literal", [b"1e999", b"-1e999"])
+def test_estimate_fee_response_refuses_an_overflowing_rate(literal: bytes) -> None:
+    """A float literal too large for a double reads as an infinity."""
+    with pytest.raises(BTClibValueError, match="not a rate or -1"):
+        estimate_fee_response(b'{"id":1,"result":' + literal + b"}", 1)
 
 
 @pytest.mark.parametrize("result", ["not a number", None, [1], True, False])
