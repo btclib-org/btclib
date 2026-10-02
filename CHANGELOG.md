@@ -118,11 +118,11 @@ file per release is what keeps each of them under it.
   (closes #2489). `verify_script` stops on that stack, a `*VERIFY` op code fails
   at its own index, and `op_checkmultisigverify` goes (RELEASE_NOTES.md).
 
-### A tapscript `*VERIFY` op code fails at its own index
+### A tapscript op code fails at its own index
 
-- **A tapscript `*VERIFY` op code runs the plain op code, then the test** (closes
-  #2509). A failure in the first half has the op code's own `ScriptError.index`;
-  `op_equalverify` and its two kin go (RELEASE_NOTES.md).
+- **A tapscript `*VERIFY` op code and `OP_CHECKSIGADD` run as one op code**
+  (closes #2509, #2513). A failure in the first half has the op code's own
+  `ScriptError.index`; `op_equalverify` and its kin go (RELEASE_NOTES.md).
 
 ## v2026.10.2
 

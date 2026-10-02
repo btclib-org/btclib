@@ -56,6 +56,11 @@ full year, short month, short day (YYYY-M-D)
   The tapscript loop runs the plain op code, then tests its result, as the
   legacy loop does. Act on it if you call any of them: run `op_equal`,
   `op_numequal` or the signature check, then `op_verify`.
+- **`btclib.script.engine.tapscript.op_checksigadd` takes `op_checksig`'s
+  arguments and returns the sigops budget, and `ScriptOp` returns `None`**
+  (closes #2513). It was an expansion taking `(stack, altstack, flags)` and
+  returning `["OP_CHECKSIG", "OP_ADD"]`. Act on it if you call it: pass what
+  `op_checksig` takes, and use the budget it returns.
 
 ## v2026.10.2
 

@@ -1511,19 +1511,11 @@ def test_a_refusal_without_a_code_is_core_s_unknown_error(
 
 
 def test_a_tapscript_numequalverify_tests_the_numbers() -> None:
-    """The tapscript loop runs OP_NUMEQUALVERIFY as its two halves."""
+    """Equal numbers pass OP_NUMEQUALVERIFY and leave the stack to the next op code."""
     prevouts, tx = taproot_script_spend(
         ["OP_1", "OP_1", "OP_NUMEQUALVERIFY", "OP_1"], 0, 1
     )
     verify_input(prevouts, tx, 0, ALL_FLAGS)
-
-    prevouts, tx = taproot_script_spend(
-        ["OP_1", "OP_2", "OP_NUMEQUALVERIFY", "OP_1"], 0, 1
-    )
-    with pytest.raises(ScriptError) as exc_info:
-        verify_input(prevouts, tx, 0, ALL_FLAGS)
-    assert exc_info.value.code is ScriptErrorCode.NUMEQUALVERIFY
-    assert exc_info.value.index == 2
 
 
 @pytest.mark.parametrize(
@@ -1544,12 +1536,30 @@ def test_a_tapscript_numequalverify_tests_the_numbers() -> None:
             ScriptErrorCode.CHECKSIGVERIFY,
             2,
         ),
+        # the check itself fails
+        (["22" * 64, "11" * 32, "OP_CHECKSIGVERIFY"], ScriptErrorCode.SCHNORR_SIG, 2),
+        # OP_CHECKSIGADD is one op code too
+        (
+            ["OP_1", "OP_1", "OP_CHECKSIGADD"],
+            ScriptErrorCode.INVALID_STACK_OPERATION,
+            2,
+        ),
+        (
+            ["22" * 64, "OP_0", "11" * 32, "OP_CHECKSIGADD"],
+            ScriptErrorCode.SCHNORR_SIG,
+            3,
+        ),
+        (
+            ["OP_1", "22" * 64, "OP_0", "11" * 32, "OP_CHECKSIGADD"],
+            ScriptErrorCode.SCHNORR_SIG,
+            4,
+        ),
     ],
 )
-def test_a_tapscript_verify_op_code_fails_at_its_own_index(
+def test_a_tapscript_op_code_fails_at_its_own_index(
     script: list[str], code: ScriptErrorCode, index: int
 ) -> None:
-    """The *VERIFY op codes run as the plain op code, then the test."""
+    """The *VERIFY op codes and OP_CHECKSIGADD fail at their own index."""
     prevouts, tx = taproot_script_spend(script, 0, 1)
     with pytest.raises(ScriptError) as exc_info:
         verify_input(prevouts, tx, 0, ALL_FLAGS)

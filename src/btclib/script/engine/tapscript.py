@@ -14,7 +14,6 @@ from btclib_ecc.exceptions import BTClibEccValueError
 from btclib_ecc.hashes import tagged_hash
 
 from btclib import var_bytes
-from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
@@ -147,27 +146,6 @@ def _check_schnorr_signature(
         raise ScriptError(err_msg, ScriptErrorCode.SCHNORR_SIG)
 
 
-def op_checksigadd(
-    stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
-) -> ScriptList:
-    """Expand OP_CHECKSIGADD to OP_CHECKSIG OP_ADD, per BIP342.
-
-    The op code pops signature, n and public key, and pushes n plus
-    the check's result; the swap puts n out of OP_CHECKSIG's way, and
-    the returned pair is re-run by the loop as the ``*VERIFY``
-    expansions are. BIP342 defines it as this composition,
-    batch-verifiable where the CHECKMULTISIGs it replaces are not.
-
-    The number is read first, as Core's EvalScript builds it before the
-    check: a bad one is SCRIPTNUM whatever the signature and key would
-    answer.
-    """
-    _assert_operands(stack, 3, "OP_CHECKSIGADD")
-    _to_num(stack[-2], flags, _MAX_NUM_SIZE)
-    stack[-2], stack[-3] = stack[-3], stack[-2]
-    return ["OP_CHECKSIG", "OP_ADD"]
-
-
 def verify_key_path(
     script_pub_key: bytes,
     stack: list[bytes],
@@ -262,11 +240,51 @@ def op_checksig(
     return budget
 
 
-# the legacy engine's table with OP_CHECKSIGADD in and
-# OP_CHECKMULTISIGVERIFY out: BIP342 disables both CHECKMULTISIGs and
-# adds the batch-verifiable OP_CHECKSIGADD in their stead. Module-level
-# because the loop reads it and never writes -- Mapping is what says so
-# -- and a copy per call buys nothing
+def op_checksigadd(
+    stack: list[bytes],
+    script_bytes: bytes,
+    codesep_pos: int,
+    tx: Tx,
+    i: int,
+    prevouts: list[TxOut],
+    annex: bytes,
+    budget: int,
+    flags: ScriptFlag,
+    precomputed: PrecomputedTxData | None = None,
+    hash_types: list[int] | None = None,
+) -> int:
+    """Run BIP342's OP_CHECKSIGADD as one op code, as Core's EvalScript does.
+
+    Pops signature, n and public key, and pushes n plus the result of
+    `op_checksig` on the signature and key. Returns what is left of the
+    sigops budget.
+
+    The number is read first, as Core builds it before the check: a bad
+    one is SCRIPTNUM whatever the signature and key would answer.
+    """
+    _assert_operands(stack, 3, "OP_CHECKSIGADD")
+    n = _to_num(stack[-2], flags, _MAX_NUM_SIZE)
+    del stack[-2]
+    budget = op_checksig(
+        stack,
+        script_bytes,
+        codesep_pos,
+        tx,
+        i,
+        prevouts,
+        annex,
+        budget,
+        flags,
+        precomputed,
+        hash_types,
+    )
+    stack.append(encode_num(n + (1 if stack.pop() else 0)))
+    return budget
+
+
+# the op codes that take the stack alone. Module-level because the loop
+# reads it and never writes -- Mapping is what says so -- and a copy per
+# call buys nothing
 OPERATIONS: Mapping[str, ScriptOp] = {
     "OP_DUP": script_op_codes.op_dup,
     "OP_2DUP": script_op_codes.op_2dup,
@@ -276,7 +294,6 @@ OPERATIONS: Mapping[str, ScriptOp] = {
     "OP_1NEGATE": script_op_codes.op_1negate,
     "OP_VERIFY": script_op_codes.op_verify,
     "OP_EQUAL": script_op_codes.op_equal,
-    "OP_CHECKSIGADD": op_checksigadd,
     "OP_RETURN": script_op_codes.op_return,
     "OP_SIZE": script_op_codes.op_size,
     "OP_RIPEMD160": script_op_codes.op_ripemd160,
@@ -395,6 +412,20 @@ def _run_ops(  # noqa: C901, PLR0912
                 hash_types,
             )
 
+        elif op == "OP_CHECKSIGADD":
+            sigops_budget = op_checksigadd(
+                stack,
+                script_bytes,
+                codesep_pos,
+                tx,
+                i,
+                prevouts,
+                annex,
+                sigops_budget,
+                flags,
+                precomputed,
+                hash_types,
+            )
         elif op == "OP_CHECKLOCKTIMEVERIFY":
             script_op_codes.op_checklocktimeverify(stack, tx, i, flags)
         elif op == "OP_CHECKSEQUENCEVERIFY":
@@ -418,10 +449,7 @@ def _run_ops(  # noqa: C901, PLR0912
         elif op == "OP_VERIFY":
             script_op_codes.op_verify(stack, altstack, flags)
         elif plain in OPERATIONS:
-            r = OPERATIONS[plain](stack, altstack, flags)
-            if r:
-                script_index -= len(r)
-                s = bytesio_from_binarydata(serialize_script(r) + s.read())
+            OPERATIONS[plain](stack, altstack, flags)
         elif op in {"OP_CHECKMULTISIG", "OP_CHECKMULTISIGVERIFY"}:
             # named, and refused under a code of their own: BIP342 took
             # them out for OP_CHECKSIGADD
