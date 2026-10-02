@@ -71,12 +71,10 @@ NONE = 2
 SINGLE = 3
 ANYONECANPAY = 0b10000000
 
-# frozenset, not a public mutable list: it is a membership test
-# in all three of its uses, one of them the STRICTENC check of the script
-# engine, and a caller that appended to it would widen what the engine
-# accepts as a signature (issue #145). ANYONECANPAY with DEFAULT is absent
-# on purpose: BIP341 gives 0x00 the meaning of SIGHASH_ALL and does not
-# define 0x80
+# frozenset, not a public mutable list: a caller that appended to it
+# would widen what the preimages accept (issue #145). ANYONECANPAY with
+# DEFAULT is absent on purpose: BIP341 gives 0x00 the meaning of
+# SIGHASH_ALL and does not define 0x80
 SIG_HASH_TYPES = frozenset(
     {
         DEFAULT,

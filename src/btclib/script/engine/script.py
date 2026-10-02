@@ -34,7 +34,7 @@ from btclib.script.script import (
     read_op_code,
 )
 from btclib.script.script import serialize as serialize_script
-from btclib.script.sig_hash import SIG_HASH_TYPES, PrecomputedTxData
+from btclib.script.sig_hash import DEFAULT, SIG_HASH_TYPES, PrecomputedTxData
 from btclib.tx.tx import Tx
 
 # the bindings, imported from their own package; None where they are not
@@ -148,6 +148,10 @@ STRICT_DER_FLAGS = ScriptFlag.DERSIG | ScriptFlag.LOW_S | ScriptFlag.STRICTENC
 # being read at whatever size their lengths announce
 MAX_DER_SIGNATURE_SIZE = 73
 
+# Core's IsDefinedHashtypeSignature: 1, 2 or 3, with or without
+# ANYONECANPAY. DEFAULT, 0x00, is taproot's alone (BIP341)
+_LEGACY_HASH_TYPES = SIG_HASH_TYPES - {DEFAULT}
+
 
 def _read_der_lax_integer(der: bytes, pos: int) -> tuple[int, int]:
     """Read the integer at pos as Core's lax parser does: (value, next pos).
@@ -251,7 +255,7 @@ def fix_signature(signature: bytes, flags: ScriptFlag) -> bytes:
             raise ScriptError(f"high s: {hex(sig.s)}", ScriptErrorCode.SIG_HIGH_S)
         sig = Sig(sig.r, sig.ec.n - sig.s, check_validity=False)
         signature = sig.serialize(check_validity=False)
-    if ScriptFlag.STRICTENC in flags and signature_suffix[0] not in SIG_HASH_TYPES:
+    if ScriptFlag.STRICTENC in flags and signature_suffix[0] not in _LEGACY_HASH_TYPES:
         err_msg = f"invalid sighash type: {hex(signature_suffix[0])}"
         raise ScriptError(err_msg, ScriptErrorCode.SIG_HASHTYPE)
     return signature + signature_suffix
