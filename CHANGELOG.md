@@ -138,6 +138,12 @@ dependencies unpinned in the job that builds the published files (closes #2440).
 `tests/_data/README.md` records and compares that blob with upstream's at the
 pinned commit, failing the run on a mismatch (closes #2439).
 
+### While the bot review is off, `CONTRIBUTING.md` says what stands in for the ack
+
+*The review* says there is no ack of record while `claude-review.yml` is
+off, and that a local review of a named sha by a reviewer other than the
+author stands in for it (issue btclib-org/.github#1527) (closes #2445).
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again
