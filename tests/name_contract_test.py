@@ -61,7 +61,13 @@ _A_SCRIPT_FAILURE_SAYS_WHERE = (
     " engine is asked for, and a bool would drop it"
 )
 
+_A_MESSAGE_VERIFY_HAS_SIX_ANSWERS = (
+    "answers as Bitcoin Core's MessageVerify, whose three refusals and two"
+    " false answers a caller maps one by one: a bool would merge them"
+)
+
 _OTHER_CONTRACT: dict[str, str] = {
+    "btclib.ecc.bms.message_verify": _A_MESSAGE_VERIFY_HAS_SIX_ANSWERS,
     "btclib.script.engine.__init__.verify_amounts": _A_SCRIPT_FAILURE_SAYS_WHERE,
     "btclib.script.engine.__init__.verify_input": _A_SCRIPT_FAILURE_SAYS_WHERE,
     "btclib.script.engine.__init__.verify_transaction": _A_SCRIPT_FAILURE_SAYS_WHERE,

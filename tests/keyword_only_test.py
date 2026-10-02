@@ -93,6 +93,7 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.ecc.bms:Sig.b64encode": ["check_validity"],
     "btclib.ecc.bms:Sig.parse": ["check_validity"],
     "btclib.ecc.bms:Sig.serialize": ["check_validity"],
+    "btclib.ecc.bms:message_verify": ["network"],
     "btclib.fee:FeeRate.__init__": ["sats_per_kvbyte"],
     "btclib.fee:FeeRate.from_btc_per_kvbyte": ["round_up"],
     "btclib.fee:FeeRate.from_sats_per_vbyte": ["round_up"],

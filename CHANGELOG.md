@@ -88,6 +88,12 @@ file per release is what keeps each of them under it.
   (closes #2498). From about 3000 levels it killed CPython 3.12 and 3.13 in
   a 512 KiB thread. The line is UTF-8 bytes; UTF-16, UTF-32 and `str` are refused.
 
+### `bms.message_verify` is Bitcoin Core's `MessageVerify`
+
+- **`message_verify` answers as Core's `verifymessage`** (closes #2487): p2pkh
+  only, any first byte, canonical base64, one `MessageVerificationResult`
+  member per answer. `verify` stays the Electrum and BIP137 scheme.
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type
