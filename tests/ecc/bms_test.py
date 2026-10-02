@@ -31,7 +31,7 @@ from btclib import b32, b58
 from btclib.alias import Point
 from btclib.b58 import h160_from_address
 from btclib.ecc import bms
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import magic_message
 from btclib.key import PrvKeyData, PubKeyData
 from tests import (
@@ -1027,6 +1027,272 @@ def test_recoverable_signing_answers_the_key_id_the_search_finds(
         bms.assert_as_valid(msg, addr, bms_sig)
 
 
+# Bitcoin Core's own functional test, rpc_signmessagewithprivkey.py at
+# bitcoin/bitcoin@9be056a8a7 (v31.1): the key, the message, the signature
+# `signmessagewithprivkey` answers and the regtest address of the key
+_CORE_WIF = "cUeKHd5orzT3mz8P9pxyREHfsWtVfgsfDjiZZBcjUBAaGk1BTj7N"
+_CORE_MSG = b"This is just a test message"
+_CORE_SIG = "INbVnW4e6PeRmsv2Qgu8NuopvrVjkcxob+sX8OcZG0SALhWybUjzMLPdAsXI46YZGb0KQTRii+wWIQzRpG/U+S0="
+_CORE_ADDR = "mpLQjfK79b7CCV4VMJWEWAj5Mpx8Up5zxB"
+_CORE_PUB = PubKeyData(b58.prv_key_data_from_wif(_CORE_WIF).pub.sec, "regtest")
+_CORE_RAW = base64.b64decode(_CORE_SIG)
+_Result = bms.MessageVerificationResult
+
+
+def _core(
+    addr: str | bytes = _CORE_ADDR,
+    sig: str | bytes = _CORE_SIG,
+    msg: bytes = _CORE_MSG,
+) -> bms.MessageVerificationResult:
+    """`message_verify` on the regtest chain, with Core's vector by default."""
+    return bms.message_verify(msg, addr, sig, network="regtest")
+
+
+def _b64(raw: bytes) -> str:
+    return base64.b64encode(raw).decode("ascii")
+
+
+def test_message_verify_answers_the_four_rows_of_issue_2487() -> None:
+    """Each row is what bitcoind v31.1.0's `verifymessage` answers on regtest.
+
+    `verify` answers the second differently, raises on the third and the
+    fourth is a value it reads: it is the Electrum and BIP137 scheme, and
+    stays so.
+    """
+    assert _core() is _Result.OK
+
+    # the first byte read as any byte: 0 is recovery id 1, compressed
+    assert _core(sig=_b64(b"\x00" + _CORE_RAW[1:])) is _Result.OK
+    assert not bms.verify(_CORE_MSG, _CORE_ADDR, _b64(b"\x00" + _CORE_RAW[1:]))
+
+    # a decoded length other than 65 recovers no key: false, not a raise
+    longer = _b64(_CORE_RAW + b"\x00")
+    assert _core(sig=longer) is _Result.ERR_PUBKEY_NOT_RECOVERED
+    with pytest.raises(BTClibValueError):
+        bms.verify(_CORE_MSG, _CORE_ADDR, longer)
+
+    # white space is no base64, anywhere
+    assert _core(sig=" " + _CORE_SIG) is _Result.ERR_MALFORMED_SIGNATURE
+
+
+@pytest.mark.parametrize("space", [*string.whitespace, "\xa0"])
+def test_message_verify_reads_no_white_space_in_a_signature(space: str) -> None:
+    """`DecodeBase64` maps white space to -1 wherever it stands."""
+    half = len(_CORE_SIG) // 2
+    for sig in (
+        space + _CORE_SIG,
+        _CORE_SIG + space,
+        _CORE_SIG[:half] + space + _CORE_SIG[half:],
+        _CORE_SIG[:-1] + space + _CORE_SIG[-1],
+    ):
+        assert _core(sig=sig) is _Result.ERR_MALFORMED_SIGNATURE
+    assert bms.verify(_CORE_MSG, _CORE_ADDR, string.whitespace + _CORE_SIG)
+
+
+@pytest.mark.parametrize(
+    "sig",
+    [
+        "",
+        "====",
+        "A===",
+        _CORE_SIG.rstrip("="),
+        _CORE_SIG + "=",
+        _CORE_SIG.replace("+", "-").replace("/", "_"),
+        _CORE_SIG[:10] + "\x00" + _CORE_SIG[10:],
+        _CORE_SIG[:10] + "\u00e9" + _CORE_SIG[11:],
+        # the last character with a bit set that the 65 bytes do not use
+        _CORE_SIG[:-2] + "T=",
+    ],
+)
+def test_message_verify_refuses_what_is_not_the_canonical_base64(sig: str) -> None:
+    """The empty text is valid base64 of no bytes: a length, not a spelling."""
+    expected = _Result.ERR_MALFORMED_SIGNATURE
+    if sig == "":
+        expected = _Result.ERR_PUBKEY_NOT_RECOVERED
+    assert _core(sig=sig) is expected
+
+
+def test_message_verify_reads_the_signature_as_text_or_as_ascii_bytes() -> None:
+    """A byte outside ASCII is in no alphabet, as in Core's `std::string`."""
+    assert _core(sig=_CORE_SIG.encode()) is _Result.OK
+    assert _core(sig=_CORE_SIG.encode() + b"\xe9") is _Result.ERR_MALFORMED_SIGNATURE
+    assert _core(addr=_CORE_ADDR.encode()) is _Result.OK
+    assert _core(addr=b"\xe9" + _CORE_ADDR.encode()) is _Result.ERR_INVALID_ADDRESS
+
+
+def test_message_verify_takes_every_first_byte_as_core_does() -> None:
+    """`(byte - 27) & 3` is the recovery id, `(byte - 27) & 4` compression.
+
+    Only the byte that names the signing key's own recovery id and
+    compression is the key of the address: the other 255 bytes recover
+    another key, or none.
+    """
+    own = (_CORE_RAW[0] - 27) & 7
+    for first in range(256):
+        result = _core(sig=_b64(bytes([first]) + _CORE_RAW[1:]))
+        if (first - 27) & 7 == own:
+            assert result is _Result.OK, first
+        else:
+            assert result in {
+                _Result.ERR_NOT_SIGNED,
+                _Result.ERR_PUBKEY_NOT_RECOVERED,
+            }, first
+
+
+def test_message_verify_recovers_a_key_from_a_signature_of_65_bytes_only() -> None:
+    """Any other length is no compact signature, whatever its bytes."""
+    for length in range(71):
+        raw = (_CORE_RAW + bytes(range(70)))[:length]
+        result = _core(sig=_b64(raw))
+        if length == 65:
+            assert result is _Result.OK
+        else:
+            assert result is _Result.ERR_PUBKEY_NOT_RECOVERED, length
+
+
+@pytest.mark.parametrize("flag", [27, 28, 29, 30, 31, 32, 33, 34])
+def test_message_verify_recovers_no_key_from_a_scalar_out_of_range(flag: int) -> None:
+    """A zero or a value of the group order or above is no r or s."""
+    n = ec.n
+    r = int.from_bytes(_CORE_RAW[1:33], "big")
+    s = int.from_bytes(_CORE_RAW[33:], "big")
+    for rr, ss in ((0, s), (r, 0), (n, s), (r, n), (2**256 - 1, 2**256 - 1)):
+        raw = bytes([flag]) + rr.to_bytes(32, "big") + ss.to_bytes(32, "big")
+        assert _core(sig=_b64(raw)) is _Result.ERR_PUBKEY_NOT_RECOVERED
+
+
+def test_message_verify_accepts_the_high_s_twin_of_a_signature() -> None:
+    """`RecoverCompact` does not normalize: s to n - s, parity flipped."""
+    s = int.from_bytes(_CORE_RAW[33:], "big")
+    flag = 27 + ((_CORE_RAW[0] - 27) ^ 1)
+    twin = bytes([flag]) + _CORE_RAW[1:33] + (ec.n - s).to_bytes(32, "big")
+    assert _core(sig=_b64(twin)) is _Result.OK
+
+
+def test_message_verify_says_not_signed_for_another_message_or_key() -> None:
+    """The key is recovered, and it is not the address's."""
+    assert _core(msg=b"another message") is _Result.ERR_NOT_SIGNED
+    other = b58.p2pkh(PrvKeyData(2, "regtest").pub)
+    assert _core(addr=other) is _Result.ERR_NOT_SIGNED
+
+
+def test_message_verify_takes_a_p2pkh_address_of_the_network_alone() -> None:
+    """Every other destination is refused as Core refuses it."""
+    pub = _CORE_PUB
+    no_key = _Result.ERR_ADDRESS_NO_KEY
+    assert _core(addr=b58.p2wpkh_p2sh(pub)) is no_key
+    assert _core(addr=b58.p2sh(b"\x51", "regtest")) is no_key
+    assert _core(addr=b32.p2wpkh(pub)) is no_key
+    assert _core(addr=b32.p2wpkh(pub).upper()) is no_key
+    assert _core(addr=b32.p2wsh(b"\x51", "regtest")) is no_key
+    assert _core(addr=b32.address_from_witness(1, 32 * b"\x01", "regtest")) is no_key
+    assert _core(addr=b32.address_from_witness(2, b"\x01\x02", "regtest")) is no_key
+
+    invalid = _Result.ERR_INVALID_ADDRESS
+    for addr in (
+        "",
+        "invalid_addr",
+        _CORE_ADDR[:-1] + "x",
+        _CORE_ADDR[:20],
+        _CORE_ADDR[:5] + "\x00" + _CORE_ADDR[5:],
+        _CORE_ADDR[:5] + " " + _CORE_ADDR[5:],
+        # a segwit address of the network with a wrong checksum
+        b32.p2wpkh(_CORE_PUB)[:-1] + ("p" if b32.p2wpkh(_CORE_PUB)[-1] != "p" else "q"),
+        # the mainnet spelling of the key, and of every other kind
+        b58.p2pkh(PubKeyData(pub.sec, "mainnet")),
+        b58.p2wpkh_p2sh(PubKeyData(pub.sec, "mainnet")),
+        b32.p2wpkh(PubKeyData(pub.sec, "mainnet")),
+        b32.p2wpkh(PubKeyData(pub.sec, "testnet")),
+    ):
+        assert _core(addr=addr) is invalid, addr
+
+
+def test_message_verify_trims_white_space_around_a_base58_address_only() -> None:
+    """Core's base58 reader skips ASCII white space, its bech32 one none."""
+    for space in string.whitespace:
+        assert _core(addr=space + _CORE_ADDR + space) is _Result.OK
+    assert _core(addr="\xa0" + _CORE_ADDR) is _Result.ERR_INVALID_ADDRESS
+    segwit = b32.p2wpkh(_CORE_PUB)
+    for padded in (" " + segwit, segwit + " "):
+        assert _core(addr=padded) is _Result.ERR_INVALID_ADDRESS
+
+
+def test_message_verify_reads_the_address_on_the_network_it_is_given() -> None:
+    """Testnet and regtest p2pkh share a version byte, their hrp differs."""
+    for network in ("testnet", "regtest", "signet"):
+        assert (
+            bms.message_verify(_CORE_MSG, _CORE_ADDR, _CORE_SIG, network=network)
+            is _Result.OK
+        )
+    assert (
+        bms.message_verify(_CORE_MSG, _CORE_ADDR, _CORE_SIG, network="mainnet")
+        is _Result.ERR_INVALID_ADDRESS
+    )
+    # the default is the mainnet
+    assert (
+        bms.message_verify(_CORE_MSG, _CORE_ADDR, _CORE_SIG)
+        is _Result.ERR_INVALID_ADDRESS
+    )
+    segwit = b32.p2wpkh(PubKeyData(_CORE_PUB.sec, "testnet"))
+    assert segwit.startswith("tb1")
+    assert (
+        bms.message_verify(_CORE_MSG, segwit, _CORE_SIG, network="testnet")
+        is _Result.ERR_ADDRESS_NO_KEY
+    )
+    assert _core(addr=segwit) is _Result.ERR_INVALID_ADDRESS
+    # the regtest hrp starts with the mainnet one: the prefix is not the check
+    regtest_segwit = b32.p2wpkh(_CORE_PUB)
+    assert (
+        bms.message_verify(_CORE_MSG, regtest_segwit, _CORE_SIG, network="mainnet")
+        is _Result.ERR_INVALID_ADDRESS
+    )
+
+
+def test_message_verify_checks_the_address_before_the_signature() -> None:
+    """As `MessageVerify` does: a refused address hides a bad signature."""
+    assert _core(addr="invalid_addr", sig="invalid_sig") is _Result.ERR_INVALID_ADDRESS
+    assert (
+        _core(addr=b32.p2wpkh(PubKeyData(_CORE_PUB.sec, "mainnet")), sig="invalid_sig")
+        is _Result.ERR_INVALID_ADDRESS
+    )
+    assert (
+        _core(addr=b32.p2wpkh(_CORE_PUB), sig="invalid_sig")
+        is _Result.ERR_ADDRESS_NO_KEY
+    )
+    assert (
+        _core(addr=b58.p2wpkh_p2sh(_CORE_PUB), sig="invalid_sig")
+        is _Result.ERR_ADDRESS_NO_KEY
+    )
+    assert _core(sig="invalid_sig") is _Result.ERR_MALFORMED_SIGNATURE
+
+
+def test_message_verify_refuses_a_value_of_a_type_it_does_not_declare() -> None:
+    """The caller's own mistake is an exception, not a member of the answer."""
+    with pytest.raises(BTClibTypeError):
+        bms.message_verify(_CORE_MSG, 12, _CORE_SIG)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError):
+        bms.message_verify(_CORE_MSG, _CORE_ADDR, 12)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError):
+        bms.message_verify(12, _CORE_ADDR, _CORE_SIG)  # type: ignore[arg-type]
+    with pytest.raises(BTClibValueError):
+        bms.message_verify(_CORE_MSG, _CORE_ADDR, _CORE_SIG, network="nonet")
+
+
+def test_message_verify_on_an_uncompressed_key() -> None:
+    """The compressed bit of the first byte picks the serialization hashed."""
+    prv_key = PrvKeyData(0x1234567, "mainnet", compressed=False)
+    addr = b58.p2pkh(prv_key.pub)
+    sig = bms.sign(b"uncompressed", prv_key)
+    assert sig.rf < 31
+    assert bms.message_verify(b"uncompressed", addr, sig.b64encode()) is _Result.OK
+    raw = sig.serialize()
+    compressed = bytes([raw[0] + 4]) + raw[1:]
+    assert (
+        bms.message_verify(b"uncompressed", addr, _b64(compressed))
+        is _Result.ERR_NOT_SIGNED
+    )
+
+
 # the sibling test functions are called rather than reimplemented, as
 # tests/script_engine/python_path_test.py does with the vector walks: two
 # copies of a vector drift, and what has to be identical between the two
@@ -1049,6 +1315,10 @@ def test_recoverable_signing_answers_the_key_id_the_search_finds(
         test_ledger,
         test_the_recovery_flag_carries_a_key_id_not_a_list_index,
         test_a_key_id_that_recovers_nothing,
+        test_message_verify_answers_the_four_rows_of_issue_2487,
+        test_message_verify_takes_every_first_byte_as_core_does,
+        test_message_verify_accepts_the_high_s_twin_of_a_signature,
+        test_message_verify_on_an_uncompressed_key,
     ],
     ids=lambda vector_test: vector_test.__name__,
 )
