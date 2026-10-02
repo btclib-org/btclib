@@ -37,6 +37,12 @@ full year, short month, short day (YYYY-M-D)
   parent_height, consensus)`, from `btclib.block` or
   `btclib.block.header_context`, after the median-time-past check, which is
   Core's order. Without the call the bound is not checked.
+- **`Tx.parse` refuses a transaction with no input and two or more outputs**
+  (closes #2503). It raises `BTClibValueError: unknown transaction optional
+  data` where it returned the transaction, which Core's extended reading
+  refuses. Act on it if you parse such a transaction, a PSBT's unsigned one
+  (Core reads it as `TX_NO_WITNESS`): call
+  `Tx.parse_without_witness(data, check_validity=False)`.
 
 ## v2026.10.2
 

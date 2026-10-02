@@ -1107,10 +1107,21 @@ def test_a_declared_input_or_output_count_is_bounded_before_allocation() -> None
         Tx.parse(version + var_int.serialize(MAX_TX_IN_COUNT + 1))
 
     # the output count is read after the inputs, so an empty input list is
-    # what gets the parser there
+    # what gets the parser there, and `parse` reads a flag where it reads
+    # that count
+    with pytest.raises(BTClibValueError, match="var_int too big"):
+        Tx.parse_without_witness(
+            version + var_int.serialize(0) + var_int.serialize(MAX_TX_OUT_COUNT + 1)
+        )
+
+    # `parse` reaches the same bound after an input
+    one_input = b"\x11" * 32 + bytes(4) + var_int.serialize(0) + b"\xff" * 4
     with pytest.raises(BTClibValueError, match="var_int too big"):
         Tx.parse(
-            version + var_int.serialize(0) + var_int.serialize(MAX_TX_OUT_COUNT + 1)
+            version
+            + var_int.serialize(1)
+            + one_input
+            + var_int.serialize(MAX_TX_OUT_COUNT + 1)
         )
 
     # and the bound is not off by one: the count itself is not refused,
@@ -1291,3 +1302,38 @@ def test_without_witness_refuses_a_truncation() -> None:
     for size in range(len(_NO_INPUT_ONE_OUTPUT)):
         with pytest.raises(BTClibValueError):
             Tx.parse_without_witness(_NO_INPUT_ONE_OUTPUT[:size], check_validity=False)
+
+
+@pytest.mark.parametrize("flag", [2, 3, 0x7F, 0xFC, 0xFD, 0xFF])
+def test_a_flag_above_1_after_no_input_is_refused(flag: int) -> None:
+    """Core's "Unknown transaction optional data": the flag is no output count.
+
+    `00 02` could also read as no input and two outputs, which is what
+    `parse_without_witness` makes of it. Core's extended reading, which
+    `iswitness=true` asks bitcoind for, refuses every such flag, whatever
+    follows it.
+    """
+    two_outputs = bytes.fromhex("010000000002" + "00" * 18 + "00000000")
+    raw = two_outputs[:5] + bytes([flag]) + two_outputs[6:]
+    with pytest.raises(BTClibValueError, match="unknown transaction optional data"):
+        Tx.parse(raw, check_validity=False)
+    with pytest.raises(BTClibValueError, match="unknown transaction optional data"):
+        Tx.parse(raw)
+
+
+def test_no_input_and_two_outputs_is_read_without_the_marker() -> None:
+    """The reading `parse` refuses is the one `parse_without_witness` makes."""
+    raw = bytes.fromhex("010000000002" + "00" * 18 + "00000000")
+    tx = Tx.parse_without_witness(raw, check_validity=False)
+    assert tx.vin == []
+    assert len(tx.vout) == 2
+    assert tx.serialize(include_witness=False, check_validity=False) == raw
+
+
+def test_a_zero_flag_after_no_input_is_no_input_and_no_output() -> None:
+    """`00 00` is Core's flag 0, and both readings of it are one."""
+    raw = bytes.fromhex("01000000000000000000")
+    assert Tx.parse(raw, check_validity=False) == Tx.parse_without_witness(
+        raw, check_validity=False
+    )
+    assert Tx.parse(raw, check_validity=False) == Tx(1, 0, check_validity=False)

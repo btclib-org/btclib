@@ -106,6 +106,12 @@ file per release is what keeps each of them under it.
   one output** (closes #2462), Core's `TX_NO_WITNESS`. `Tx.parse` reads a marker
   and a flag. `check_validity=False` is what a transaction with no input needs.
 
+### `Tx.parse` refuses a flag above 1 after no input
+
+- **`Tx.parse` refuses `00` and a flag above 1 after the version** (closes
+  #2503), Core's "Unknown transaction optional data". It read the flag as an
+  output count. `Tx.parse_without_witness` does.
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type
