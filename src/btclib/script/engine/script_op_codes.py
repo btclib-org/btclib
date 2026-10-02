@@ -73,14 +73,12 @@ __all__ = [
     "op_boolor",
     "op_checklocktimeverify",
     "op_checksequenceverify",
-    "op_checksigverify",
     "op_depth",
     "op_drop",
     "op_dup",
     "op_else",
     "op_endif",
     "op_equal",
-    "op_equalverify",
     "op_fromaltstack",
     "op_greaterthan",
     "op_greaterthanorequal",
@@ -98,7 +96,6 @@ __all__ = [
     "op_not",
     "op_notif",
     "op_numequal",
-    "op_numequalverify",
     "op_numnotequal",
     "op_over",
     "op_pick",
@@ -169,10 +166,7 @@ def _to_bool(element: bytes) -> bool:
 # what every operation in the mappings of script.py and tapscript.py is.
 # The op codes taking anything else, op_if and its condition stack among
 # them, are driven by those modules directly instead.
-# Optional, not "| None": this is an assignment, which Python evaluates
-# whatever the __future__ import above defers, and PEP 604 unions are a
-# TypeError until 3.10
-ScriptOp = Callable[[list[bytes], list[bytes], ScriptFlag], ScriptList | None]
+ScriptOp = Callable[[list[bytes], list[bytes], ScriptFlag], None]
 
 
 # What the two interpreter loops check as they go, as functions rather
@@ -457,27 +451,6 @@ def op_equal(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> No
     stack.append(b"\x01" if equal else b"")
 
 
-def op_equalverify(
-    stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
-) -> ScriptList:
-    """Expand to OP_EQUAL followed by OP_VERIFY.
-
-    The ``*VERIFY`` op codes are the pair they contract: the tapscript
-    loop re-serializes the returned commands in front of the unread
-    script and winds its counters back, so the pair runs without being
-    counted twice. The legacy loop runs the first of the pair and then
-    tests it.
-    """
-    return ["OP_EQUAL", "OP_VERIFY"]
-
-
-def op_checksigverify(
-    stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
-) -> ScriptList:
-    """Expand to OP_CHECKSIG followed by OP_VERIFY, as op_equalverify."""
-    return ["OP_CHECKSIG", "OP_VERIFY"]
-
-
 def op_size(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Push the byte length of the top element, leaving it in place."""
     stack.append(encode_num(len(stack[-1])))
@@ -612,13 +585,6 @@ def op_numequal(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) ->
         stack.append(b"\x01")
     else:
         stack.append(b"")
-
-
-def op_numequalverify(
-    stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
-) -> ScriptList:
-    """Expand to OP_NUMEQUAL followed by OP_VERIFY, as op_equalverify."""
-    return ["OP_NUMEQUAL", "OP_VERIFY"]
 
 
 def op_numnotequal(

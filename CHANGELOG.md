@@ -124,6 +124,12 @@ file per release is what keeps each of them under it.
   (closes #2510), Core's `IsDefinedHashtypeSignature`. `00` is
   SIGHASH_DEFAULT, taproot's alone.
 
+### A tapscript op code fails at its own index
+
+- **A tapscript `*VERIFY` op code and `OP_CHECKSIGADD` run as one op code**
+  (closes #2509) (closes #2513). A failure inside one has that op code's own
+  `ScriptError.index`; `op_equalverify` and its kin go (RELEASE_NOTES.md).
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type

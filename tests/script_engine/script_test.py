@@ -1552,19 +1552,60 @@ def test_a_refusal_without_a_code_is_core_s_unknown_error(
 
 
 def test_a_tapscript_numequalverify_tests_the_numbers() -> None:
-    """The tapscript loop runs OP_NUMEQUALVERIFY as its two halves."""
+    """Equal numbers pass OP_NUMEQUALVERIFY."""
     prevouts, tx = taproot_script_spend(
         ["OP_1", "OP_1", "OP_NUMEQUALVERIFY", "OP_1"], 0, 1
     )
     verify_input(prevouts, tx, 0, ALL_FLAGS)
 
-    prevouts, tx = taproot_script_spend(
-        ["OP_1", "OP_2", "OP_NUMEQUALVERIFY", "OP_1"], 0, 1
-    )
+
+@pytest.mark.parametrize(
+    "script, code, index",
+    [
+        # the first half fails: the index is the op code's own
+        (["OP_EQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 0),
+        (["OP_1", "OP_EQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 1),
+        (["OP_NUMEQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 0),
+        (["OP_1", "OP_NUMEQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 1),
+        (["OP_CHECKSIGVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 0),
+        (["OP_1", "OP_CHECKSIGVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 1),
+        # the second half fails: the same index, the *VERIFY code
+        (["OP_1", "OP_2", "OP_EQUALVERIFY"], ScriptErrorCode.EQUALVERIFY, 2),
+        (["OP_1", "OP_2", "OP_NUMEQUALVERIFY"], ScriptErrorCode.NUMEQUALVERIFY, 2),
+        (
+            ["OP_0", "11" * 32, "OP_CHECKSIGVERIFY"],
+            ScriptErrorCode.CHECKSIGVERIFY,
+            2,
+        ),
+        # the check itself fails
+        (["22" * 64, "11" * 32, "OP_CHECKSIGVERIFY"], ScriptErrorCode.SCHNORR_SIG, 2),
+        # OP_CHECKSIGADD is one op code too
+        (
+            ["OP_1", "OP_1", "OP_CHECKSIGADD"],
+            ScriptErrorCode.INVALID_STACK_OPERATION,
+            2,
+        ),
+        (
+            ["22" * 64, "OP_0", "11" * 32, "OP_CHECKSIGADD"],
+            ScriptErrorCode.SCHNORR_SIG,
+            3,
+        ),
+        (
+            ["OP_1", "22" * 64, "OP_0", "11" * 32, "OP_CHECKSIGADD"],
+            ScriptErrorCode.SCHNORR_SIG,
+            4,
+        ),
+    ],
+)
+def test_a_tapscript_op_code_fails_at_its_own_index(
+    script: list[str], code: ScriptErrorCode, index: int
+) -> None:
+    """The *VERIFY op codes and OP_CHECKSIGADD fail at their own index."""
+    prevouts, tx = taproot_script_spend(script, 0, 1)
     with pytest.raises(ScriptError) as exc_info:
         verify_input(prevouts, tx, 0, ALL_FLAGS)
-    assert exc_info.value.code is ScriptErrorCode.NUMEQUALVERIFY
-    assert exc_info.value.index == 2
+    assert exc_info.value.code is code
+    assert exc_info.value.index == index
 
 
 def test_a_strict_der_signature_that_cannot_verify_is_a_false_check() -> None:
