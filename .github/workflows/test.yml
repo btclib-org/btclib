@@ -719,7 +719,10 @@ jobs:
             assert dsa.verify(b'btclib', PrvKeyData(1).pub.sec, \
               dsa.sign(b'btclib', 1))"
       # release.yml's own copy of this question, moved here now that
-      # there is only one build for it to ask about. Unconstrained, where
+      # there is only one build for it to ask about. It runs on the
+      # signed files this job downloaded, after the build job that made
+      # them and in a job that publishes nothing, so an unpinned
+      # install cannot reach what is published. Unconstrained, where
       # the step above pins the runtime dependencies to uv.lock: gated on
       # `inputs.check-newest-bindings`, which only release.yml sets, so
       # no pull request and no ordinary push to main waits on it -- it can

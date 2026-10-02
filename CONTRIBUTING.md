@@ -324,10 +324,10 @@ message start from it, and nothing in btclib stands behind them.
 **Every sibling floor names a release PyPI serves**, so `pyproject.toml`
 carries no `[tool.uv.sources]` table and uv resolves the siblings from
 the index like anything else: `uv.lock` pins a version and its wheels,
-every job passes `--locked`, and `uv sync` downloads rather than
-compiling libsecp256k1 in each environment. The floor is then the whole
-of the coordination with that sibling, and it carries weight the
-specifier alone does not show: btclib_ecc imports the bindings'
+`uv sync` downloads rather than compiling libsecp256k1 in each
+environment, and every job that installs from the lock passes `--locked`.
+The floor is then the whole of the coordination with that sibling, and
+it carries weight the specifier alone does not show: btclib_ecc imports the bindings'
 surface in a single `try` whose `except ImportError` sets
 `INSTALLED = False`, so an install that resolves one release short of
 what that package imports does not lose the entry point it is missing —
@@ -337,6 +337,28 @@ imports of the bindings are guarded one by one instead, so a shortfall
 there fails at the call rather than degrading. Calling something new is
 therefore the same commit that raises the floor in both of its places,
 with the reason written beside it.
+
+**The jobs that do not pass `--locked`** are deliberate exceptions.
+`uv build`, `uv run --no-project` and, on a rehearsal, the `dev-version`
+re-lock run in the job that builds the published files
+(`reusable-build.yml`, which `release.yml` calls). None installs the
+project's dependencies:
+
+- `test.yml`'s `dist` job installs the wheel under constraints exported
+  from the lock, which pins the same versions, and on a release asks
+  once, with `uv run --isolated --with`, whether the newest bindings
+  work, after the build job and on the files that job uploaded; it
+  publishes nothing.
+- `deps-latest.yml` runs `uv lock --upgrade` to test the newest versions,
+  `deps-oldest.yml` re-locks to each declared floor, and
+  `pypi-install.yml` runs `uv pip install` to test the published
+  release.
+- The `dev-version` action re-locks after writing a rehearsal's version
+  suffix; `uv lock` keeps the versions already locked.
+- `uv build` and `uv run --no-project` install nothing from the lock.
+- `public-api`, in btclib-org/.github's `reusable-public-api.yml`, runs
+  `uvx griffe==2.2.0`: a pinned version, with its own dependencies
+  unlocked. It is not the build job.
 
 Calling an entry point merged upstream but not yet released is what a
 `[tool.uv.sources]` entry pointing a sibling at a commit of its `main`

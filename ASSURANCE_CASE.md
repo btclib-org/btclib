@@ -280,7 +280,9 @@ to, and what counters each.
 - **Supply chain.** SECURITY.md's *Supported versions* describes the
   attestations and the bill of materials. `uv.lock` pins every
   dependency, and CONTRIBUTING.md's *The environment and the gates*
-  states that every job installs with `--locked`. Every third-party
+  states that every job installing from it passes `--locked`, and lists
+  the exceptions, none of which installs the project's dependencies
+  unpinned in the job that builds the published files. Every third-party
   action is pinned to a commit sha, the organization's own reusable
   workflows being called at `@main` as `.github/zizmor.yml` permits and
   gives the reason for; `actionlint`, `zizmor` and `detect-secrets` run
