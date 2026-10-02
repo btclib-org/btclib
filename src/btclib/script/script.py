@@ -35,11 +35,14 @@ from typing import cast
 from warnings import warn
 
 from btclib.alias import BinaryData, Command, Octets, ScriptList
+from btclib.consensus import MAX_SCRIPT_SIZE
 from btclib.exceptions import BTClibTypeError, BTClibUserWarning, BTClibValueError
 from btclib.utils import (
     _message_text,
+    assert_type,
     bytes_from_octets,
     bytesio_from_binarydata,
+    decode_num,
     encode_num,
     fields_from_json_object,
     is_octets,
@@ -56,6 +59,7 @@ __all__ = [
     "push_int",
     "read_op_code",
     "script_from_dict",
+    "script_to_asm",
     "script_to_dict",
     "serialize",
 ]
@@ -598,20 +602,126 @@ def parse(stream: BinaryData) -> ScriptList:
     return r
 
 
+# Core's mapSigHashTypes: the hash types a signature may end in
+_CORE_SIG_HASH_NAME = {
+    0x01: "ALL",
+    0x81: "ALL|ANYONECANPAY",
+    0x02: "NONE",
+    0x82: "NONE|ANYONECANPAY",
+    0x03: "SINGLE",
+    0x83: "SINGLE|ANYONECANPAY",
+}
+
+
+def _core_op_code_name(op_code: int) -> str:
+    """Name an op code that is not a push, as Core's GetOpName does."""
+    if op_code == 0x4F:
+        return "-1"
+    if 0x51 <= op_code <= 0x60:
+        return str(op_code - 0x50)
+    if op_code == 0xFF:
+        return "OP_INVALIDOPCODE"
+    return OP_CODE_NAME_FROM_INT.get(op_code, "OP_UNKNOWN")
+
+
+def _is_valid_signature_encoding(sig: bytes) -> bool:
+    """Port of Core's IsValidSignatureEncoding: strict DER, then a hash type."""
+    if not 9 <= len(sig) <= 73 or sig[0] != 0x30 or sig[1] != len(sig) - 3:
+        return False
+    len_r = sig[3]
+    if 5 + len_r >= len(sig):
+        return False
+    len_s = sig[5 + len_r]
+    if len_r + len_s + 7 != len(sig):
+        return False
+    # an integer, not empty, not negative, and not padded with a zero that
+    # is not there to keep it positive
+    r_ok = (
+        sig[2] == 0x02
+        and len_r != 0
+        and not sig[4] & 0x80
+        and not (len_r > 1 and sig[4] == 0 and not sig[5] & 0x80)
+    )
+    s_ok = (
+        sig[len_r + 4] == 0x02
+        and len_s != 0
+        and not sig[len_r + 6] & 0x80
+        and not (len_s > 1 and sig[len_r + 6] == 0 and not sig[len_r + 7] & 0x80)
+    )
+    return r_ok and s_ok
+
+
+def script_to_asm(script: bytes, *, attempt_sighash_decode: bool = False) -> str:
+    """Render a script as Bitcoin Core's `ScriptToAsmStr` does, byte for byte.
+
+    This is the `asm` of `decodescript`, `getrawtransaction` and
+    `getblock`. A push of up to four bytes is the number it encodes, in
+    decimal. A longer push is lower-case hex. OP_1 to OP_16 and OP_1NEGATE
+    are the numbers 1 to 16 and -1. A byte no op code names is
+    `OP_UNKNOWN`, and 0xff is `OP_INVALIDOPCODE`. A push cut short ends
+    the string with `[error]`.
+
+    `attempt_sighash_decode` is Core's `fAttemptSighashDecode`, which Core
+    sets for a `scriptSig` and not for a `scriptPubKey`. A push that is a
+    strict DER signature ending in a defined hash type is then printed
+    with that type in brackets in place of its last byte, `...[ALL]`.
+    A script that starts with OP_RETURN, or is longer than MAX_SCRIPT_SIZE,
+    is never decoded.
+
+    Not invertible, so `script_from_dict` does not read it: `parse` and
+    `script_to_dict` are the renderings a script can be read back from.
+    """
+    assert_type(attempt_sighash_decode, bool, "attempt_sighash_decode")
+    decode = (
+        attempt_sighash_decode
+        and script[:1] != b"\x6a"
+        and len(script) <= MAX_SCRIPT_SIZE
+    )
+    out: list[str] = []
+    start = 0
+    while start < len(script):
+        span = read_op_code(script, start)
+        if span is None:
+            out.append("[error]")
+            break
+        op_code, stop = span
+        if op_code > 78:
+            out.append(_core_op_code_name(op_code))
+        else:
+            # the data follows the op code and, for OP_PUSHDATA1/2/4, a length
+            data = script[stop - _push_size(script, start) : stop]
+            if len(data) <= 4:
+                out.append(str(decode_num(data)))
+            elif decode and _is_valid_signature_encoding(data):
+                name = _CORE_SIG_HASH_NAME.get(data[-1])
+                if name is None:
+                    out.append(data.hex())
+                else:
+                    out.append(f"{data[:-1].hex()}[{name}]")
+            else:
+                out.append(data.hex())
+        start = stop
+    return " ".join(out)
+
+
+def _push_size(script: bytes, start: int) -> int:
+    """Return the length of the data of the push at start."""
+    op_code = script[start]
+    if op_code < 76:
+        return op_code
+    width = 2 ** (op_code - 76)
+    return int.from_bytes(script[start + 1 : start + 1 + width], "little")
+
+
 def script_to_dict(script: bytes) -> dict[str, str]:
-    """Render a script as Bitcoin Core's RPC renders one: `asm` and `hex`.
+    """Render a script as the pair `asm` and `hex`, as Core's RPC shapes one.
 
-    The two renderings of the same bytes, which is what
-    `getrawtransaction` and `decodepsbt` hand back for every script they
-    report. `hex` is the script; `asm` is `parse` joined by spaces, i.e.
-    a reading aid, and the only thing `script_from_dict` will believe is
-    the `hex`.
+    `hex` is the script; `asm` is `parse` joined by spaces, i.e. a reading
+    aid, and the only thing `script_from_dict` will believe is the `hex`.
 
-    Not Core's asm byte for byte, and it cannot be: btclib prints a push
-    as upper-case hex where Core prints one under 5 bytes as a decimal
-    number, and neither spelling is invertible -- see ERROR_COMMAND
-    above. What this is, exactly, is `Script.asm` with a space between
-    its commands.
+    The `asm` is btclib's own, which `parse` can be read back from, and
+    not Core's: `script_to_asm` is Core's `ScriptToAsmStr`, whose spelling
+    cannot be read back -- see ERROR_COMMAND above.
     """
     # a cast rather than a str() per command: parse appends nothing but
     # strings -- an op code name, upper-case hex, UNKNOWN_OP_CODE_n or

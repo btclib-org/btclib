@@ -37,6 +37,7 @@ as a function instead, computed only when a caller invokes it.
 """
 
 import importlib
+import importlib.util
 import json
 import pkgutil
 import re
@@ -55,8 +56,21 @@ import btclib
 _TESTS_DIR = Path(__file__).parent
 
 
+# a module that needs the dependency of an extra, left out of every walk
+# of the library where that dependency is not installed: it cannot be
+# imported there, and a btclib without the extra answers as before.
+# `tests/build_system_test.py` holds each entry to the extra it names
+NEEDS_AN_EXTRA = {"btclib.p2p.bip324": "cryptography"}
+
+
+def importable(name: str) -> bool:
+    """Return whether the module's extra, if it needs one, is installed."""
+    needed = NEEDS_AN_EXTRA.get(name)
+    return needed is None or importlib.util.find_spec(needed) is not None
+
+
 def module_names() -> list[str]:
-    """Return every module of the installed btclib, the top-level one included.
+    """Return every importable module of btclib, the top-level one included.
 
     Here rather than at each site that walks the package, for the reason
     `public_classes_with` below gives. What the walk covers -- a second
@@ -64,10 +78,10 @@ def module_names() -> list[str]:
     settled here for all of them, and a copy that disagreed would be red
     nowhere: each site asserts against whatever its own walk found.
     """
-    return [
-        "btclib",
-        *(module.name for module in pkgutil.walk_packages(btclib.__path__, "btclib.")),
+    found = [
+        module.name for module in pkgutil.walk_packages(btclib.__path__, "btclib.")
     ]
+    return ["btclib", *(name for name in found if importable(name))]
 
 
 def public_classes_with(method_name: str) -> set[str]:

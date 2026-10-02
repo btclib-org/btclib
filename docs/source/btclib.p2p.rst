@@ -18,6 +18,13 @@ btclib.p2p.addrv2 module
    :members:
    :show-inheritance:
 
+btclib.p2p.bip324 module
+------------------------
+
+.. automodule:: btclib.p2p.bip324
+   :members:
+   :show-inheritance:
+
 btclib.p2p.block\_filters module
 --------------------------------
 

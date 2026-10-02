@@ -73,6 +73,11 @@ btclib`` works and installs no C at all — btclib then answers on its own
 Python arithmetic, tens of times more slowly and not in constant time,
 which ``SECURITY.md`` publishes.
 
+BIP324's v2 transport cipher, ``btclib.p2p.bip324``, needs the ``bip324``
+extra (``pip install "btclib[bip324]"``), which installs ``cryptography``.
+btclib ships no cipher of its own, and nothing else in btclib imports that
+module.
+
 secp256k1 arithmetic is delegated to those bindings, and the delegation
 can be turned off. Setting ``BTCLIB_ECC_NO_LIBSECP256K1`` to a
 non-empty value in the environment, before btclib is imported, makes

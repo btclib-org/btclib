@@ -142,6 +142,7 @@ CHILD_MODULES = {
         "unpublished": [
             "address",
             "addrv2",
+            "bip324",
             "block_filters",
             "compact_blocks",
             "data",

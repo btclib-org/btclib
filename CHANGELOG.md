@@ -76,6 +76,66 @@ file per release is what keeps each of them under it.
   `SECURITY.md` routes a report on them to its advisory page, and
   `ASSURANCE_CASE.md` says btclib reads no environment variable (closes #2441).
 
+### A script refusal carries Core's code
+
+- **A script breaking two rules fails with the code Core gives it** (closes
+  #2481): number operands follow the stack depth check, OP_CHECKSIGADD's number
+  precedes its signature, OP_CHECKMULTISIG's dummy follows its signatures.
+
+### `electrum.decode_response` refuses a line nested past 16 levels
+
+- **A line nested deeper is refused before `json.loads` reads it**
+  (closes #2498). From about 3000 levels it killed CPython 3.12 and 3.13 in
+  a 512 KiB thread. The line is UTF-8 bytes; UTF-16, UTF-32 and `str` are refused.
+
+### `bms.message_verify` is Bitcoin Core's `MessageVerify`
+
+- **`message_verify` answers as Core's `verifymessage`** (closes #2487): p2pkh
+  only, any first byte, canonical base64, one `MessageVerificationResult`
+  member per answer. `verify` stays the Electrum and BIP137 scheme.
+
+### `script_to_asm` renders a script as Core's `ScriptToAsmStr`
+
+- **`script_to_asm(script, attempt_sighash_decode=False)` is Core's `asm`**
+  (closes #2461): `0151` is `81`, and with `attempt_sighash_decode=True` a
+  signature's hash type is `[ALL]`. `script_to_dict` keeps its own `asm`.
+
+### `Tx.parse_without_witness` reads without the BIP144 marker
+
+- **`Tx.parse_without_witness` reads `00 01` after the version as no input and
+  one output** (closes #2462), Core's `TX_NO_WITNESS`. `Tx.parse` reads a marker
+  and a flag. `check_validity=False` is what a transaction with no input needs.
+
+### `Tx.parse` refuses a flag above 1 after no input
+
+- **`Tx.parse` refuses `00` and a flag above 1 after the version** (closes
+  #2503), Core's "Unknown transaction optional data". It read the flag as an
+  output count. `Tx.parse_without_witness` does.
+
+### `eval_script` returns the stack where Core's `EvalScript` stops
+
+- **`eval_script(script_bytes, stack, flags)` returns the stack and the error**
+  (closes #2489). `verify_script` stops on that stack, a `*VERIFY` op code fails
+  at its own index, and `op_checkmultisigverify` goes (RELEASE_NOTES.md).
+
+### `STRICTENC` refuses hash type 0 as `SIG_HASHTYPE`
+
+- **A legacy or segwit v0 signature ending in `00` fails with `SIG_HASHTYPE`**
+  (closes #2510), Core's `IsDefinedHashtypeSignature`. `00` is
+  SIGHASH_DEFAULT, taproot's alone.
+
+### A tapscript op code fails at its own index
+
+- **A tapscript `*VERIFY` op code and `OP_CHECKSIGADD` run as one op code**
+  (closes #2509) (closes #2513). A failure inside one has that op code's own
+  `ScriptError.index`; `op_equalverify` and its kin go (RELEASE_NOTES.md).
+
+### `btclib.p2p.bip324` is BIP324's v2 transport cipher
+
+- **`btclib.p2p.bip324` encrypts and decrypts BIP324 packets** (issue #2474)
+  with `cryptography`, behind `pip install "btclib[bip324]"`, and passes the
+  BIP324 packet vectors. A btclib without the extra answers as before.
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type

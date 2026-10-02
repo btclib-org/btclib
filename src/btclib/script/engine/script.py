@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from btclib_ecc.curves import is_libsecp256k1_serving, point_from_octets
 from btclib_ecc.ecc import dsa
@@ -16,8 +16,13 @@ from btclib_ecc.exceptions import BTClibEccRuntimeError, BTClibEccValueError
 from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
-from btclib.script.engine.flags import ScriptFlag
-from btclib.script.engine.script_op_codes import _MAX_NUM_SIZE, ScriptOp, _to_num
+from btclib.script.engine.flags import NO_FLAGS, ScriptFlag
+from btclib.script.engine.script_op_codes import (
+    _MAX_NUM_SIZE,
+    ScriptOp,
+    _assert_operands,
+    _to_num,
+)
 from btclib.script.limits import (
     MAX_OPS_PER_SCRIPT,
     MAX_PUBKEYS_PER_MULTISIG,
@@ -26,12 +31,10 @@ from btclib.script.limits import (
 from btclib.script.script import (
     BYTE_FROM_OP_CODE_NAME,
     OP_CODE_NAME_FROM_INT,
-    op_code_spans,
-    parse,
     read_op_code,
 )
 from btclib.script.script import serialize as serialize_script
-from btclib.script.sig_hash import SIG_HASH_TYPES, PrecomputedTxData
+from btclib.script.sig_hash import DEFAULT, SIG_HASH_TYPES, PrecomputedTxData
 from btclib.tx.tx import Tx
 
 # the bindings, imported from their own package; None where they are not
@@ -62,6 +65,7 @@ __all__ = [
     "calculate_script_code",
     "check_pub_key",
     "dsa_verify",
+    "eval_script",
     "find_and_delete",
     "fix_signature",
     "op_checksig",
@@ -143,6 +147,10 @@ STRICT_DER_FLAGS = ScriptFlag.DERSIG | ScriptFlag.LOW_S | ScriptFlag.STRICTENC
 # the one rule of that function the strict parse does not make, r and s
 # being read at whatever size their lengths announce
 MAX_DER_SIGNATURE_SIZE = 73
+
+# Core's IsDefinedHashtypeSignature: 1, 2 or 3, with or without
+# ANYONECANPAY. DEFAULT, 0x00, is taproot's alone (BIP341)
+_LEGACY_HASH_TYPES = SIG_HASH_TYPES - {DEFAULT}
 
 
 def _read_der_lax_integer(der: bytes, pos: int) -> tuple[int, int]:
@@ -247,7 +255,7 @@ def fix_signature(signature: bytes, flags: ScriptFlag) -> bytes:
             raise ScriptError(f"high s: {hex(sig.s)}", ScriptErrorCode.SIG_HIGH_S)
         sig = Sig(sig.r, sig.ec.n - sig.s, check_validity=False)
         signature = sig.serialize(check_validity=False)
-    if ScriptFlag.STRICTENC in flags and signature_suffix[0] not in SIG_HASH_TYPES:
+    if ScriptFlag.STRICTENC in flags and signature_suffix[0] not in _LEGACY_HASH_TYPES:
         err_msg = f"invalid sighash type: {hex(signature_suffix[0])}"
         raise ScriptError(err_msg, ScriptErrorCode.SIG_HASHTYPE)
     return signature + signature_suffix
@@ -364,7 +372,7 @@ def op_checksig(
     script_bytes: bytes,
     codesep_offset: int,
     prevout_value: int,
-    tx: Tx,
+    tx: Tx | None,
     i: int,
     flags: ScriptFlag,
     segwit: bool,
@@ -384,6 +392,10 @@ def op_checksig(
     an empty signature too: FindAndDelete first, then the signature's
     encoding, then the key's, so an empty signature beside a key a flag
     refuses is that key's error and not a False.
+
+    Without a transaction, Core's `BaseSignatureChecker`, the checks run
+    and no signature verifies: the encoding errors above are still
+    raised, and the answer is False.
 
     `signatures` is what FindAndDelete removes from a pre-segwit
     script code: the whole set under check when called from
@@ -422,6 +434,9 @@ def op_checksig(
     if not check_pub_key(pub_key, segwit, flags) or not fixed:
         return False
     signature = fixed
+
+    if tx is None:
+        return False
 
     if hash_types is not None:
         # after the two encoding gates and before the verification: what
@@ -597,7 +612,9 @@ def assert_const_scriptcode(op_code: int, flags: ScriptFlag, segwit: bool) -> No
 
 # what one signature can drive: every entry takes (stack, altstack,
 # flags) and nothing else, so the loop dispatches them blind and
-# verify_script holds only the op codes that need more. Module-level
+# verify_script holds only the op codes that need more. The *VERIFY op
+# codes are not here: the loop runs each one's plain op code from this
+# table, or its own branch, and then tests the result. Module-level
 # because the loop reads it and never writes -- Mapping is what says so
 # -- and a copy per call buys nothing
 OPERATIONS: Mapping[str, ScriptOp] = {
@@ -609,8 +626,6 @@ OPERATIONS: Mapping[str, ScriptOp] = {
     "OP_1NEGATE": script_op_codes.op_1negate,
     "OP_VERIFY": script_op_codes.op_verify,
     "OP_EQUAL": script_op_codes.op_equal,
-    "OP_CHECKSIGVERIFY": script_op_codes.op_checksigverify,
-    "OP_EQUALVERIFY": script_op_codes.op_equalverify,
     "OP_RETURN": script_op_codes.op_return,
     "OP_SIZE": script_op_codes.op_size,
     "OP_RIPEMD160": script_op_codes.op_ripemd160,
@@ -629,7 +644,6 @@ OPERATIONS: Mapping[str, ScriptOp] = {
     "OP_BOOLAND": script_op_codes.op_booland,
     "OP_BOOLOR": script_op_codes.op_boolor,
     "OP_NUMEQUAL": script_op_codes.op_numequal,
-    "OP_NUMEQUALVERIFY": script_op_codes.op_numequalverify,
     "OP_NUMNOTEQUAL": script_op_codes.op_numnotequal,
     "OP_LESSTHAN": script_op_codes.op_lessthan,
     "OP_GREATERTHAN": script_op_codes.op_greaterthan,
@@ -638,7 +652,6 @@ OPERATIONS: Mapping[str, ScriptOp] = {
     "OP_MIN": script_op_codes.op_min,
     "OP_MAX": script_op_codes.op_max,
     "OP_WITHIN": script_op_codes.op_within,
-    "OP_CHECKMULTISIGVERIFY": script_op_codes.op_checkmultisigverify,
     "OP_TOALTSTACK": script_op_codes.op_toaltstack,
     "OP_FROMALTSTACK": script_op_codes.op_fromaltstack,
     "OP_IFDUP": script_op_codes.op_ifdup,
@@ -656,9 +669,8 @@ OPERATIONS: Mapping[str, ScriptOp] = {
 }
 
 
-# the code each *VERIFY op code fails with, which is the trailing
-# OP_VERIFY's failure: every one of them runs as its two halves, and
-# Core names the failure after the whole
+# the code each *VERIFY op code fails with when the result of its plain
+# op code is false: Core names the failure after the whole
 VERIFY_CODES: Mapping[str, ScriptErrorCode] = {
     "OP_EQUALVERIFY": ScriptErrorCode.EQUALVERIFY,
     "OP_NUMEQUALVERIFY": ScriptErrorCode.NUMEQUALVERIFY,
@@ -676,15 +688,13 @@ def _run_ops(  # noqa: C901, PLR0912
     altstack: list[bytes],
     condition_stack: list[bool],
     prevout_value: int,
-    tx: Tx,
+    tx: Tx | None,
     i: int,
     flags: ScriptFlag,
     segwit: bool,
     precomputed: PrecomputedTxData | None,
-    op_code_stops: list[int],
     script_index_ref: list[int],
     hash_types: list[int] | None,
-    check_signatures: bool,
 ) -> None:
     """Run verify_script's opcode dispatch loop.
 
@@ -700,9 +710,6 @@ def _run_ops(  # noqa: C901, PLR0912
     op_code_num = 0
     codesep_offset = 0
     script_index = -1
-    # what the next OP_VERIFY fails with: VERIFY, unless a *VERIFY op code
-    # has just injected it
-    verify_code = ScriptErrorCode.VERIFY
     s = bytesio_from_binarydata(script_bytes)
     while True:
         script_index += 1
@@ -731,11 +738,15 @@ def _run_ops(  # noqa: C901, PLR0912
         if skip_execution and t not in EVALUATED_WHEN_UNEXECUTED:
             continue
         op = op_code_name(t)
+        # Core runs OP_EQUALVERIFY and its kind as one op code, which is
+        # the plain one followed by the test of its result
+        verify_code = VERIFY_CODES.get(op)
+        plain = op.removesuffix("VERIFY") if verify_code else op
 
-        if op == "OP_CHECKSIG":
-            pub_key = stack.pop()
-            signature = stack.pop()
-            result = check_signatures and op_checksig(
+        if plain == "OP_CHECKSIG":
+            _assert_operands(stack, 2, op)
+            signature, pub_key = stack[-2], stack[-1]
+            result = op_checksig(
                 signature,
                 [signature],
                 pub_key,
@@ -749,22 +760,27 @@ def _run_ops(  # noqa: C901, PLR0912
                 precomputed,
                 hash_types,
             )
-            assert_nullfail(flags, result, [signature], "OP_CHECKSIG")
+            assert_nullfail(flags, result, [signature], op)
+            del stack[-2:]
             stack.append(encode_num(int(result)))
 
-        elif op == "OP_CHECKMULTISIG":
+        elif plain == "OP_CHECKMULTISIG":
             # Core's order, and it is the order that makes the two
             # counts safe to build a `range` out of: each is bounded
-            # before anything is popped with it
-            pub_key_num = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+            # before anything is read with it. Nothing is popped until
+            # the signatures have been checked, so a refusal on the way
+            # leaves every argument on the stack
+            _assert_operands(stack, 1, op)
+            pub_key_num = _to_num(stack[-1], flags, _MAX_NUM_SIZE)
             assert_pub_key_num(pub_key_num)
             op_code_num = script_op_count(op_code_num, pub_key_num)
-            pub_keys = [stack.pop() for _ in range(pub_key_num)]
-            signature_num = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+            _assert_operands(stack, 2 + pub_key_num, op)
+            pub_keys = [stack[-2 - k] for k in range(pub_key_num)]
+            signature_num = _to_num(stack[-2 - pub_key_num], flags, _MAX_NUM_SIZE)
             assert_signature_num(signature_num, pub_key_num)
-            signatures = [stack.pop() for _ in range(signature_num)]
+            _assert_operands(stack, 3 + pub_key_num + signature_num, op)
+            signatures = [stack[-3 - pub_key_num - k] for k in range(signature_num)]
 
-            assert_nulldummy(stack.pop(), flags)  # dummy value
             signature_index = 0
             for pub_key_index in range(pub_key_num):
                 if signature_index == signature_num:
@@ -773,7 +789,7 @@ def _run_ops(  # noqa: C901, PLR0912
                     break
                 pub_key = pub_keys[pub_key_index]
                 signature = signatures[signature_index]
-                signature_index += check_signatures and op_checksig(
+                signature_index += op_checksig(
                     signature,
                     signatures,
                     pub_key,
@@ -788,11 +804,21 @@ def _run_ops(  # noqa: C901, PLR0912
                     hash_types,
                 )
 
-            if signature_index == signature_num:
-                stack.append(b"\x01")
-            else:
-                assert_nullfail(flags, False, signatures, "OP_CHECKMULTISIG")
-                stack.append(b"")
+            verified = signature_index == signature_num
+            # the keys and the counts go, then the signatures from the
+            # top, each tested for NULLFAIL as it goes, as Core's cleanup
+            # does: a refusal leaves the signatures above it popped
+            del stack[len(stack) - 2 - pub_key_num :]
+            for signature in signatures:
+                if not verified:
+                    assert_nullfail(flags, False, [signature], op)
+                stack.pop()
+            # Core asks NULLDUMMY of the dummy last, after the signatures
+            # and NULLFAIL
+            _assert_operands(stack, 1, op)
+            assert_nulldummy(stack[-1], flags)
+            stack.pop()
+            stack.append(b"\x01" if verified else b"")
 
         elif op == "OP_CHECKLOCKTIMEVERIFY":
             script_op_codes.op_checklocktimeverify(stack, tx, i, flags)
@@ -801,7 +827,7 @@ def _run_ops(  # noqa: C901, PLR0912
         elif op[3:].isdigit():
             stack.append(encode_num(int(op[3:])))
         elif op == "OP_CODESEPARATOR":
-            codesep_offset = op_code_stops[script_index]
+            codesep_offset = s.tell()
         elif op == "OP_IF":
             script_op_codes.op_if(stack, condition_stack, flags, segwit_version)
         elif op == "OP_NOTIF":
@@ -815,17 +841,14 @@ def _run_ops(  # noqa: C901, PLR0912
         elif "OP_NOP" in op:
             script_op_codes.op_nop(flags)
         elif op == "OP_VERIFY":
-            script_op_codes.op_verify(stack, altstack, flags, verify_code)
-            verify_code = ScriptErrorCode.VERIFY
-        elif op in OPERATIONS:
-            r = OPERATIONS[op](stack, altstack, flags)
-            if r:
-                verify_code = VERIFY_CODES.get(op, ScriptErrorCode.VERIFY)
-                script_index -= len(r)
-                op_code_num -= len(r)
-                s = bytesio_from_binarydata(serialize_script(r) + s.read())
+            script_op_codes.op_verify(stack, altstack, flags)
+        elif plain in OPERATIONS:
+            OPERATIONS[plain](stack, altstack, flags)
         else:
             script_op_codes.unknown_op_code(op)
+
+        if verify_code is not None:
+            script_op_codes.op_verify(stack, altstack, flags, verify_code)
 
 
 def verify_script(
@@ -843,11 +866,12 @@ def verify_script(
     """Execute the script over the caller's stack, as Core's EvalScript.
 
     The stack is mutated in place, which is how the callers chain
-    scripts: script_sig leaves what script_pub_key then reads. A refusal
-    inside the loop -- an op code's ScriptError, an IndexError out of a
-    pop on a short stack -- is re-raised as ScriptError carrying the
-    index of the failing command and the stack depth, the code of the
-    first and INVALID_STACK_OPERATION for the second. With `final` the
+    scripts: script_sig leaves what script_pub_key then reads, and a
+    refusal leaves it where `eval_script` says. A refusal inside the
+    loop -- an op code's ScriptError, an IndexError out of a pop on a
+    short stack -- is re-raised as ScriptError carrying the index of the
+    failing command and the stack depth, the code of the first and
+    INVALID_STACK_OPERATION for the second. With `final` the
     script must end on a non-empty stack with a true top element, which
     is the caller saying no script runs after this one, and Core's
     EVAL_FALSE where it does not.
@@ -867,55 +891,69 @@ def verify_script(
         final,
         precomputed,
         hash_types,
-        True,
     )
+
+
+def eval_script(
+    script_bytes: bytes,
+    stack: Sequence[bytes] = (),
+    flags: ScriptFlag = NO_FLAGS,
+) -> tuple[list[bytes], ScriptError | None]:
+    """Run a script as Core's `EvalScript` does: (stack, error).
+
+    The stack is where evaluation stops, and the error is why it stopped:
+    None where the script ran to its end. A failing script is an answer
+    and not an exception, since the stack is what a caller reads --
+    Core's `DataFromTransaction` keeps it and ignores the error.
+    `stack` is where the script starts, and is left as it is.
+
+    The signature checker is Core's `BaseSignatureChecker`: the encoding
+    rules the flags ask for apply to a signature and a public key, no
+    signature verifies, and no lock time or sequence is reached.
+
+    An op code reads its operands before it pops them, so a refusal
+    leaves them where Core's does: `<a> <b> OP_CHECKSIG` with a signature
+    `a` the flags refuse stops on `[a, b]`, OP_VERIFY and the
+    ``*VERIFY`` op codes stop on the false they test, and OP_PICK and
+    OP_ROLL stop with their index popped. `ScriptError.index` is the
+    position of the op code that refused, and `stack_depth` the depth of
+    the stack returned; an error outside the loop has neither.
+    """
+    assert_type(script_bytes, bytes, "script_bytes")
+    assert_type(stack, Sequence, "stack")
+    for element in stack:
+        assert_type(element, bytes, "stack element")
+    assert_type(flags, ScriptFlag, "flags")
+    result = list(stack)
+    try:
+        _eval_script(script_bytes, result, 0, None, 0, flags, False, False, None, None)
+    except ScriptError as error:
+        return result, error
+    return result, None
 
 
 def _eval_script(
     script_bytes: bytes,
     stack: list[bytes],
     prevout_value: int,
-    tx: Tx,
+    tx: Tx | None,
     i: int,
     flags: ScriptFlag,
     segwit: bool,
     final: bool,
     precomputed: PrecomputedTxData | None,
     hash_types: list[int] | None,
-    check_signatures: bool,
 ) -> None:
-    """`verify_script`'s body, with signature checks optional.
+    """`verify_script`'s body, with the transaction optional.
 
-    Without `check_signatures` every signature check fails, as with
-    Core's `BaseSignatureChecker`. `btclib.policy` asks for that under
-    `NO_FLAGS`, Core's `SCRIPT_VERIFY_NONE`: no encoding rule runs
-    before a check there and the lock-time op codes are NOPs, so a
-    failed check is all that checker changes.
+    Without a transaction the checker is Core's `BaseSignatureChecker`:
+    no signature verifies and no lock time is reached.
     """
     if len(script_bytes) > MAX_SCRIPT_SIZE:
         err_msg = f"script longer than {MAX_SCRIPT_SIZE} bytes: {len(script_bytes)}"
         raise ScriptError(err_msg, ScriptErrorCode.SCRIPT_SIZE)
 
     assert_type(segwit, bool, "segwit")
-    script = parse(script_bytes)
-
-    # Core's pbegincodehash, an offset into script_bytes and not an index
-    # into the parse: a script code is a slice of the script's own bytes,
-    # and measuring where to cut it by re-serializing the op codes before
-    # the cut moved it by whatever a non-minimal push there lost in the
-    # round trip (issue #176). s.tell() cannot answer either — a *VERIFY
-    # op code below rebuilds the stream out of the two it stands for, so
-    # after one of those the stream is no longer the script. The op code
-    # index survives that rebuild, which winds it back by the two it
-    # injects, and neither of those two is ever an OP_CODESEPARATOR, so
-    # the index is the right one wherever it is read below. Hence this:
-    # the byte one past each op code, walked once and only for a script
-    # that has a separator to cut at
-    op_code_stops = (
-        [stop for _, _, stop in op_code_spans(script_bytes)]
-        if "OP_CODESEPARATOR" in script
-        else []
-    )
 
     altstack: list[bytes] = []
     condition_stack: list[bool] = [True]
@@ -933,10 +971,8 @@ def _eval_script(
             flags,
             segwit,
             precomputed,
-            op_code_stops,
             script_index_ref,
             hash_types,
-            check_signatures,
         )
     except ScriptError as e:
         raise ScriptError(e.args[0], e.code, script_index_ref[0], len(stack)) from e

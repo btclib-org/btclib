@@ -254,10 +254,11 @@ def test_script_error_stack_underflow() -> None:
     assert exc_info.value.index == 0
     assert exc_info.value.stack_depth == 0
 
-    # OP_1, OP_EQUAL: the second pop is the one that underflows
-    with pytest.raises(ScriptError, match="stack underflow") as exc_info:
+    # OP_1, OP_EQUAL: Core checks the depth first, so the 1 stays
+    with pytest.raises(ScriptError, match="OP_EQUAL on a stack of less") as exc_info:
         verify_script(b"\x51\x87", [], 0, tx, 0, NO_FLAGS, False)
     assert exc_info.value.index == 1
+    assert exc_info.value.stack_depth == 1
 
 
 def test_unknown_op_code_is_not_a_key_error() -> None:
@@ -437,6 +438,47 @@ def test_fix_signature_asks_for_strict_der_as_one_mask() -> None:
     # in for Core's lax parser: one byte shorter, and the same signature
     sig = Sig.parse(signature[:-1], strict=False)
     assert fix_signature(signature, NO_FLAGS) == sig.serialize() + signature[-1:]
+
+
+@pytest.mark.parametrize(
+    "hash_type, defined",
+    [
+        (0x00, False),
+        (0x01, True),
+        (0x02, True),
+        (0x03, True),
+        (0x04, False),
+        (0x80, False),
+        (0x81, True),
+        (0x82, True),
+        (0x83, True),
+        (0x84, False),
+    ],
+)
+def test_fix_signature_strictenc_hash_type(hash_type: int, defined: bool) -> None:
+    """STRICTENC accepts 1, 2, 3 with or without ANYONECANPAY, and no other.
+
+    Core's IsDefinedHashtypeSignature masks off ANYONECANPAY and requires
+    1, 2 or 3, so 0x00 and 0x80 are SCRIPT_ERR_SIG_HASHTYPE: 0x00 is
+    BIP341's SIGHASH_DEFAULT, which only taproot has (issue #2510).
+    """
+    # the padding in r is taken out, so that STRICTENC reaches the hash type
+    der = Sig.parse(
+        bytes.fromhex(
+            "304402200060558477337b9022e70534f1fea71a318caf836812465a2509931c5e7c4987"
+            "022078ec32bd50ac9e03a349ba953dfd9fe1c8d2dd8bdb1d38ddca844d3d5c78c118"
+        ),
+        strict=False,
+    ).serialize()
+    signature = der + bytes([hash_type])
+    # without the flag any byte goes on to verification
+    assert fix_signature(signature, NO_FLAGS)[-1] == hash_type
+    if defined:
+        assert fix_signature(signature, ScriptFlag.STRICTENC)[-1] == hash_type
+    else:
+        with pytest.raises(ScriptError, match="invalid sighash type") as exc_info:
+            fix_signature(signature, ScriptFlag.STRICTENC)
+        assert exc_info.value.code is ScriptErrorCode.SIG_HASHTYPE
 
 
 def test_fix_signature_high_s() -> None:
@@ -1509,6 +1551,63 @@ def test_a_refusal_without_a_code_is_core_s_unknown_error(
     assert exc_info.value.index == 1
 
 
+def test_a_tapscript_numequalverify_tests_the_numbers() -> None:
+    """Equal numbers pass OP_NUMEQUALVERIFY."""
+    prevouts, tx = taproot_script_spend(
+        ["OP_1", "OP_1", "OP_NUMEQUALVERIFY", "OP_1"], 0, 1
+    )
+    verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+
+@pytest.mark.parametrize(
+    "script, code, index",
+    [
+        # the first half fails: the index is the op code's own
+        (["OP_EQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 0),
+        (["OP_1", "OP_EQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 1),
+        (["OP_NUMEQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 0),
+        (["OP_1", "OP_NUMEQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 1),
+        (["OP_CHECKSIGVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 0),
+        (["OP_1", "OP_CHECKSIGVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 1),
+        # the second half fails: the same index, the *VERIFY code
+        (["OP_1", "OP_2", "OP_EQUALVERIFY"], ScriptErrorCode.EQUALVERIFY, 2),
+        (["OP_1", "OP_2", "OP_NUMEQUALVERIFY"], ScriptErrorCode.NUMEQUALVERIFY, 2),
+        (
+            ["OP_0", "11" * 32, "OP_CHECKSIGVERIFY"],
+            ScriptErrorCode.CHECKSIGVERIFY,
+            2,
+        ),
+        # the check itself fails
+        (["22" * 64, "11" * 32, "OP_CHECKSIGVERIFY"], ScriptErrorCode.SCHNORR_SIG, 2),
+        # OP_CHECKSIGADD is one op code too
+        (
+            ["OP_1", "OP_1", "OP_CHECKSIGADD"],
+            ScriptErrorCode.INVALID_STACK_OPERATION,
+            2,
+        ),
+        (
+            ["22" * 64, "OP_0", "11" * 32, "OP_CHECKSIGADD"],
+            ScriptErrorCode.SCHNORR_SIG,
+            3,
+        ),
+        (
+            ["OP_1", "22" * 64, "OP_0", "11" * 32, "OP_CHECKSIGADD"],
+            ScriptErrorCode.SCHNORR_SIG,
+            4,
+        ),
+    ],
+)
+def test_a_tapscript_op_code_fails_at_its_own_index(
+    script: list[str], code: ScriptErrorCode, index: int
+) -> None:
+    """The *VERIFY op codes and OP_CHECKSIGADD fail at their own index."""
+    prevouts, tx = taproot_script_spend(script, 0, 1)
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+    assert exc_info.value.code is code
+    assert exc_info.value.index == index
+
+
 def test_a_strict_der_signature_that_cannot_verify_is_a_false_check() -> None:
     """Strict DER is all SIG_DER asks, as Core's IsValidSignatureEncoding.
 
@@ -1749,3 +1848,143 @@ def test_an_unexecuted_invalid_op_code_spends_a_tapscript() -> None:
     """
     prevouts, tx = _raw_tapscript_spend(b"\x00\x63\xff\x68\x51", [])
     verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+
+_OP_BYTE = {name: code for code, name in OP_CODE_NAME_FROM_INT.items()}
+
+# the two-operand numeric op codes, then OP_WITHIN, OP_PICK and OP_ROLL
+_NUM_OPERAND_OPS = [
+    (op, 2)
+    for op in [
+        "OP_ADD",
+        "OP_SUB",
+        "OP_BOOLAND",
+        "OP_BOOLOR",
+        "OP_NUMEQUAL",
+        "OP_NUMEQUALVERIFY",
+        "OP_NUMNOTEQUAL",
+        "OP_LESSTHAN",
+        "OP_GREATERTHAN",
+        "OP_LESSTHANOREQUAL",
+        "OP_GREATERTHANOREQUAL",
+        "OP_MIN",
+        "OP_MAX",
+    ]
+] + [("OP_WITHIN", 3), ("OP_PICK", 2), ("OP_ROLL", 2)]
+
+# the operand Core refuses as a number: five bytes, or non-minimal
+_BAD_NUMS = [(bytes(5), NO_FLAGS), (b"\x00", ScriptFlag.MINIMALDATA)]
+
+
+@pytest.mark.parametrize("bad_num, flags", _BAD_NUMS, ids=["long", "non-minimal"])
+@pytest.mark.parametrize("op, depth", _NUM_OPERAND_OPS)
+def test_number_operand_op_codes_size_the_stack_first(
+    op: str, depth: int, bad_num: bytes, flags: ScriptFlag
+) -> None:
+    """A stack too short for the op code is refused before any operand is read.
+
+    Core's EvalScript tests `stack.size() < 2` (`< 3` for OP_WITHIN)
+    before building a CScriptNum, so a bad number on top of a short
+    stack is INVALID_STACK_OPERATION; on a deep enough stack it is
+    SCRIPTNUM.
+    """
+    tx = Tx(check_validity=False)
+    expected = {
+        False: ScriptErrorCode.INVALID_STACK_OPERATION,
+        True: ScriptErrorCode.SCRIPTNUM,
+    }
+    for deep_enough in (False, True):
+        stack = [b""] * (depth - (0 if deep_enough else 1) - 1) + [bad_num]
+        with pytest.raises(ScriptError) as exc_info:
+            verify_script(bytes([_OP_BYTE[op]]), stack, 0, tx, 0, flags, False)
+        assert exc_info.value.code is expected[deep_enough]
+
+
+_G_HEX = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+_BAD_DER_SIG = bytes.fromhex("300602010102010101")
+
+
+@pytest.mark.parametrize(
+    "stack, script_bytes, flags, code",
+    [
+        # 1 1 1 1 1 CHECKMULTISIG: the signature loop meets the bad
+        # encoding of the "signature" 1 before NULLDUMMY is asked
+        (
+            [b"\x01"] * 5,
+            b"\xae",
+            ScriptFlag.DERSIG | ScriptFlag.NULLDUMMY,
+            "SIG_DER",
+        ),
+        # a signature that fails, then a non-empty dummy
+        (
+            [b"\x01", _BAD_DER_SIG],
+            b"\x51\x21" + bytes.fromhex(_G_HEX) + b"\x51\xae",
+            ScriptFlag.DERSIG | ScriptFlag.NULLDUMMY | ScriptFlag.NULLFAIL,
+            "SIG_NULLFAIL",
+        ),
+        # nothing else wrong: the dummy is refused
+        (
+            [b"\x01", b"", b""],
+            b"\xae",
+            ScriptFlag.NULLDUMMY,
+            "SIG_NULLDUMMY",
+        ),
+    ],
+    ids=["encoding", "nullfail", "dummy alone"],
+)
+def test_nulldummy_is_asked_after_the_signatures(
+    stack: list[bytes], script_bytes: bytes, flags: ScriptFlag, code: str
+) -> None:
+    """OP_CHECKMULTISIG asks NULLDUMMY last, as Core's EvalScript does."""
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), b"", 1)
+    tx = Tx(1, 0, [tx_in], [TxOut(0, ScriptPubKey(""))], check_validity=False)
+    with pytest.raises(ScriptError) as exc_info:
+        verify_script(script_bytes, stack, 0, tx, 0, flags, False)
+    assert exc_info.value.code is ScriptErrorCode[code]
+
+
+_X_ONLY_G = bytes.fromhex(_G_HEX)[1:]
+
+
+@pytest.mark.parametrize(
+    "sig, num, pub_key, code",
+    [
+        (b"\x11" * 64, bytes(5), _X_ONLY_G, "SCRIPTNUM"),
+        (b"", bytes(5), b"", "SCRIPTNUM"),
+        (b"\x11" * 64, bytes(5), b"", "SCRIPTNUM"),
+        (b"\x11" * 64, bytes(5), b"\x02" * 33, "SCRIPTNUM"),
+        (b"\x11" * 64, b"", _X_ONLY_G, "SCHNORR_SIG"),
+        (b"", b"", b"", "TAPSCRIPT_EMPTY_PUBKEY"),
+        (b"\x11" * 64, b"", b"\x02" * 33, "DISCOURAGE_UPGRADABLE_PUBKEYTYPE"),
+    ],
+    ids=[
+        "number before signature",
+        "number before empty key, empty signature",
+        "number before empty key",
+        "number before upgradable key",
+        "signature",
+        "empty key",
+        "upgradable key",
+    ],
+)
+def test_checksigadd_reads_its_number_first(
+    sig: bytes, num: bytes, pub_key: bytes, code: str
+) -> None:
+    """The number of OP_CHECKSIGADD is refused before the signature and key.
+
+    Core's EvalScript builds `CScriptNum num(stacktop(-2))` before
+    calling EvalChecksig.
+    """
+    prevouts, tx = _raw_tapscript_spend(b"\xba", [sig, num, pub_key])
+    flags = ALL_FLAGS | ScriptFlag.DISCOURAGE_UPGRADABLE_PUBKEYTYPE
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(prevouts, tx, 0, flags)
+    assert exc_info.value.code is ScriptErrorCode[code]
+
+
+def test_a_tapscript_op_code_on_an_empty_stack_is_refused() -> None:
+    """OP_DROP with nothing to drop is INVALID_STACK_OPERATION, as in Core."""
+    prevouts, tx = _raw_tapscript_spend(b"\x75", [])
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+    assert exc_info.value.code is ScriptErrorCode.INVALID_STACK_OPERATION

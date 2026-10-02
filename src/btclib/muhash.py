@@ -61,21 +61,21 @@ overflows into the nonce word Core's own `++j12; if (!j12) ++j13;`
 carries into, six being nowhere near 2**32.
 
 [ISS #1066](https://github.com/btclib-org/btclib/issues/1066) put
-`chacha20` on tf2's side of the line: btclib takes a cipher from its
-caller rather than shipping one, because a hand-rolled cipher would be
-the only implementation, on by default, on every installation, on a
-network path. This module is not an exception to that rule -- it is an
-instance of it read correctly. ChaCha20 enters here as a private
-function computing one 3072-bit pseudorandom integer per element hashed;
-nothing is encrypted with it, nothing decodes through it, no byte of its
-output travels anywhere, and no caller can reach it: `__all__` names
-`MuHash3072` and nothing else, so the tree offers no cipher, which is
-what ISS #1066 protects against. `_chacha20_keystream` below carries a
-`nonce_words`/`counter` pair for exactly one reason -- so that
-`tests/muhash_test.py` can drive it against RFC 7539/8439's own vectors,
-at a nonce and counter `Seek` sets and `_num3072` never uses -- and
-stays private regardless: a caller-reachable knob over an
-otherwise-fixed keystream is still a keystream a caller can reach.
+`chacha20` on tf2's side of the line: btclib ships no hand-written
+cipher, because it would be the only implementation, on by default, on
+every installation, on a network path. This module is not an exception
+to that rule -- it is an instance of it read correctly. ChaCha20 enters
+here as a private function computing one 3072-bit pseudorandom integer
+per element hashed; nothing is encrypted with it, nothing decodes
+through it, no byte of its output travels anywhere, and no caller can
+reach it: `__all__` names `MuHash3072` and nothing else, so this module
+offers no cipher, which is what ISS #1066 protects against.
+`_chacha20_keystream` below carries a `nonce_words`/`counter` pair for
+exactly one reason -- so that `tests/muhash_test.py` can drive it
+against RFC 7539/8439's own vectors, at a nonce and counter `Seek` sets
+and `_num3072` never uses -- and stays private regardless: a
+caller-reachable knob over an otherwise-fixed keystream is still a
+keystream a caller can reach.
 """
 
 from __future__ import annotations

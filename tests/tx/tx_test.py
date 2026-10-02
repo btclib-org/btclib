@@ -1107,10 +1107,21 @@ def test_a_declared_input_or_output_count_is_bounded_before_allocation() -> None
         Tx.parse(version + var_int.serialize(MAX_TX_IN_COUNT + 1))
 
     # the output count is read after the inputs, so an empty input list is
-    # what gets the parser there
+    # what gets the parser there, and `parse` reads a flag where it reads
+    # that count
+    with pytest.raises(BTClibValueError, match="var_int too big"):
+        Tx.parse_without_witness(
+            version + var_int.serialize(0) + var_int.serialize(MAX_TX_OUT_COUNT + 1)
+        )
+
+    # `parse` reaches the same bound after an input
+    one_input = b"\x11" * 32 + bytes(4) + var_int.serialize(0) + b"\xff" * 4
     with pytest.raises(BTClibValueError, match="var_int too big"):
         Tx.parse(
-            version + var_int.serialize(0) + var_int.serialize(MAX_TX_OUT_COUNT + 1)
+            version
+            + var_int.serialize(1)
+            + one_input
+            + var_int.serialize(MAX_TX_OUT_COUNT + 1)
         )
 
     # and the bound is not off by one: the count itself is not refused,
@@ -1226,3 +1237,103 @@ def test_a_marker_over_one_non_empty_witness_is_accepted() -> None:
     parsed = Tx.parse(wire)
     assert parsed == tx
     assert parsed.serialize(include_witness=True) == wire
+
+
+# version 1, no input, one output of value 0 and an empty script, lock
+# time 0: with `iswitness` unset or false, Bitcoin Core v31.1's
+# decoderawtransaction answers it, and with `iswitness` true it does not.
+# The octets: version, `00 01`, the output's 8-byte value and empty
+# script, the lock time
+_NO_INPUT_ONE_OUTPUT = bytes.fromhex("01000000000100000000000000000000000000")
+
+
+def test_without_witness_reads_the_marker_octets_as_counts() -> None:
+    """`00 01` after the version are two counts, as in `TX_NO_WITNESS`."""
+    # the marker over no witness: `parse` refuses it, as Core's extended
+    # reading does
+    with pytest.raises(BTClibValueError, match="superfluous witness record"):
+        Tx.parse(_NO_INPUT_ONE_OUTPUT, check_validity=False)
+
+    tx = Tx.parse_without_witness(_NO_INPUT_ONE_OUTPUT, check_validity=False)
+    assert tx == Tx(1, 0, [], [TxOut(0, ScriptPubKey(b""))], check_validity=False)
+    assert not tx.is_segwit
+    assert tx.serialize(include_witness=False, check_validity=False) == (
+        _NO_INPUT_ONE_OUTPUT
+    )
+    assert tx.size == len(_NO_INPUT_ONE_OUTPUT)
+
+    # check_validity runs assert_valid, which wants an input
+    with pytest.raises(BTClibValueError, match="Missing inputs"):
+        Tx.parse_without_witness(_NO_INPUT_ONE_OUTPUT)
+
+
+def test_without_witness_reads_a_legacy_transaction_as_parse_does() -> None:
+    """Where there is no marker the two readings are one."""
+    tx = Tx(
+        1,
+        0,
+        [TxIn(OutPoint(b"\x11" * 32, 0), b"", 0xFFFFFFFF)],
+        [TxOut(1, ScriptPubKey(b"\x51"))],
+    )
+    wire = tx.serialize(include_witness=False)
+    assert Tx.parse_without_witness(wire) == tx
+    assert Tx.parse_without_witness(wire) == Tx.parse(wire)
+    assert Tx.parse_without_witness(wire.hex()) == tx
+
+
+def test_without_witness_does_not_read_a_witness_transaction() -> None:
+    """The marker, flag and witnesses are bytes it has no layout for."""
+    tx = Tx(
+        1,
+        0,
+        [TxIn(OutPoint(b"\x22" * 32, 1), b"", 0xFFFFFFFF, Witness([b"\x03" * 64]))],
+        [TxOut(1, ScriptPubKey(b"\x51"))],
+    )
+    wire = tx.serialize(include_witness=True)
+    assert Tx.parse(wire) == tx
+    # no input and one output (the flag), read from the bytes of the
+    # input: what is left over is then in the way
+    with pytest.raises(BTClibValueError, match="bytes after the transaction"):
+        Tx.parse_without_witness(wire, check_validity=False)
+
+
+def test_without_witness_refuses_a_truncation() -> None:
+    """Every prefix of what it reads is refused, as for `parse`."""
+    for size in range(len(_NO_INPUT_ONE_OUTPUT)):
+        with pytest.raises(BTClibValueError):
+            Tx.parse_without_witness(_NO_INPUT_ONE_OUTPUT[:size], check_validity=False)
+
+
+@pytest.mark.parametrize("flag", [2, 3, 0x7F, 0xFC, 0xFD, 0xFF])
+def test_a_flag_above_1_after_no_input_is_refused(flag: int) -> None:
+    """Core's "Unknown transaction optional data": the flag is no output count.
+
+    `00 02` could also read as no input and two outputs, which is what
+    `parse_without_witness` makes of it. Core's extended reading, which
+    `iswitness=true` asks bitcoind for, refuses every such flag, whatever
+    follows it.
+    """
+    two_outputs = bytes.fromhex("010000000002" + "00" * 18 + "00000000")
+    raw = two_outputs[:5] + bytes([flag]) + two_outputs[6:]
+    with pytest.raises(BTClibValueError, match="unknown transaction optional data"):
+        Tx.parse(raw, check_validity=False)
+    with pytest.raises(BTClibValueError, match="unknown transaction optional data"):
+        Tx.parse(raw)
+
+
+def test_no_input_and_two_outputs_is_read_without_the_marker() -> None:
+    """The reading `parse` refuses is the one `parse_without_witness` makes."""
+    raw = bytes.fromhex("010000000002" + "00" * 18 + "00000000")
+    tx = Tx.parse_without_witness(raw, check_validity=False)
+    assert tx.vin == []
+    assert len(tx.vout) == 2
+    assert tx.serialize(include_witness=False, check_validity=False) == raw
+
+
+def test_a_zero_flag_after_no_input_is_no_input_and_no_output() -> None:
+    """`00 00` is Core's flag 0, and both readings of it are one."""
+    raw = bytes.fromhex("01000000000000000000")
+    assert Tx.parse(raw, check_validity=False) == Tx.parse_without_witness(
+        raw, check_validity=False
+    )
+    assert Tx.parse(raw, check_validity=False) == Tx(1, 0, check_validity=False)

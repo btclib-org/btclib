@@ -100,6 +100,11 @@ gui path that misses it, qml signing) and
 https://github.com/spesmilo/electrum/pull/10788 (never strip,
 matching Core and btclib).
 
+`verify` is the Electrum and BIP137 scheme, and `message_verify` is
+Bitcoin Core's: a p2pkh address alone, any first byte, and a signature
+of the wrong length or one that recovers no key is an answer, not an
+exception.
+
 https://github.com/bitcoin/bitcoin/pull/524
 
 https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki
@@ -114,6 +119,7 @@ import base64
 import secrets
 import string
 from dataclasses import dataclass
+from enum import Enum
 from hashlib import sha256
 
 from btclib_ecc.curves import bytes_from_prv_key_int, secp256k1
@@ -123,6 +129,7 @@ from btclib_ecc.exceptions import BTClibEccRuntimeError
 from btclib.alias import BinaryData, Octets, String
 from btclib.b32 import is_segwit_prefixed, p2wpkh, witness_from_address
 from btclib.b58 import h160_from_address, p2pkh, p2wpkh_p2sh, wif_from_prv_key
+from btclib.base58 import decode as b58decode
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160, magic_message
 from btclib.key import PrvKeyData, PubKeyData
@@ -136,9 +143,11 @@ from btclib.utils import (
 )
 
 __all__ = [
+    "MessageVerificationResult",
     "Sig",
     "assert_as_valid",
     "gen_keys",
+    "message_verify",
     "sign",
     "verify",
 ]
@@ -478,6 +487,8 @@ def _assert_structurally_valid_(addr: String, sig: Sig | String) -> Sig:
 def verify(msg: Octets, addr: String, sig: Sig | String) -> bool:
     """Verify address-based compact signature for the provided message.
 
+    The Electrum and BIP137 scheme; `message_verify` is Bitcoin Core's.
+
     Raises where the address or the signature is structurally invalid --
     no address at all, or octets no compact signature has -- and answers
     False for a well-formed pair that is merely not authentic. See
@@ -496,3 +507,150 @@ def verify(msg: Octets, addr: String, sig: Sig | String) -> bool:
         return False
 
     return True
+
+
+class MessageVerificationResult(Enum):
+    """The answer of Bitcoin Core's `MessageVerify`, member for member.
+
+    Core's `verifymessage` raises for the first three errors and answers
+    false for the last two.
+    """
+
+    OK = "ok"
+    ERR_INVALID_ADDRESS = "invalid address"
+    ERR_ADDRESS_NO_KEY = "address does not refer to key"
+    ERR_MALFORMED_SIGNATURE = "malformed base64 encoding"
+    ERR_PUBKEY_NOT_RECOVERED = "public key not recovered"
+    ERR_NOT_SIGNED = "message not signed with the address key"
+
+
+def _core_text(value: String, what: str) -> str:
+    """Return the text of a String; a byte outside ASCII stays a character.
+
+    Core's strings are bytes. One outside ASCII is in no alphabet, so it
+    is refused later as any other character is, rather than here.
+    """
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return bytes(value).decode("latin-1")
+    return str_from_string(value, what)
+
+
+def _is_core_segwit(addr: str, hrp: str) -> bool:
+    """Answer whether the address is a segwit one of the hrp, as Core reads it.
+
+    Core's bech32 reader skips no white space, where `witness_from_address`
+    trims it.
+    """
+    if addr != addr.strip(string.whitespace):
+        return False
+    try:
+        _, _, found = witness_from_address(addr)
+    except BTClibValueError:
+        return False
+    return network_from_name(found).hrp == hrp
+
+
+def _core_key_hash(addr: str, network: str) -> bytes | MessageVerificationResult:
+    """Return the key hash of a p2pkh address, as `DecodeDestination` reads it.
+
+    Anything else is the refusal Core gives it: an address of no kind is
+    invalid, a p2sh or a segwit one does not refer to a key. Core's base58
+    reader skips ASCII white space around the address, and the first
+    characters tell which of the two readers reads it.
+    """
+    net = network_from_name(network)
+    if addr[: len(net.hrp)].lower() == net.hrp:
+        if _is_core_segwit(addr, net.hrp):
+            return MessageVerificationResult.ERR_ADDRESS_NO_KEY
+        return MessageVerificationResult.ERR_INVALID_ADDRESS
+
+    try:
+        payload = b58decode(addr.strip(string.whitespace), 21)
+    except BTClibValueError:
+        return MessageVerificationResult.ERR_INVALID_ADDRESS
+    if payload[:1] == net.p2pkh:
+        return payload[1:]
+    if payload[:1] == net.p2sh:
+        return MessageVerificationResult.ERR_ADDRESS_NO_KEY
+    return MessageVerificationResult.ERR_INVALID_ADDRESS
+
+
+def _core_decode_base64(text: str) -> bytes | None:
+    """Return the bytes of a base64 text as Core's `DecodeBase64` reads it.
+
+    That reader takes the canonical spelling and nothing else: no white
+    space, nothing outside the alphabet, padding to a multiple of four,
+    and no bit left over that is not zero. The canonical spelling is what
+    `b64encode` gives back, which is also what settles the padding the
+    interpreters read differently (see `Sig.b64decode`).
+    """
+    try:
+        data = text.encode("ascii")
+        decoded = base64.b64decode(data, validate=True)
+    except ValueError:  # binascii.Error and UnicodeEncodeError
+        return None
+    return decoded if base64.b64encode(decoded) == data else None
+
+
+def message_verify(
+    msg: Octets,
+    addr: String,
+    sig: String,
+    *,
+    network: str = "mainnet",
+) -> MessageVerificationResult:
+    """Verify a message signature exactly as Bitcoin Core's `MessageVerify`.
+
+    Core's rules, which are not those of `verify` (Electrum and BIP137):
+
+    - the address is a p2pkh one of the network, and no other kind
+    - the signature is base64 in its canonical spelling, white space
+      included as a refusal
+    - any first byte is read: `(byte - 27) & 3` is the recovery id and
+      `(byte - 27) & 4` says the key is compressed
+    - a signature of another length than 65 bytes, a scalar out of range
+      and a recovery that finds no key recover no key
+
+    The refusals are values and not exceptions, so that a caller answering
+    as Core's `verifymessage` maps each member as it likes. A value it
+    cannot read as what it declares raises -- a wrong type, an unknown
+    network, a message that is not octets: that is the caller's mistake,
+    not an answer.
+
+    Read at bitcoin/bitcoin@9be056a8a7 (v31.1): `MessageVerify` in
+    `src/common/signmessage.cpp`, `DecodeBase64` in
+    `src/util/strencodings.cpp`, `CPubKey::RecoverCompact` in
+    `src/pubkey.cpp`.
+    """
+    # the types first, whatever the answer: the caller's own mistake
+    magic_msg = magic_message(msg)
+    str_addr = _core_text(addr, "address")
+    str_sig = _core_text(sig, "signature")
+
+    key_hash = _core_key_hash(str_addr, network)
+    if isinstance(key_hash, MessageVerificationResult):
+        return key_hash
+
+    sig_bytes = _core_decode_base64(str_sig)
+    if sig_bytes is None:
+        return MessageVerificationResult.ERR_MALFORMED_SIGNATURE
+    if len(sig_bytes) != _REQUIRED_LENGTH:
+        return MessageVerificationResult.ERR_PUBKEY_NOT_RECOVERED
+
+    flag = sig_bytes[0] - 27
+    dsa_sig = dsa.Sig(
+        int.from_bytes(sig_bytes[1:33], "big"),
+        int.from_bytes(sig_bytes[33:], "big"),
+        secp256k1,
+        check_validity=False,
+    )
+    try:
+        pub_key = dsa.recover_sec(
+            flag & 0b11, magic_msg, dsa_sig, sha256, compressed=bool(flag & 0b100)
+        )
+    except (ValueError, BTClibRuntimeError, BTClibEccRuntimeError):
+        return MessageVerificationResult.ERR_PUBKEY_NOT_RECOVERED
+
+    if hash160(pub_key) != key_hash:
+        return MessageVerificationResult.ERR_NOT_SIGNED
+    return MessageVerificationResult.OK

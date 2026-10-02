@@ -37,6 +37,30 @@ full year, short month, short day (YYYY-M-D)
   parent_height, consensus)`, from `btclib.block` or
   `btclib.block.header_context`, after the median-time-past check, which is
   Core's order. Without the call the bound is not checked.
+- **`Tx.parse` refuses a transaction with no input and two or more outputs**
+  (closes #2503). It raises `BTClibValueError: unknown transaction optional
+  data` where it returned the transaction, which Core's extended reading
+  refuses. Act on it if you parse such a transaction, a PSBT's unsigned one
+  (Core reads it as `TX_NO_WITNESS`): call
+  `Tx.parse_without_witness(data, check_validity=False)`.
+- **`op_checkmultisigverify` is gone, and `btclib.script.engine.script.OPERATIONS`
+  has no `OP_CHECKSIGVERIFY`, `OP_EQUALVERIFY`, `OP_NUMEQUALVERIFY` or
+  `OP_CHECKMULTISIGVERIFY`** (closes #2489). The loop runs the plain op code,
+  then tests its result, so those four are no longer expansions to look up.
+  `op_checkmultisigverify` was in `script_op_codes` at v2023.7.12; the table
+  came later. Act on it if you call either: run the plain op code and then
+  `op_verify`, which now leaves a false element on the stack.
+- **`op_equalverify`, `op_numequalverify` and `op_checksigverify` are gone from
+  `script_op_codes`, and `btclib.script.engine.tapscript.OPERATIONS` has no
+  `OP_EQUALVERIFY`, `OP_NUMEQUALVERIFY` or `OP_CHECKSIGVERIFY`** (closes #2509).
+  The tapscript loop runs the plain op code, then tests its result, as the
+  legacy loop does. Act on it if you call any of them: run `op_equal`,
+  `op_numequal` or the signature check, then `op_verify`.
+- **`btclib.script.engine.tapscript.op_checksigadd` takes `op_checksig`'s
+  arguments and returns the sigops budget, and `ScriptOp` returns `None`**
+  (closes #2513). It was an expansion taking `(stack, altstack, flags)` and
+  returning `["OP_CHECKSIG", "OP_ADD"]`. Act on it if you call it: pass what
+  `op_checksig` takes, and use the budget it returns.
 
 ## v2026.10.2
 
