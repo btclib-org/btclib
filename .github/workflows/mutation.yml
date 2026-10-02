@@ -79,6 +79,9 @@ on:
           - block
           - shared
           - script
+          - electrum
+          - p2p-connection
+          - p2p-relay
 
 # least privilege for the GITHUB_TOKEN: everything running in a job can
 # read it, and nothing here writes. In particular no issues: write --
@@ -178,6 +181,17 @@ jobs:
       # is what this profile is for. If it dies here again the budget was
       # the only thing holding it, and that is a mechanism still to find
       # rather than one this file should hide.
+      #
+      # `electrum`: electrum_key.toml's session completes in minutes on
+      # the machine that measured it, and 15 is that with a slower
+      # runner's margin.
+      #
+      # `p2p-connection` and `p2p-relay`: `src/btclib/p2p` is two jobs
+      # because one session over it takes about two hours on the machine
+      # that measured it, longer than one runner is worth. The budgets
+      # are sized from a twenty-minute sample of the package, not from a
+      # finished session, so the first scheduled run says whether either
+      # completes, and one that is cut reports a sample.
       profiles: >-
         [{"profile": "the consensus code", "slug": "consensus", "ceiling": 200, "sessions":
         "sig_hash.toml 90m\nengine.toml 90m"},
@@ -192,7 +206,13 @@ jobs:
         {"profile": "shared helpers and numeric bounds", "slug": "shared", "ceiling": 65,
         "sessions": "utils.toml 30m\nnumeric.toml 25m"},
         {"profile": "the script encodings", "slug": "script", "ceiling": 60, "sessions":
-        "script.toml 45m"}]
+        "script.toml 45m"},
+        {"profile": "the Electrum replies and the keys", "slug": "electrum", "ceiling": 30,
+        "sessions": "electrum_key.toml 15m"},
+        {"profile": "the peer-to-peer connection", "slug": "p2p-connection", "ceiling": 110,
+        "sessions": "p2p_connection.toml 90m"},
+        {"profile": "the peer-to-peer relay", "slug": "p2p-relay", "ceiling": 95,
+        "sessions": "p2p_relay.toml 75m"}]
       # the dropdown above, forwarded. A schedule has no `inputs` at all,
       # so this arrives at the callee as an empty string, which its own
       # `SELECTED` expression reads as every profile rather than as none

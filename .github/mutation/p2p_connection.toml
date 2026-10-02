@@ -1,0 +1,50 @@
+# The peer-to-peer messages that open and keep a connection, mutated: the
+# message envelope, the handshake, the feature negotiation, keepalive and
+# reject, and the address announcements. These are the first octets a
+# peer btclib has no reason to trust can send, and 100% statement
+# coverage says only that each bound and refusal ran once, not that a
+# bound moved by one is noticed (issue #2443).
+#
+# p2p_relay.toml holds the rest of `src/btclib/p2p`: the whole package in
+# one session does not fit one budget, so it is two.
+
+[cosmic-ray]
+module-path = [
+    "src/btclib/p2p/__init__.py",
+    "src/btclib/p2p/message.py",
+    "src/btclib/p2p/payload.py",
+    "src/btclib/p2p/limits.py",
+    "src/btclib/p2p/magic.py",
+    "src/btclib/p2p/data.py",
+    "src/btclib/p2p/handshake.py",
+    "src/btclib/p2p/keepalive.py",
+    "src/btclib/p2p/negotiation.py",
+    "src/btclib/p2p/reject.py",
+    "src/btclib/p2p/address.py",
+    "src/btclib/p2p/addrv2.py",
+]
+
+# tests/p2p, then the three files that make this a parser profile for the
+# reasons parsers.toml gives, and -n0 and -p no:randomly for the reasons it
+# gives too
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/p2p tests/parse_contract_test.py tests/integer_policy_test.py \
+  tests/check_validity_test.py"""
+
+timeout = 300
+
+excluded-modules = []
+
+# `BitOr` is not excluded here, unlike parsers.toml: most `|` in these
+# modules are the annotations it argues about, whose mutants survive for
+# the reason it gives, but
+#
+#   grep -n ' | ' src/btclib/p2p/*.py
+#
+# also finds `IPAddress = IPv4Address | IPv6Address | str | bytes` in
+# address.py and the flag unions in inventory.py, and a filter by
+# operator would skip those with the rest.
+
+# one mutant at a time, in this working tree: see sig_hash.toml
+[cosmic-ray.distributor]
+name = "local"

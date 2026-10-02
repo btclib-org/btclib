@@ -1,0 +1,33 @@
+# The Electrum reply decoder and the key parsers, mutated. A reply comes
+# off a socket this library never opens and `electrum.py` decides whether
+# it answers the request it is matched to; `key.py` decides whether octets
+# are a SEC public key or a private scalar. Both refuse input from a party
+# btclib has no reason to trust, and 100% statement coverage says only
+# that each refusal ran once, not that a wrong prefix, size or id is
+# refused (issue #2443).
+
+[cosmic-ray]
+module-path = [
+    "src/btclib/electrum.py",
+    "src/btclib/key.py",
+]
+
+# each module's own tests, for the reasons parsers.toml gives for -n0 and
+# -p no:randomly
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/electrum_test.py tests/key_test.py tests/key_io_test.py"""
+
+timeout = 300
+
+excluded-modules = []
+
+# No operator is excluded. parsers.toml excludes `BitOr` for the
+# annotations it holds, and
+#
+#   grep -n ' | ' src/btclib/electrum.py src/btclib/key.py
+#
+# finds none here.
+
+# one mutant at a time, in this working tree: see sig_hash.toml
+[cosmic-ray.distributor]
+name = "local"
