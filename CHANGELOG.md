@@ -126,6 +126,12 @@ publish jobs wait for approval (issue btclib-org/.github#1506).
 SECURITY.md and RELEASING.md said a release signed by `reusable-attest.yml`
 took no `--source-ref`; it takes the tag (closes #2447).
 
+### CONTRIBUTING.md lists the jobs that do not install with `--locked`
+
+CONTRIBUTING.md and `ASSURANCE_CASE.md` no longer say that every job passes
+`--locked`: they list the exceptions, none of which installs the project's
+dependencies unpinned in the job that builds the published files (closes #2440).
+
 ## v2026.9.30
 
 ### The libsecp256k1 symbol pin is upstream's tip again
