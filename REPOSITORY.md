@@ -573,8 +573,9 @@ The workflow-level `permissions: contents: read` is belt and braces; keep
 it, it is what makes the intent readable in the file.
 
 Two elevations on one job is the exception to that shape, and the reason
-for the pair sits beside it. `release.yml`'s `attest` holds `id-token:
-write` with `attestations: write`: OIDC for the short-lived Sigstore
+for the pair sits beside it. `release.yml`'s `build` holds `id-token:
+write` with `attestations: write` for the `attest` job of
+`reusable-build.yml`, which it calls: OIDC for the short-lived Sigstore
 signing certificate, and the write that persists the attestation against
 the repository. `scorecard.yml`'s `analysis` holds `id-token: write` with
 `security-events: write`: the transparency-log entry `publish_results`

@@ -70,21 +70,26 @@ them:
 
 ```shell
 repo=btclib-org/btclib
-signer=btclib-org/.github/.github/workflows/reusable-attest.yml
+workflows=btclib-org/.github/.github/workflows
+signer=$workflows/reusable-build.yml@refs/heads/main
 gh attestation verify --repo "$repo" --signer-workflow "$signer" \
+  --source-ref refs/tags/v<version> \
   <a distribution file from the release>
 ```
 
-`--signer-workflow` names the workflow that signed. From v2026.9.24 on
-that is the organization's `reusable-attest.yml`, which this repository's
-`release.yml` calls: an attestation made inside a called workflow names
-the callee as its signer, while `--repo` still names this repository as
-the source. For those releases the flag is required rather than a
-narrowing, the command refusing a genuine release without it. Through
-v2026.9.13 the signer is `release.yml` itself, so for those releases
-`signer` is `"$repo/.github/workflows/release.yml"`, and there the flag
-narrows what passes: without it an attestation from any workflow in this
-repository is accepted. Neither path verifies a release the other
+`--signer-workflow` names the workflow that signed. For a release built by
+the organization's `reusable-build.yml`, which `release.yml` calls, that
+is that workflow: an attestation made inside a called workflow names the
+callee as its signer, while `--repo` still names this repository as the
+source. The flag is required rather than a narrowing, the command
+refusing a genuine release without it, and `--source-ref` is what keeps a
+build of a branch from passing as the release. A release from v2026.9.24
+on, made before this repository called `reusable-build.yml`, was signed
+by `reusable-attest.yml`, named the same way without `--source-ref`.
+Through v2026.9.13 the signer is `release.yml` itself, so for those
+releases `signer` is `"$repo/.github/workflows/release.yml"`, and there
+the flag narrows what passes: without it an attestation from any workflow
+in this repository is accepted. No path verifies a release another
 signed. The PEP 740 attestations on PyPI name `release.yml`, the job
 that uploads there being its own rather than a called workflow's. The
 signed statement for the GitHub release is attached to it as well, as

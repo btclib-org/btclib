@@ -20,8 +20,8 @@ parts/
 sdist/
 var/
 wheels/
-# test.yml's `dist` job writes the bill of materials here, alongside
-# dist/ above (issue #1166): both are build output, not source
+# the build writes the bill of materials here, alongside dist/ above
+# (issue #1166): both are build output, not source
 sbom/
 *.egg-info/
 .installed.cfg

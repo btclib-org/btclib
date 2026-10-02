@@ -660,3 +660,35 @@ def test_a_bare_with_and_a_matrix_expression_read_no_interpreter() -> None:
     expression = "    with:\n      python-versions: ${{ matrix.python }}\n"
     assert _interpreters(unrelated) == set()
     assert _interpreters(expression) == set()
+
+
+# the `python:` input `release.yml` passes `reusable-build.yml`, which
+# runs the sdist normalizer and the bill-of-materials writer with it
+_BUILD_PYTHON = re.compile(r'^ +python: "(?P<version>[\w.+-]+)"$', re.MULTILINE)
+
+
+def _pin() -> str:
+    """Return the interpreter `.python-version` pins, comment lines dropped."""
+    lines = (_ROOT / ".python-version").read_text(encoding="utf-8").splitlines()
+    return next(line.strip() for line in lines if line.strip()[:1] not in ("", "#"))
+
+
+def test_the_release_builds_on_the_interpreter_the_tree_pins() -> None:
+    """`release.yml` hands `reusable-build.yml` the pin of `.python-version`.
+
+    The sdist normalizer writes the archive again through the running
+    interpreter's `gzip`, so RELEASING.md's rebuild, which runs the tag's
+    own pin, reproduces the published bytes only where the two agree
+    (btclib-org/.github#1349). The build runs in a workflow this tree's
+    `test.yml` does not call, so nothing else here reads the number it
+    is given.
+    """
+    release = (_ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+    assert _BUILD_PYTHON.findall(release) == [_pin()]
+
+
+def test_the_build_python_pattern_reads_a_quoted_input_and_nothing_else() -> None:
+    """The control the test above needs: the input, and no look-alike."""
+    assert _BUILD_PYTHON.findall('    with:\n      python: "3.15"\n') == ["3.15"]
+    assert _BUILD_PYTHON.findall("      python: 3.15\n") == []
+    assert _BUILD_PYTHON.findall('      python-version: "3.15"\n') == []
