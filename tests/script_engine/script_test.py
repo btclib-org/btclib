@@ -1527,7 +1527,7 @@ def test_a_tapscript_numequalverify_tests_the_numbers() -> None:
 
 
 @pytest.mark.parametrize(
-    ("script", "code", "index"),
+    "script, code, index",
     [
         # the first half fails: the index is the op code's own
         (["OP_EQUALVERIFY"], ScriptErrorCode.INVALID_STACK_OPERATION, 0),

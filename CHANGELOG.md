@@ -122,8 +122,8 @@ file per release is what keeps each of them under it.
 
 - **`OP_EQUALVERIFY`, `OP_NUMEQUALVERIFY` and `OP_CHECKSIGVERIFY` in a tapscript
   run as the plain op code, then the test** (closes #2509). A failure in the
-  first half carries the op code's own `ScriptError.index`. `op_equalverify`,
-  `op_numequalverify` and `op_checksigverify` go (RELEASE_NOTES.md).
+  first half carries the op code's own `ScriptError.index`, and the three
+  expansions go (RELEASE_NOTES.md).
 
 ## v2026.10.2
 
