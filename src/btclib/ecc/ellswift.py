@@ -48,7 +48,7 @@ from btclib_ecc.hashes import tagged_hash
 
 from btclib.alias import Integer, Octets
 from btclib.exceptions import BTClibValueError
-from btclib.utils import _message_text, assert_type, bytes_from_octets
+from btclib.utils import assert_type, bytes_from_octets
 
 # the bindings' module, imported from their own package; None where they
 # are not installed, which nothing calls: what calls it here is behind
@@ -105,8 +105,8 @@ def xdh(
     ell_a = _ell_from_octets(ell_a, ec)
     ell_b = _ell_from_octets(ell_b, ec)
     if party not in {0, 1}:
-        err_msg = f"invalid party: {_message_text(party)}, not 0 (A) or 1 (B)"
-        raise BTClibValueError(err_msg)
+        # the value is not quoted: with the arguments swapped it is the key
+        raise BTClibValueError("invalid party, not 0 (A) or 1 (B)")
     q = scalar_from_prv_key(prv_key, ec)
 
     if is_libsecp256k1_serving() and ec == secp256k1:
