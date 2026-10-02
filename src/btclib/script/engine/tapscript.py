@@ -352,7 +352,8 @@ def _run_ops(  # noqa: C901, PLR0912
     """
     codesep_pos = 0xFFFFFFFF
     script_index = -1
-    # script.py's `_run_ops` has the reason
+    # what the next OP_VERIFY fails with: VERIFY, unless a *VERIFY op code
+    # has just injected it
     verify_code = ScriptErrorCode.VERIFY
     s = bytesio_from_binarydata(script_bytes)
     while True:
