@@ -767,7 +767,7 @@ gh attestation verify "sbom/btclib-${version:?}.cdx.json" \
 `reusable-build.yml`, and `--signer-workflow` is required: without it the
 command refuses the release. A tag from v2026.9.24 on, made before this
 repository called `reusable-build.yml`, was signed by
-`reusable-attest.yml`, with no `--source-ref`. A tag through v2026.9.13
+`reusable-attest.yml`, named the same way. A tag through v2026.9.13
 was signed by `release.yml` itself, and for one of those `signer` is
 `"$repo/.github/workflows/release.yml"`, the flag there only narrowing
 what passes. Each path verifies only the

@@ -85,21 +85,21 @@ source. The flag is required rather than a narrowing, the command
 refusing a genuine release without it, and `--source-ref` is what keeps a
 build of a branch from passing as the release. A release from v2026.9.24
 on, made before this repository called `reusable-build.yml`, was signed
-by `reusable-attest.yml`, named the same way without `--source-ref`.
-Through v2026.9.13 the signer is `release.yml` itself, so for those
-releases `signer` is `"$repo/.github/workflows/release.yml"`, and there
-the flag narrows what passes: without it an attestation from any workflow
-in this repository is accepted. No path verifies a release another
-signed. The PEP 740 attestations on PyPI name `release.yml`, the job
-that uploads there being its own rather than a called workflow's. The
-signed statement for the GitHub release is attached to it as well, as
-`<tag>.intoto.jsonl`, or as `<tag>.attestation.jsonl` on a release that
-carries that name instead, so `--bundle <that file>` runs the same check
-reading it from disk instead of asking GitHub for it; one attestation
-covers every asset of the release. Either file can also be
-rebuilt from its tag and verified without being downloaded at all, the
-build being reproducible: RELEASING.md has that command and the bounds on
-it.
+by `reusable-attest.yml`, named the same way. Through v2026.9.13 the
+signer is `release.yml` itself, so for those releases `signer` is
+`"$repo/.github/workflows/release.yml"`, and there `--signer-workflow`
+narrows what passes: without it an attestation from any workflow in this
+repository is accepted. All three take `--source-ref refs/tags/v<version>`.
+No path verifies a release another signed. The PEP 740 attestations on
+PyPI name `release.yml`, the job that uploads there being its own rather
+than a called workflow's. The signed statement for the GitHub release is
+attached to it as well, as `<tag>.intoto.jsonl`, or as
+`<tag>.attestation.jsonl` on a release that carries that name instead, so
+`--bundle <that file>` runs the same check reading it from disk instead
+of asking GitHub for it; one attestation covers every asset of the
+release. Either file can also be rebuilt from its tag and verified
+without being downloaded at all, the build being reproducible:
+RELEASING.md has that command and the bounds on it.
 
 A CycloneDX 1.6 bill of materials is attached beside them,
 `btclib-<version>.cdx.json`: the two files with their SHA-256, the
