@@ -108,6 +108,7 @@ from btclib.policy import assert_standard_tx
 from btclib.script.engine import script as engine
 from btclib.script.engine import script_op_codes, verify_transaction
 from btclib.script.engine.flags import NO_FLAGS, ScriptFlag
+from btclib.script.script import script_to_asm
 from btclib.script.script import serialize as serialize_script
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.sig_ops import sig_op_count
@@ -291,6 +292,13 @@ _KINDS = (
         "accurate",
         sig_op_count,
         {"script": b"\xae"},
+    ),
+    # Core's `fAttemptSighashDecode`: it decides how a signature is written
+    _Case(
+        "btclib.script.script.script_to_asm",
+        "attempt_sighash_decode",
+        script_to_asm,
+        {"script": b"\x51"},
     ),
     _Case(
         "btclib.script.taproot.parse",

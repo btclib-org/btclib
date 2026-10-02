@@ -38,6 +38,7 @@ from btclib.script.script import (
     parse,
     push_int,
     script_from_dict,
+    script_to_asm,
     script_to_dict,
     serialize,
 )
@@ -127,6 +128,7 @@ __all__ = [
     "parse",
     "push_int",
     "script_from_dict",
+    "script_to_asm",
     "script_to_dict",
     "serialize",
     "sig_hash",
