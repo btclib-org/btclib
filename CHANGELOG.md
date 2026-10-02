@@ -94,6 +94,12 @@ file per release is what keeps each of them under it.
   only, any first byte, canonical base64, one `MessageVerificationResult`
   member per answer. `verify` stays the Electrum and BIP137 scheme.
 
+### `script_to_asm` renders a script as Core's `ScriptToAsmStr`
+
+- **`script_to_asm(script, attempt_sighash_decode=False)` is Core's `asm`**
+  (closes #2461): `0151` is `81`, and with `attempt_sighash_decode=True` a
+  signature's hash type is `[ALL]`. `script_to_dict` keeps its own `asm`.
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type
