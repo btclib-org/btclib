@@ -301,8 +301,9 @@ tools, including those needed to build the documentation, is then created with:
 uv sync
 ```
 
-**Every dependency is required but the bindings, which are the `secp256k1`
-extra, and every one of them is a floor with no upper bound**, and the absence
+**Every dependency is required but the bindings and the v2 transport's
+cipher, which are the `secp256k1` and `bip324` extras, and every one of
+them is a floor with no upper bound**, and the absence
 of a ceiling is a decision. Which releases those floors name is
 `pyproject.toml`, next to the reason each one is where it is: a floor
 moves whenever this tree starts calling something newer, so a copy of the
@@ -329,6 +330,11 @@ are the first — btclib answers without them, on a pure-Python arm that
 is supported, covered by CI and documented. `bitcoin-core-rpc` is the
 second: `btclib.p2p.magic` takes Core's chain names and a signet's
 message start from it, and nothing in btclib stands behind them.
+
+**The `bip324` extra is a capability, and an extra anyway.** Without it
+`btclib.p2p.bip324` cannot be imported, and nothing else in btclib imports
+it. An installation that did not ask for a cipher has none: that is
+btclib-org/btclib-node#1190's plan, approved by the maintainer.
 
 **Every sibling floor names a release PyPI serves**, so `pyproject.toml`
 carries no `[tool.uv.sources]` table and uv resolves the siblings from

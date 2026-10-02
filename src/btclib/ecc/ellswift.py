@@ -11,27 +11,20 @@ x-only ECDH over two encodings, with `XDH_TAG` and `ELL_SIZE`.
 
 https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki
 
-This module stops at the x-only ECDH, and each piece of BIP324's v2
-transport it leaves out has a reason of its own (issue 1066). The key
-schedule's HKDF-SHA256 is not one of them: it is a construction over a
-hash, `hmac` and `hashlib` and nothing else, and it is
-`btclib_ecc.kdf.hkdf`.
+This module stops at the x-only ECDH. The rest of BIP324's v2 transport
+is `btclib.p2p.bip324`, behind the `bip324` extra. The key schedule's
+HKDF-SHA256 is a construction over a hash, `hmac` and `hashlib` and
+nothing else, and it is `btclib_ecc.kdf.hkdf`.
 
 - **ChaCha20-Poly1305** is the cipher, and `btclib_ecc.ecc.ecies` is where
-  the rule about a cipher is stated: btclib takes one from its caller rather
-  than shipping one. A cipher in the standard library is what would change
-  that; a hand-rolled one is not, being the only implementation, on by
-  default, for every installation, on a network path.
-- **Forward-secure rekeying and length obfuscation** are cipher
-  invocations, so a caller-supplied cipher leaves them written against
-  something no test here can exercise. They follow the cipher and cannot
-  precede it.
-- **Packet framing** is the transport itself, which belongs beside a P2P
-  client that btclib does not provide.
-
-A complete transport therefore belongs in a separate optional package or
-extra, backed by an established cryptographic implementation and BIP324's
-packet vectors.
+  the rule about a cipher is stated: btclib writes none. A hand-rolled one
+  would be the only implementation, on by default, for every installation,
+  on a network path, so `btclib.p2p.bip324` uses `cryptography`'s, which
+  the extra installs.
+- **Forward-secure rekeying, length obfuscation and packet framing** are
+  in `btclib.p2p.bip324`, held to BIP324's packet vectors. The handshake,
+  the garbage and the connection are a P2P client's, which btclib does
+  not provide.
 """
 
 from __future__ import annotations

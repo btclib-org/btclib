@@ -47,6 +47,7 @@ from typing import Any
 
 import pytest
 
+from tests import importable
 from tests.all_test import library_modules
 
 # Walked from `btclib`, on the commit this file is part of: every public
@@ -103,6 +104,8 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.network:Network.__init__": ["consensus", "check_validity"],
     "btclib.network:Network.from_dict": ["check_validity"],
     "btclib.network:Network.to_dict": ["check_validity"],
+    "btclib.p2p.bip324:Cipher.__init__": ["self_decrypt"],
+    "btclib.p2p.bip324:Cipher.encrypt": ["ignore"],
     "btclib.p2p:Addr.__init__": ["check_validity"],
     "btclib.p2p:Addr.parse": ["check_validity"],
     "btclib.p2p:Addr.serialize": ["check_validity"],
@@ -308,6 +311,14 @@ def _class_sites(
     return found
 
 
+# the table without the sites of a module whose extra is not installed
+_INSTALLED = {
+    label: params
+    for label, params in KEYWORD_ONLY.items()
+    if importable(label.split(":")[0])
+}
+
+
 def _live_keyword_only() -> dict[str, list[str]]:
     """Recompute `KEYWORD_ONLY` from the tree currently under test.
 
@@ -345,14 +356,14 @@ def test_the_recorded_surface_is_the_whole_of_it() -> None:
     renamed parameter all show up as one dictionary differing from
     another rather than as a `KeyError` or a silent gap.
     """
-    assert _live_keyword_only() == KEYWORD_ONLY
+    assert _live_keyword_only() == _INSTALLED
 
 
 @pytest.mark.parametrize(
     "label, param_name",
     [
         pytest.param(label, param_name, id=f"{label}:{param_name}")
-        for label, params in sorted(KEYWORD_ONLY.items())
+        for label, params in sorted(_INSTALLED.items())
         for param_name in params
     ],
 )

@@ -95,7 +95,7 @@ from typing import Any
 
 import pytest
 from btclib_ecc.curves import bytes_from_point, bytes_from_prv_key_int
-from btclib_ecc.ecc import dsa
+from btclib_ecc.ecc import dsa, ellswift
 
 from btclib import b32, b58, var_bytes
 from btclib.block.block import Block
@@ -154,6 +154,20 @@ _PREVOUTS = [TxOut(2000, b"\x51")]
 _BLOCK = Block.parse(
     (Path(__file__).parent / "block" / "_data" / "block_1.bin").read_bytes()
 )
+
+
+def _cipher(*, initiator: Any = True, self_decrypt: Any = False) -> Any:
+    """Return a `btclib.p2p.bip324.Cipher`, which needs the `bip324` extra."""
+    bip324 = pytest.importorskip("btclib.p2p.bip324")
+    ell = ellswift.create_var(_PRV_KEY)
+    return bip324.Cipher(
+        _PRV_KEY, ell, ell, initiator, bytes(4), self_decrypt=self_decrypt
+    )
+
+
+def _encrypt(*, ignore: Any) -> bytes:
+    """Encrypt empty contents, with the header flag `ignore`."""
+    return bytes(_cipher().encrypt(b"", ignore=ignore))
 
 
 @dataclass(frozen=True)
@@ -329,6 +343,20 @@ _KINDS = (
         BlockPayload,
         {"block": _BLOCK},
     ),
+    # which side's keys are derived, and whether the packet is dropped
+    _Case(
+        "btclib.p2p.bip324.Cipher.__init__",
+        "initiator",
+        _cipher,
+        {},
+    ),
+    _Case(
+        "btclib.p2p.bip324.Cipher.__init__",
+        "self_decrypt",
+        _cipher,
+        {},
+    ),
+    _Case("btclib.p2p.bip324.Cipher.encrypt", "ignore", _encrypt, {}),
     # a stored fact rather than a switch: `is_coinbase` is not read to
     # decide how `Coin.__init__` behaves, it is the value `assert_
     # coinbase_maturity` later branches on for the coin it is handed, so

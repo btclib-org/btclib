@@ -118,6 +118,12 @@ file per release is what keeps each of them under it.
   (closes #2489). `verify_script` stops on that stack, a `*VERIFY` op code fails
   at its own index, and `op_checkmultisigverify` goes (RELEASE_NOTES.md).
 
+### `btclib.p2p.bip324` is BIP324's v2 transport cipher
+
+- **`btclib.p2p.bip324` encrypts and decrypts BIP324 packets** (issue #2474)
+  with `cryptography`, behind `pip install "btclib[bip324]"`, and passes the
+  BIP324 packet vectors. A btclib without the extra answers as before.
+
 ## v2026.10.2
 
 ### `Network.from_dict` refuses a non-string network type
