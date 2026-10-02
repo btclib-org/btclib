@@ -489,7 +489,48 @@ class Tx:  # noqa: PLW1641
         `assert_valid`, which asks about the transaction, and the
         transaction here is valid -- what is malformed is the encoding,
         which no field records and nothing downstream could ask about.
+
+        `parse_without_witness` is the reading without the marker, for a
+        caller that has to take those two octets as counts.
         """
+        return cls._parse(data, allow_witness=True, check_validity=check_validity)
+
+    @classmethod
+    def parse_without_witness(
+        cls: type[Tx],
+        data: BinaryData,
+        *,
+        check_validity: bool = True,
+    ) -> Tx:
+        """Return a Tx by parsing binary data, with no marker and no witness.
+
+        Core's `TX_NO_WITNESS`: what follows the version is the input
+        count, the inputs, the output count, the outputs and the lock
+        time. `00 01` there is a transaction with no input and one
+        output, where `parse` reads a marker and a flag. Core's
+        `DecodeTx` (src/core_io.cpp), behind `decoderawtransaction`,
+        tries both readings and chooses.
+
+        A witness transaction can fit this layout, and is then accepted as
+        the witness-free transaction those bytes make. That is why
+        `DecodeTx` tries the extended reading first.
+
+        `check_validity` is `parse`'s: it runs `assert_valid`, which
+        refuses a transaction with no input. `DecodeTx` does not run
+        `CheckTransaction`, so the reading it describes is
+        `check_validity=False`.
+        """
+        return cls._parse(data, allow_witness=False, check_validity=check_validity)
+
+    @classmethod
+    def _parse(
+        cls: type[Tx],
+        data: BinaryData,
+        *,
+        allow_witness: bool,
+        check_validity: bool,
+    ) -> Tx:
+        """Read as `parse` does, or without the marker if not allow_witness."""
         stream = bytesio_from_binarydata(data)
 
         # version is a signed int (int32_t) in bitcoin_core
@@ -509,11 +550,13 @@ class Tx:  # noqa: PLW1641
         # put back by as much: seeking -2 after a one-byte read would leave
         # the stream a byte before where it started, and the var_int below
         # would count the inputs from the wrong byte
-        marker = stream.read(2)
-        segwit = marker == SEGWIT_MARKER
-        if not segwit:
-            # Change stream position: seek to byte offset relative to position
-            stream.seek(-len(marker), SEEK_CUR)  # current position
+        segwit = False
+        if allow_witness:
+            marker = stream.read(2)
+            segwit = marker == SEGWIT_MARKER
+            if not segwit:
+                # put back what the probe read
+                stream.seek(-len(marker), SEEK_CUR)  # current position
 
         # each count bounded by the block that would have to hold the
         # transaction rather than by var_int's own MAX_SIZE, which answers

@@ -238,6 +238,7 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.tx:Tx.assert_valid": ["unsigned_template"],
     "btclib.tx:Tx.from_dict": ["check_validity"],
     "btclib.tx:Tx.parse": ["check_validity"],
+    "btclib.tx:Tx.parse_without_witness": ["check_validity"],
     "btclib.tx:Tx.serialize": ["check_validity"],
     "btclib.tx:Tx.to_dict": ["check_validity"],
     "btclib.tx:TxIn.__init__": ["check_validity"],
