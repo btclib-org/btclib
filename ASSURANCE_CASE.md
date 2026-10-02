@@ -252,8 +252,11 @@ to, and what counters each.
   specification publishes vectors is checked against them, by
   btclib_ecc's suite for the schemes that package carries, and the
   script engine against Bitcoin Core's own script, transaction and
-  sighash vectors, all pinned in `tests/_data/README.md` and compared
-  with upstream on a schedule by `.github/workflows/vendored-vectors.yml`.
+  sighash vectors, all pinned in `tests/_data/README.md`.
+  `.github/workflows/vendored-vectors.yml` runs weekly: it hashes each
+  vendored file against the blob recorded there, compares that blob with
+  upstream's at the pinned commit, and reports a pin that is no longer
+  upstream's tip.
   `.github/workflows/integration-bitcoind.yml`, a required check on
   `main`, runs a regtest Bitcoin Core node against what btclib computes
   and emits: the UTXO-set statistics of `btclib.coinstats`, and a

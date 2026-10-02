@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-r"""Re-check a pin ledger against upstream, weekly.
+r"""Re-check a pin ledger against upstream, weekly: its pins and its bytes.
 
 A ledger pins each entry to a repository, a path and a commit, and
 carries a documented manual procedure to re-check one pin. This
@@ -26,13 +26,25 @@ arguments this takes. What answers to one ledger's own shape is not,
 and the collapsing of identical skip lines below is that -- a heading
 owning several blocks being a shape that README does not carry.
 
-Scope is narrower than the ledger: only entries whose `behind` already
-reads 0 -- the ones a human last confirmed were exactly at upstream's
-tip. An entry documented as behind is a decision already made, and
-re-reporting the same gap every week would just be noise; if a *new*
-commit moves it further, `behind`'s own count in the ledger goes stale
-in a way this script cannot see either, which is the reason it never
-tries to judge relevance, only tip-vs-pinned identity.
+Two byte comparisons run over every entry that names a file in its
+heading and records a `blob` or an `ours` line, whatever its `behind`.
+The file's own git blob SHA-1 over its bytes on disk must equal `ours`,
+or `blob` where there is no `ours`: `ours` is the blob of the file kept
+here, written where it is not upstream's (line endings, a trailing
+newline, a transcription). And `blob` must be
+the one upstream's tree holds for the path at the pinned commit, which
+the trees API answers without downloading the file. A mismatch names the
+file and makes the run exit 1: a vendored file edited here, or a pin
+whose recorded blob is not the one at its commit, is not drift to be
+decided about and is not an issue.
+
+The staleness check's scope is narrower than the ledger: only entries whose
+`behind` already reads 0 -- the ones a human last confirmed were exactly
+at upstream's tip. An entry documented as behind is a decision already
+made, and re-reporting the same gap every week would just be noise; if a
+*new* commit moves it further, `behind`'s own count in the ledger goes
+stale in a way this script cannot see either, which is the reason it
+never tries to judge relevance, only tip-vs-pinned identity.
 
 A path upstream deleted or renamed away reaches this script as ordinary
 drift: the "commits touching a path" call answers with the commit that
@@ -82,11 +94,13 @@ checked at all.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -111,8 +125,12 @@ _HEADING = re.compile(r"^### (.+)$", re.MULTILINE)
 # line answers a bare key with no match at all, which is what the checks below
 # already treat as that field being absent.
 _FIELD = re.compile(
-    r"^(repo|path|ref|commit|blob|pulled|behind)[ \t]+(.*)$", re.MULTILINE
+    r"^(repo|path|ref|commit|blob|ours|pulled|behind)[ \t]+(.*)$", re.MULTILINE
 )
+
+# a heading that is one file's own path, in backticks: the file the
+# entry's blob is compared with. A glob or a placeholder names no file
+_LOCAL = re.compile(r"^`([^`*<>]+)`$")
 
 
 @dataclass(frozen=True)
@@ -137,6 +155,25 @@ class Entry:
 
 
 @dataclass(frozen=True)
+class Pin:
+    """One vendored file and the blobs the ledger records for it.
+
+    `expected` is the blob the file here must hash to: the entry's
+    `ours` line where it has one, its `blob` line otherwise. `blob` is
+    upstream's, absent where upstream has no one blob to name (a
+    directory), and is what upstream's tree at `commit` must hold.
+    """
+
+    heading: str
+    local: str
+    repo: str
+    path: str
+    commit: str
+    expected: str
+    blob: str | None
+
+
+@dataclass(frozen=True)
 class Drift:
     """A pin whose commit is no longer the tip of its own path."""
 
@@ -153,6 +190,18 @@ class Drift:
         a name keeps that encoding in one place.
         """
         return not self.latest_commit
+
+
+def _blocks(ledger: str) -> Iterator[tuple[str, dict[str, str]]]:
+    """Yield each fenced block's nearest heading before it and its fields."""
+    heading = ""
+    pos = 0
+    for match in re.finditer(r"```text\n(.*?)\n```", ledger, re.DOTALL):
+        headings_before = _HEADING.findall(ledger[pos : match.start()])
+        if headings_before:
+            heading = headings_before[-1]
+        pos = match.end()
+        yield heading, dict(_FIELD.findall(match.group(1)))
 
 
 def _entries_at_tip(ledger: str) -> tuple[list[Entry], list[str]]:
@@ -181,16 +230,8 @@ def _entries_at_tip(ledger: str) -> tuple[list[Entry], list[str]]:
     entries: list[Entry] = []
     skipped: list[str] = []
     owned: set[str] = set()
-    heading = ""
-    pos = 0
-    for match in re.finditer(r"```text\n(.*?)\n```", ledger, re.DOTALL):
-        headings_before = _HEADING.findall(ledger[pos : match.start()])
-        if headings_before:
-            heading = headings_before[-1]
-        pos = match.end()
+    for heading, fields in _blocks(ledger):
         owned.add(heading)
-
-        fields = dict(_FIELD.findall(match.group(1)))
         repo, path, commit = (
             fields.get("repo"),
             fields.get("path"),
@@ -291,6 +332,120 @@ def find_drift(ledger_path: Path) -> tuple[list[Drift], list[str]]:
         elif latest[0] != entry.commit:
             drifted.append(Drift(entry, *latest))
     return drifted, skipped
+
+
+def _pins(ledger: str) -> tuple[list[Pin], list[str]]:
+    """Return the files whose bytes can be compared, and those that cannot be.
+
+    An entry is compared where its heading is one file's path and its
+    block names a repository, a path and a commit and carries a `blob`
+    or an `ours` line. One that names a file and carries neither has
+    nothing to compare against, which is said rather than passed over.
+    """
+    pins: list[Pin] = []
+    skipped: list[str] = []
+    for heading, fields in _blocks(ledger):
+        local = _LOCAL.match(heading)
+        repo, path, commit = (
+            fields.get("repo"),
+            fields.get("path"),
+            fields.get("commit"),
+        )
+        if not (local and repo and path and commit) or "<" in path:
+            continue
+        values = [fields.get(key, "").split() for key in ("blob", "ours")]
+        blob, ours = (v[0] if v else None for v in values)
+        expected = ours or blob
+        if expected is None:
+            skipped.append(f"{heading} (no blob or ours line)")
+            continue
+        pins.append(
+            Pin(
+                heading,
+                local.group(1),
+                repo,
+                path.strip(),
+                commit.split()[0],
+                expected,
+                blob,
+            )
+        )
+    return pins, list(dict.fromkeys(skipped))
+
+
+def _git_blob(path: Path) -> str:
+    """Return the git blob SHA-1 of a file's bytes on disk.
+
+    The bytes are the committed ones because `.gitattributes` marks every
+    file the ledger names `-text`, so no checkout converts line endings,
+    whatever `core.autocrlf` says. Hashing the bytes on disk, not through
+    git's filters, is what catches a file checked out converted.
+    """
+    data = path.read_bytes()
+    header = b"blob %d\0" % len(data)
+    return hashlib.sha1(header + data, usedforsecurity=False).hexdigest()
+
+
+def _upstream_blob(repo: str, path: str, commit: str) -> str | None:
+    """Return the blob SHA-1 upstream's tree holds for path at commit.
+
+    None where the tree at that commit has no such path. The trees API
+    answers with the directory's entries and so downloads no file, which
+    the contents API would, and which caps out on a 9 MB one.
+    """
+    directory, _, name = path.rpartition("/")
+    tree = f"{commit}:{directory}" if directory else commit
+    result = subprocess.run(  # noqa: S603
+        [_GH, "api", "--method", "GET", f"repos/{repo}/git/trees/{tree}"],
+        capture_output=True,
+        check=True,
+        encoding="utf-8",
+    )
+    for item in json.loads(result.stdout)["tree"]:
+        if item["path"] == name:
+            sha: str = item["sha"]
+            return sha
+    return None
+
+
+def find_mismatches(ledger_path: Path) -> tuple[list[str], list[str], int, int]:
+    """Return what does not match, what could not be compared, and both counts.
+
+    The counts are the files hashed and the recorded blobs asked of
+    upstream, so that a run reading zero of either is visible as such.
+    """
+    pins, skipped = _pins(ledger_path.read_text(encoding="utf-8"))
+    mismatches: list[str] = []
+    hashed = asked = 0
+    for pin in pins:
+        local = Path(pin.local)
+        if not local.is_file():
+            mismatches.append(f"{pin.local}: the ledger names it and it is not here")
+        else:
+            hashed += 1
+            found = _git_blob(local)
+            if found != pin.expected:
+                mismatches.append(
+                    f"{pin.local}: its bytes hash to blob {found},"
+                    f" the ledger records {pin.expected}"
+                )
+        if pin.blob is None:
+            continue
+        asked += 1
+        try:
+            upstream = _upstream_blob(pin.repo, pin.path, pin.commit)
+        except subprocess.CalledProcessError as error:
+            mismatches.append(
+                f"{pin.local}: asking {pin.repo} for {pin.path} at"
+                f" {pin.commit} failed: {error.stderr.strip() or error}"
+            )
+            continue
+        if upstream != pin.blob:
+            mismatches.append(
+                f"{pin.local}: {pin.repo} at {pin.commit} holds"
+                f" {pin.path} as blob {upstream}, the ledger records {pin.blob}"
+            )
+    return mismatches, skipped, hashed, asked
 
 
 def _branch(entry: Entry) -> str:
@@ -412,6 +567,7 @@ def main() -> int:
         return 2
     ledger_path, title = Path(args[0]), args[1]
     drifted, skipped = find_drift(ledger_path)
+    mismatches, byte_skipped, hashed, asked = find_mismatches(ledger_path)
     for drift in drifted:
         if drift.has_no_tip:
             print(
@@ -430,9 +586,17 @@ def main() -> int:
         print(f"SKIPPED: {heading}")
     if not drifted:
         print("Every checked pin is still at upstream's tip.")
+    for heading in byte_skipped:
+        print(f"SKIPPED: {heading}")
+    for mismatch in mismatches:
+        print(f"MISMATCH: {mismatch}")
+    print(
+        f"Hashed {hashed} files and asked upstream for {asked} blobs:"
+        f" {len(mismatches)} mismatches."
+    )
     if not dry_run:
         report(ledger_path, title, drifted, skipped)
-    return 0
+    return 1 if mismatches else 0
 
 
 if __name__ == "__main__":

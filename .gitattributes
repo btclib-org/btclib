@@ -60,3 +60,28 @@ RELEASE_NOTES.md merge=union
 # neither side may have written, which is worth stopping on -- where the
 # driver would resolve it by keeping both sides' lines and leave the
 # gate to report it afterwards.
+
+# The vendored files `tests/_data/README.md` names are held to a git blob
+# SHA-1 over their committed bytes, which `check_vendored_vectors.py` and
+# its test read straight off the disk. `-text` is what keeps a checkout
+# with `core.autocrlf=true` (Git for Windows' default) from converting
+# them, so those bytes are the ones on disk on every platform.
+tests/_data/base58_encode_decode.json -text
+tests/_data/chacha20_vectors.json -text
+tests/_data/key_io_invalid.json -text
+tests/_data/key_io_valid.json -text
+tests/_data/muhash_vectors.json -text
+tests/_data/secp256k1_symbols.txt -text
+tests/_data/siphash.json -text
+tests/block/_data/blockfilters.json -text
+tests/block/_data/checkblock_invalid.json -text
+tests/block/_data/checkblock_valid.json -text
+tests/ecc/_data/packet_encoding_test_vectors.csv -text
+tests/ecc/_data/signmessage.json -text
+tests/script/_data/bip67_test_vectors.json -text
+tests/script/_data/script_assets_test.json -text
+tests/script/_data/sig_hash_legacy_test_vectors.json -text
+tests/script/_data/taproot_test_vector.json -text
+tests/script_engine/_data/script_tests.json -text
+tests/script_engine/_data/tx_invalid.json -text
+tests/script_engine/_data/tx_valid.json -text

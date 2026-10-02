@@ -7,6 +7,9 @@ name: vendored vectors
 # every pin the script can check, and opens or updates an issue on
 # drift rather than fixing anything: what to do about a pin that has
 # moved is a decision the script does not get to make.
+# It also hashes each vendored file and compares the blob with the
+# ledger's and with upstream's at the pinned commit; a mismatch fails
+# the run.
 #
 # The checkout, the optional interpreter setup and the re-check itself
 # are btclib-org/.github's: reusable-vendored-vectors.yml, called at

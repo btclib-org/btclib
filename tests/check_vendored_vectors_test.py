@@ -4,12 +4,12 @@
 
 """Tests for the vendored-vector re-checker of `.github/scripts`.
 
-Its only external dependency is `gh`, called five different ways across
-`_latest_commit`, `_open_issue_number` and `report`. Every test here
-replaces `subprocess.run` with `FakeGh`, which answers each call the way
-a real `gh api`/`gh issue` would rather than reaching GitHub: a real call
-would need a token, would not be deterministic across a re-run, and is
-the one thing the parsing and reporting logic below does not need to
+Its only external dependency is `gh`, called several ways across
+`_latest_commit`, `_upstream_blob`, `_open_issue_number` and `report`. Every
+test here replaces `subprocess.run` with `FakeGh`, which answers each call
+the way a real `gh api`/`gh issue` would rather than reaching GitHub: a
+real call would need a token, would not be deterministic across a re-run,
+and is the one thing the parsing and reporting logic below does not need to
 have working to be tested.
 
 The script is loaded by path, `.github/scripts` being no package: the
@@ -22,15 +22,21 @@ has to name the module before `exec_module` runs it.
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import runpy
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
 
 import pytest
+
+# resolved once: a bare "git" in a subprocess list is a partial executable
+# path
+_GIT = shutil.which("git") or "git"
 
 _SCRIPT = (
     Path(__file__).parents[1] / ".github" / "scripts" / "check_vendored_vectors.py"
@@ -63,6 +69,8 @@ class FakeGh:
 
     def __init__(self) -> None:
         self.commits: dict[tuple[str, str], tuple[str, str] | None] = {}
+        # a (repo, tree) pair to the blobs of the entries it holds, by name
+        self.trees: dict[tuple[str, str], dict[str, str]] = {}
         self.open_issue: int | None = None
         self.calls: list[list[str]] = []
 
@@ -71,6 +79,13 @@ class FakeGh:
     ) -> subprocess.CompletedProcess[str]:
         """Record the call, and answer as the `gh` sub-command it names."""
         self.calls.append(list(argv))
+        if argv[1] == "api" and "/git/trees/" in argv[4]:
+            repo, _, tree = argv[4].removeprefix("repos/").partition("/git/trees/")
+            blobs = self.trees[repo, tree]
+            items = [{"path": name, "sha": sha} for name, sha in blobs.items()]
+            return subprocess.CompletedProcess(
+                argv, 0, stdout=json.dumps({"tree": items})
+            )
         if argv[1] == "api":
             repo = argv[4].removeprefix("repos/").removesuffix("/commits")
             path = argv[6].removeprefix("path=")
@@ -984,3 +999,307 @@ def test_the_main_guard_runs_the_script_as___main__(
 
     assert excinfo.value.code == 0
     assert "Every checked pin is still at upstream's tip." in capsys.readouterr().out
+
+
+_COMMIT = "c0ffee0"
+_UPSTREAM_BLOB = "1" * 40
+
+
+def _blob_of(data: bytes) -> str:
+    """Return a git blob SHA-1, computed apart from the script's own."""
+    return hashlib.sha1(
+        b"blob %d\0" % len(data) + data, usedforsecurity=False
+    ).hexdigest()
+
+
+def test_git_blob_is_what_git_hash_object_prints(
+    checker: ModuleType, tmp_path: Path
+) -> None:
+    r"""The empty blob and `hello\n` are the two every git user has seen."""
+    empty = tmp_path / "empty"
+    empty.write_bytes(b"")
+    hello = tmp_path / "hello"
+    hello.write_bytes(b"hello\n")
+    assert checker._git_blob(empty) == "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    assert checker._git_blob(hello) == "ce013625030ba8dba906f756967f9e9ca394464a"
+
+
+def _vendored(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_gh: FakeGh,
+    *,
+    data: bytes = b"[1]\n",
+    **fields: str,
+) -> Path:
+    """Write `tests/f.json` and a ledger entry for it, and return the ledger.
+
+    The entry records the blob of `data`, as `blob` unless a field says
+    otherwise, and upstream's tree at the commit holds the same blob.
+    """
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "f.json").write_bytes(data)
+    recorded = {"blob": _blob_of(data)} | fields
+    fake_gh.trees["r", f"{_COMMIT}:up"] = {"f.json": recorded.get("blob", "")}
+    return _write_readme(
+        tmp_path,
+        entry(
+            "`tests/f.json`",
+            repo="r",
+            path="up/f.json",
+            commit=f"{_COMMIT}  2026-01-01",
+            behind="0",
+            **recorded,
+        ),
+    )
+
+
+def test_a_file_matching_its_blob_and_upstream_s_is_clean(
+    checker: ModuleType,
+    fake_gh: FakeGh,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both comparisons pass, and both ran."""
+    path = _vendored(tmp_path, monkeypatch, fake_gh)
+    mismatches, skipped, hashed, asked = checker.find_mismatches(path)
+    assert (mismatches, skipped, hashed, asked) == ([], [], 1, 1)
+    (call,) = fake_gh.calls
+    assert call[4] == f"repos/r/git/trees/{_COMMIT}:up"
+
+
+def test_a_tampered_file_is_a_mismatch_naming_it(
+    checker: ModuleType,
+    fake_gh: FakeGh,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A byte changed here, with the ledger and upstream untouched, fails."""
+    path = _vendored(tmp_path, monkeypatch, fake_gh)
+    (tmp_path / "tests" / "f.json").write_bytes(b"[2]\n")
+    (mismatch,) = checker.find_mismatches(path)[0]
+    assert mismatch.startswith("tests/f.json: its bytes hash to blob")
+    assert _blob_of(b"[2]\n") in mismatch
+    assert _blob_of(b"[1]\n") in mismatch
+
+
+def test_a_file_missing_from_the_tree_is_a_mismatch(
+    checker: ModuleType,
+    fake_gh: FakeGh,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A ledger naming a file that is not there fails, rather than skipping."""
+    path = _vendored(tmp_path, monkeypatch, fake_gh)
+    (tmp_path / "tests" / "f.json").unlink()
+    mismatches, _, hashed, _ = checker.find_mismatches(path)
+    assert mismatches == ["tests/f.json: the ledger names it and it is not here"]
+    assert hashed == 0
+
+
+def test_a_blob_that_is_not_upstream_s_at_the_commit_is_a_mismatch(
+    checker: ModuleType,
+    fake_gh: FakeGh,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The file matches the ledger and the ledger is not what upstream holds."""
+    path = _vendored(tmp_path, monkeypatch, fake_gh)
+    fake_gh.trees["r", f"{_COMMIT}:up"] = {"f.json": _UPSTREAM_BLOB}
+    (mismatch,) = checker.find_mismatches(path)[0]
+    assert mismatch.startswith("tests/f.json: r at c0ffee0 holds up/f.json as blob")
+    assert _UPSTREAM_BLOB in mismatch
+
+
+def test_a_path_absent_at_the_commit_is_a_mismatch(
+    checker: ModuleType,
+    fake_gh: FakeGh,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Upstream's tree holding no such name is a mismatch, blob `None`."""
+    path = _vendored(tmp_path, monkeypatch, fake_gh)
+    fake_gh.trees["r", f"{_COMMIT}:up"] = {}
+    (mismatch,) = checker.find_mismatches(path)[0]
+    assert "as blob None" in mismatch
+
+
+def test_ours_is_what_the_file_is_held_to_and_blob_what_upstream_is(
+    checker: ModuleType,
+    fake_gh: FakeGh,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A file differing from upstream in line endings is clean given `ours`."""
+    path = _vendored(
+        tmp_path,
+        monkeypatch,
+        fake_gh,
+        blob=_UPSTREAM_BLOB,
+        ours=_blob_of(b"[1]\n"),
+    )
+    assert checker.find_mismatches(path)[0] == []
+    (tmp_path / "tests" / "f.json").write_bytes(b"[2]\n")
+    (mismatch,) = checker.find_mismatches(path)[0]
+    assert _blob_of(b"[1]\n") in mismatch
+
+
+def test_an_entry_with_ours_and_no_blob_asks_upstream_nothing(
+    checker: ModuleType,
+    fake_gh: FakeGh,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A directory-derived file has no upstream blob: it is hashed alone."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "f.txt").write_bytes(b"x\n")
+    path = _write_readme(
+        tmp_path,
+        entry(
+            "`f.txt`",
+            repo="r",
+            path="src",
+            commit="c0ffee0  2026-01-01",
+            ours=_blob_of(b"x\n"),
+        ),
+    )
+    assert checker.find_mismatches(path) == ([], [], 1, 0)
+    assert not fake_gh.calls
+
+
+def test_an_entry_naming_a_file_with_no_blob_is_named_as_skipped(
+    checker: ModuleType,
+    fake_gh: FakeGh,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Neither `blob` nor `ours` leaves nothing to compare, and says so.
+
+    A heading that is no one file's path, or an entry with no commit, is
+    not this comparison's to name: the staleness check lists those.
+    """
+    monkeypatch.chdir(tmp_path)
+    path = _write_readme(
+        tmp_path,
+        entry("`f.json`", repo="r", path="f.json", commit="c0ffee0  2026-01-01"),
+        entry("`dir/*.bin`", repo="r", path="d", commit="c0ffee0", blob="a"),
+        entry("not a path", repo="r", path="f.json", commit="c0ffee0", blob="a"),
+        entry("`g.json`", pulled="2026-01-01", blob="a"),
+    )
+    assert checker.find_mismatches(path) == (
+        [],
+        ["`f.json` (no blob or ours line)"],
+        0,
+        0,
+    )
+    assert not fake_gh.calls
+
+
+def test_main_exits_1_on_a_mismatch_and_still_reports_drift(
+    checker: ModuleType,
+    fake_gh: FakeGh,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A tampered file fails the run, after the issue has been dealt with."""
+    path = _vendored(tmp_path, monkeypatch, fake_gh)
+    (tmp_path / "tests" / "f.json").write_bytes(b"[2]\n")
+    fake_gh.commits["r", "up/f.json"] = (_COMMIT, "2026-01-01")
+    fake_gh.open_issue = 5
+    monkeypatch.setattr(sys, "argv", ["prog", str(path), "A title"])
+
+    assert checker.main() == 1
+
+    out = capsys.readouterr().out
+    assert "MISMATCH: tests/f.json: its bytes hash to blob" in out
+    assert "Hashed 1 files and asked upstream for 1 blobs: 1 mismatches." in out
+    assert [c[2] for c in fake_gh.calls if c[1] == "issue"] == ["list", "close"]
+
+
+def test_main_exits_0_and_counts_what_it_compared(
+    checker: ModuleType,
+    fake_gh: FakeGh,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A clean run says how many files and blobs it read."""
+    path = _vendored(tmp_path, monkeypatch, fake_gh)
+    fake_gh.commits["r", "up/f.json"] = (_COMMIT, "2026-01-01")
+    monkeypatch.setattr(sys, "argv", ["prog", str(path), "A title", "--dry-run"])
+
+    assert checker.main() == 0
+
+    out = capsys.readouterr().out
+    assert "Hashed 1 files and asked upstream for 1 blobs: 0 mismatches." in out
+    assert "MISMATCH" not in out
+
+
+def test_every_vendored_file_the_pin_file_names_is_the_blob_it_records(
+    checker: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The local half of the weekly comparison, over the real ledger, offline.
+
+    The first assertion is what says the parse still finds the pins at
+    all, a parser that matched nothing passing every line after it.
+    """
+    monkeypatch.chdir(_SCRIPT.parents[2])
+    pins, skipped = checker._pins(_PIN_README.read_text(encoding="utf-8"))
+    assert len(pins) > 10
+    assert skipped == []
+    wrong = [
+        pin.local for pin in pins if checker._git_blob(Path(pin.local)) != pin.expected
+    ]
+    assert wrong == []
+
+
+def test_a_failed_upstream_call_is_a_mismatch_and_the_issue_is_still_dealt_with(
+    checker: ModuleType,
+    fake_gh: FakeGh,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A trees-API error names the file and does not skip `report`."""
+    path = _vendored(tmp_path, monkeypatch, fake_gh)
+    fake_gh.commits["r", "up/f.json"] = ("new0000", "2026-01-01")
+    del fake_gh.trees["r", f"{_COMMIT}:up"]
+    real_run = fake_gh.__call__
+
+    def failing(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if "/git/trees/" in argv[4]:
+            raise subprocess.CalledProcessError(1, argv, stderr="HTTP 404\n")
+        return real_run(argv, **kwargs)
+
+    monkeypatch.setattr(checker.subprocess, "run", failing)
+    monkeypatch.setattr(sys, "argv", ["prog", str(path), "A title"])
+
+    assert checker.main() == 1
+
+    out = capsys.readouterr().out
+    assert "MISMATCH: tests/f.json: asking r for up/f.json at c0ffee0 failed" in out
+    assert "HTTP 404" in out
+    assert [c[2] for c in fake_gh.calls if c[1] == "issue"] == ["list", "create"]
+
+
+def test_every_file_the_pin_file_names_is_marked_minus_text(
+    checker: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A file the ledger hashes is checked out byte for byte: `.gitattributes`.
+
+    Without `-text`, a checkout with `core.autocrlf=true` converts the
+    file and the hash above no longer holds.
+    """
+    monkeypatch.chdir(_SCRIPT.parents[2])
+    pins, _ = checker._pins(_PIN_README.read_text(encoding="utf-8"))
+    assert pins
+    out = subprocess.run(  # noqa: S603
+        [_GIT, "check-attr", "text", "--", *(pin.local for pin in pins)],
+        capture_output=True,
+        check=True,
+        encoding="utf-8",
+    ).stdout
+    missing = [line for line in out.splitlines() if not line.endswith(": text: unset")]
+    assert missing == [], "add `<path> -text` to .gitattributes"

@@ -67,7 +67,12 @@ outstanding half of this convention rather than an exception to it.
 Where an entry pins to a commit, it gives the upstream repository, the
 path in it, and the commit. A `blob` line, where the entry carries one,
 gives the git blob SHA-1 of what that entry pins; what it pins, and
-whether it was compared byte for byte, is the entry's own to say. Most
+whether it was compared byte for byte, is the entry's own to say. An
+`ours` line gives the blob of the file kept here where that is not the
+`blob`, or where the entry has no upstream blob to name: a file with its
+line endings or trailing newline changed, a transcription, a set derived
+from a directory. The weekly job holds the file to `ours`, or to `blob`
+where there is no `ours`. Most
 entries close on a verdict; one with nothing upstream to compare
 against says so in prose instead. The verdicts used:
 
@@ -149,6 +154,14 @@ already carries, so nothing has to be downloaded, and `git hash-object`
 reproduces it locally. Not the contents API, which is the obvious
 alternative and caps out — `script_assets_test.json` is 9 MB.
 
+The weekly job runs this comparison for every entry whose heading is one
+file's path and which carries a `blob` or an `ours` line, and fails,
+naming the file, on a mismatch. It compares the file with `ours` (or
+`blob`) and the entry's `blob` with upstream's at `commit`, so a file
+edited here and a pin whose blob is not the one at its commit both fail.
+Add an `ours` line to a new entry whose file is not upstream's bytes,
+and a `-text` line for the file to `.gitattributes`.
+
 The two hashes match for every file whose verdict is **identical**. Where
 upstream is CRLF they cannot, this repository being LF throughout, and the
 entry says so with our own blob alongside. A csv of bitcoin/bips is
@@ -177,6 +190,8 @@ Verdict: **identical**.
 repo    bitcoin/bips
 path    bip-0067.mediawiki
 commit  24e96e870fffaa257b465ce1f0370c14aac588e8  2026-01-12
+blob    c21da80bec381ceb435fb8c3be3005677c1347d6
+ours    e76f22e604d112b7277a3d4e1d4423bd844220ad
 pulled  2020-05-31, re-pinned to the tip 2026-08-06
 behind  0 revisions; that commit is the tip of the path
 ```
@@ -193,6 +208,7 @@ repo    bitcoin/bips
 path    bip-0324/packet_encoding_test_vectors.csv
 commit  713f000a20421a54b29cd8ab89e711eef1fbccb9  2025-10-23
 blob    1588b066b4792d0b03f30d4f7f18e57ccde1f525
+ours    c556c47c2a807114411ff478e0bd782a270793da
 pulled  2026-09-27
 behind  0 revisions; that commit is the tip of the path
 ```
@@ -371,6 +387,7 @@ repo    bitcoin/bitcoin
 path    src/test/crypto_tests.cpp
 commit  b388f9bd0d2bcc259d488638d479ba09a30ba040  2026-09-17
 blob    2fdb83576e984dfaa19c17629f70bc425dc6d796
+ours    00196b37dfdb71ffcc386e83d315ef743af96b4a
 pulled  2026-09-21
 behind  0 revisions; that commit is the tip of the path
 ```
@@ -401,6 +418,7 @@ repo    bitcoin/bitcoin
 path    src/test/crypto_tests.cpp
 commit  b388f9bd0d2bcc259d488638d479ba09a30ba040  2026-09-17
 blob    2fdb83576e984dfaa19c17629f70bc425dc6d796
+ours    24b220c049abd9b7b87a4f13358a4e5ea3976869
 pulled  2026-09-21
 behind  0 revisions; that commit is the tip of the path
 ```
@@ -521,6 +539,7 @@ repo    bitcoin-core/qa-assets
 path    unit_test_data/script_assets_test.json
 commit  b33d85102d169b54d966ea315ad81a636680aefa  2025-07-23
 blob    6a69755a5e53f4212f265374e14f590dcbf86496
+ours    601a40db44ae1c72000d34d3b79facf9f29df731
 pulled  2021-08-03, refreshed 2026-07-30
 behind  0 revisions; that commit is the tip of the path
 ```
@@ -551,6 +570,7 @@ re-check should compare.
 repo    bitcoin-core/secp256k1
 path    src
 commit  b819a790f06122d5a53c0320e79c0dc486349fbd  2026-09-28
+ours    77be29e88b8d76602f416de9c47bcd2a13cf542d
 pulled  2026-09-10, refreshed 2026-09-14 and 2026-09-29
 behind  0 revisions; that commit is the tip of the path
 ```
@@ -642,6 +662,7 @@ repo    petertodd/python-bitcoinlib
 path    bitcoin/tests/data/signmessage.json
 commit  0b8318cc36e86508a3153342290b31b614a1be7f  2015-06-30
 blob    31d619867d1ab2dcd8358868ac501b35ebb9c129
+ours    dec81a97db1e63960fb3306ebc2716e9c7c8ef92
 pulled  2020-01-04
 behind  0 revisions; still the blob on master
 ```
@@ -873,15 +894,16 @@ rather than a refreshed one.
   neither makes "identical" a claim that can be made about them. What was
   checked is stated in each entry: matching every value verbatim against
   the pinned text, or a check the entry states on its own.
-- **Nothing here is enforced by the suite.** No hook re-fetches an
-  upstream and no test compares a blob, and that is a deliberate stopping
-  point: a network call in the test suite would trade a documented drift
-  for a flaky one. Where a pin goes stale is
-  `.github/workflows/vendored-vectors.yml`'s to say instead, weekly and
-  outside the suite, and it opens an issue rather than refreshing
-  anything -- which vector to take next is a decision. What it does not
-  reach is an entry whose `behind` already reads other than 0, a gap
-  somebody has decided not to close being one it would report every week.
+- **The suite checks the local half, offline.**
+  `tests/check_vendored_vectors_test.py` holds each file this ledger names
+  to its `ours` line, or its `blob` where there is none. No test asks
+  upstream for a blob: a network call in the suite would trade a
+  documented drift for a flaky one.
+  `.github/workflows/vendored-vectors.yml` asks upstream, weekly. A byte
+  mismatch fails the run. A stale pin opens an issue rather than being
+  refreshed -- which vector to take next is a decision. The staleness
+  check skips an entry whose `behind` reads other than 0, a gap somebody
+  has decided not to close being one it would report every week.
 
 ## Summary
 
