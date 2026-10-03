@@ -21,6 +21,8 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.11 (work in progress, not released yet)
 
+## v2026.10.3
+
 ### Breaking changes
 
 - **`b58.prv_key_data_from_wif` does not quote the checksum it refuses**
