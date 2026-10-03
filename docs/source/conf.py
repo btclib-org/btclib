@@ -128,10 +128,10 @@ intersphinx_mapping = {
 #   fragment as the unresolved class, rather than resolving the pieces on
 #   either side of it. No mapping answers a target that is not a name to
 #   begin with
-# - a private name: the p2p payload classes below begin with an
-#   underscore, and automodule does not document a name spelled that way
-#   at all, so `:members:` renders no page for a signature naming one to
-#   link to
+# - a private name: the p2p payload classes and the sig_hash input hashes
+#   below begin with an underscore, and automodule does not document a
+#   name spelled that way at all, so `:members:` renders no page for a
+#   signature naming one to link to
 # - a name under btclib_ecc's own path: the pages here document none of
 #   that package, whose classes the signatures of `btclib.ecc` still
 #   name, and btclib-ecc.readthedocs.io serves no objects.inv for a
@@ -147,6 +147,7 @@ nitpick_ignore = [
     ("py:class", "btclib.p2p.inventory._LocatorPayload"),
     ("py:class", "btclib.p2p.keepalive._NoncePayload"),
     ("py:class", "btclib.p2p.block_filters._FilterRangeRequest"),
+    ("py:class", "btclib.script.sig_hash._TaprootInputHashes"),
     ("py:class", "btclib_ecc.curves.curve.Curve"),
     ("py:class", "btclib_ecc.ecc.dsa.Sig"),
 ]

@@ -33,7 +33,7 @@ from io import BytesIO
 from typing import NoReturn
 
 from btclib.alias import ScriptList
-from btclib.exceptions import ScriptError, ScriptErrorCode
+from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
 from btclib.hashes import hash160, hash256, ripemd160, sha1, sha256
 from btclib.script.engine.flags import ScriptFlag
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_STACK_SIZE
@@ -53,6 +53,7 @@ from btclib.utils import (
 )
 
 __all__ = [
+    "ConditionStack",
     "ScriptOp",
     "assert_balanced_if",
     "assert_minimal_push",
@@ -279,35 +280,94 @@ def _assert_minimal_if(
         raise ScriptError(f"non-minimal {op} condition: {stack[-1].hex()}", code)
 
 
+class ConditionStack:
+    """The nesting of OP_IF branches, as Core's ConditionStack keeps it.
+
+    Whether every open branch executes is asked on each op code of a
+    script, so the answer is kept rather than recomputed: the depth, and
+    the position of the lowest branch that does not execute. A script
+    nests as deep as its size allows (BIP342 lifted the op code limit),
+    and a scan of the branches on each op code would be quadratic in the
+    depth.
+
+    Flipping any branch but the lowest unexecuted one cannot change the
+    answer, so it is not tracked. `close` and `flip` refuse an empty
+    stack, as Core asserts; `op_endif` and `op_else` refuse it first,
+    with the script's error.
+    """
+
+    __slots__ = ("_first_false", "_size")
+
+    def __init__(self) -> None:
+        self._size = 0
+        self._first_false: int | None = None
+
+    def __len__(self) -> int:
+        """Return the number of branches open."""
+        return self._size
+
+    def _assert_open(self) -> None:
+        if not self._size:
+            err_msg = "no branch open"
+            raise BTClibValueError(err_msg)
+
+    @property
+    def is_executing(self) -> bool:
+        """Whether every open branch executes."""
+        return self._first_false is None
+
+    def push(self, executes: bool) -> None:
+        """Open a branch, executing or not."""
+        assert_type(executes, bool, "executes")
+        if self._first_false is None and not executes:
+            self._first_false = self._size
+        self._size += 1
+
+    def close(self) -> None:
+        """Close the innermost branch."""
+        self._assert_open()
+        self._size -= 1
+        if self._first_false == self._size:
+            self._first_false = None
+
+    def flip(self) -> None:
+        """Flip the innermost branch between executing and not."""
+        self._assert_open()
+        if self._first_false is None:
+            self._first_false = self._size - 1
+        elif self._first_false == self._size - 1:
+            self._first_false = None
+
+
 def op_if(
     stack: list[bytes],
-    condition_stack: list[bool],
+    condition_stack: ConditionStack,
     flags: ScriptFlag,
     segwit_version: int,
 ) -> None:
     """Pop the condition and open a branch that executes on true.
 
-    Inside an unexecuted outer branch nothing is popped and False is
-    appended, so nesting is tracked without evaluating anything. The
-    minimal-condition rule -- the empty element or 0x01, nothing else
-    -- is consensus in tapscript per BIP342 and opt-in through the
-    MINIMALIF flag in segwit v0; a legacy script takes any element as
-    its condition. Core names the two refusals apart,
-    TAPSCRIPT_MINIMALIF and MINIMALIF.
+    Inside an unexecuted outer branch nothing is popped and an
+    unexecuted branch is opened, so nesting is tracked without
+    evaluating anything. The minimal-condition rule -- the empty
+    element or 0x01, nothing else -- is consensus in tapscript per
+    BIP342 and opt-in through the MINIMALIF flag in segwit v0; a
+    legacy script takes any element as its condition. Core names the
+    two refusals apart, TAPSCRIPT_MINIMALIF and MINIMALIF.
     """
-    if not all(condition_stack):
-        condition_stack.append(False)
+    if not condition_stack.is_executing:
+        condition_stack.push(False)
         return
 
     _assert_minimal_if(stack, flags, segwit_version, "OP_IF")
     condition = _to_bool(stack.pop())
 
-    condition_stack.append(condition)
+    condition_stack.push(condition)
 
 
 def op_notif(
     stack: list[bytes],
-    condition_stack: list[bool],
+    condition_stack: ConditionStack,
     flags: ScriptFlag,
     segwit_version: int,
 ) -> None:
@@ -316,42 +376,41 @@ def op_notif(
     The unexecuted-branch behaviour and the minimal-condition rule are
     op_if's; only the sense of the popped condition is inverted.
     """
-    if not all(condition_stack):
-        condition_stack.append(False)
+    if not condition_stack.is_executing:
+        condition_stack.push(False)
         return
 
     _assert_minimal_if(stack, flags, segwit_version, "OP_NOTIF")
     condition = _to_bool(stack.pop())
 
-    condition_stack.append(not condition)
+    condition_stack.push(not condition)
 
 
-def op_else(condition_stack: list[bool]) -> None:
+def op_else(condition_stack: ConditionStack) -> None:
     """Toggle the innermost open branch, refusing one never opened.
 
     A toggle rather than a one-shot alternative: Core flips
-    vfExec.back(), so a second OP_ELSE in the same branch turns it
-    back on, and this keeps that.
+    vfExec.toggle_top(), so a second OP_ELSE in the same branch turns
+    it back on, and this keeps that.
     """
-    if len(condition_stack) == 1:
+    if not condition_stack:
         err_msg = "OP_ELSE without OP_IF or OP_NOTIF"
         raise ScriptError(err_msg, ScriptErrorCode.UNBALANCED_CONDITIONAL)
-    condition_stack[-1] = not condition_stack[-1]
+    condition_stack.flip()
 
 
-def op_endif(condition_stack: list[bool]) -> None:
+def op_endif(condition_stack: ConditionStack) -> None:
     """Close the innermost open branch, refusing one never opened."""
-    # Core's SCRIPT_ERR_UNBALANCED_CONDITIONAL on `vfExec.empty()`, which is
-    # this list holding the sentinel alone. Popping the sentinel instead
-    # leaves `all([])` True, so an OP_ENDIF arriving before its OP_IF let the
-    # rest of the script run as if the branch had closed
-    if len(condition_stack) == 1:
+    # Core's SCRIPT_ERR_UNBALANCED_CONDITIONAL on `vfExec.empty()`. An
+    # OP_ENDIF arriving before its OP_IF must not let the rest of the
+    # script run as if a branch had closed
+    if not condition_stack:
         err_msg = "OP_ENDIF without OP_IF or OP_NOTIF"
         raise ScriptError(err_msg, ScriptErrorCode.UNBALANCED_CONDITIONAL)
-    condition_stack.pop()
+    condition_stack.close()
 
 
-def assert_balanced_if(condition_stack: list[bool]) -> None:
+def assert_balanced_if(condition_stack: ConditionStack) -> None:
     """Reject a conditional the script never closed.
 
     Core's `if (!vfExec.empty())` once the loop is over, and it is one of
@@ -362,9 +421,9 @@ def assert_balanced_if(condition_stack: list[bool]) -> None:
     closing a branch before opening it (`OP_ENDIF OP_1 OP_IF OP_1`) counts
     to zero and Core rejects it.
     """
-    if len(condition_stack) != 1:
+    if condition_stack:
         raise ScriptError(
-            f"unbalanced conditional: {len(condition_stack) - 1} left open",
+            f"unbalanced conditional: {len(condition_stack)} left open",
             ScriptErrorCode.UNBALANCED_CONDITIONAL,
         )
 

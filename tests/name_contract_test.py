@@ -230,9 +230,9 @@ def _argument_less_bools() -> dict[str, bool]:
 #   can fail; the prefix is the warning and a property would hide it
 # - `to_*` converts, and hands back a new object rather than a read of
 #   this one
-# - `close`, `wipe` and `clear` are each an action with a side effect
+# - `close`, `flip`, `wipe` and `clear` are each an action with a side effect
 _NOT_A_READ = ("assert_", "get_", "to_")
-_AN_ACTION = frozenset({"clear", "close", "wipe"})
+_AN_ACTION = frozenset({"clear", "close", "flip", "wipe"})
 
 # hashlib's own API, mirrored in a Protocol, and hashlib draws the line
 # itself: `digest()`, `hexdigest()` and `copy()` are calls where

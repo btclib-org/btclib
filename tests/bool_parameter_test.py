@@ -300,6 +300,13 @@ _KINDS = (
             "serialize": serialize_script,
         },
     ),
+    # the condition stack records whether a branch executes, and a branch
+    # that does not has every op code in it skipped
+    _Case(
+        "btclib.script.engine.script_op_codes.ConditionStack.push",
+        "executes",
+        script_op_codes.ConditionStack().push,
+    ),
     # Core's `fAccurate`: it decides what an OP_CHECKMULTISIG costs
     _Case(
         "btclib.script.sig_ops.sig_op_count",

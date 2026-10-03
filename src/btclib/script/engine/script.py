@@ -19,6 +19,7 @@ from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import NO_FLAGS, ScriptFlag
 from btclib.script.engine.script_op_codes import (
     _MAX_NUM_SIZE,
+    ConditionStack,
     ScriptOp,
     _assert_operands,
     _to_num,
@@ -686,7 +687,7 @@ def _run_ops(  # noqa: C901, PLR0912
     script_bytes: bytes,
     stack: list[bytes],
     altstack: list[bytes],
-    condition_stack: list[bool],
+    condition_stack: ConditionStack,
     prevout_value: int,
     tx: Tx | None,
     i: int,
@@ -717,7 +718,7 @@ def _run_ops(  # noqa: C901, PLR0912
 
         script_op_codes.assert_stack_size(stack, altstack)
 
-        skip_execution = not all(condition_stack)
+        skip_execution = not condition_stack.is_executing
 
         b = s.read(1)
         if not b:
@@ -956,7 +957,7 @@ def _eval_script(
     assert_type(segwit, bool, "segwit")
 
     altstack: list[bytes] = []
-    condition_stack: list[bool] = [True]
+    condition_stack = ConditionStack()
 
     script_index_ref = [-1]
     try:

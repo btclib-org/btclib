@@ -11,11 +11,8 @@ from collections.abc import Mapping
 from btclib_ecc.curves import is_libsecp256k1_serving
 from btclib_ecc.ecc import ssa
 from btclib_ecc.exceptions import BTClibEccValueError
-from btclib_ecc.hashes import tagged_hash
 
-from btclib import var_bytes
 from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
-from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import ScriptFlag
 from btclib.script.engine.script import (
@@ -25,6 +22,7 @@ from btclib.script.engine.script import (
 )
 from btclib.script.engine.script_op_codes import (
     _MAX_NUM_SIZE,
+    ConditionStack,
     ScriptOp,
     _assert_operands,
     _to_num,
@@ -33,7 +31,7 @@ from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.op_codes_tapscript import OP_CODE_NAMES, OP_SUCCESS
 from btclib.script.script import op_code_spans
 from btclib.script.script_pub_key import type_and_payload
-from btclib.script.sig_hash import PrecomputedTxData
+from btclib.script.sig_hash import PrecomputedTxData, _taproot, _TaprootInputHashes
 
 # the bindings, imported from their own package; None where they are not
 # installed, which nothing calls: what calls them here is behind
@@ -45,6 +43,7 @@ try:
     from btclib_secp256k1.ssa import verify as _libsecp256k1_ssa_verify
 except ImportError:  # pragma: no cover -- only an install without them
     _libsecp256k1_ssa_verify = None  # type: ignore[assignment]
+from btclib.script.taproot import leaf_hash
 from btclib.script.taproot import serialize as serialize_script
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
@@ -122,6 +121,7 @@ def _check_schnorr_signature(
     ext: bytes,
     precomputed: PrecomputedTxData | None,
     hash_types: list[int] | None,
+    input_hashes: _TaprootInputHashes | None,
 ) -> None:
     """Refuse a BIP340 signature: Core's CheckSchnorrSignature.
 
@@ -135,8 +135,16 @@ def _check_schnorr_signature(
     if hash_types is not None:
         hash_types.append(sighash_type)
     try:
-        msg_hash = sig_hash.taproot(
-            tx, i, prevouts, sighash_type, ext_flag, annex, ext, precomputed
+        msg_hash = _taproot(
+            tx,
+            i,
+            prevouts,
+            sighash_type,
+            ext_flag,
+            annex,
+            ext,
+            precomputed,
+            input_hashes or _TaprootInputHashes(),
         )
     except BTClibValueError as e:
         raise ScriptError(str(e), ScriptErrorCode.SCHNORR_SIG_HASHTYPE) from e
@@ -167,13 +175,23 @@ def verify_key_path(
     """
     pub_key = type_and_payload(script_pub_key)[1]
     _check_schnorr_signature(
-        stack[0], pub_key, tx, i, prevouts, 0, annex, b"", precomputed, hash_types
+        stack[0],
+        pub_key,
+        tx,
+        i,
+        prevouts,
+        0,
+        annex,
+        b"",
+        precomputed,
+        hash_types,
+        None,
     )
 
 
 def op_checksig(
     stack: list[bytes],
-    script_bytes: bytes,
+    tapleaf_hash: bytes,
     codesep_pos: int,
     tx: Tx,
     i: int,
@@ -183,6 +201,7 @@ def op_checksig(
     flags: ScriptFlag,
     precomputed: PrecomputedTxData | None = None,
     hash_types: list[int] | None = None,
+    input_hashes: _TaprootInputHashes | None = None,
 ) -> int:
     """Verify one BIP340 signature in a script path: BIP342's OP_CHECKSIG.
 
@@ -194,9 +213,9 @@ def op_checksig(
     the legacy op code pushes False, tapscript fails the script, its
     NULLFAIL being consensus. A key neither empty nor 32 bytes verifies
     nothing and succeeds, which is the upgrade room, refused only under
-    DISCOURAGE_UPGRADABLE_PUBKEYTYPE. The message hash commits to the
-    tapleaf and to the last executed OP_CODESEPARATOR through the BIP341
-    extension.
+    DISCOURAGE_UPGRADABLE_PUBKEYTYPE. The message hash commits to
+    `tapleaf_hash` and to the last executed OP_CODESEPARATOR, through the
+    BIP341 extension.
 
     `hash_types` is `verify_input`'s collector, appended to where the
     hash type is read: an empty signature is not one, and neither is
@@ -213,9 +232,6 @@ def op_checksig(
         raise ScriptError("empty public key", ScriptErrorCode.TAPSCRIPT_EMPTY_PUBKEY)
     if len(pub_key) == 32:
         if signature:
-            preimage = b"\xc0"
-            preimage += var_bytes.serialize(script_bytes)
-            tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
             ext = tapleaf_hash + b"\x00" + codesep_pos.to_bytes(4, "little")
             _check_schnorr_signature(
                 signature,
@@ -228,6 +244,7 @@ def op_checksig(
                 ext,
                 precomputed,
                 hash_types,
+                input_hashes,
             )
     # a key neither empty nor 32 bytes is a public key version BIP342 left
     # to a future soft fork: nothing is verified and the check succeeds,
@@ -242,7 +259,7 @@ def op_checksig(
 
 def op_checksigadd(
     stack: list[bytes],
-    script_bytes: bytes,
+    tapleaf_hash: bytes,
     codesep_pos: int,
     tx: Tx,
     i: int,
@@ -252,6 +269,7 @@ def op_checksigadd(
     flags: ScriptFlag,
     precomputed: PrecomputedTxData | None = None,
     hash_types: list[int] | None = None,
+    input_hashes: _TaprootInputHashes | None = None,
 ) -> int:
     """Run BIP342's OP_CHECKSIGADD as one op code, as Core's EvalScript does.
 
@@ -267,7 +285,7 @@ def op_checksigadd(
     del stack[-2]
     budget = op_checksig(
         stack,
-        script_bytes,
+        tapleaf_hash,
         codesep_pos,
         tx,
         i,
@@ -277,6 +295,7 @@ def op_checksigadd(
         flags,
         precomputed,
         hash_types,
+        input_hashes,
     )
     stack.append(encode_num(n + (1 if stack.pop() else 0)))
     return budget
@@ -344,7 +363,7 @@ def _run_ops(  # noqa: C901, PLR0912
     script_bytes: bytes,
     stack: list[bytes],
     altstack: list[bytes],
-    condition_stack: list[bool],
+    condition_stack: ConditionStack,
     prevouts: list[TxOut],
     tx: Tx,
     i: int,
@@ -367,11 +386,14 @@ def _run_ops(  # noqa: C901, PLR0912
     codesep_pos = 0xFFFFFFFF
     script_index = -1
     s = bytesio_from_binarydata(script_bytes)
+    # once per leaf, as Core's m_tapleaf_hash: every signature commits to it
+    tapleaf_hash = leaf_hash(0xC0, script_bytes)
+    input_hashes = _TaprootInputHashes()
     while True:
         script_index += 1
         script_index_ref[0] = script_index
 
-        skip_execution = not all(condition_stack)
+        skip_execution = not condition_stack.is_executing
 
         script_op_codes.assert_stack_size(stack, altstack)
 
@@ -400,7 +422,7 @@ def _run_ops(  # noqa: C901, PLR0912
         if plain == "OP_CHECKSIG":
             sigops_budget = op_checksig(
                 stack,
-                script_bytes,
+                tapleaf_hash,
                 codesep_pos,
                 tx,
                 i,
@@ -410,12 +432,13 @@ def _run_ops(  # noqa: C901, PLR0912
                 flags,
                 precomputed,
                 hash_types,
+                input_hashes,
             )
 
         elif op == "OP_CHECKSIGADD":
             sigops_budget = op_checksigadd(
                 stack,
-                script_bytes,
+                tapleaf_hash,
                 codesep_pos,
                 tx,
                 i,
@@ -425,6 +448,7 @@ def _run_ops(  # noqa: C901, PLR0912
                 flags,
                 precomputed,
                 hash_types,
+                input_hashes,
             )
         elif op == "OP_CHECKLOCKTIMEVERIFY":
             script_op_codes.op_checklocktimeverify(stack, tx, i, flags)
@@ -523,7 +547,7 @@ def verify_script_path_vc0(
         raise ScriptError(err_msg, ScriptErrorCode.PUSH_SIZE)
 
     altstack: list[bytes] = []
-    condition_stack: list[bool] = [True]
+    condition_stack = ConditionStack()
 
     script_index_ref = [-1]
     try:

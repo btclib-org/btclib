@@ -25,6 +25,17 @@ full year, short month, short day (YYYY-M-D)
   GHSA-8h6f-34jj-7p6c.** Upgrading btclib with its `secp256k1` extra installs
   it.
 
+### Breaking changes
+
+- **`op_if`, `op_notif`, `op_else`, `op_endif` and `assert_balanced_if` of
+  `btclib.script.engine.script_op_codes` take a `ConditionStack`, and
+  `btclib.script.engine.tapscript.op_checksig` and `op_checksigadd` take the
+  tapleaf hash** (GHSA-9fr5-46w5-5f9r). They took a `list[bool]` starting as
+  `[True]`, and the script bytes. Act on it if you call them: pass
+  `ConditionStack()` where you passed `[True]`, and
+  `leaf_hash(0xC0, script_bytes)`, from `btclib.script.taproot`, where you
+  passed `script_bytes`.
+
 ## v2026.10.3
 
 ### Breaking changes
