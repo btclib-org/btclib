@@ -89,6 +89,12 @@ Entries above that have the maintainer landing without another person's
 approval describe the rule before issue btclib-org/.github#1362 (issue
 btclib-org/.github#1569).
 
+### btclib requires btclib-secp256k1 0.8.0.10
+
+btclib-secp256k1 0.8.0.10 fixes GHSA-8h6f-34jj-7p6c, an invalid-curve oracle
+in `silentpayments.scan_outputs`, which btclib does not call. The `secp256k1`
+extra and the `bindings` group require it.
+
 ## v2026.10.3
 
 ### `b58.prv_key_data_from_wif` does not quote the checksum

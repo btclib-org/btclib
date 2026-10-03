@@ -141,9 +141,10 @@ secp256k1 = [
     # `xonly.tweak_add_` (btclib-org/btclib-secp256k1#158), which
     # `script.taproot` calls to tweak the parsed internal key, where
     # `xonly.tweak_add` parses the x again and that parse is a field
-    # square root. The floor is the one btclib-ecc's own `secp256k1`
-    # extra sets, below which the entry after this one does not resolve
-    "btclib-secp256k1>=0.8.0.9",
+    # square root. 0.8.0.10 is the floor because it fixes
+    # GHSA-8h6f-34jj-7p6c, an invalid-curve oracle in the bindings'
+    # `silentpayments.scan_outputs`, which btclib does not call
+    "btclib-secp256k1>=0.8.0.10",
     # what the rest of the delegation is: btclib_ecc imports the
     # bindings for the curve arithmetic and the schemes, and its extra is
     # what states which release that takes
@@ -215,7 +216,7 @@ pull_requests = "https://github.com/btclib-org/btclib/pulls"
 # refuses the day the two stop agreeing. What the group buys is that no
 # documented command had to grow an `--extra`, and that the job of issue
 # #991 is those same commands with this group left out
-bindings = ["btclib-secp256k1>=0.8.0.9", "btclib-ecc[secp256k1]>=2026.10.2"]
+bindings = ["btclib-secp256k1>=0.8.0.10", "btclib-ecc[secp256k1]>=2026.10.2"]
 # the `bip324` extra again, for the reason `bindings` is a group: the
 # suite, the type check and the docs build import `btclib.p2p.bip324`,
 # and `tests/build_system_test.py` holds the two declarations equal.
