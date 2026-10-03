@@ -653,6 +653,41 @@ def segwit_v0(
     return hash256(preimage)
 
 
+class _TaprootInputHashes:
+    """The hashes BIP341 commits to that belong to one input, kept once.
+
+    Every signature of a tapscript input commits to the hash of the annex
+    and, under SIGHASH_SINGLE, to the hash of the output at the input's
+    index. Neither changes between the checks of one input, and the
+    tapscript has no limit on how many it makes, so hashing them anew each
+    time costs the size of the annex or of the output once per check.
+    Each is computed on first use, as Core's `ScriptExecutionData` does
+    with `m_annex_hash` and `m_output_hash`.
+
+    One instance serves one input of one transaction with one annex: it
+    does not look at what it is handed on later calls, so it is private
+    and `taproot` makes a new one for each call.
+    """
+
+    __slots__ = ("_annex", "_output")
+
+    def __init__(self) -> None:
+        self._annex: bytes | None = None
+        self._output: bytes | None = None
+
+    def annex_hash(self, annex: Octets) -> bytes:
+        """Return the sha256 of the serialized annex."""
+        if self._annex is None:
+            self._annex = sha256(var_bytes.serialize(annex))
+        return self._annex
+
+    def output_hash(self, tx_out: TxOut) -> bytes:
+        """Return the sha256 of the serialized output."""
+        if self._output is None:
+            self._output = sha256(_serialized_output(tx_out))
+        return self._output
+
+
 def taproot(
     transaction: Tx,
     input_index: int,
@@ -671,6 +706,36 @@ def taproot(
     `message_extension` carry BIP342's tapleaf commitment for a script
     path -- empty for the key path. SIGHASH_SINGLE with no matching
     output is an error here, per BIP341, where legacy keeps the bug.
+    """
+    return _taproot(
+        transaction,
+        input_index,
+        prevouts,
+        hashtype,
+        ext_flag,
+        annex,
+        message_extension,
+        precomputed,
+        _TaprootInputHashes(),
+    )
+
+
+def _taproot(
+    transaction: Tx,
+    input_index: int,
+    prevouts: list[TxOut],
+    hashtype: int,
+    ext_flag: int,
+    annex: Octets,
+    message_extension: Octets,
+    precomputed: PrecomputedTxData | None,
+    input_hashes: _TaprootInputHashes,
+) -> bytes:
+    """Return `taproot`'s hash, the annex and output hashes being the caller's.
+
+    The script engine keeps one `_TaprootInputHashes` for all the signature
+    checks of an input, so they cost the size of the annex and of the output
+    once and not once per check.
     """
     _assert_valid_prevouts(prevouts)
     _assert_valid_vin_i(transaction, input_index)
@@ -733,10 +798,10 @@ def taproot(
         parts.append(input_index.to_bytes(4, "little"))
 
     if annex_present:
-        parts.append(sha256(var_bytes.serialize(annex)))
+        parts.append(input_hashes.annex_hash(annex))
 
     if hashtype & 0x03 == SINGLE:
-        parts.append(sha256(_serialized_output(transaction.vout[input_index])))
+        parts.append(input_hashes.output_hash(transaction.vout[input_index]))
 
     parts.append(message_extension)
 

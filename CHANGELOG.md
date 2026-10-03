@@ -95,6 +95,12 @@ btclib-secp256k1 0.8.0.10 fixes GHSA-8h6f-34jj-7p6c, an invalid-curve oracle
 in `silentpayments.scan_outputs`, which btclib does not call. The `secp256k1`
 extra and the `bindings` group require it.
 
+### Tapscript validation time is linear in the size of the script
+
+Each op code scanned every open `OP_IF`, and each signature check hashed the
+whole leaf, the annex and the SIGHASH_SINGLE output. Branches are a depth and a
+position, and the hashes are kept per input (GHSA-9fr5-46w5-5f9r).
+
 ## v2026.10.3
 
 ### `b58.prv_key_data_from_wif` does not quote the checksum

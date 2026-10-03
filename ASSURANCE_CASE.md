@@ -155,9 +155,12 @@ The bounds are Bitcoin Core's, under Core's names:
 `var_int.MAX_SIZE` in `src/btclib/var_int.py` for any length or count
 with no bound of its own. The script engine in
 `src/btclib/script/engine/` runs a script it received against the
-consensus rules and the limits Core applies to it. An Electrum reply is
-json, and `electrum.decode_response` refuses a line that is not a
-well-formed answer to the request it is matched to.
+consensus rules and the limits Core applies to it. BIP342 sets no size or
+op code limit on a tapscript, so the engine keeps the work of each op code
+independent of the script around it, and
+`tests/script_engine/tapscript_scaling_test.py` checks that. An Electrum
+reply is json, and `electrum.decode_response` refuses a line that is not
+a well-formed answer to the request it is matched to.
 
 **Files.** btclib opens no file a caller names. What it reads is its own
 package data, the network tables under `src/btclib/_data/`, once, at
