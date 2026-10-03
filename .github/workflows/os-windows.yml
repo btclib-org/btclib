@@ -29,8 +29,8 @@ name: os-windows
 #
 # windows-11-arm runs an x86-64 interpreter in every cell, and the requests
 # of its call below name that platform. PyPI serves no win_arm64 wheel of
-# cryptography 50.0.2, which btclib requires on every platform, so a native
-# arm64 interpreter builds it from source and fails in openssl-sys
+# cryptography 50.0.2, which the `test` group requires on every platform, so
+# a native arm64 interpreter builds it from source and fails in openssl-sys
 # (issue #2520). The upstream report is issue #2521. Each request spells
 # the same version the windows-latest call lists, and
 # tests/interpreters_test.py reads the two as one.
