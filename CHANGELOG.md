@@ -72,6 +72,10 @@ btclib-org/.github#452).
 `CONTRIBUTING.md`'s shared half, `REPOSITORY.md` and `RELEASING.md` say every
 pull request, the maintainer's included, lands with an approving review from
 somebody else, the bypass being for emergencies (issue btclib-org/.github#1362).
+### `REPOSITORY.md` reads the review switch as the organization's
+
+`REPOSITORY.md` states only that this repository sets no
+`CLAUDE_REVIEW_ENABLED` of its own (issue btclib-org/.github#1560).
 
 ## v2026.10.3
 
