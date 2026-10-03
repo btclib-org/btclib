@@ -1,0 +1,28 @@
+# The peer-to-peer messages that carry inventory and blocks, mutated:
+# inventory, compact blocks, block filters and merkle blocks. Every one
+# is parsed from a peer's octets before anything is validated, which is
+# issue #2443's question: a bound or a count moved by one, in code the
+# suite already runs at 100% statement coverage.
+#
+# p2p_connection.toml and bip324.toml hold the rest of `src/btclib/p2p`,
+# and p2p_connection.toml carries the reasoning the two share.
+
+[cosmic-ray]
+module-path = [
+    "src/btclib/p2p/inventory.py",
+    "src/btclib/p2p/compact_blocks.py",
+    "src/btclib/p2p/block_filters.py",
+    "src/btclib/p2p/merkleblock.py",
+]
+
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/p2p tests/parse_contract_test.py tests/integer_policy_test.py \
+  tests/check_validity_test.py"""
+
+timeout = 300
+
+excluded-modules = []
+
+# one mutant at a time, in this working tree: see sig_hash.toml
+[cosmic-ray.distributor]
+name = "local"

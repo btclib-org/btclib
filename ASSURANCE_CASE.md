@@ -280,7 +280,11 @@ to, and what counters each.
   the library and of the suite is held at 100% by `fail_under` in
   `pyproject.toml`, and mutation testing, profiled under
   `.github/mutation/` and run by `.github/workflows/mutation.yml`, asks
-  whether the suite notices a line that is wrong.
+  whether the suite notices a line that is wrong. It mutates the modules
+  a profile names, the parsers of `btclib.p2p`, `btclib.tx`,
+  `btclib.electrum` and `btclib.key` among them, and gates nothing. A
+  module no profile names, `btclib.network` for one, is held by
+  coverage and the tests alone.
 - **Supply chain.** SECURITY.md's *Supported versions* describes the
   attestations and the bill of materials. `uv.lock` pins every
   dependency, and CONTRIBUTING.md's *The environment and the gates*
