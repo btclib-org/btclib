@@ -345,12 +345,10 @@ Everything reaches it through a pull request: the checks above with
 no force pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.
 
-That last one is what carries the review. CONTRIBUTING.md states why a
-review cannot be satisfied by its author; the consequence here is that on
-a solo-maintainer repository the rule as written stops every pull request
-the maintainer opens, and the bypass is what lets one merge at all. The
-trade is the review's other half: it is there for a contributor's pull
-request, where there *is* somebody else to ask.
+That last one is what lets the maintainer land without the review. The
+maintainer uses it only in an emergency: every other pull request, the
+maintainer's included, waits for an approving review from somebody other
+than its author, as CONTRIBUTING.md says.
 
 ```shell
 gh api repos/btclib-org/btclib/branches/main/protection \
@@ -380,7 +378,7 @@ no protection at all — and one branch is what closed it.
 
 `enforce_admins` off is one switch that exempts an administrator from
 every rule above at once — there is no way, inside the classic rule
-alone, to relax the review requirement for a solo merge while keeping
+alone, to relax the review requirement for the maintainer while keeping
 signatures and linear history unconditional. `main-integrity` and
 `main-self-merge` carry that split, additive to the classic rule rather
 than replacing it: rules aggregate across rulesets and classic
@@ -406,11 +404,10 @@ fully-signed chain (issue #1022).
 
 **The bypass mode is the whole of the design.** `pull_request` excuses
 its holder from the rule *while merging a pull request* and at no other
-time, so it answers the one thing a solo-maintainer repository cannot
-do — produce an approving review from somebody else — and answers
-nothing further. A direct push to `main` is refused for everyone, the
-holder included: outside a pull request there is no bypass to apply, and
-the rule says changes must come through one.
+time, so it excuses the approving review and nothing further. The
+maintainer uses it only in an emergency. A direct push to `main` is
+refused for everyone, the holder included: outside a pull request there
+is no bypass to apply, and the rule says changes must come through one.
 
 The other mode, `always`, permits a direct push as well, and it is not
 used here. What it would buy is a landing that keeps the maintainer's
@@ -440,8 +437,9 @@ not, through a pull request or otherwise.
 carries `required_pull_request_reviews`, and what clears it for the
 maintainer is `enforce_admins` being `false` together with holding
 `admin` — the ruleset bypass alone would not be enough. Turning
-`enforce_admins` on would therefore deadlock every solo merge, the
-classic review requirement having no bypass list to be named in.
+`enforce_admins` on would therefore leave the maintainer no landing
+without the review, the classic review requirement having no bypass list
+to be named in.
 
 **Every landing is now a pull request GitHub merges**, which is what
 retires the question this section used to answer at length: whether the
