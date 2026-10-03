@@ -27,11 +27,13 @@ name: os-windows
 # btclib_secp256k1 wheel for each interpreter, and the one path separator
 # and line ending this library never sees otherwise.
 #
-# windows-11-arm needs no special handling, and that is worth a word: which
-# architecture the interpreter targets there is up to the runner image,
-# native arm64 for the versions it caches and emulated x86-64 for the ones
-# uv has to download, and the wheel is selected for the interpreter rather
-# than for the host, so either one links.
+# windows-11-arm runs an x86-64 interpreter in every cell, and the requests
+# of its call below name that platform. PyPI serves no win_arm64 wheel of
+# cryptography 50.0.2, which btclib requires on every platform, so a native
+# arm64 interpreter builds it from source and fails in openssl-sys
+# (issue #2520). The upstream report is issue #2521. Each request spells
+# the same version the windows-latest call lists, and
+# tests/interpreters_test.py reads the two as one.
 #
 # A workflow of its own rather than a row in os-macos.yml, which is the same
 # design that file argues for itself: one variable each, so a red cell
@@ -88,6 +90,14 @@ jobs:
   suite-windows:
     uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@main
     with:
-      runners: '["windows-latest", "windows-11-arm"]'
+      runners: '["windows-latest"]'
       python-versions: '["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t", "pypy3.11"]'
+      fetch-tags: true
+  suite-windows-arm:
+    uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@main
+    with:
+      runners: '["windows-11-arm"]'
+      # the one list the tests read as a single line, so it stays one
+      # yamllint disable-line rule:line-length
+      python-versions: '["cpython-3.11-windows-x86_64-none", "cpython-3.12-windows-x86_64-none", "cpython-3.13-windows-x86_64-none", "cpython-3.14-windows-x86_64-none", "cpython-3.14t-windows-x86_64-none", "cpython-3.15-windows-x86_64-none", "cpython-3.15t-windows-x86_64-none", "pypy-3.11-windows-x86_64-none"]'
       fetch-tags: true
