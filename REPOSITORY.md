@@ -669,6 +669,18 @@ The organization gives the same two answers, `sha_pinning_required`
 being set at that level: [section 11 has the reasons for both
 fields](https://github.com/btclib-org/.github/blob/main/README.md#tokens-publishing-scanning).
 
+## Sign-off on web commits
+
+```shell
+gh api repos/btclib-org/btclib --jq .web_commit_signoff_required
+# true
+gh api orgs/btclib-org --jq .web_commit_signoff_required
+# true
+```
+
+Set at the organization level, [for the reason section 11
+gives](https://github.com/btclib-org/.github/blob/main/README.md#signatures).
+
 ## Publishing
 
 **Publishing waits for an approval**: the `pypi` and `testpypi`
@@ -967,15 +979,15 @@ last build and the certificate issued for the domain.
 
 **A field the standard states no rule about, and no call above answers
 alongside one it does.** `allow_forking`, `allow_update_branch`,
-`has_discussions`, `has_downloads`, `is_template` and
-`web_commit_signoff_required` are in the repository document, in no
-`--jq` object above, and in no rule of the standard:
+`has_discussions`, `has_downloads` and `is_template` are in the
+repository document, in no `--jq` object above, and in no rule of the
+standard:
 
 ```shell
 std=$(gh api repos/btclib-org/.github/contents/README.md --jq .content \
   | base64 -d)
 for f in allow_forking allow_update_branch has_discussions has_downloads \
-         is_template web_commit_signoff_required; do
+         is_template; do
   printf '%s %s\n' "$f" "$(printf '%s' "$std" | grep -c "$f")"
 done
 # 0 each

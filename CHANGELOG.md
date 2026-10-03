@@ -49,6 +49,12 @@ file per release is what keeps each of them under it.
   `--locked`, bar the exceptions `CONTRIBUTING.md` lists** (issue
   btclib-org/.github#1538).
 
+### `REPOSITORY.md` reads back the web sign-off setting
+
+- **`REPOSITORY.md` reads `web_commit_signoff_required` back** (issue
+  btclib-org/.github#1540): section 11 of the standard states the
+  organization setting.
+
 ## v2026.10.3
 
 ### `b58.prv_key_data_from_wif` does not quote the checksum
