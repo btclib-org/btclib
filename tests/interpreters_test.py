@@ -83,6 +83,12 @@ _PYTHONS_CALLER = re.compile(
 # by name for that reason, a shape it shares rather than a shape of its
 # own being why it is not counted here
 _SWEEPS = ("os-macos.yml", "os-ubuntu.yml", "os-windows.yml")
+# a request naming the platform, as os-windows.yml's windows-11-arm call
+# passes to pin an x86-64 interpreter: `cpython-3.12-windows-x86_64-none`
+# is 3.12 and `pypy-3.11-windows-x86_64-none` is pypy3.11
+_PLATFORM_REQUEST = re.compile(
+    r"^(?P<impl>cpython|pypy)-(?P<version>[^-]+)-windows-x86_64-none$"
+)
 # the merge gate, and inside it the jobs a landing waits on. Section 3
 # of the organization standard declares a free-threading classifier
 # where the gate exercises that build, a gate being what refuses the
@@ -164,6 +170,14 @@ def _versions(pattern: re.Pattern[str], text: str) -> tuple[str, ...]:
     return tuple(m["version"] for m in pattern.finditer(text))
 
 
+def _normalized(request: str) -> str:
+    """Return the version a request names, without the platform it pins."""
+    match = _PLATFORM_REQUEST.match(request)
+    if not match:
+        return request
+    return match["version"] if match["impl"] == "cpython" else "pypy" + match["version"]
+
+
 def _interpreters(text: str) -> set[str]:
     """Return every interpreter one workflow's text declares, in either shape.
 
@@ -180,7 +194,9 @@ def _interpreters(text: str) -> set[str]:
             for line in match["block"].splitlines()
         )
     for match in _PYTHONS_CALLER.finditer(text):
-        listed.update(re.findall(r'"(\S+?)"', match["block"]))
+        listed.update(
+            _normalized(request) for request in re.findall(r'"(\S+?)"', match["block"])
+        )
     return listed
 
 
@@ -623,6 +639,22 @@ def test_every_sweep_runs_the_same_interpreters() -> None:
     assert len(lists) <= 1, (
         f"the workflows do not name the same interpreters: {declared}"
     )
+
+
+def test_one_sweep_file_passes_the_same_interpreters_to_each_call() -> None:
+    """A sweep file with two calls lists one interpreter set in both.
+
+    `os-windows.yml` calls `reusable-os-suite.yml` once per architecture,
+    and `_declared` unions the calls, so a version dropped from one call
+    would still be named by the other.
+    """
+    for name in _SWEEPS:
+        text = (_ROOT / ".github/workflows" / name).read_text(encoding="utf-8")
+        calls = {
+            tuple(sorted(map(_normalized, re.findall(r'"(\S+?)"', m["block"]))))
+            for m in _PYTHONS_CALLER.finditer(text)
+        }
+        assert len(calls) == 1, f"{name} passes different interpreters: {calls}"
 
 
 def test_a_caller_shaped_with_reads_the_same_interpreters_as_a_block() -> None:
