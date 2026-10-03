@@ -43,6 +43,12 @@ file per release is what keeps each of them under it.
 
 ## v2026.11 (work in progress, not released yet)
 
+### `dependabot.yml` does not say that every workflow passes `--locked`
+
+- **`.github/dependabot.yml` says the workflows install from `uv.lock` with
+  `--locked`, bar the exceptions `CONTRIBUTING.md` lists** (issue
+  btclib-org/.github#1538).
+
 ## v2026.10.3
 
 ### `b58.prv_key_data_from_wif` does not quote the checksum
