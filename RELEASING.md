@@ -419,7 +419,7 @@ to `deps-latest`'s own result.
    signature rather than the maintainer's costs nothing: the branch rule
    asks for a valid signature and not for a particular signer.
 
-   The release pull request waits for an approving review from an owner
+   The release pull request waits for an approving review from somebody
    other than its author, like any other. Where the base branch policy
    refuses `gh pr merge <n> --squash` for want of it — `the base branch
    policy prohibits the merge` — approve first.

@@ -195,11 +195,10 @@ disagreement that survives a second exchange goes to the maintainer
 instead of into a third round.
 
 **Every pull request, the maintainer's included, lands with an
-approving review from an owner other than its author**;
-[`GOVERNANCE.md`][governance] names the owners. The ack of record is a
-bot's review of type COMMENT ([the standard's *Review*][s-rev] says
-whose), so it is not that approval. The maintainer's bypass below is for
-emergencies only ([ISS 1362][i1362]).
+approving review from somebody other than its author.** The ack of
+record is a bot's review of type COMMENT ([the standard's *Review*][s-rev]
+says whose), so it is not that approval. The maintainer's bypass below
+is for emergencies only ([ISS 1362][i1362]).
 
 ### Landing it
 
@@ -212,7 +211,7 @@ has seen.
 
 Then squash, [the only method the rule accepts][s11].
 
-**It lands once an owner other than its author has approved that
+**It lands once somebody other than its author has approved that
 head**, through `gh pr merge` pinned to it:
 
 ```shell

@@ -347,7 +347,7 @@ no force pushes, no deletions, `required_conversation_resolution`, and
 
 That last one is what lets the maintainer land without the review. The
 maintainer uses it only in an emergency: every other pull request, the
-maintainer's included, waits for an approving review from an owner other
+maintainer's included, waits for an approving review from somebody other
 than its author, as CONTRIBUTING.md says.
 
 ```shell
