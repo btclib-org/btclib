@@ -55,6 +55,12 @@ file per release is what keeps each of them under it.
   btclib-org/.github#1540): section 11 of the standard states the
   organization setting.
 
+### The `Sign-off` check is required
+
+`CONTRIBUTING.md`'s shared half says a pull request whose commits lack the
+`Signed-off-by:` trailer cannot merge, and `REPOSITORY.md` lists
+`lint / Sign-off` among the required checks (issue btclib-org/.github#1550).
+
 ## v2026.10.3
 
 ### `b58.prv_key_data_from_wif` does not quote the checksum
