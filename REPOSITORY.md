@@ -64,6 +64,7 @@ repos/btclib-org/btclib/branches/main/protection --jq
 | `lint / Lint and type-check` | `lint.yml`, calling `reusable-lint.yml` |
 | `regtest / Regtest against Bitcoin Core` | `integration-bitcoind.yml` |
 | `lint / Dependency review` | `lint.yml`, calling `reusable-lint.yml` |
+| `lint / Sign-off` | `lint.yml`, calling `reusable-lint.yml` |
 
 A workflow needs an aggregate when every one of its jobs has to gate:
 `test.yml` is the one with several, and a context naming any one of them
@@ -137,7 +138,8 @@ gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
     {"context": "docs / Build the documentation", "app_id": 15368},
     {"context": "lint / Lint and type-check", "app_id": 15368},
     {"context": "regtest / Regtest against Bitcoin Core", "app_id": 15368},
-    {"context": "lint / Dependency review", "app_id": 15368}
+    {"context": "lint / Dependency review", "app_id": 15368},
+    {"context": "lint / Sign-off", "app_id": 15368}
   ]
 }
 JSON
@@ -236,8 +238,8 @@ gh api -X PATCH \
 Step 1 patches the `checks` array rather than `contexts`, so that the
 bindings the rule already has survive the edit, and **a JSON body on stdin
 is what that takes**: `-f` sends every value as a string and the endpoint
-answers 422 for a string `app_id`. Its body is the four-check one the
-section above carries, every entry naming its app because every one of these
+answers 422 for a string `app_id`. Its body is the one the section above
+carries, every entry naming its app because every one of these
 is an Actions check — the `CodeQL` it drops was the exception, the app
 producing it not being Actions.
 
