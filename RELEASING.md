@@ -419,22 +419,20 @@ to `deps-latest`'s own result.
    signature rather than the maintainer's costs nothing: the branch rule
    asks for a valid signature and not for a particular signer.
 
-   `gh pr merge <n> --squash` alone can still refuse this pull request —
-   `the base branch policy prohibits the merge` — the way it did on
-   btclib-secp256k1's own v0.8.0.4 (btclib-org/btclib-secp256k1#288): a
-   solo-maintainer repository never clears `REVIEW_REQUIRED`, so gh's
-   client-side mergeable check declines before it asks the server at
-   all, and `--auto` only waits longer for the same review that will not
-   arrive. `--admin` is the flag that clears it — the pair
-   REPOSITORY.md's "Branch protection" names, `enforce_admins` `false`
-   together with holding `admin` — and it is the one to reach for first:
-   measured directly here across #1111, #1113, #1114 and #1133, each
-   landing from `BLOCKED` and `REVIEW_REQUIRED` with a verified
-   signature, one of them (#1113) `BEHIND` as well and cleared the same
-   way. Name the release commit's title and body explicitly when using it — `gh
-   pr merge <n> --squash --admin --body-file <path> --subject <title>` — rather
-   than leave them to the two `squash_merge_commit_*` repository defaults,
-   recorded in REPOSITORY.md's *Merge methods*.
+   The release pull request waits for an approving review from an owner
+   other than its author, like any other. Where the base branch policy
+   refuses `gh pr merge <n> --squash` for want of it — `the base branch
+   policy prohibits the merge` — approve first.
+
+   `--admin` lifts that refusal through the maintainer's bypass, which
+   the maintainer uses only in an emergency, when that approval cannot
+   come. The bypass needs `enforce_admins` `false` together
+   with holding `admin`, the pair REPOSITORY.md's "Branch protection"
+   names. Name the release commit's title and body explicitly when using
+   it, rather than leave them to the two `squash_merge_commit_*`
+   repository defaults recorded in REPOSITORY.md's *Merge methods*:
+   `gh pr merge <n> --squash --admin --match-head-commit <head>`, with
+   `--body-file <path> --subject <title>` added.
 
    `gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f
    merge_method=squash` is the fallback for when `--admin` is

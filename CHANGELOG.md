@@ -67,6 +67,12 @@ file per release is what keeps each of them under it.
 maintainer lands their own pull requests through the bypass (issue
 btclib-org/.github#452).
 
+### The bypass is for emergencies
+
+`CONTRIBUTING.md`'s shared half, `REPOSITORY.md` and `RELEASING.md` say every
+pull request, the maintainer's included, lands with an approving review from
+another owner, the bypass being for emergencies (issue btclib-org/.github#1362).
+
 ## v2026.10.3
 
 ### `b58.prv_key_data_from_wif` does not quote the checksum

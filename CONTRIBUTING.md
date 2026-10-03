@@ -194,11 +194,12 @@ has which is which, and `REVIEWING.md` has how each is written. A
 disagreement that survives a second exchange goes to the maintainer
 instead of into a third round.
 
-**The maintainer lands their own pull requests through the bypass
-below.** The ack of record is a bot's ([the standard's *Review*][s-rev]
-says whose), so the OpenSSF Best Practices criterion `two_person_review`,
-which asks for a person other than the author, is unmet ([decision 70a
-of ISS 452][i452], [decision 1 of ISS 1362][i1362]).
+**Every pull request, the maintainer's included, lands with an
+approving review from an owner other than its author**;
+[`GOVERNANCE.md`][governance] names the owners. The ack of record is a
+bot's review of type COMMENT ([the standard's *Review*][s-rev] says
+whose), so it is not that approval. The maintainer's bypass below is for
+emergencies only ([ISS 1362][i1362]).
 
 ### Landing it
 
@@ -211,28 +212,34 @@ has seen.
 
 Then squash, [the only method the rule accepts][s11].
 
-**The maintainer's bypass is not automatic — it has to be invoked, and
-`gh pr merge` cannot invoke it**, refusing client-side before it asks
-GitHub anything:
-
-```text
-Pull request is not mergeable: the base branch policy prohibits the merge
-```
-
-The merge endpoint applies it server-side, and it is the same endpoint
-the merge button asks:
+**It lands once an owner other than its author has approved that
+head**, through `gh pr merge` pinned to it:
 
 ```shell
-gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge \
-  -f merge_method=squash -f sha=<the head the checks ran on>
+gh pr merge <n> --squash --match-head-commit <the head the checks ran on>
 ```
 
-**The `sha` is not optional.** Reading the ack and merging are two
-calls, and the head is free to move between them — the push that would
-move it comes out of the same round the verdict does. Unpinned, the
-command takes whatever sits at the head when it runs; pinned, [the
-endpoint answers `409` where the head has moved][gh-merge], and a round
-lost that way is cheaper than a tree nobody has read reaching `main`.
+With `--auto` added, GitHub runs the same merge once the approval and
+the checks are in.
+
+**In an emergency the maintainer lands without that approval, through
+the bypass.** `--admin` turns off `gh`'s own refusal, and GitHub applies
+the bypass to the merge:
+
+```shell
+gh pr merge <n> --squash --admin \
+  --match-head-commit <the head the checks ran on>
+```
+
+Without `--admin`, `gh pr merge` refuses a head with no approval, saying
+it `is not mergeable: the base branch policy prohibits the merge`.
+
+**The pin is not optional**, in either command. Reading the ack and
+merging are two calls, and the head is free to move between them — the
+push that would move it comes out of the same round the verdict does.
+Unpinned, the command takes whatever sits at the head when it runs;
+pinned, it refuses a head that has moved, and a round lost that way is
+cheaper than a tree nobody has read reaching `main`.
 *The review* above anchors the exchange to a sha and [section 11][s11]
 has an ack name one: the pin is that rule reaching the call that
 performs the landing.
@@ -264,10 +271,8 @@ settings and why they are what they are.
 [s-title]: https://github.com/btclib-org/.github#what-a-pull-request-says-it-is
 [s-rev]: https://github.com/btclib-org/.github#review
 [s-sigs]: https://github.com/btclib-org/.github#signatures
-[i452]: https://github.com/btclib-org/.github/issues/452#issuecomment-5931807223
-[i1362]: https://github.com/btclib-org/.github/issues/1362#issuecomment-5856584452
+[i1362]: https://github.com/btclib-org/.github/issues/1362#issuecomment-5969383609
 [dco]: https://developercertificate.org/
-[gh-merge]: https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request
 [governance]: https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md
 [roadmap]: https://github.com/btclib-org/.github/blob/main/ROADMAP.md
 [good-first]: https://github.com/search?q=org%3Abtclib-org+label%3A%22good+first+issue%22+is%3Aopen&type=issues
