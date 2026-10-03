@@ -67,6 +67,11 @@ file per release is what keeps each of them under it.
 maintainer lands their own pull requests through the bypass (issue
 btclib-org/.github#452).
 
+### `REPOSITORY.md` reads the review switch as the organization's
+
+`REPOSITORY.md` states only that this repository sets no
+`CLAUDE_REVIEW_ENABLED` of its own (issue btclib-org/.github#1560).
+
 ## v2026.10.3
 
 ### `b58.prv_key_data_from_wif` does not quote the checksum
