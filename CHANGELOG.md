@@ -61,6 +61,12 @@ file per release is what keeps each of them under it.
 `Signed-off-by:` trailer cannot merge, and `REPOSITORY.md` lists
 `lint / Sign-off` among the required checks (issue btclib-org/.github#1550).
 
+### The ack of record is a bot's
+
+`CONTRIBUTING.md`'s shared half says the ack of record is a bot's, and the
+maintainer lands their own pull requests through the bypass (issue
+btclib-org/.github#452).
+
 ## v2026.10.3
 
 ### `b58.prv_key_data_from_wif` does not quote the checksum

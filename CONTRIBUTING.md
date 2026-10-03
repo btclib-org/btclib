@@ -194,12 +194,11 @@ has which is which, and `REVIEWING.md` has how each is written. A
 disagreement that survives a second exchange goes to the maintainer
 instead of into a third round.
 
-**While `claude-review.yml` is off, there is no ack of record**
-([decision 70a of ISS 452][i452]). The maintainer lands their own pull
-requests through the bypass below. What stands in for the ack is a local
-review of a named sha, by a reviewer other than the author, before the
-pull request opens. The OpenSSF Best Practices criterion
-`two_person_review` is unmet ([decision 1 of ISS 1362][i1362]).
+**The maintainer lands their own pull requests through the bypass
+below.** The ack of record is a bot's ([the standard's *Review*][s-rev]
+says whose), so the OpenSSF Best Practices criterion `two_person_review`,
+which asks for a person other than the author, is unmet ([decision 70a
+of ISS 452][i452], [decision 1 of ISS 1362][i1362]).
 
 ### Landing it
 
