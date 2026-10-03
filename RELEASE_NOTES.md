@@ -49,9 +49,9 @@ full year, short month, short day (YYYY-M-D)
   has no `OP_CHECKSIGVERIFY`, `OP_EQUALVERIFY`, `OP_NUMEQUALVERIFY` or
   `OP_CHECKMULTISIGVERIFY`** (closes #2489). The loop runs the plain op code,
   then tests its result, so those four are no longer expansions to look up.
-  `op_checkmultisigverify` was in `script_op_codes` at v2023.7.12; the table
-  came later. Act on it if you call either: run the plain op code and then
-  `op_verify`, which now leaves a false element on the stack.
+  Act on it if you call `op_checkmultisigverify` or look up those keys: run the
+  plain op code and then `op_verify`, which now leaves a false element on the
+  stack.
 - **`op_equalverify`, `op_numequalverify` and `op_checksigverify` are gone from
   `script_op_codes`, and `btclib.script.engine.tapscript.OPERATIONS` has no
   `OP_EQUALVERIFY`, `OP_NUMEQUALVERIFY` or `OP_CHECKSIGVERIFY`** (closes #2509).
