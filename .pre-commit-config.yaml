@@ -393,7 +393,7 @@ repos:
       - id: typos
         name: typos
         language: python
-        additional_dependencies: [typos==1.50.1]
+        additional_dependencies: [typos==1.50.3]
         entry: typos
         args: [--write-changes, --force-exclude]
         types: [text]
@@ -401,7 +401,7 @@ repos:
   # ahead of markdownlint-cli2 below on purpose: that hook's `--fix`
   # repairs the very seam this hook exists to name (btclib-org/.github#1293)
   - repo: https://github.com/btclib-org/.github
-    rev: 03e6e1cfb4427fffaed45ce3a18c8c494eae0ba9
+    rev: b15c0fcbd395e897f46b9beaf27df083ce32268d
     hooks:
       - id: check-changelog
         args: [--grandfathered, "23"]
@@ -713,7 +713,7 @@ repos:
         # having changed nothing
         additional_dependencies:
           - shellcheck-py==0.11.0.1
-          - pyflakes==3.4.0
+          - pyflakes==4.0.1
   # actionlint asks whether a workflow is correct, zizmor whether it is
   # safe: a token persisted where a later step can read it, a cache
   # restored into the job that builds what gets published, an expression
