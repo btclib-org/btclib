@@ -72,10 +72,22 @@ btclib-org/.github#452).
 `CONTRIBUTING.md`'s shared half, `REPOSITORY.md` and `RELEASING.md` say every
 pull request, the maintainer's included, lands with an approving review from
 somebody else, the bypass being for emergencies (issue btclib-org/.github#1362).
+
 ### `REPOSITORY.md` reads the review switch as the organization's
 
 `REPOSITORY.md` states only that this repository sets no
 `CLAUDE_REVIEW_ENABLED` of its own (issue btclib-org/.github#1560).
+
+### `REVIEWING.md` names the approval
+
+`REVIEWING.md` says a pull request lands on the ack of record and an approving
+review from somebody other than its author (issue btclib-org/.github#1362).
+
+### Earlier entries on how a pull request lands
+
+Entries above that have the maintainer landing without another person's
+approval describe the rule before issue btclib-org/.github#1362 (issue
+btclib-org/.github#1569).
 
 ## v2026.10.3
 
