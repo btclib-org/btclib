@@ -21,6 +21,8 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.11 (work in progress, not released yet)
 
+## v2026.10.4
+
 - **btclib requires btclib-secp256k1 0.8.0.10, which fixes
   GHSA-8h6f-34jj-7p6c.** Upgrading btclib with its `secp256k1` extra installs
   it.
