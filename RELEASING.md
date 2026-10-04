@@ -585,10 +585,14 @@ to `deps-latest`'s own result.
 
    ```shell
    uv run --isolated --no-project --with btclib \
+     --refresh-package btclib \
      python -c "from btclib.network import NETWORKS; \
        from btclib_ecc.curves import CURVES; \
        print(sorted(NETWORKS), CURVES['secp256r1'].n)"
    ```
+
+   `--refresh-package` makes uv read the index again rather than its cache,
+   which can miss a version just published.
 
 1. Check the PEP 740 attestations SECURITY.md says every release
    carries. The JSON API is not where: its `provenance` field answers
