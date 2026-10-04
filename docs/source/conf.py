@@ -148,6 +148,7 @@ nitpick_ignore = [
     ("py:class", "btclib.p2p.keepalive._NoncePayload"),
     ("py:class", "btclib.p2p.block_filters._FilterRangeRequest"),
     ("py:class", "btclib.script.sig_hash._TaprootInputHashes"),
+    ("py:class", "btclib.script.sig_hash._SigHashCache"),
     ("py:class", "btclib_ecc.curves.curve.Curve"),
     ("py:class", "btclib_ecc.ecc.dsa.Sig"),
 ]

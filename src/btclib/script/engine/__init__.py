@@ -23,7 +23,7 @@ from btclib.script.engine.script_op_codes import _MAX_NUM_SIZE, _to_num, op_veri
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.script import op_code_spans, serialize
 from btclib.script.script_pub_key import is_p2sh, is_segwit, type_and_payload
-from btclib.script.sig_hash import PrecomputedTxData
+from btclib.script.sig_hash import PrecomputedTxData, _SigHashCache
 from btclib.script.sig_ops import p2sh_sig_op_count, witness_sig_op_count
 from btclib.script.taproot import MAX_TREE_DEPTH, check_output_pubkey
 from btclib.script.witness import Witness
@@ -223,6 +223,7 @@ def _verify_witness_v0(
     script_flags: ScriptFlag,
     precomputed: PrecomputedTxData | None,
     hash_types: list[int] | None,
+    sighash_cache: _SigHashCache,
 ) -> None:
     """Verify a v0 spend: the v0 arm of Core's VerifyWitnessProgram.
 
@@ -277,6 +278,7 @@ def _verify_witness_v0(
         False,
         precomputed,
         hash_types,
+        sighash_cache,
     )
     # the size first, as Core has it, so an empty stack is CLEANSTACK
     # and not EVAL_FALSE
@@ -298,6 +300,7 @@ def _verify_witness_program(
     script_flags: ScriptFlag,
     precomputed: PrecomputedTxData | None,
     hash_types: list[int] | None,
+    sighash_cache: _SigHashCache,
 ) -> None:
     """Dispatch a witness program: Core's VerifyWitnessProgram.
 
@@ -331,6 +334,7 @@ def _verify_witness_program(
             script_flags,
             precomputed,
             hash_types,
+            sighash_cache,
         )
         return
 
@@ -413,6 +417,10 @@ def verify_input(
     """
     script_flags = to_script_flags(flags)
     script_sig = tx.vin[i].script_sig
+    # one for the whole input, the script_sig, the script_pub_key, the
+    # redeem script and the witness script sharing it as Core's checker does
+    # (GHSA-rw95-w37r-537w)
+    sighash_cache = _SigHashCache()
     if ScriptFlag.SIGPUSHONLY in script_flags:
         validate_push_only(script_sig)
 
@@ -427,6 +435,7 @@ def verify_input(
         False,
         False,
         hash_types=hash_types,
+        sighash_cache=sighash_cache,
     )
     p2sh_script = stack[-1] if stack else b"\x00"
 
@@ -441,6 +450,7 @@ def verify_input(
         False,
         True,
         hash_types=hash_types,
+        sighash_cache=sighash_cache,
     )
 
     script_type, payload = type_and_payload(script)
@@ -460,6 +470,7 @@ def verify_input(
             False,
             True,
             hash_types=hash_types,
+            sighash_cache=sighash_cache,
         )
         script_type, payload = type_and_payload(script)
 
@@ -496,6 +507,7 @@ def verify_input(
             script_flags,
             precomputed,
             hash_types,
+            sighash_cache,
         )
         # Core's stack.resize(1) after VerifyWitnessProgram: a witness
         # spend leaves nothing for CLEANSTACK to see, and v0's own
