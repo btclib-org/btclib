@@ -45,6 +45,12 @@ file per release is what keeps each of them under it.
 
 ## v2026.11 (work in progress, not released yet)
 
+### The forms set a type, and the history files lose `merge=union`
+
+Forms set a type, not a kind label (issue btclib-org/.github#1584). A rebase
+over a new entry stops on a conflict here (issue btclib-org/.github#1582). A
+release reviews the bestpractices.dev answers (issue btclib-org/.github#1589).
+
 ## v2026.10.5
 
 ### `README.md` names SEC 2 for the curves

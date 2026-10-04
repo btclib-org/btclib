@@ -1,7 +1,7 @@
 ---
 name: Bug report
 description: Something in btclib does not work as documented
-labels: [bug]
+type: Bug
 
 body:
   - type: markdown

@@ -337,8 +337,9 @@ one, is where the rule lives.
   go, not to be shortened.
 - If the branch was rebased: does `CHANGELOG.md` still say what the
   branch meant it to say, and the release notes with it where the
-  repository has them? Section 9 marks them `merge=union`, so they never
-  conflict and a rebase can put back a line the branch had removed.
+  repository has them? Section 9 says how a rebase conflict there is
+  resolved, and at git's default conflict style deleting the markers
+  loses a line both sides share.
 - Does the branch's own `CHANGELOG.md` entry sit **last in the open
   section**? Section 9 puts it there and `check-changelog` reads no
   position, so a green gate says nothing about it; `CONTRIBUTING.md` has

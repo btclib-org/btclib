@@ -648,6 +648,15 @@ to `deps-latest`'s own result.
    of this one. Actions → pypi-install → Run workflow is for asking between
    those runs, with no particular version in mind.
 
+1. Review the bestpractices.dev answers. Refresh the saved answers with
+   btclib-org/.github's `.github/scripts/bestpractices.py`, and run its
+   `--stale` and `--differ` to find what to read (section 10 of its README).
+   Read <https://www.bestpractices.dev/projects/14253> against the release and
+   update every answer it changed: the release notes and the vulnerabilities
+   it fixed, signed tags and assets, attestation names. Then refresh the saved
+   answers again. An advisory this repository publishes is owed the same
+   review.
+
 1. Open the next cycle's version: set `pyproject.toml`'s `version` to the
    number the two "work in progress" sections already carry, through a
    pull request like any other. The retitle step above opens those

@@ -912,10 +912,8 @@ No count here, and no count in front of the lists below. A count is a
 line every open branch has to edit, so it is the one conflict a pull
 request vendoring a file is guaranteed to have -- and two branches moving
 it to the same new number merge with nothing to decide, into a number
-that is wrong. `CHANGELOG.md` has a `union` driver to soften that; this
-file cannot have one, union being right for a list of bullets and
-nonsense for the prose around them. The lists *are* the fact the number
-summarized, and the tree answers whenever the number is wanted:
+that is wrong. The lists *are* the fact the number summarized, and the tree
+answers whenever the number is wanted:
 
 ```shell
 git ls-files 'tests/_data/*' 'tests/*/_data/*' | grep -cv 'README.md'
