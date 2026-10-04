@@ -13,11 +13,12 @@ BIP341 vectors by the three test modules beside this one.
 """
 
 from dataclasses import FrozenInstanceError
+from typing import Any
 
 import pytest
 from btclib_ecc.ecc import dsa, ssa
 
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256, sha256
 from btclib.key import PrvKeyData
 from btclib.script import ScriptPubKey, Witness, sig_hash
@@ -293,3 +294,98 @@ def test_verify_transaction_hashes_the_transaction_once(
     verify_transaction(prevouts, tx, ALL_FLAGS)
 
     assert calls[0] == 1
+
+
+def many_inputs_tx(count: int, spk: ScriptPubKey) -> tuple[Tx, list[TxOut]]:
+    """Build a transaction of `count` inputs, each spending `spk`."""
+    prevouts = [TxOut(100_000, spk) for _ in range(count)]
+    vin = [
+        TxIn(OutPoint(i.to_bytes(32, "big"), 0), b"", 0xFFFFFFFF, Witness([SIGNATURE]))
+        for i in range(count)
+    ]
+    return Tx(2, 0, vin, [TxOut(1_000, spk)], check_validity=False), prevouts
+
+
+@pytest.mark.parametrize("kind", ["p2tr", "p2wpkh"])
+def test_a_precomputed_loop_validates_each_prevout_once(
+    kind: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """GHSA-9r97-9x22-2pp4: every sig_hash validated every prevout.
+
+    The constructor validates all of them and each call the one it reads,
+    twice on the taproot path, which `from_tx` and `taproot` each guard:
+    a few validations per input where N squared were asked for.
+    """
+    count = 40
+    spk = ScriptPubKey.p2tr(PUB_KEY) if kind == "p2tr" else ScriptPubKey.p2wpkh(PUB_KEY)
+    tx, prevouts = many_inputs_tx(count, spk)
+    validated = [0]
+    assert_valid = ScriptPubKey.assert_valid
+
+    def counted(self: ScriptPubKey) -> None:
+        validated[0] += 1
+        assert_valid(self)
+
+    monkeypatch.setattr(ScriptPubKey, "assert_valid", counted)
+
+    precomputed = PrecomputedTxData(tx, prevouts)
+    for i in range(count):
+        sig_hash.from_tx(prevouts, tx, i, sig_hash.DEFAULT, precomputed)
+
+    assert validated[0] <= 3 * count
+
+
+def invalid_prevouts(kind: str, prevouts: list[TxOut], index: int) -> str:
+    """Spoil the prevout at `index` in place, return what refuses it."""
+    spoiled = prevouts[index]
+    if kind == "amount":
+        prevouts[index] = TxOut(2**63, spoiled.script_pub_key, check_validity=False)
+        return "invalid spent amount: "
+    script_pub_key = ScriptPubKey(
+        spoiled.script_pub_key.script, "nonet", check_validity=False
+    )
+    prevouts[index] = TxOut(spoiled.value, script_pub_key, check_validity=False)
+    return "unknown network: 'nonet'"
+
+
+@pytest.mark.parametrize("kind", ["amount", "network"])
+@pytest.mark.parametrize("spoiled", [0, 3])
+@pytest.mark.parametrize("vin_i", [0, 1])
+def test_an_invalid_prevout_is_refused_with_or_without_precomputed(
+    kind: str, spoiled: int, vin_i: int
+) -> None:
+    """The prevout checked once for all is still checked, wherever it is."""
+    tx, prevouts = many_inputs_tx(4, ScriptPubKey.p2tr(PUB_KEY))
+    err_msg = invalid_prevouts(kind, prevouts, spoiled)
+
+    with pytest.raises(BTClibValueError, match=err_msg):
+        sig_hash.from_tx(prevouts, tx, vin_i, sig_hash.DEFAULT)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        PrecomputedTxData(tx, prevouts)
+
+
+@pytest.mark.parametrize("kind", ["amount", "network"])
+@pytest.mark.parametrize("hash_type", [sig_hash.DEFAULT, 0x83])
+def test_the_prevout_a_call_reads_is_refused_though_precomputed_is_given(
+    kind: str, hash_type: int
+) -> None:
+    """The prevouts handed to a call may not be the ones that were checked."""
+    tx, prevouts = many_inputs_tx(4, ScriptPubKey.p2tr(PUB_KEY))
+    precomputed = PrecomputedTxData(tx, prevouts)
+    err_msg = invalid_prevouts(kind, prevouts, 2)
+
+    with pytest.raises(BTClibValueError, match=err_msg):
+        sig_hash.from_tx(prevouts, tx, 2, hash_type, precomputed)
+
+
+@pytest.mark.parametrize("vin_i", ["0", 4, -1, -2])
+def test_an_index_naming_no_input_is_refused_though_precomputed_is_given(
+    vin_i: Any,
+) -> None:
+    """Only the prevout at the index is validated: the index is judged first."""
+    tx, prevouts = many_inputs_tx(4, ScriptPubKey.p2tr(PUB_KEY))
+    precomputed = PrecomputedTxData(tx, prevouts)
+    error = BTClibTypeError if isinstance(vin_i, str) else BTClibValueError
+
+    with pytest.raises(error, match="invalid input index"):
+        sig_hash.from_tx(prevouts, tx, vin_i, sig_hash.DEFAULT, precomputed)

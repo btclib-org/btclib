@@ -48,6 +48,12 @@ file per release is what keeps each of them under it.
 
 `README.md` says SEC 2, not SEC 1, defines the elliptic curves.
 
+### Verifying a transaction takes time linear in its inputs
+
+`PrecomputedTxData` validates every prevout once, when built, and refuses a
+script_pub_key naming an unknown network. A sig_hash given one validates only
+the prevout it reads (GHSA-9r97-9x22-2pp4).
+
 ## v2026.10.4
 
 ### `dependabot.yml` does not say that every workflow passes `--locked`
