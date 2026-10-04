@@ -1,7 +1,7 @@
 ---
 name: Question
 description: Ask how btclib does something, or why it does it that way
-labels: [question]
+type: Task
 
 body:
   - type: markdown

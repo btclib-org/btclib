@@ -20,12 +20,9 @@ entries is a reading of the file, not a command.
 
 Which is what this module guards, the assertions running the other way
 round: a count anywhere in either file is a failure. Not only because one
-could be written by hand. `.gitattributes` marks both files `merge=union`
-so that two branches appending a bullet to the same group stop colliding,
-and the price of that driver is silence -- these files cannot conflict any
-more, so a branch still carrying an edit to one of the old count
-paragraphs restores it on rebase with nothing in the merge output to say
-so. Nothing but this.
+could be written by hand. Two branches that move a count to the same
+number merge without a conflict, and deleting the markers of a conflict
+over an old count paragraph puts it back. Nothing but this.
 
 A test rather than a hook, for the reasons `docs_test.py` gives: no
 environment the suite does not already have, every interpreter of the
@@ -40,10 +37,9 @@ import pytest
 
 _ROOT = Path(__file__).parents[1]
 
-# the files whose `merge=union` driver makes a restored count silent, which
-# is what a test rather than a reading answers for. `SECURITY.md` is
-# governed by the same rule and is not here: `git check-attr merge` answers
-# `unspecified` for it, and the patterns below are keyed on the paragraph
+# the files where a count can come back through a merge, which is what a
+# test rather than a reading answers for. `SECURITY.md` is governed by the
+# same rule and is not here: the patterns below are keyed on the paragraph
 # each forbids, so naming it adds a guard that cannot fail on it. CLAUDE.md's
 # *Never state how many of anything a file holds* carries that decision
 # (issue #2035)
@@ -80,8 +76,8 @@ _RESURRECTED = (
 def test_neither_file_states_a_count(path: Path) -> None:
     """No entry count, and no size of the breaking-changes list.
 
-    Written by hand or put back by a `union` merge that had nothing to
-    decide: either way the number is a claim nothing derives, and the
+    Written by hand or put back by a merge that had nothing to decide:
+    either way the number is a claim nothing derives, and the
     header explains why -- counting the entries is a reading of the
     file, not a command.
     """
@@ -90,7 +86,7 @@ def test_neither_file_states_a_count(path: Path) -> None:
         match = re.search(pattern, text)
         assert match is None, (
             f"{path.name} states a count again: {match[0]!r}."
-            " Remove it -- a rebase restores such a paragraph in silence."
+            " Remove it -- a merge can bring such a paragraph back."
         )
 
 
