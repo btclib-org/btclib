@@ -379,6 +379,21 @@ def _assert_valid_prevouts(prevouts: list[TxOut]) -> None:
         prevout.script_pub_key.assert_valid()
 
 
+def _assert_valid_prevouts_for(
+    prevouts: list[TxOut], vin_i: int, precomputed: PrecomputedTxData | None
+) -> None:
+    """Validate the prevouts a sig_hash reads.
+
+    `PrecomputedTxData` validated all of them when it was built, so a call
+    given one validates only the prevout at `vin_i`. An index outside the list
+    gives an empty slice, and the checks that follow refuse it.
+    """
+    if precomputed is None:
+        _assert_valid_prevouts(prevouts)
+    elif is_integer(vin_i) and vin_i >= 0:
+        _assert_valid_prevouts(prevouts[vin_i : vin_i + 1])
+
+
 def _assert_valid_vin_i(tx: Tx, vin_i: int) -> None:
     """Refuse an index naming no input of the transaction being signed.
 
@@ -518,6 +533,9 @@ class PrecomputedTxData:
     attribute rather than a second pass over the transaction: hash256 is
     sha256 twice, and the two BIPs hash the very same serializations.
 
+    The prevouts are validated here too, once, so that the sig_hash of an
+    input validates only the prevout it reads (GHSA-9r97-9x22-2pp4).
+
     Everything is computed here, once, because this must be a snapshot of
     the transaction and not a view onto it: `Tx` is mutable, and a hash
     computed lazily out of the caller's transaction would be issue #140
@@ -540,6 +558,8 @@ class PrecomputedTxData:
             raise BTClibValueError(
                 f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
             )
+        # once here and not once per sig_hash, which is Θ(N²) in the inputs
+        _assert_valid_prevouts(prevouts)
         object.__setattr__(self, "sha_prevouts", sha256(_serialized_prevouts(tx)))
         object.__setattr__(self, "sha_amounts", sha256(_serialized_amounts(prevouts)))
         object.__setattr__(
@@ -737,7 +757,7 @@ def _taproot(
     checks of an input, so they cost the size of the annex and of the output
     once and not once per check.
     """
-    _assert_valid_prevouts(prevouts)
+    _assert_valid_prevouts_for(prevouts, input_index, precomputed)
     _assert_valid_vin_i(transaction, input_index)
 
     if hashtype not in SIG_HASH_TYPES:
@@ -878,7 +898,7 @@ def from_tx(
     first. A verifier does not need the parameter and does not have the
     problem — the interpreter advances Core's `pbegincodehash` as it goes.
     """
-    _assert_valid_prevouts(prevouts)
+    _assert_valid_prevouts_for(prevouts, vin_i, precomputed)
     _assert_valid_vin_i(tx, vin_i)
     # both lists are indexed at vin_i below, and one prevout per input is
     # what a segwit preimage commits to: the message PrecomputedTxData
