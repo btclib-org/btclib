@@ -343,8 +343,9 @@ one, is where the rule lives.
   loses a line both sides share.
 - Does the branch's own `CHANGELOG.md` entry sit **last in the open
   section**? Section 9 puts it there and `check-changelog` reads no
-  position, so a green gate says nothing about it; `CONTRIBUTING.md` has
-  the command that prints the section's headings in order.
+  position within the open section, so a green gate says nothing about
+  it; `CONTRIBUTING.md` has the command that prints the section's
+  headings in order.
 - A new or changed workflow: section 10 of the standard, and
   `REPOSITORY.md` before any rule or setting is touched. A renamed job
   is a required check renamed out of existence.
