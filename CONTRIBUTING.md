@@ -223,7 +223,8 @@ the checks are in.
 
 **In an emergency the maintainer lands without that approval, through
 the bypass.** `--admin` turns off `gh`'s own refusal, and GitHub applies
-the bypass to the merge:
+the bypass to the merge. `enforce_admins` is off, so it waits for no
+required check either:
 
 ```shell
 gh pr merge <n> --squash --admin \
