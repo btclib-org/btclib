@@ -51,6 +51,11 @@ Forms set a type, not a kind label (issue btclib-org/.github#1584). A rebase
 over a new entry stops on a conflict here (issue btclib-org/.github#1582). A
 release reviews the bestpractices.dev answers (issue btclib-org/.github#1589).
 
+### CodeQL runs the `security-extended` suite
+
+`codeql.yml` passes `queries: security-extended` to the shared analysis for a
+one-month trial (issue btclib-org/.github#1505).
+
 ## v2026.10.5
 
 ### `README.md` names SEC 2 for the curves
