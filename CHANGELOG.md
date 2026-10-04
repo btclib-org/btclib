@@ -56,6 +56,12 @@ release reviews the bestpractices.dev answers (issue btclib-org/.github#1589).
 `codeql.yml` passes `queries: security-extended` to the shared analysis for a
 one-month trial (issue btclib-org/.github#1505).
 
+### The post-release install refreshes the index
+
+RELEASING.md installs the release with `--refresh-package btclib`, because uv
+can answer from a cached index and miss a version just published
+(issue btclib-org/.github#1595).
+
 ## v2026.10.5
 
 ### `README.md` names SEC 2 for the curves
