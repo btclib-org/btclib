@@ -138,7 +138,7 @@ which btclib depends on and does not re-export: import them from
     - multi scalar multiplication (Bos-coster's algorithm)
     - point symmetry solution: odd/even, low/high, and quadratic residue
     - SEC 1 octet encodings of points
-    - elliptic curves: SEC 1 v1 and v2, NIST, Brainpool, and
+    - elliptic curves: SEC 2 v1 and v2, NIST, Brainpool, and
       low cardinality test curves
 - ECDSA signature with (transaction) DER encoding
 - [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979.html) for deterministic signature

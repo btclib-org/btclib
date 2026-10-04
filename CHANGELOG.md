@@ -44,6 +44,10 @@ file per release is what keeps each of them under it.
 
 ## v2026.11 (work in progress, not released yet)
 
+### `README.md` names SEC 2 for the curves
+
+`README.md` says SEC 2, not SEC 1, defines the elliptic curves.
+
 ## v2026.10.4
 
 ### `dependabot.yml` does not say that every workflow passes `--locked`
