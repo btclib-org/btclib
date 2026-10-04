@@ -385,6 +385,11 @@ def test_an_index_naming_no_input_is_refused_though_precomputed_is_given(
     """Only the prevout at the index is validated: the index is judged first."""
     tx, prevouts = many_inputs_tx(4, ScriptPubKey.p2tr(PUB_KEY))
     precomputed = PrecomputedTxData(tx, prevouts)
+    # prevouts[-2:-1] holds only prevouts[2]. Spoiling it makes this case
+    # fail if the `vin_i >= 0` guard is dropped and the slice is checked
+    # before the index.
+    if vin_i == -2:
+        invalid_prevouts("amount", prevouts, 2)
     error = BTClibTypeError if isinstance(vin_i, str) else BTClibValueError
 
     with pytest.raises(error, match="invalid input index"):
