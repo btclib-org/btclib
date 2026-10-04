@@ -21,6 +21,12 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.11 (work in progress, not released yet)
 
+## v2026.10.5
+
+- **Verifying a transaction takes time linear in its inputs**
+  (GHSA-9r97-9x22-2pp4). It took time quadratic in them, even with
+  `PrecomputedTxData`. Upgrade if you verify transactions you did not build.
+
 ## v2026.10.4
 
 - **btclib requires btclib-secp256k1 0.8.0.10, which fixes

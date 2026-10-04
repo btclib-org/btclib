@@ -28,6 +28,7 @@ ceiling GitHub's contents API answers a file with an empty `content` at
 HTTP 200, which reads as an empty file rather than as an error, and one
 file per release is what keeps each of them under it.
 
+- [v2026.10.4](./changelog/v2026.10.4.md)
 - [v2026.10.3](./changelog/v2026.10.3.md)
 - [v2026.10.2](./changelog/v2026.10.2.md)
 - [v2026.9.30](./changelog/v2026.9.30.md)
@@ -44,6 +45,8 @@ file per release is what keeps each of them under it.
 
 ## v2026.11 (work in progress, not released yet)
 
+## v2026.10.5
+
 ### `README.md` names SEC 2 for the curves
 
 `README.md` says SEC 2, not SEC 1, defines the elliptic curves.
@@ -53,63 +56,3 @@ file per release is what keeps each of them under it.
 `PrecomputedTxData` validates every prevout once, when built, and refuses a
 script_pub_key naming an unknown network. A sig_hash given one validates only
 the prevout it reads (GHSA-9r97-9x22-2pp4).
-
-## v2026.10.4
-
-### `dependabot.yml` does not say that every workflow passes `--locked`
-
-- **`.github/dependabot.yml` says the workflows install from `uv.lock` with
-  `--locked`, bar the exceptions `CONTRIBUTING.md` lists** (issue
-  btclib-org/.github#1538).
-
-### `REPOSITORY.md` reads back the web sign-off setting
-
-- **`REPOSITORY.md` reads `web_commit_signoff_required` back** (issue
-  btclib-org/.github#1540): section 11 of the standard states the
-  organization setting.
-
-### The `Sign-off` check is required
-
-`CONTRIBUTING.md`'s shared half says a pull request whose commits lack the
-`Signed-off-by:` trailer cannot merge, and `REPOSITORY.md` lists
-`lint / Sign-off` among the required checks (issue btclib-org/.github#1550).
-
-### The ack of record is a bot's
-
-`CONTRIBUTING.md`'s shared half says the ack of record is a bot's, and the
-maintainer lands their own pull requests through the bypass (issue
-btclib-org/.github#452).
-
-### The bypass is for emergencies
-
-`CONTRIBUTING.md`'s shared half, `REPOSITORY.md` and `RELEASING.md` say every
-pull request, the maintainer's included, lands with an approving review from
-somebody else, the bypass being for emergencies (issue btclib-org/.github#1362).
-
-### `REPOSITORY.md` reads the review switch as the organization's
-
-`REPOSITORY.md` states only that this repository sets no
-`CLAUDE_REVIEW_ENABLED` of its own (issue btclib-org/.github#1560).
-
-### `REVIEWING.md` names the approval
-
-`REVIEWING.md` says a pull request lands on the ack of record and an approving
-review from somebody other than its author (issue btclib-org/.github#1362).
-
-### Earlier entries on how a pull request lands
-
-Entries above that have the maintainer landing without another person's
-approval describe the rule before issue btclib-org/.github#1362 (issue
-btclib-org/.github#1569).
-
-### btclib requires btclib-secp256k1 0.8.0.10
-
-btclib-secp256k1 0.8.0.10 fixes GHSA-8h6f-34jj-7p6c, an invalid-curve oracle
-in `silentpayments.scan_outputs`, which btclib does not call. The `secp256k1`
-extra and the `bindings` group require it.
-
-### Tapscript validation time is linear in the size of the script
-
-Each op code scanned every open `OP_IF`, and each signature check hashed the
-whole leaf, the annex and the SIGHASH_SINGLE output. Branches are a depth and a
-position, and the hashes are kept per input (GHSA-9fr5-46w5-5f9r).
