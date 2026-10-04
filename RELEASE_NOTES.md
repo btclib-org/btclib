@@ -21,6 +21,11 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.11 (work in progress, not released yet)
 
+- **The attestation bundle is attached as `v<version>.intoto.jsonl`** from
+  v2026.9.30 on, in place of `v<version>.attestation.jsonl`. A script that
+  downloads it by name, or passes it to `gh attestation verify --bundle`, uses
+  the new name.
+
 ## v2026.10.5
 
 - **Verifying a transaction takes time linear in its inputs**

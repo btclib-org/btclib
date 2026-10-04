@@ -308,6 +308,12 @@ to `deps-latest`'s own result.
    absent*, so the thing to check after a release is that every job you
    expected actually ran, not merely that nothing you can see is red.
 
+1. Name in RELEASE_NOTES.md every change to the release's assets or to how they
+   are verified — a file name, a signer, a `--source-ref` — in the release that
+   first ships it. A script that downloads or verifies a release by the old
+   value fails, and the notes are what tell its user the new one
+   (btclib-org/.github#1596).
+
 1. Retitle the "work in progress" section of **both** RELEASE_NOTES.md
    and CHANGELOG.md as `## v<version>`. The workflow lifts the GitHub
    release notes from RELEASE_NOTES.md's section alone, so that one has
