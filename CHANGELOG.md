@@ -74,6 +74,12 @@ RELEASING.md asks that a release's notes name every change to its assets or to
 how they are verified. RELEASE_NOTES.md names the bundle's file name
 (issue btclib-org/.github#1596).
 
+### `check-changelog` refuses an entry added to an older release
+
+`check-changelog` refuses a `###` heading under a release older than the
+newest, absent from the file at the merge base with `origin/main`
+(issue btclib-org/.github#1614).
+
 ## v2026.10.5
 
 ### `README.md` names SEC 2 for the curves

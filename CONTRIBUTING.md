@@ -98,8 +98,9 @@ release notes move only for something a user has to *act* on, in the
 repositories that publish.
 
 Where that entry goes is [section 9][s9]'s — the end of the open
-section — and no gate reads it: `check-changelog` is handed the file and
-no base, so it cannot tell which entry the branch wrote. The open
+section — and a gate reads it only in part: `check-changelog` refuses an
+entry under a release older than the newest, and cannot tell where in
+the open section the branch's entry sits. The open
 section's headings, in the order the file holds them, a branch's own
 last:
 
