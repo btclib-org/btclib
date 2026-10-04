@@ -68,6 +68,12 @@ can answer from a cached index and miss a version just published
 required checks too, and `REVIEWING.md`'s "hold the merge" excepts it
 (issue btclib-org/.github#1597).
 
+### RELEASING.md names a change to the release assets
+
+RELEASING.md asks that a release's notes name every change to its assets or to
+how they are verified. RELEASE_NOTES.md names the bundle's file name
+(issue btclib-org/.github#1596).
+
 ## v2026.10.5
 
 ### `README.md` names SEC 2 for the curves
