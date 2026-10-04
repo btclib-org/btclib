@@ -14,7 +14,6 @@ from btclib_ecc.ecc.dsa import Sig
 from btclib_ecc.exceptions import BTClibEccRuntimeError, BTClibEccValueError
 
 from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
-from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import NO_FLAGS, ScriptFlag
 from btclib.script.engine.script_op_codes import (
@@ -35,7 +34,14 @@ from btclib.script.script import (
     read_op_code,
 )
 from btclib.script.script import serialize as serialize_script
-from btclib.script.sig_hash import DEFAULT, SIG_HASH_TYPES, PrecomputedTxData
+from btclib.script.sig_hash import (
+    DEFAULT,
+    SIG_HASH_TYPES,
+    PrecomputedTxData,
+    _legacy,
+    _segwit_v0,
+    _SigHashCache,
+)
 from btclib.tx.tx import Tx
 
 # the bindings, imported from their own package; None where they are not
@@ -379,6 +385,7 @@ def op_checksig(
     segwit: bool,
     precomputed: PrecomputedTxData | None = None,
     hash_types: list[int] | None = None,
+    sighash_cache: _SigHashCache | None = None,
 ) -> bool:
     """Verify one ECDSA signature over the script code it commits to.
 
@@ -408,6 +415,9 @@ def op_checksig(
     `hash_types` is `verify_input`'s collector, appended to here
     because this is where the last byte of a stack element is known to
     be a hash type at all.
+
+    `sighash_cache` is the input's midstates, which `verify_input` keeps
+    for all the checks of an input (GHSA-rw95-w37r-537w).
     """
     assert_type(segwit, bool, "segwit")
     script_code = calculate_script_code(
@@ -448,14 +458,22 @@ def op_checksig(
         hash_types.append(signature[-1])
 
     if segwit:
-        msg_hash = sig_hash.segwit_v0(
-            script_code, tx, i, signature[-1], prevout_value, precomputed
+        msg_hash = _segwit_v0(
+            script_code,
+            tx,
+            i,
+            signature[-1],
+            prevout_value,
+            precomputed,
+            sighash_cache,
         )
     else:
         # the legacy sig_hash preimage is the transaction itself, blanked
         # and re-serialized per input: there is no transaction-wide part of
-        # it to share, here or in Bitcoin Core
-        msg_hash = sig_hash.legacy(script_code, tx, i, signature[-1])
+        # it to share, here or in Bitcoin Core, and the midstate of the
+        # input's previous check of the same class is what
+        # `sighash_cache` reuses
+        msg_hash = _legacy(script_code, tx, i, signature[-1], sighash_cache)
     return bool(dsa_verify(msg_hash, pub_key, signature[:-1]))
 
 
@@ -696,6 +714,7 @@ def _run_ops(  # noqa: C901, PLR0912
     precomputed: PrecomputedTxData | None,
     script_index_ref: list[int],
     hash_types: list[int] | None,
+    sighash_cache: _SigHashCache | None,
 ) -> None:
     """Run verify_script's opcode dispatch loop.
 
@@ -760,6 +779,7 @@ def _run_ops(  # noqa: C901, PLR0912
                 segwit,
                 precomputed,
                 hash_types,
+                sighash_cache,
             )
             assert_nullfail(flags, result, [signature], op)
             del stack[-2:]
@@ -803,6 +823,7 @@ def _run_ops(  # noqa: C901, PLR0912
                     segwit,
                     precomputed,
                     hash_types,
+                    sighash_cache,
                 )
 
             verified = signature_index == signature_num
@@ -863,6 +884,7 @@ def verify_script(
     final: bool = False,
     precomputed: PrecomputedTxData | None = None,
     hash_types: list[int] | None = None,
+    sighash_cache: _SigHashCache | None = None,
 ) -> None:
     """Execute the script over the caller's stack, as Core's EvalScript.
 
@@ -879,7 +901,8 @@ def verify_script(
 
     `hash_types` is `verify_input`'s collector, threaded through to
     `op_checksig`; chaining scripts over one stack is chaining them
-    over one collector too.
+    over one collector too. `sighash_cache` is kept the same way, one
+    for all the scripts of an input.
     """
     _eval_script(
         script_bytes,
@@ -892,6 +915,7 @@ def verify_script(
         final,
         precomputed,
         hash_types,
+        sighash_cache,
     )
 
 
@@ -927,7 +951,9 @@ def eval_script(
     assert_type(flags, ScriptFlag, "flags")
     result = list(stack)
     try:
-        _eval_script(script_bytes, result, 0, None, 0, flags, False, False, None, None)
+        _eval_script(
+            script_bytes, result, 0, None, 0, flags, False, False, None, None, None
+        )
     except ScriptError as error:
         return result, error
     return result, None
@@ -944,6 +970,7 @@ def _eval_script(
     final: bool,
     precomputed: PrecomputedTxData | None,
     hash_types: list[int] | None,
+    sighash_cache: _SigHashCache | None,
 ) -> None:
     """`verify_script`'s body, with the transaction optional.
 
@@ -974,6 +1001,7 @@ def _eval_script(
             precomputed,
             script_index_ref,
             hash_types,
+            sighash_cache,
         )
     except ScriptError as e:
         raise ScriptError(e.args[0], e.code, script_index_ref[0], len(stack)) from e

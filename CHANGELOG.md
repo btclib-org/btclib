@@ -56,3 +56,13 @@ file per release is what keeps each of them under it.
 `PrecomputedTxData` validates every prevout once, when built, and refuses a
 script_pub_key naming an unknown network. A sig_hash given one validates only
 the prevout it reads (GHSA-9r97-9x22-2pp4).
+
+### Repeated signature checks of an input share one hash
+
+The script engine keeps, per class of hash type, the SHA256 midstate of an
+input's legacy or segwit v0 signature hash and the script code it is for, as
+Bitcoin Core's `SigHashCache` does. A check whose hash type class and script
+code match the previous check of that class in the same input hashes only the
+hash type, where it built the whole preimage again (GHSA-rw95-w37r-537w). A
+script code that differs at every check, as one with an `OP_CODESEPARATOR`
+before each, still builds the whole preimage at each.

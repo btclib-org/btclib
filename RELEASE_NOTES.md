@@ -26,6 +26,10 @@ full year, short month, short day (YYYY-M-D)
 - **Verifying a transaction takes time linear in its inputs**
   (GHSA-9r97-9x22-2pp4). It took time quadratic in them, even with
   `PrecomputedTxData`. Upgrade if you verify transactions you did not build.
+- **Signature checks of an input with one script code and hash type class
+  share one hash** (GHSA-rw95-w37r-537w). Each check of a legacy input
+  hashed the whole transaction. Upgrade if you verify transactions you did
+  not build.
 
 ## v2026.10.4
 

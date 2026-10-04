@@ -15,7 +15,9 @@ choose how much of the transaction each preimage covers, and
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from btclib_ecc.hashes import tagged_hash
 
@@ -46,6 +48,9 @@ from btclib.tx import OutPoint, Tx, TxIn, TxOut
 # read before believing the two agree
 from btclib.tx.tx import _assert_valid_4_byte_field
 from btclib.utils import _message_hex, _message_text, bytes_from_octets, is_integer
+
+if TYPE_CHECKING:
+    from hashlib import _Hash
 
 __all__ = [
     "ALL",
@@ -410,6 +415,62 @@ def _assert_valid_vin_i(tx: Tx, vin_i: int) -> None:
         raise BTClibValueError(f"invalid input index: {_message_text(vin_i)}")
 
 
+class _SigHashCache:
+    """The SHA256 midstates of the pre-taproot sig_hashes of one input.
+
+    Every signature check of an input hashes the same preimage up to its
+    last four bytes, the hash type, as long as the hash type commits to the
+    same parts of the transaction and the script code is the same. The
+    legacy preimage is the whole transaction and a script can check a
+    signature as many times as its sigops limit lets it, so hashing it anew
+    each time makes verifying an input cost the size of the transaction
+    once per check (GHSA-rw95-w37r-537w). Core's `SigHashCache` keeps the
+    midstate before the hash type, one per class of hash type and for the
+    script code of the latest check; so does this.
+
+    The classes are ANYONECANPAY or not, times SINGLE, NONE or neither: an
+    undefined hash type falls into the class its bits say, as it does in
+    `legacy` and `segwit_v0`. A midstate is kept with the era it was
+    computed for, which Core leaves implicit because no input uses both.
+
+    One instance serves one input of one transaction and one amount: it
+    does not look at what it is handed on later calls, so it is private and
+    the public functions make a new one, or none, for each call.
+    """
+
+    __slots__ = ("_entries",)
+
+    def __init__(self) -> None:
+        self._entries: list[tuple[str, bytes, _Hash] | None] = [None] * 6
+
+    @staticmethod
+    def _index(hash_type: int) -> int:
+        return (
+            3 * bool(hash_type & ANYONECANPAY)
+            + 2 * ((hash_type & 0x1F) == SINGLE)
+            + ((hash_type & 0x1F) == NONE)
+        )
+
+    def load(self, era: str, hash_type: int, script_code: bytes) -> _Hash | None:
+        """Return a copy of the midstate kept for these, if there is one."""
+        entry = self._entries[self._index(hash_type)]
+        if entry is not None and entry[:2] == (era, script_code):
+            return entry[2].copy()
+        return None
+
+    def store(
+        self, era: str, hash_type: int, script_code: bytes, midstate: _Hash
+    ) -> None:
+        """Keep a copy of the midstate, in place of the class's previous one."""
+        self._entries[self._index(hash_type)] = (era, script_code, midstate.copy())
+
+
+def _hash256_after(midstate: _Hash, serialized_hash_type: bytes) -> bytes:
+    """Finish the hash256 whose preimage is the midstate's and the hash type."""
+    midstate.update(serialized_hash_type)
+    return sha256(midstate.digest())
+
+
 def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     """Return the pre-segwit hash one input's signature commits to.
 
@@ -425,6 +486,22 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     preimage: the seven defined types are what a signer picks, and an
     undefined one is what a signature may carry and this must still hash.
     """
+    return _legacy(script_code, tx, vin_i, hash_type, None)
+
+
+def _legacy(
+    script_code: Octets,
+    tx: Tx,
+    vin_i: int,
+    hash_type: int,
+    cache: _SigHashCache | None,
+) -> bytes:
+    """Return `legacy`'s hash, the midstates being the caller's.
+
+    The script engine keeps one `_SigHashCache` for all the signature
+    checks of an input, so a check with the hash class and the script code
+    of the previous check of its class hashes only the hash type.
+    """
     # the field is serialized here, before the transaction is copied, so
     # that a hash type too wide for it is refused rather than met by the
     # SINGLE bug's early return, which answers with the constant 1 and
@@ -437,7 +514,17 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     # script code itself: SerializeScriptCode is part of the serializer,
     # and the caller — its interpreter, and `sign.cpp` which truncates
     # nothing at all — passes the script as it stands
-    script_code = _without_op_codeseparators(bytes_from_octets(script_code))
+    script_code = bytes_from_octets(script_code)
+
+    # the key is the script code as given, before the elision, as Core's is
+    midstate = None if cache is None else cache.load("legacy", hash_type, script_code)
+    if midstate is not None:
+        # the SINGLE bug's early return below stores nothing, so a midstate
+        # found here is one of a hash type with an output to commit to
+        return _hash256_after(midstate, serialized_hash_type)
+
+    given_script_code = script_code
+    script_code = _without_op_codeseparators(script_code)
 
     new_tx = _legacy_tx_copy(tx, vin_i, script_code)
 
@@ -474,10 +561,12 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     for txout in new_tx.vout:
         _assert_valid_camount(txout.value, "output value")
 
-    preimage = new_tx.serialize(include_witness=False, check_validity=False)
-    preimage += serialized_hash_type
-
-    return hash256(preimage)
+    midstate = hashlib.sha256(
+        new_tx.serialize(include_witness=False, check_validity=False)
+    )
+    if cache is not None:
+        cache.store("legacy", hash_type, given_script_code, midstate)
+    return _hash256_after(midstate, serialized_hash_type)
 
 
 # the five transaction-wide serializations the two segwit sig_hash
@@ -605,6 +694,24 @@ def segwit_v0(
     `hash_type` is Core's `int32_t nHashType`, as `legacy`'s is, and every
     32-bit word has a preimage for the same reason.
     """
+    return _segwit_v0(script_code, tx, vin_i, hash_type, amount, precomputed, None)
+
+
+def _segwit_v0(
+    script_code: Octets,
+    tx: Tx,
+    vin_i: int,
+    hash_type: int,
+    amount: int,
+    precomputed: PrecomputedTxData | None,
+    cache: _SigHashCache | None,
+) -> bytes:
+    """Return `segwit_v0`'s hash, the midstates being the caller's.
+
+    The script engine keeps one `_SigHashCache` for all the signature
+    checks of an input, so a check with the hash class and the script code
+    of the previous check of its class hashes only the hash type.
+    """
     # the width of the field and not the money range: BIP143's amount is
     # Core's CAmount, so -1 is what eight `ff` octets mean and the preimage
     # commits to them either way (issue 388). What no reading of eight
@@ -614,6 +721,10 @@ def segwit_v0(
     _assert_valid_vin_i(tx, vin_i)
 
     script_code = bytes_from_octets(script_code)
+
+    midstate = None if cache is None else cache.load("v0", hash_type, script_code)
+    if midstate is not None:
+        return _hash256_after(midstate, _serialized_hash_type(hash_type))
 
     # precomputed, when given, must describe this very tx: it is the
     # caller's business to build it from the transaction being signed and
@@ -652,25 +763,29 @@ def segwit_v0(
         # by definition and no precomputation can serve it
         hash_outputs = hash256(_serialized_output(tx.vout[vin_i]))
 
-    preimage = b"".join(
-        [
-            _serialized_4_byte_field("version", tx.version),
-            hash_prev_outs,
-            hash_seqs,
-            _serialized_out_point(tx.vin[vin_i].prev_out),
-            var_bytes.serialize(script_code),
-            # BIP143's `amount` is the spent output's value, and Core
-            # writes it with the same serializer TxOut uses (issue #388)
-            _serialized_camount(amount, "amount"),
-            _serialized_4_byte_field("sequence", tx.vin[vin_i].sequence),
-            hash_outputs,
-            _serialized_4_byte_field("lock time", tx.lock_time),
-            # an int32_t as Core's nHashType is, so that -1 is the
-            # `ffffffff` Core writes rather than an OverflowError (#405)
-            _serialized_hash_type(hash_type),
-        ]
+    midstate = hashlib.sha256(
+        b"".join(
+            [
+                _serialized_4_byte_field("version", tx.version),
+                hash_prev_outs,
+                hash_seqs,
+                _serialized_out_point(tx.vin[vin_i].prev_out),
+                var_bytes.serialize(script_code),
+                # BIP143's `amount` is the spent output's value, and Core
+                # writes it with the same serializer TxOut uses (issue #388)
+                _serialized_camount(amount, "amount"),
+                _serialized_4_byte_field("sequence", tx.vin[vin_i].sequence),
+                hash_outputs,
+                _serialized_4_byte_field("lock time", tx.lock_time),
+            ]
+        )
     )
-    return hash256(preimage)
+    # an int32_t as Core's nHashType is, so that -1 is the `ffffffff` Core
+    # writes rather than an OverflowError (#405)
+    serialized_hash_type = _serialized_hash_type(hash_type)
+    if cache is not None:
+        cache.store("v0", hash_type, script_code, midstate)
+    return _hash256_after(midstate, serialized_hash_type)
 
 
 class _TaprootInputHashes:
