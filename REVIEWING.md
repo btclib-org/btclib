@@ -288,8 +288,9 @@ record.** Then rely on it, and say whose it is. Two runs qualify: the
 workflows of the required checks, running beside a review on the same
 commit — `CONTRIBUTING.md` names which checks those are — and an author
 handing over a branch they gated themselves and said so. What is relied
-on is that those gates run and hold the merge, not the colour of a
-check, which stays none of a reviewer's business for the reason below.
+on is that those gates run and, except under the maintainer's `--admin`,
+hold the merge, not the colour of a check, which stays none of a
+reviewer's business for the reason below.
 
 The sha is the whole of the condition: a run on another tree is not a run
 on this one, so a rebase voids it — the branch was gated, and then the
