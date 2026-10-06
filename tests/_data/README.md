@@ -124,7 +124,8 @@ followed on 2026-08-03, at the tip of its path too, and Core's
 `muhash_vectors.json`, both transcribed from `crypto_tests.cpp`, on
 2026-09-03, at the tip of that path, and
 bitcoin-core/secp256k1's `src` for `secp256k1_symbols.txt` on 2026-09-10,
-refreshed again on 2026-09-14 and 2026-09-29, at the tip of its path each time.
+refreshed again on 2026-09-14, 2026-09-29 and 2026-10-07, at the tip of its
+path each time.
 BIP324's `packet_encoding_test_vectors.csv` followed on 2026-09-27, at the
 tip of its path.
 
@@ -249,38 +250,37 @@ the way in; the content is Core's `sighash.json` untouched.
 ```text
 repo    bitcoin/bitcoin
 path    src/test/data/script_tests.json
-commit  4a12773f269742d2c655beb1b3f5ffe98e9beadb  2026-08-21
-blob    2eb02c40ca8173f7c0ff044a7b8a3438e9724914
-pulled  2023-07-08, refreshed 2026-09-02
+commit  b47ec7c6e14e816253ac00d635c5eff2e29aba1d  2026-10-05
+blob    474621e5e45d782995b307523c0c434f69f4928b
+pulled  2023-07-08, refreshed 2026-09-02 and 2026-10-07
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical**. 1292 entries, 1237 vectors once the comment lines
-are dropped: four cases added since the previous pin, one of them a
-DERSIG rejection of a non-compound signature type.
+Verdict: **identical**. 1306 entries, 1247 vectors once the comment lines
+are dropped: ten cases added since the previous pin, six of them Core's
+CONST_SCRIPTCODE tests.
 
-Five of the 1237 are TAPSCRIPT cases whose witness and output script are
+Seven of the 1247 are TAPSCRIPT cases whose witness and output script are
 placeholders — `#SCRIPT#`, `#CONTROLBLOCK#`, `#TAPROOTOUTPUT#` — that
 Core's `script_tests.cpp` generates at run time. `taproot_placeholders`
 in `tests/script_engine/script_test.py` generates them here, from the
 BIP341 NUMS point rather than Core's `key0`, which no vector can tell
-apart. The generation is load-bearing: parsed literally, three of the
-five fail on `OP_#TAPROOTOUTPUT#`, and the two expecting a failure get
-one for the wrong reason.
+apart. The generation is load-bearing: parsed literally, every one dies on
+a `KeyError` for `OP_#TAPROOTOUTPUT#`.
 
 ### `tests/script_engine/_data/tx_valid.json`
 
 ```text
 repo    bitcoin/bitcoin
 path    src/test/data/tx_valid.json
-commit  5fa81e239a39d161a6d5aba7bcc7e1f22a5be777  2025-07-08
-blob    ac25f8149b4b39b4a82c2809e2d4b6f74a05c0e2
-pulled  2023-07-08, renamed and refreshed 2026-07-30
+commit  6cd2fa5fb4b6d25b8400d2a7683ceb78610c0b4f  2026-08-03
+blob    270d5c71217fa2023ae22b1bb91d4b76040eea07
+pulled  2023-07-08, renamed and refreshed 2026-07-30 and 2026-10-07
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical**, 121 vectors — Core's entire file, nothing
-subsetted, and not only legacy: 2 of the 121 name WITNESS in their flags.
+Verdict: **identical**, 122 vectors — Core's entire file, nothing
+subsetted, and not only legacy: 2 of the 122 name WITNESS in their flags.
 Core's name says what the file is; the directory it sits in already says
 which engine the vectors feed (issue 168).
 
@@ -570,9 +570,9 @@ re-check should compare.
 ```text
 repo    bitcoin-core/secp256k1
 path    src
-commit  b819a790f06122d5a53c0320e79c0dc486349fbd  2026-09-28
-ours    77be29e88b8d76602f416de9c47bcd2a13cf542d
-pulled  2026-09-10, refreshed 2026-09-14 and 2026-09-29
+commit  186eec1c1b93d71d2131cd228ca16b4b97738f60  2026-10-02
+ours    633cb36fc1c9f08d0069a510277dccac1835492c
+pulled  2026-09-10, refreshed 2026-09-14, 2026-09-29 and 2026-10-07
 behind  0 revisions; that commit is the tip of the path
 ```
 

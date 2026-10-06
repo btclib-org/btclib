@@ -80,6 +80,12 @@ how they are verified. RELEASE_NOTES.md names the bundle's file name
 newest, absent from the file at the merge base with `origin/main`
 (issue btclib-org/.github#1614).
 
+### Three vendored pins follow upstream's tip
+
+`script_tests.json` is Core's file at `b47ec7c6e1`, `tx_valid.json` at
+`6cd2fa5fb4`, and `secp256k1_symbols.txt` is re-extracted at `186eec1c1b`
+(closes #2549).
+
 ## v2026.10.5
 
 ### `README.md` names SEC 2 for the curves
