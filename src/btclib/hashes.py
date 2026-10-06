@@ -21,7 +21,7 @@ from collections.abc import Callable, Sequence
 from btclib import var_int
 from btclib._ripemd160 import ripemd160 as pure_python_ripemd160
 from btclib.alias import HashDigestF, Octets
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.utils import _message_text, bytes_from_octets, is_integer, is_octets
 
 __all__ = [
@@ -96,6 +96,29 @@ def ripemd160(octets: Octets) -> bytes:
     # handed is the `bytes` `bytes_from_octets` above made of it, so
     # `_ripemd160.py` stays the vendored file it documents itself as being
     return pure_python_ripemd160(octets)
+
+
+# RIPEMD-160("abc"), from the algorithm's reference (Dobbertin, Bosselaers
+# and Preneel, 1996), not from this module's own output
+_RIPEMD160_ABC = "8eb208f7e05d987a9b044a8e98c6b087f15a0bfc"
+
+
+def _check_ripemd160() -> None:
+    """Raise unless the selected ripemd160 backend answers correctly.
+
+    `hash160` derives every p2pkh and p2wpkh address, so a broken backend
+    (a misbuilt OpenSSL provider, say) is stopped at import rather than
+    left to give wrong addresses. A `raise`, not an `assert`, so that
+    `python -O` keeps it.
+    """
+    if ripemd160(b"abc").hex() != _RIPEMD160_ABC:
+        backend = "hashlib" if _RIPEMD160_IN_HASHLIB else "pure Python"
+        raise BTClibRuntimeError(
+            f"the {backend} ripemd160 backend does not match its known answer"
+        )
+
+
+_check_ripemd160()
 
 
 def sha1(octets: Octets) -> bytes:
