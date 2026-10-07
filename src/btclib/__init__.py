@@ -86,6 +86,7 @@ __all__ = [
     "bech32",
     "block",
     "coinstats",
+    "compressor",
     "consensus",
     "ecc",
     "electrum",
