@@ -61,7 +61,7 @@ message signature names.
   `number_theory`, `kdf` and `ecc`, in a distribution of their own, with
   btclib's `ecc.ellswift` beside them
 - **bitcoin's hashes, integers and constants**: `hashes`, `var_int`,
-  `var_bytes`, `consensus`, `amount`
+  `var_bytes`, `obfuscation`, `consensus`, `amount`
 - **networks, keys and addresses**: `network`, `base58`, `bech32`, `key`,
   `b58`, `b32`
 - **the chain**: `script`, `tx`, `block`, `fee`, `policy`, `coinstats`,

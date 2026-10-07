@@ -96,6 +96,12 @@ a 0x7F byte, as Core does since bitcoin/bitcoin#35958 (closes #2553).
 Importing `btclib.hashes` raises `BTClibRuntimeError` if the selected ripemd160
 backend does not return the published digest of `b"abc"` (closes #2554).
 
+### `btclib.obfuscation` reads and writes Core's file obfuscation
+
+`obfuscate(data, key, offset)` XORs data found at byte `offset` of a file with
+the repeating 8-byte key, as Core's `Obfuscation` does for a v2 `mempool.dat`;
+`parse_key` and `serialize_key` handle the key (closes #2559).
+
 ## v2026.10.5
 
 ### `README.md` names SEC 2 for the curves
