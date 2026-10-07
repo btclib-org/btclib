@@ -1458,6 +1458,113 @@ def test_hash_types_report_every_signature_the_interpreter_checked() -> None:
     assert len(hash_types) == 5
 
 
+def test_signatures_report_accepted_ecdsa_signatures() -> None:
+    """What `verify_input` reports back in signatures: accepted ECDSA checks.
+
+    Core's SignatureExtractorChecker keeps each CheckECDSASignature that
+    succeeds, even where the input run is then refused (such as by
+    CLEANSTACK when an extra element remains on the stack). Tapscript
+    checks are Schnorr and are not collected.
+    """
+    key = 0x4242424242424242424242424242424242424242424242424242424242424242
+    pub_key = PrvKeyData(key).pub.sec
+    spk = ScriptPubKey.p2pkh(PrvKeyData(key).pub)
+    prevout = TxOut(1000, spk)
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), b"", 1)
+    tx = Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
+    msg_hash = sig_hash.legacy(spk.script, tx, 0, sig_hash.ALL)
+    sig = sign_(msg_hash, key).serialize() + b"\x01"
+
+    # P2PKH with an extra element on the stack: OP_CHECKSIG succeeds,
+    # CLEANSTACK refuses the input, and signatures contains the accepted pair
+    tx.vin[0].script_sig = serialize([b"\x00", sig, pub_key])
+    accepted: list[tuple[bytes, bytes]] = []
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(
+            [prevout], tx, 0, ALL_FLAGS | ScriptFlag.CLEANSTACK, signatures=accepted
+        )
+    assert exc_info.value.code is ScriptErrorCode.CLEANSTACK
+    assert accepted == [(pub_key, sig)]
+
+    # verify_transaction collects ECDSA signatures across inputs in order,
+    # excluding Schnorr taproot signatures
+    keys = [
+        0x4242424242424242424242424242424242424242424242424242424242424242,
+        0x1111111111111111111111111111111111111111111111111111111111111111,
+    ]
+    sec_keys = [PrvKeyData(k).pub.sec for k in keys]
+    witness_script = serialize(["OP_2", *sec_keys, "OP_2", "OP_CHECKMULTISIG"])
+    prevouts = [
+        TxOut(1000, ScriptPubKey(b"\x00\x20" + sha256(witness_script))),
+        TxOut(1000, ScriptPubKey.p2wpkh(PrvKeyData(keys[0]).pub)),
+        TxOut(1000, ScriptPubKey.p2tr(PrvKeyData(keys[0]).pub)),
+    ]
+    vin = [TxIn(OutPoint(b"\x02" * 32, i), b"", 1) for i in range(len(prevouts))]
+    tx2 = Tx(2, 0, vin, [TxOut(1000, ScriptPubKey(""))], check_validity=False)
+
+    multisig_sigs = [
+        sign_(
+            sig_hash.segwit_v0(witness_script, tx2, 0, sig_hash.ALL, prevouts[0].value),
+            k,
+        ).serialize()
+        + b"\x01"
+        for k in keys
+    ]
+    tx2.vin[0].script_witness = Witness([b"", *multisig_sigs, witness_script])
+
+    p2wpkh_hash = sig_hash.segwit_v0(
+        b"v\xa9\x14" + hash160(sec_keys[0]) + b"\x88\xac",
+        tx2,
+        1,
+        sig_hash.ALL,
+        prevouts[1].value,
+    )
+    p2wpkh_sig = sign_(p2wpkh_hash, keys[0]).serialize() + b"\x01"
+    tx2.vin[1].script_witness = Witness([p2wpkh_sig, sec_keys[0]])
+
+    tr_hash = sig_hash.taproot(tx2, 2, prevouts, sig_hash.DEFAULT, 0, b"", b"")
+    tr_sig = ssa.sign_(tr_hash, output_prvkey(keys[0])).serialize()
+    tx2.vin[2].script_witness = Witness([tr_sig])
+
+    tx_signatures: list[tuple[bytes, bytes]] = []
+    verify_transaction(prevouts, tx2, ALL_FLAGS, signatures=tx_signatures)
+    # multisig signatures evaluated in stack reverse order followed by
+    # p2wpkh signature, with taproot (Schnorr) excluded
+    assert len(tx_signatures) == 3
+    assert tx_signatures == [
+        (sec_keys[1], multisig_sigs[1]),
+        (sec_keys[0], multisig_sigs[0]),
+        (sec_keys[0], p2wpkh_sig),
+    ]
+
+    # verify_script reports into signatures
+    verify_sigs: list[tuple[bytes, bytes]] = []
+    verify_script(
+        spk.script,
+        [sig, pub_key],
+        1000,
+        tx,
+        0,
+        NO_FLAGS,
+        False,
+        True,
+        signatures=verify_sigs,
+    )
+    assert verify_sigs == [(pub_key, sig)]
+
+    # eval_script accepts signatures parameter
+    eval_sigs: list[tuple[bytes, bytes]] = []
+    _stack, err = legacy_engine.eval_script(
+        serialize([pub_key, "OP_CHECKSIG"]),
+        [sig],
+        NO_FLAGS,
+        signatures=eval_sigs,
+    )
+    assert err is None
+    # without a transaction BaseSignatureChecker never verifies a signature
+    assert eval_sigs == []
+
+
 @pytest.mark.parametrize(
     "script, extra_witness, code",
     [

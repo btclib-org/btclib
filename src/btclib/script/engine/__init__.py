@@ -224,6 +224,7 @@ def _verify_witness_v0(
     precomputed: PrecomputedTxData | None,
     hash_types: list[int] | None,
     sighash_cache: _SigHashCache,
+    signatures: list[tuple[bytes, bytes]] | None,
 ) -> None:
     """Verify a v0 spend: the v0 arm of Core's VerifyWitnessProgram.
 
@@ -279,6 +280,7 @@ def _verify_witness_v0(
         precomputed,
         hash_types,
         sighash_cache,
+        signatures,
     )
     # the size first, as Core has it, so an empty stack is CLEANSTACK
     # and not EVAL_FALSE
@@ -301,6 +303,7 @@ def _verify_witness_program(
     precomputed: PrecomputedTxData | None,
     hash_types: list[int] | None,
     sighash_cache: _SigHashCache,
+    signatures: list[tuple[bytes, bytes]] | None,
 ) -> None:
     """Dispatch a witness program: Core's VerifyWitnessProgram.
 
@@ -335,6 +338,7 @@ def _verify_witness_program(
             precomputed,
             hash_types,
             sighash_cache,
+            signatures,
         )
         return
 
@@ -380,6 +384,7 @@ def verify_input(
     flags: ScriptFlags | None = None,
     precomputed: PrecomputedTxData | None = None,
     hash_types: list[int] | None = None,
+    signatures: list[tuple[bytes, bytes]] | None = None,
 ) -> None:
     """Verify one input of a transaction against the output it spends.
 
@@ -405,6 +410,11 @@ def verify_input(
     guessed at. `None`, the default, collects nothing: consensus has no
     such rule, and BIP322's "all signatures MUST use SIGHASH_ALL" is the
     caller that has one (issue #514).
+
+    `signatures` is the list the interpreter reports into: the
+    (pubkey, signature) pairs of every ECDSA check that succeeded,
+    in the order it verified them, appended to whatever the caller
+    passed.
 
     The split is Core's: this function is VerifyScript -- the two legacy
     runs on one stack, the p2sh unwrap, the malleation checks, the
@@ -436,6 +446,7 @@ def verify_input(
         False,
         hash_types=hash_types,
         sighash_cache=sighash_cache,
+        signatures=signatures,
     )
     p2sh_script = stack[-1] if stack else b"\x00"
 
@@ -451,6 +462,7 @@ def verify_input(
         True,
         hash_types=hash_types,
         sighash_cache=sighash_cache,
+        signatures=signatures,
     )
 
     script_type, payload = type_and_payload(script)
@@ -471,6 +483,7 @@ def verify_input(
             True,
             hash_types=hash_types,
             sighash_cache=sighash_cache,
+            signatures=signatures,
         )
         script_type, payload = type_and_payload(script)
 
@@ -508,6 +521,7 @@ def verify_input(
             precomputed,
             hash_types,
             sighash_cache,
+            signatures,
         )
         # Core's stack.resize(1) after VerifyWitnessProgram: a witness
         # spend leaves nothing for CLEANSTACK to see, and v0's own
@@ -587,13 +601,15 @@ def verify_transaction(
     flags: ScriptFlags | None = None,
     check_amounts: bool = True,
     hash_types: list[int] | None = None,
+    signatures: list[tuple[bytes, bytes]] | None = None,
 ) -> None:
     """Verify every input of a transaction against the outputs it spends.
 
     `flags` is what verify_input takes, converted once here rather than
     once per input; `hash_types` is what verify_input reports into, one
     list for the whole transaction, so the inputs' signatures arrive in
-    it in input order.
+    it in input order; `signatures` collects the accepted ECDSA
+    (pubkey, signature) pairs across all inputs in input order.
     """
     script_flags = to_script_flags(flags)
     if len(prevouts) != len(tx.vin):
@@ -612,4 +628,12 @@ def verify_transaction(
     # quadratic the day the two disagreed
     precomputed = PrecomputedTxData(tx, prevouts)
     for i in range(len(prevouts)):
-        verify_input(prevouts, tx, i, script_flags, precomputed, hash_types)
+        verify_input(
+            prevouts,
+            tx,
+            i,
+            script_flags,
+            precomputed,
+            hash_types,
+            signatures,
+        )
