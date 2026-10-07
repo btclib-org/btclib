@@ -86,6 +86,11 @@ newest, absent from the file at the merge base with `origin/main`
 `6cd2fa5fb4`, and `secp256k1_symbols.txt` is re-extracted at `186eec1c1b`
 (closes #2549).
 
+### A long BIP324 message type holding 0x7F is refused
+
+`bip324.message_from_contents` raises `BTClibValueError` for a long type with
+a 0x7F byte, as Core does since bitcoin/bitcoin#35958 (closes #2553).
+
 ## v2026.10.5
 
 ### `README.md` names SEC 2 for the curves

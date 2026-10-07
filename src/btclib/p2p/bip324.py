@@ -90,9 +90,6 @@ MAGIC_LEN = 4
 SALT_PREFIX = b"bitcoin_v2_shared_secret"
 
 _MESSAGE_TYPE_LEN = 12
-# the bytes Core's v2 reader accepts in a long type: ' ' to 0x7F
-_FIRST_TYPE_BYTE = 0x20
-_LAST_TYPE_BYTE = 0x7F
 
 # Core's V2_MESSAGE_IDS (src/net.cpp, v31.1): the type of each short id,
 # "" for id 0, which announces 12 bytes of type, and for ids 29 to 32,
@@ -356,8 +353,7 @@ def contents_from_message(command: str, payload: bytes) -> bytes:
 
     The type is the 1-byte short id when `MESSAGE_IDS` has one, and
     otherwise a NUL and the command padded with NULs to 12 bytes. A
-    command with a 0x7F byte is refused on send, as Core's v1 check
-    refuses it.
+    command outside ' ' to '~' is refused, as on receive.
     """
     assert_type(command, str, "command")
     _assert_bytes(payload, "payload")
@@ -379,11 +375,11 @@ def message_from_contents(contents: bytes) -> tuple[str, bytes]:
     The command is "" for a short id in the table without a type, as in
     Core, whose caller has no handler for it.
     Contents without a type, a short id beyond the table and a long type
-    that is not ' ' to 0x7F padded with NULs raise `BTClibValueError`.
-    Core's v2 reader accepts 0x7F, which its v1 header check does not,
-    and so does this on receive. Such a raise is a message Core
-    rejects: the caller drops the message, and the connection is not
-    ended by it.
+    that is not ' ' to '~' padded with NULs raise `BTClibValueError`.
+    Send refuses the same range, and so does Core's v2 reader since
+    https://github.com/bitcoin/bitcoin/pull/35958. Such a raise is a
+    message Core rejects: the caller drops the message, and the
+    connection is not ended by it.
     """
     _assert_bytes(contents, "contents")
     if not contents:
@@ -397,15 +393,5 @@ def message_from_contents(contents: bytes) -> tuple[str, bytes]:
     if len(rest) < _MESSAGE_TYPE_LEN:
         err_msg = f"long message type too short: {len(rest)} bytes"
         raise BTClibValueError(err_msg)
-    field = rest[:_MESSAGE_TYPE_LEN]
-    padding_at = field.find(b"\x00")
-    if padding_at < 0:
-        padding_at = _MESSAGE_TYPE_LEN
-    command, padding = field[:padding_at], field[padding_at:]
-    if padding.strip(b"\x00"):
-        err_msg = f"invalid command padding: {field.hex()}"
-        raise BTClibValueError(err_msg)
-    if any(o < _FIRST_TYPE_BYTE or o > _LAST_TYPE_BYTE for o in command):
-        err_msg = f"non-printable command: {field.hex()}"
-        raise BTClibValueError(err_msg)
-    return command.decode("ascii"), rest[_MESSAGE_TYPE_LEN:]
+    command = _command_from_bytes(rest[:_MESSAGE_TYPE_LEN])
+    return command, rest[_MESSAGE_TYPE_LEN:]
