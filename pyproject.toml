@@ -35,7 +35,7 @@ name = "btclib"
 # file. Not a literal in src/btclib/__init__.py for setuptools to import
 # and conf.py to repeat: two declarations are two things a release
 # workflow has to compare before trusting either
-version = "2026.11"
+version = "2026.10.7"
 description = "A library for 'bitcoin cryptography'"
 readme = "README.md"
 # PEP 639: a SPDX expression and the files it refers to, replacing the
@@ -55,9 +55,8 @@ requires-python = ">=3.11"
 # of the number being the one that goes stale.
 dependencies = [
     # `btclib.p2p.magic` calls `chain_from_network` and `magic_from_chain`,
-    # both in 2026.8.29, the split of the package into errors, chains,
-    # transport and client modules behind its facade and the first release
-    # the `chains` module exists in
+    # both there since 2026.8.29. The floor is the release btclib
+    # v2026.9.29 was cut against (issue #2407)
     "bitcoin-core-rpc>=2026.9.29",
     # the curve arithmetic and the schemes built on it, which btclib
     # imports from `btclib_ecc` where it uses them and does not

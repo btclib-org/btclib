@@ -19,12 +19,19 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
-## v2026.11 (work in progress, not released yet)
+## v2026.10.7
 
 - **The attestation bundle is attached as `v<version>.intoto.jsonl`** from
   v2026.9.30 on, in place of `v<version>.attestation.jsonl`. A script that
   downloads it by name, or passes it to `gh attestation verify --bundle`, uses
   the new name.
+
+### Breaking changes
+
+- **`bip324.message_from_contents` refuses a long message type holding 0x7F**
+  (closes #2553). It raises `BTClibValueError` where it returned the command,
+  as Core's v2 reader does since bitcoin/bitcoin#35958. Act on it if you read
+  v2 messages from peers: drop the message, as Core does.
 
 ## v2026.10.5
 
