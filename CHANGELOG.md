@@ -19,7 +19,7 @@ them.
 A release's own pull request writes the release's section, from the squash
 subjects since the previous tag, and no other pull request adds an entry
 (sections 9 and 12 of the
-[organization's standard](https://github.com/btclib-org/.github#readme)).
+[organization's standard](https://github.com/btclib-org/.github)).
 
 Only v2026.8.7 and what follows it are recorded in the changelog at all.
 The releases before it were documented at release-notes length in the
