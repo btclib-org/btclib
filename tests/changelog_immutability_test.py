@@ -4,12 +4,7 @@
 
 """A released `## v<version>` section of CHANGELOG.md never moves again.
 
-A branch cut while a section still read "work in progress, not released
-yet" carried its own entry at the end of that section; where a release
-retitled the heading before the branch rebased, the entry could end up
-under the released heading (issue #1512).
-
-So the one thing an already-released section can still be checked
+The one thing an already-released section can still be checked
 against is not the working tree at all: it is the tag `git tag -s`
 cut for that release, which is why this module shells out to `git`
 rather than reading only what `Path.read_text` returns. For every
@@ -105,13 +100,11 @@ every tag cut afterwards simply inherited it unchanged. So no already-tagged
 heading can receive a bullet without gaining text its own sealed
 tag never had, which is the identical failure this module exists to
 catch, moved rather than fixed. The one heading with no tag to violate
-was whichever section was open when the move was made -- the placeholder,
-whose own name the next retitle took -- in the subsection each bullet
-already belonged to; and once that section was retitled and tagged, the
-bullet was part of its tag from day one, unlike every prior placement.
-Each relocated bullet carries its own trailing "(shipped in
-v<version>)", the tag `merge-base --is-ancestor` found, so a reader can
-still tell it apart from what this cycle actually added.
+was whichever section was open when the move was made, in the subsection
+each bullet already belonged to. Each relocated bullet carries its own
+trailing "(shipped in v<version>)", the tag `merge-base --is-ancestor`
+found, so a reader can still tell it apart from what this cycle actually
+added.
 
 `v2026.8.7` keeps its exemption, now to `13941fd1` and `0744d3f4` alone:
 `237c86d4`'s bullets, the section's only relocatable content, are gone

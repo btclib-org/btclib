@@ -544,9 +544,9 @@ repos:
       # three blind spots come from. Same `\x20` as above, and the same
       # reason.
       # `CHANGELOG.md` and `RELEASE_NOTES.md` are out of reach because
-      # section 9 rewrites neither: a refused shape in an entry that has
-      # landed has no repair, and there would be no green state to
-      # reach. `exclude:` selects files and pygrep reads whole ones,
+      # nothing already written in either is rewritten: a refused shape
+      # in an entry that has landed has no repair, and there would be no
+      # green state to reach. `exclude:` selects files and pygrep reads whole ones,
       # so an exclusion keyed on the older entries alone cannot be
       # written; and check-useless-excludes asks the pattern to match
       # some file the hook selects rather than each name in it, which is
