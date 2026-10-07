@@ -65,6 +65,13 @@ btclib.coinstats module
    :members:
    :show-inheritance:
 
+btclib.compressor module
+------------------------
+
+.. automodule:: btclib.compressor
+   :members:
+   :show-inheritance:
+
 btclib.consensus module
 -----------------------
 
