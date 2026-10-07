@@ -101,10 +101,11 @@ the path, so a title leaves no match rather than a shortened one.
 A cited `#fragment` is resolved against the headings of the file the
 citation reaches, and that is a different question from the path: a heading
 moves on a schedule where a path moves when somebody moves a file. A
-release renames the open cycle's heading to its own version, so
-`CHANGELOG.md` and `RELEASE_NOTES.md` each carry one heading a release
-takes away, where a released section's headings are held byte for byte
-against its own tag by `changelog_immutability_test.py`.
+release deletes the work-in-progress heading where one remains, and moves
+the release below its own out of `CHANGELOG.md` into `changelog/`, so a
+cited heading can vanish with nothing in the citing file having changed;
+a released section's headings are held byte for byte against its own tag
+by `changelog_immutability_test.py`.
 
 The fragment is read off a link's own target and not off a backticked span,
 a link being what a reader clicks where a backticked `path#anchor` is prose
@@ -549,9 +550,9 @@ def test_a_link_target_is_resolved_against_the_paths_this_tree_tracks() -> None:
 def test_every_heading_a_markdown_file_cites_is_one_its_target_has() -> None:
     """A citation's heading goes stale on the release schedule.
 
-    A release renames the open cycle's heading of `CHANGELOG.md` and of
-    `RELEASE_NOTES.md`, so a citation naming that heading stops resolving
-    with nothing in the file carrying the citation having changed.
+    A release deletes or moves a heading of `CHANGELOG.md` or
+    `RELEASE_NOTES.md`, so a citation naming it stops resolving with
+    nothing in the file carrying the citation having changed.
     """
     texts = _markdown(_tracked())
     # what a sweep answering zero has to be held to: a fragment resolving

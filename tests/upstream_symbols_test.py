@@ -104,14 +104,13 @@ worth naming rather than inferring:
   `os-windows.yml` all run. The input set therefore differs by
   interpreter, and a credit belongs in a plain literal or a comment for
   that reason;
-- **markdown is not read.** `CHANGELOG.md` is appended to and its
-  released sections are sealed by `tests/changelog_immutability_test.py`,
-  so a credit that landed in one cannot be corrected and a gate over it
-  would be red with no repair available -- its entry for
-  [ISS 800](https://github.com/btclib-org/btclib/issues/800) is exactly
-  that, carrying the same credit `number_theory` carried. The swept
-  files are `src/btclib` and `tests`, where a credit sits beside the
-  code it describes and can still be edited.
+- **markdown is not read.** `CHANGELOG.md`'s released sections are sealed by
+  `tests/changelog_immutability_test.py`, so a credit that landed in one cannot
+  be corrected and a gate over it would be red with no repair available -- its
+  entry for [ISS 800](https://github.com/btclib-org/btclib/issues/800) is
+  exactly that, carrying the same credit `number_theory` carried. The swept
+  files are `src/btclib` and `tests`, where a credit sits beside the code it
+  describes and can still be edited.
 
 **The attribution sweep is part of the first of those bullets.** A
 credit that spells no name is outside the sweep above whatever it

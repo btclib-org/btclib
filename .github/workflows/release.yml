@@ -33,8 +33,9 @@ concurrency:
 
 jobs:
   # the tag ancestry check, the version comparison and the release-notes
-  # retitling check are btclib-org/.github's, called at @main so a fix
-  # there reaches this tree in one landing (section 10 of its README.md).
+  # check on RELEASE_NOTES.md and CHANGELOG.md are btclib-org/.github's,
+  # called at @main so a fix there reaches this tree in one landing
+  # (section 10 of its README.md).
   # No tag-requires-day: this tree is calendar-versioned, which is the
   # reusable workflow's own default. version-suffix is this job's output,
   # unchanged in shape from when the step computing it lived here, and

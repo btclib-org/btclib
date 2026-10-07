@@ -12,11 +12,9 @@ took it to 116 under the same header, and the drift survived both reviews
 because there was nothing to notice.
 
 Checking the number against the bullets is one answer, and it costs what
-it fixes: the count is then a line every open branch has to edit, so it
-becomes the one conflict a pull request is guaranteed to have -- and two
-branches moving it to the same new number merge without a conflict into a
-number that is wrong. So neither file states it, and counting the
-entries is a reading of the file, not a command.
+it fixes: the count is then one more line to edit at every release.
+So neither file states it, and counting the entries is a reading of the
+file, not a command.
 
 Which is what this module guards, the assertions running the other way
 round: a count anywhere in either file is a failure. Not only because one
