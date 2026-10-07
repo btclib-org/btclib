@@ -33,6 +33,7 @@ other. Past a size ceiling GitHub's contents API answers a file with an
 empty `content` at HTTP 200, which reads as an empty file rather than as
 an error, and one file per release is what keeps each of them under it.
 
+- [v2026.10.5](./changelog/v2026.10.5.md)
 - [v2026.10.4](./changelog/v2026.10.4.md)
 - [v2026.10.3](./changelog/v2026.10.3.md)
 - [v2026.10.2](./changelog/v2026.10.2.md)
@@ -48,7 +49,7 @@ an error, and one file per release is what keeps each of them under it.
 - [v2026.8.9](./changelog/v2026.8.9.md)
 - [v2026.8.7](./changelog/v2026.8.7.md)
 
-## v2026.11 (work in progress, not released yet)
+## v2026.10.7
 
 ### The forms set a type, and the history files lose `merge=union`
 
@@ -107,24 +108,14 @@ backend does not return the published digest of `b"abc"` (closes #2554).
 the repeating 8-byte key, as Core's `Obfuscation` does for a v2 `mempool.dat`;
 `parse_key` and `serialize_key` handle the key (closes #2559).
 
-## v2026.10.5
+### `btclib.compressor` reads and writes Core's coin compression
 
-### `README.md` names SEC 2 for the curves
+It has Core's `VARINT`, which is not CompactSize, and Core's amount and script
+compression, both ways. `compress_amount` also refuses an amount above
+`MAX_MONEY`, which Core does not (closes #2558).
 
-`README.md` says SEC 2, not SEC 1, defines the elliptic curves.
+### Dependencies are refreshed, and no floor moves
 
-### Verifying a transaction takes time linear in its inputs
-
-`PrecomputedTxData` validates every prevout once, when built, and refuses a
-script_pub_key naming an unknown network. A sig_hash given one validates only
-the prevout it reads (GHSA-9r97-9x22-2pp4).
-
-### Repeated signature checks of an input share one hash
-
-The script engine keeps, per class of hash type, the SHA256 midstate of an
-input's legacy or segwit v0 signature hash and the script code it is for, as
-Bitcoin Core's `SigHashCache` does. A check whose hash type class and script
-code match the previous check of that class in the same input hashes only the
-hash type, where it built the whole preimage again (GHSA-rw95-w37r-537w). A
-script code that differs at every check, as one with an `OP_CODESEPARATOR`
-before each, still builds the whole preimage at each.
+`uv lock --upgrade` moves aiohttp, bitcoin-core-rpc, filelock, hypothesis,
+iniconfig, platformdirs and tomli, none across a major version. btclib calls
+nothing that bitcoin-core-rpc 2026.10.4 changed.
