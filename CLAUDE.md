@@ -130,10 +130,10 @@ constraints. Do not use Fable unless instructed.
   It governs the workflows and the pre-commit config too: the reasoning with its
   negative results is what makes those files reviewable, so match it
   rather than trimming it.
-- **A pull request adds no `CHANGELOG.md` entry**: `CONTRIBUTING.md`'s
-  *Pull requests*. A source-breaking change is named in the release's
-  own RELEASE_NOTES.md breaking-changes list, its "before" checked
-  against the `v2023.7.12` tag.
+- **The changelog and the release notes**: `CONTRIBUTING.md`'s *Pull requests*
+  says which pull request writes them.
+- **A source-breaking change is named in the release's own RELEASE_NOTES.md
+  breaking-changes list**, its "before" checked against the `v2023.7.12` tag.
 - **Never state how many of anything a file holds.**
   `tests/release_notes_test.py` and `tests/vendored_data_test.py` fail on a
   stated count in CHANGELOG.md, RELEASE_NOTES.md and
