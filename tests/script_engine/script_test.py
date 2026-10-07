@@ -1552,17 +1552,23 @@ def test_signatures_report_accepted_ecdsa_signatures() -> None:
     )
     assert verify_sigs == [(pub_key, sig)]
 
-    # eval_script accepts signatures parameter
-    eval_sigs: list[tuple[bytes, bytes]] = []
-    _stack, err = legacy_engine.eval_script(
-        serialize([pub_key, "OP_CHECKSIG"]),
-        [sig],
-        NO_FLAGS,
-        signatures=eval_sigs,
+    # 1-of-2 CHECKMULTISIG with a signature by key[0]: key[1] is tried first
+    # and fails; only the accepted (key[0], sig) pair is collected
+    ms_script = serialize(["OP_1", *sec_keys, "OP_2", "OP_CHECKMULTISIG"])
+    ms_prevout = TxOut(1000, ScriptPubKey(b"\x00\x20" + sha256(ms_script)))
+    ms_tx = Tx(
+        2,
+        0,
+        [TxIn(OutPoint(b"\x03" * 32, 0), b"", 1)],
+        [TxOut(1000, ScriptPubKey(""))],
+        check_validity=False,
     )
-    assert err is None
-    # without a transaction BaseSignatureChecker never verifies a signature
-    assert eval_sigs == []
+    ms_sighash = sig_hash.segwit_v0(ms_script, ms_tx, 0, sig_hash.ALL, ms_prevout.value)
+    ms_sig0 = sign_(ms_sighash, keys[0]).serialize() + b"\x01"
+    ms_tx.vin[0].script_witness = Witness([b"", ms_sig0, ms_script])
+    ms_signatures: list[tuple[bytes, bytes]] = []
+    verify_input([ms_prevout], ms_tx, 0, ALL_FLAGS, signatures=ms_signatures)
+    assert ms_signatures == [(sec_keys[0], ms_sig0)]
 
 
 @pytest.mark.parametrize(

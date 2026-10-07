@@ -759,7 +759,6 @@ def _run_ops(  # noqa: C901, PLR0912
         if skip_execution and t not in EVALUATED_WHEN_UNEXECUTED:
             continue
         op = op_code_name(t)
-
         # Core runs OP_EQUALVERIFY and its kind as one op code, which is
         # the plain one followed by the test of its result
         verify_code = VERIFY_CODES.get(op)
@@ -915,10 +914,8 @@ def verify_script(
     over one collector too. `sighash_cache` is kept the same way, one
     for all the scripts of an input.
 
-    `signatures` is the list the interpreter reports into: the
-    (pubkey, signature) pairs of every ECDSA check that succeeded,
-    in the order it verified them, appended to whatever the caller
-    passed.
+    `signatures` is `verify_input`'s other collector, of the ECDSA
+    pairs accepted here, chained over the scripts the same way.
     """
     _eval_script(
         script_bytes,
@@ -940,7 +937,6 @@ def eval_script(
     script_bytes: bytes,
     stack: Sequence[bytes] = (),
     flags: ScriptFlag = NO_FLAGS,
-    signatures: list[tuple[bytes, bytes]] | None = None,
 ) -> tuple[list[bytes], ScriptError | None]:
     """Run a script as Core's `EvalScript` does: (stack, error).
 
@@ -961,11 +957,6 @@ def eval_script(
     OP_ROLL stop with their index popped. `ScriptError.index` is the
     position of the op code that refused, and `stack_depth` the depth of
     the stack returned; an error outside the loop has neither.
-
-    `signatures` is the list the interpreter reports into: the
-    (pubkey, signature) pairs of every ECDSA check that succeeded,
-    in the order it verified them, appended to whatever the caller
-    passed.
     """
     assert_type(script_bytes, bytes, "script_bytes")
     assert_type(stack, Sequence, "stack")
@@ -986,7 +977,7 @@ def eval_script(
             None,
             None,
             None,
-            signatures,
+            None,
         )
     except ScriptError as error:
         return result, error

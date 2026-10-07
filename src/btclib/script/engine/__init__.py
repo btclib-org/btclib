@@ -412,9 +412,14 @@ def verify_input(
     caller that has one (issue #514).
 
     `signatures` is the list the interpreter reports into: the
-    (pubkey, signature) pairs of every ECDSA check that succeeded,
-    in the order it verified them, appended to whatever the caller
-    passed.
+    (pub_key, signature) pair of every ECDSA check that succeeded, both
+    as they were on the stack, in the order the checks ran, appended to
+    whatever the caller passed. A pair is reported when its check
+    succeeds, as Core's SignatureExtractorChecker does, and stays there
+    when the input is then refused: it says the signature is valid for
+    that key, not that the input verified. A key checked twice is
+    reported twice, where Core keeps the first. The tapscript checks are
+    Schnorr and are not reported.
 
     The split is Core's: this function is VerifyScript -- the two legacy
     runs on one stack, the p2sh unwrap, the malleation checks, the

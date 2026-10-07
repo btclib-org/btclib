@@ -122,12 +122,12 @@ intersphinx_mapping = {
 # would give the check up entirely:
 #
 # - a subscripted generic written inline in a signature -- Callable's
-#   argument list, a bare tuple[int, ...], a union built out of either --
-#   where sphinx's own type-to-xref splitter (measured against sphinx
-#   9.1.0) stops at the first nested bracket and reports the truncated
-#   fragment as the unresolved class, rather than resolving the pieces on
-#   either side of it. No mapping answers a target that is not a name to
-#   begin with
+#   argument list, a bare tuple[int, ...], a list of tuples, a union built
+#   out of either -- where sphinx's own type-to-xref splitter (measured
+#   against sphinx 9.1.0) stops at the first nested bracket and reports the
+#   truncated fragment as the unresolved class, rather than resolving the
+#   pieces on either side of it. No mapping answers a target that is not a
+#   name to begin with
 # - a private name: the p2p payload classes and the sig_hash input hashes
 #   below begin with an underscore, and automodule does not document a
 #   name spelled that way at all, so `:members:` renders no page for a
@@ -140,6 +140,7 @@ intersphinx_mapping = {
 nitpick_ignore = [
     ("py:class", "collections.abc.Callable[[]"),
     ("py:class", "tuple[int"),
+    ("py:class", "list[tuple[bytes"),
     ("py:class", "collections.abc.Mapping[bytes"),
     ("py:class", "bytes | str | bytearray | memoryview | tuple[int"),
     ("py:class", "int | bytes | str | bytearray | memoryview | tuple[int"),
