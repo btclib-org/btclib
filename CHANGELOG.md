@@ -80,6 +80,22 @@ how they are verified. RELEASE_NOTES.md names the bundle's file name
 newest, absent from the file at the merge base with `origin/main`
 (issue btclib-org/.github#1614).
 
+### Three vendored pins follow upstream's tip
+
+`script_tests.json` is Core's file at `b47ec7c6e1`, `tx_valid.json` at
+`6cd2fa5fb4`, and `secp256k1_symbols.txt` is re-extracted at `186eec1c1b`
+(closes #2549).
+
+### A long BIP324 message type holding 0x7F is refused
+
+`bip324.message_from_contents` raises `BTClibValueError` for a long type with
+a 0x7F byte, as Core does since bitcoin/bitcoin#35958 (closes #2553).
+
+### `btclib.hashes` checks its ripemd160 at import
+
+Importing `btclib.hashes` raises `BTClibRuntimeError` if the selected ripemd160
+backend does not return the published digest of `b"abc"` (closes #2554).
+
 ## v2026.10.5
 
 ### `README.md` names SEC 2 for the curves

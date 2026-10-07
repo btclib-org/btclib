@@ -337,6 +337,7 @@ def test_a_command_that_is_not_twelve_printable_bytes_is_refused(command: str) -
         (b"\x00" + b"ping", "long message type too short"),
         (b"\x00" + b"pi\x00ng".ljust(12, b"\x00"), "invalid command padding"),
         (b"\x00" + b"p\x1fng".ljust(12, b"\x00"), "non-printable"),
+        (b"\x00" + b"p\x7fng".ljust(12, b"\x00"), "non-printable"),
         (b"\x00" + b"p\x80ng".ljust(12, b"\x00"), "non-printable"),
     ],
 )
@@ -352,9 +353,9 @@ def test_an_unimplemented_short_id_has_no_command(short_id: int) -> None:
     assert bip324.message_from_contents(bytes([short_id]) + b"x") == ("", b"x")
 
 
-@pytest.mark.parametrize("command", ["p\x7fng", " ng", "p ng"])
-def test_core_s_v2_reader_accepts_the_ends_of_its_range(command: str) -> None:
-    """' ' and 0x7F are in Core's range for a long type; v1's stops at 0x7E."""
+@pytest.mark.parametrize("command", [" ng", "p ng", "p~ng"])
+def test_the_ends_of_the_long_type_range_are_accepted(command: str) -> None:
+    """' ' and '~' (0x7E) are in the range of a long type."""
     contents = b"\x00" + command.encode().ljust(12, b"\x00") + b"x"
 
     assert bip324.message_from_contents(contents) == (command, b"x")

@@ -98,7 +98,7 @@ def taproot_placeholders(
 ) -> tuple[list[Any], str]:
     """Fill in what a tapscript vector leaves to the harness.
 
-    The five TAPSCRIPT vectors carry three placeholders that Core's
+    The TAPSCRIPT vectors carry three placeholders that Core's
     `script_tests.cpp` generates rather than storing: `#SCRIPT# <script>`
     is a witness element written in the vector's own script language
     instead of hex, `#CONTROLBLOCK#` is the control block spending the
@@ -107,10 +107,9 @@ def taproot_placeholders(
 
     The internal key is Core's `key0` there and the BIP341 NUMS point
     here, which no vector can tell apart: all three values come from the
-    same tree, and none of the five spends the key path. Left alone, the
-    tokens reach `parse_script` as op code names -- three vectors then
-    fail on `OP_#TAPROOTOUTPUT#`, and the two expecting a failure get one
-    for the wrong reason, which is worse.
+    same tree, and none of the vectors spends the key path. Left alone,
+    the tokens reach `parse_script` as op code names, and every one of
+    these vectors dies on a `KeyError` for `OP_#TAPROOTOUTPUT#`.
     """
     out: list[Any] = []
     q = b""
@@ -119,7 +118,7 @@ def taproot_placeholders(
             out.append(parse_script(element[len(SCRIPT_FLAG) :]))
         elif element == "#CONTROLBLOCK#":
             # the tapscript is the element before it, and parsing it back
-            # is faithful for all five: serialize(parse(bytes)) == bytes
+            # is faithful for all of them: serialize(parse(bytes)) == bytes
             script_tree: TaprootScriptTree = [
                 (0xC0, parse_tapscript(bytes.fromhex(out[-1])))
             ]
@@ -759,8 +758,7 @@ def test_op_success_leftover_passes_cleanstack() -> None:
     came, and that leftover is the upgrade path, a success whatever sits
     under the script. Pinned with the flag on because nothing vendored
     turns it on against a taproot spend: no script_assets case carries
-    CLEANSTACK, and the five TAPROOT rows of script_tests.json leave it
-    off.
+    CLEANSTACK, and the TAPROOT rows of script_tests.json leave it off.
     """
     prevouts, tx = taproot_script_spend(
         ["OP_SUCCESS80", b""], lock_time=0, sequence=1, extra_witness=("",)
@@ -779,7 +777,7 @@ def test_unknown_v1_program_passes_cleanstack() -> None:
     left is not CLEANSTACK's to see, the flag never looking at a witness
     spend. What refuses it is the flag Core refuses it with, below.
     CLEANSTACK is what no vendored vector pairs with a taproot-era
-    program: zero rows of script_assets_test.json carry it, and the five
+    program: zero rows of script_assets_test.json carry it, and the
     TAPROOT rows of script_tests.json leave it off.
     """
     prevout = TxOut(1000, ScriptPubKey(serialize(["OP_1", b"\x99" * 20])))
@@ -1488,9 +1486,10 @@ def test_a_tapscript_refusal_carries_core_s_code(
 ) -> None:
     """Tapscript's own codes, which script_tests.json spends almost none of.
 
-    Its TAPSCRIPT rows reach TAPSCRIPT_EMPTY_PUBKEY alone. The last two
-    are the order of Core's ExecuteWitnessScript: the size of the stack
-    first, so an empty one is CLEANSTACK and not EVAL_FALSE.
+    Its TAPSCRIPT rows reach TAPSCRIPT_EMPTY_PUBKEY and TAPSCRIPT_MINIMALIF
+    alone. The last two are the order of Core's ExecuteWitnessScript: the
+    size of the stack first, so an empty one is CLEANSTACK and not
+    EVAL_FALSE.
     """
     prevouts, tx = taproot_script_spend(script, 0, 1, extra_witness)
     with pytest.raises(ScriptError) as exc_info:
