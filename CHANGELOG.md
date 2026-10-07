@@ -91,6 +91,11 @@ newest, absent from the file at the merge base with `origin/main`
 `bip324.message_from_contents` raises `BTClibValueError` for a long type with
 a 0x7F byte, as Core does since bitcoin/bitcoin#35958 (closes #2553).
 
+### `btclib.hashes` checks its ripemd160 at import
+
+Importing `btclib.hashes` raises `BTClibRuntimeError` if the selected ripemd160
+backend does not return the published digest of `b"abc"` (closes #2554).
+
 ## v2026.10.5
 
 ### `README.md` names SEC 2 for the curves

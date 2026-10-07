@@ -5,12 +5,14 @@
 """Tests for the `btclib.hashes` module."""
 
 import hashlib
+import runpy
 from hashlib import sha256
 from typing import Any
 
 import pytest
 
 from btclib import hashes
+from btclib.exceptions import BTClibRuntimeError
 from btclib.hashes import (
     hash160,
     hash256,
@@ -54,6 +56,50 @@ def test_ripemd160_wherever_hashlib_has_none(monkeypatch: pytest.MonkeyPatch) ->
     # already works, bytearray + bytes being an operation
     assert ripemd160(memoryview(octets)) == expected
     assert ripemd160(bytearray(octets)) == expected
+
+
+def test_ripemd160_known_answer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The check passes on each backend and fails on a wrong one.
+
+    The digest of the empty string is the published one of the RIPEMD-160
+    reference, not computed here; the module pins that of "abc".
+    """
+    empty = "9c1185a5c5e9fc54612808977ee8f548b2258d31"
+
+    # the hashlib backend only where this host has one
+    for in_hashlib in {hashes._RIPEMD160_IN_HASHLIB, False}:
+        monkeypatch.setattr(hashes, "_RIPEMD160_IN_HASHLIB", in_hashlib)
+        assert ripemd160(b"").hex() == empty
+        hashes._check_ripemd160()
+
+    # a wrong backend, as a misbuilt OpenSSL provider would be
+    monkeypatch.setattr(hashes, "_RIPEMD160_IN_HASHLIB", True)
+    monkeypatch.setattr(
+        hashlib, "new", lambda *_, **__: hashlib.sha1(usedforsecurity=False)
+    )
+    with pytest.raises(BTClibRuntimeError, match="hashlib.*known answer"):
+        hashes._check_ripemd160()
+    monkeypatch.setattr(hashes, "_RIPEMD160_IN_HASHLIB", False)
+    monkeypatch.setattr(hashes, "pure_python_ripemd160", lambda _: bytes(20))
+    with pytest.raises(BTClibRuntimeError, match="pure Python.*known answer"):
+        hashes._check_ripemd160()
+
+
+def test_import_refuses_a_wrong_ripemd160(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Executing the module with a wrong hashlib ripemd160 raises.
+
+    runpy runs the file afresh, without replacing the imported module.
+    """
+    path = hashes.__file__
+    assert path is not None
+    runpy.run_path(path, run_name="btclib_hashes_fresh")
+
+    # the module asks hashlib.new for ripemd160 alone
+    monkeypatch.setattr(
+        hashlib, "new", lambda _, *a: hashlib.sha1(*a, usedforsecurity=False)
+    )
+    with pytest.raises(BTClibRuntimeError, match="known answer"):
+        runpy.run_path(path, run_name="btclib_hashes_fresh")
 
 
 def test_hashlib_ripemd160_probe(monkeypatch: pytest.MonkeyPatch) -> None:
