@@ -135,8 +135,8 @@ def test_four_times_the_script_takes_about_four_times_as_long(
 ) -> None:
     """Four times the script: 16 times as long if quadratic, 4 if linear."""
     small, large = make(_DEEP // 4), make(_DEEP)
-    # Interleave five pairs so a host load change reaches both sizes; take each
-    # best time so a slow moment on the small run cannot hide the growth.
+    # small then large, five times, so a change of load reaches both; the
+    # best of each, so a slow small run cannot hide the growth
     small_times: list[float] = []
     large_times: list[float] = []
     for _ in range(5):
