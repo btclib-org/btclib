@@ -135,10 +135,14 @@ def test_four_times_the_script_takes_about_four_times_as_long(
 ) -> None:
     """Four times the script: 16 times as long if quadratic, 4 if linear."""
     small, large = make(_DEEP // 4), make(_DEEP)
-    # the best of five: a slow moment on the small run would hide the growth
-    ratio = min(_seconds(large) for _ in range(5)) / min(
-        _seconds(small) for _ in range(5)
-    )
+    # Interleave five pairs so a host load change reaches both sizes; take each
+    # best time so a slow moment on the small run cannot hide the growth.
+    small_times: list[float] = []
+    large_times: list[float] = []
+    for _ in range(5):
+        small_times.append(_seconds(small))
+        large_times.append(_seconds(large))
+    ratio = min(large_times) / min(small_times)
     assert ratio < 10, f"{ratio:.1f} times as long for four times the script"
 
 
@@ -152,9 +156,12 @@ def test_four_times_the_signature_checks_take_about_four_times_as_long(
     """The annex and the output a check commits to cost their size once."""
     monkeypatch.setattr(tapscript, "ssa_verify", lambda *_: True)
     small, large = make(2_000), make(8_000)
-    ratio = min(_seconds_of(*large) for _ in range(5)) / min(
-        _seconds_of(*small) for _ in range(5)
-    )
+    small_times: list[float] = []
+    large_times: list[float] = []
+    for _ in range(5):
+        small_times.append(_seconds_of(*small))
+        large_times.append(_seconds_of(*large))
+    ratio = min(large_times) / min(small_times)
     assert ratio < 10, f"{ratio:.1f} times as long for four times the checks"
 
 
