@@ -123,9 +123,12 @@ those checks passed to
 
 1. On GitHub, Actions → release → Run workflow, and pick the branch to
    rehearse: `main`, or the release branch while its pull request is
-   still open — the workflow has to be registered on the default branch
-   to be dispatched at all, which is the paragraph at the top of this
-   file, but it runs against whichever branch is picked.
+   still open. A release that breaks the public API is rehearsed from the
+   release pull request's branch, after its notes are written, so that
+   `public-api` reads the release's own section. The workflow has
+   to be registered on the default branch to be dispatched at all, which
+   is the paragraph at the top of this file, but it runs against
+   whichever branch is picked.
 
 1. The workflow appends `.dev<run*100+attempt>` to the version, so
    every rehearsal is unique on TestPyPI and sorts before the release
@@ -314,50 +317,31 @@ to `deps-latest`'s own result.
    value fails, and the notes are what tell its user the new one
    (btclib-org/.github#1596).
 
-1. Retitle the "work in progress" section of **both** RELEASE_NOTES.md
-   and CHANGELOG.md as `## v<version>`. The workflow lifts the GitHub
-   release notes from RELEASE_NOTES.md's section alone, so that one has
-   to read as the release notes it becomes; CHANGELOG.md is the detail
-   it points at, and the two are retitled together or the link goes
-   nowhere. `version-check` refuses a tag whose heading still carries
-   anything after the version, in either file, or whose section is
-   empty: the extraction matches `## v<version>` followed by a space
-   too, so an unretitled RELEASE_NOTES.md would have published "work in
-   progress, not released yet" as the release notes. A rehearsal is
-   exempt, being what runs before this step.
+1. Write the release's sections in the release's own pull request: add
+   `## v<version>` above the previous release in both RELEASE_NOTES.md and
+   CHANGELOG.md. No other pull request adds an entry to either file.
+   CHANGELOG.md's section is written from the squash subjects since the
+   previous tag, grouped and shortened:
 
-   In the same pull request, start the next cycle's "work in progress"
-   section in both files, above the one just retitled. What that closes
-   is the window between this pull request landing and *Open the next
-   cycle* below: without it `main` carries a CHANGELOG.md whose topmost
-   section is a released version, and any branch in flight files its
-   entries under a release they are not in — silently, the release
-   commit touching only the heading, so a rebase reports no conflict
-   (issue #1458). `version-check` is unbothered by the section above:
-   its awk matches `## v<version>` exactly and never reaches a heading
-   that precedes the tag's, and the tag always carries a day where the
-   placeholder never does, so the two forms cannot collide.
+   ```shell
+   tag=v<previous version>
+   ```
 
-   **That new heading names the month the next release is expected to fall in**,
-   not the cycle of the release just cut: retitling to `v2026.9.3`, expecting
-   the next release in October, opens `## v2026.10 (work in progress, not
-   released yet)`. *Open the next cycle's version* below sets `pyproject.toml`
-   from this heading, and while it stands a checkout of `main` declares a
-   version above the release just cut and above any further release the same
-   cycle still ships: `2026.10` sorts above both `2026.9.3` and a later
-   `2026.9.20` under PEP 440. That ordering is one cost of naming the month
-   ahead rather than the month just cut, and it is accepted rather than avoided.
-   The other is the mirror image: a further release landing in the month already
-   left behind retitles this heading back down at that release's own retitle
-   step — `## v2026.10` becomes `## v2026.9.20` if a second release in September
-   is cut after `2026.10` was opened — the same rule read the other way.
+   ```shell
+   git log "${tag:?}"..HEAD --format=%s
+   ```
 
-   Whichever release lands next, its own retitle step renames this heading to
-   the version being cut then, exactly as this one renames the section it is
-   opened above, and nothing is bumped while the cycle runs.
+   RELEASE_NOTES.md's takes what a user has to act on, and
+   neither restates the other. Where either file still has a
+   `(work in progress…)` section, fold it into the release's section and
+   delete its heading. The workflow lifts the GitHub release notes
+   from RELEASE_NOTES.md's section alone, so that one has to read as the
+   release notes it becomes. `version-check` refuses a tag whose heading
+   carries anything after the version, in either file, or whose section is
+   empty. Neither check runs on a rehearsal.
 
    In the same pull request the window moves down by one: the release below
-   the one just retitled leaves CHANGELOG.md for `changelog/v<version>.md`,
+   the one just cut leaves CHANGELOG.md for `changelog/v<version>.md`,
    carrying its own section unchanged under a title and a line pointing back,
    and the index in CHANGELOG.md's preamble gains a link to that file at the
    top of its list. Past a size ceiling GitHub's contents API answers a file
@@ -409,14 +393,10 @@ to `deps-latest`'s own result.
    what a reader should not have to discover at the button belongs there
    too.
 
-   Write it from the section the retitle above renamed, which the cycle
-   has been filling one landed change at a time, and check that
-   against `git log v<previous version>..main --oneline` regardless of
-   how current it looks, rather than trust that every line landed when it
-   should have. Griffe's result and `deps-latest`'s run belong here too,
-   each a line rather than a screenshot — both are steps nothing else
-   enforces, and a pull request that never mentions them reads exactly
-   like one that skipped them.
+   Write it from the sections the step above added. Griffe's result and
+   `deps-latest`'s run belong here too, each a line rather than a
+   screenshot — both are steps nothing else enforces, and a pull request
+   that never mentions them reads exactly like one that skipped them.
 
    And land it the way every other pull request here lands: the squash
    button, pressed by auto-merge once the review and the checks are in.
@@ -667,33 +647,24 @@ to `deps-latest`'s own result.
    answers again. An advisory this repository publishes is owed the same
    review.
 
-1. Open the next cycle's version: set `pyproject.toml`'s `version` to the
-   number the two "work in progress" sections already carry, through a
-   pull request like any other. The retitle step above opens those
-   sections in the release's own pull request, so
-   `## v<cycle> (work in progress, not released yet)` is standing in
-   CHANGELOG.md and RELEASE_NOTES.md by the time this step runs, and what
-   is set here is that same cycle: one value, pyproject.toml being the
-   file it reaches last. It cannot reach it any earlier — `version-check`
-   reads `uv version --short` at tag time, and a pyproject.toml already
-   bumped would offer it the next cycle's number instead of the one being
-   released.
+1. Open the next cycle's version: set `pyproject.toml`'s `version` to
+   the placeholder of the month the next release is expected to fall in,
+   through a pull request like any other. It cannot be set any earlier:
+   `version-check` reads `uv version --short` at tag time, and a
+   pyproject.toml already bumped would offer it the next cycle's number
+   instead of the one being released.
 
    **The placeholder is the month the next release is expected to fall in, not
    the cycle of the release just cut.** After `2026.9.3`, expecting the next
-   release in October, it is `2026.10`, which is what those two headings already
-   say, and it is not `2026.9`. The two readings coincide only when the next
-   release is expected in the same month just cut, which is what a cycle
-   shipping more than once looks like, and they differ whenever the next release
-   is expected in a later month. This step sets `pyproject.toml` to match
-   whatever the two headings already carry, however the retitle step above set
-   them. A downward retitle is a case of that rather than an exception to it:
-   the further release doing it sets `pyproject.toml` to its own three-component
-   version on release day, and this step then sets it to the fresh placeholder
-   that release's own retitle opened, whichever month that names.
+   release in October, it is `2026.10` and not `2026.9`. The two readings
+   coincide only when the next release is expected in the same month just cut,
+   which is what a cycle shipping more than once looks like. A further release
+   in the month already left behind sets `pyproject.toml` to its own
+   three-component version on release day, and this step then sets the fresh
+   placeholder.
 
-   `2026.10` sorts above `2026.9.3` under PEP 440, which is one of the costs the
-   retitle step above states rather than a defect of this step: a placeholder
+   `2026.10` sorts above `2026.9.3` under PEP 440, which is a cost of naming the
+   month ahead rather than a defect of this step: a placeholder
    names the month the tree expects to release in next, and releases are ordered
    by their tags regardless of what `pyproject.toml` declares on `main` —
    `version-check` refuses a tag on the placeholder shape either way (*Which
@@ -705,13 +676,6 @@ to `deps-latest`'s own result.
    leaves a reader on a version PyPI never served. A placeholder naming the
    month just cut sorts below it and does give that rescue, which is the
    coincidence above rather than the rule.
-
-   Those two sections are where the next release's notes accumulate, one
-   landed change at a time, and the merge step above is what reads them
-   back. Nothing else holds them: with one branch there is no pull
-   request standing open for the length of a cycle to be written into as
-   it runs, so a change that lands without its entry leaves nothing
-   behind to reconstruct it from but the diff.
 
 ## Rebuild a release from its tag
 

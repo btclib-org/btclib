@@ -130,18 +130,10 @@ constraints. Do not use Fable unless instructed.
   It governs the workflows and the pre-commit config too: the reasoning with its
   negative results is what makes those files reviewable, so match it
   rather than trimming it.
-- **CHANGELOG.md gets an entry for anything a user would notice**;
-  RELEASE_NOTES.md only moves for a change a user has to *act* on, and
-  neither restates the other. A source-breaking change also adds a bullet
-  to RELEASE_NOTES.md's breaking-changes list, its "before" checked
+- **A pull request adds no `CHANGELOG.md` entry**: `CONTRIBUTING.md`'s
+  *Pull requests*. A source-breaking change is named in the release's
+  own RELEASE_NOTES.md breaking-changes list, its "before" checked
   against the `v2023.7.12` tag.
-- **A `###` in the open section names one entry, never a theme several
-  entries share** (issue btclib-org/.github#586): section 9 of the
-  organization standard rejects grouping by theme. Where the open
-  section already carries a heading that groups several entries under
-  one theme, that heading is landed text and stays as it is; a new entry
-  never joins it — it takes its own `###` heading at the end of the
-  section instead, naming only that entry.
 - **Never state how many of anything a file holds.**
   `tests/release_notes_test.py` and `tests/vendored_data_test.py` fail on a
   stated count in CHANGELOG.md, RELEASE_NOTES.md and

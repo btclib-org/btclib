@@ -5,8 +5,8 @@
 """A released `## v<version>` section of CHANGELOG.md never moves again.
 
 A branch cut while a section still read "work in progress, not released
-yet" carries its own entry at the end of that section; where a release
-retitles the heading before the branch rebases, the entry can end up
+yet" carried its own entry at the end of that section; where a release
+retitled the heading before the branch rebased, the entry could end up
 under the released heading (issue #1512).
 
 So the one thing an already-released section can still be checked
@@ -18,16 +18,15 @@ two live files or in an archived release, `git show <version>:<path at
 that tag>` is that section's own authority, and the two must still agree
 byte for byte.
 
-CHANGELOG.md keeps the cycle in progress and the release it follows, and
-every release before those holds its own section in a file of its own
-under `changelog/` (issue #2109). The path a section is read from on disk
-is then not the path its tag holds it at: every tag holds it inside
-CHANGELOG.md, which is what `_tag_path` answers and what keeps the
-comparison the move would otherwise end. Ending it is the quiet outcome
-rather than the loud one -- a section that leaves the file set below is
-not compared any more, and there is no failure and no named skip to say
-so -- which is why that set is discovered from the directory rather than
-listed by hand.
+CHANGELOG.md keeps the most recent release, and a work-in-progress section where
+one remains, and every release before it holds its own section in a file of its
+own under `changelog/` (issue #2109). The path a section is read from on disk is
+then not the path its tag holds it at: every tag holds it inside CHANGELOG.md,
+which is what `_tag_path` answers and what keeps the comparison the move would
+otherwise end. Ending it is the quiet outcome rather than the loud one -- a
+section that leaves the file set below is not compared any more, and there is no
+failure and no named skip to say so -- which is why that set is discovered from
+the directory rather than listed by hand.
 
 **Two ways for that comparison to be answered rather than performed,
 and both are read as a name rather than as a verdict:**
@@ -88,8 +87,8 @@ day, `v2026.8.21` immediately below it being the first that did; and
 `cbedc3b7` wrote under `### Repository`, again absent from the open
 cycle's own subsections that day, `v2026.8.27` immediately below it
 being the first that did. Issue #1458 points the right way without
-being the whole story: it is the subsection, not only the cycle
-heading, that a release now has to open for the next one.
+being the whole story: the bullets followed the subsection, not only the
+cycle heading.
 
 issue #1524 is that repair, and its own measurement corrected the
 obvious plan for the misplaced bullets: "move each to the release that
@@ -106,10 +105,10 @@ every tag cut afterwards simply inherited it unchanged. So no already-tagged
 heading can receive a bullet without gaining text its own sealed
 tag never had, which is the identical failure this module exists to
 catch, moved rather than fixed. The one heading with no tag to violate
-is whichever section is open when the move is made -- the placeholder,
-whose own name the next retitle takes -- in the subsection each bullet
-already belonged to; and once that section is retitled and tagged, the
-bullet is part of its tag from day one, unlike every prior placement.
+was whichever section was open when the move was made -- the placeholder,
+whose own name the next retitle took -- in the subsection each bullet
+already belonged to; and once that section was retitled and tagged, the
+bullet was part of its tag from day one, unlike every prior placement.
 Each relocated bullet carries its own trailing "(shipped in
 v<version>)", the tag `merge-base --is-ancestor` found, so a reader can
 still tell it apart from what this cycle actually added.
@@ -140,16 +139,15 @@ case at all, so the table is held to those headings as well: an exemption
 the comparison never applies is a claim about this tree that nothing
 would otherwise check (issue #1905).
 
-A case of its own is still not a comparison, and `_verify`'s own skips
-are where the two part. A key whose tag cannot resolve the file under
-this name, and one whose tag's own snapshot carries no such heading, are
-answered before `_verdict` reads either text, so the digest such an
-entry pins is held against nothing; a tag is what it is, so neither
-answer changes afterwards. The window between a release's retitling
-commit and its own tag is the one skip that closes, and it reaches the
-heading `_newest_released` names alone -- an exemption written there is
-a statement every check here applies to from the tag onward, which is
-why the table is held to that pair of cases rather than to
+A case of its own is still not a comparison, and `_verify`'s own skips are where
+the two part. A key whose tag cannot resolve the file under this name, and one
+whose tag's own snapshot carries no such heading, are answered before `_verdict`
+reads either text, so the digest such an entry pins is held against nothing; a
+tag is what it is, so neither answer changes afterwards. The window between the
+commit that writes a release's section and its own tag is the one skip that
+closes, and it reaches the heading `_newest_released` names alone -- an
+exemption written there is a statement every check here applies to from the tag
+onward, which is why the table is held to that pair of cases rather than to
 comparability alone (issue #1911).
 """
 
@@ -165,7 +163,7 @@ from typing import NamedTuple
 import pytest
 
 _ROOT = Path(__file__).parents[1]
-# where an open cycle is written and where a release retitles its heading
+# where a release writes its section
 _LIVE = ("CHANGELOG.md", "RELEASE_NOTES.md")
 # one file per release, holding the section CHANGELOG.md's window has
 # moved past. Discovered rather than listed: a release archived without
@@ -355,13 +353,12 @@ pytestmark = pytest.mark.skipif(
 def _newest_released(path: str) -> str | None:
     """`path`'s topmost heading that is not "work in progress".
 
-    `None` for an archived release, whose own heading is the whole
-    file: a retitle happens in the two live files, and a section is
-    archived from a release whose tag is already pushed, so the window
-    the callers read this for does not reach one. Without that, an
-    archive file's only heading is its topmost one by construction,
-    and a tag that stopped resolving would read as a release being
-    cut.
+    `None` for an archived release, whose own heading is the whole file: a
+    release's section is written in the two live files, and a section is
+    archived from a release whose tag is already pushed, so the window the
+    callers read this for does not reach one. Without that, an archive file's
+    only heading is its topmost one by construction, and a tag that stopped
+    resolving would read as a release being cut.
     """
     if path not in _LIVE:
         return None
@@ -467,7 +464,7 @@ def _verify(path: str, version: str) -> tuple[str, str] | None:
     """
     if not _tag_resolves(version):
         if version == _newest_released(path):
-            # The release being cut. Its section is retitled in the pull
+            # The release being cut. Its section is written in the pull
             # request and its tag is pushed from the commit that lands
             # that pull request, so between the two this one heading
             # names a tag that cannot exist yet -- a comparison not yet
@@ -512,12 +509,11 @@ def test_a_released_section_still_matches_its_own_tag(path: str, version: str) -
 def test_every_exemption_names_a_released_heading_on_disk() -> None:
     """`_KNOWN_DRIFT` exempts a released heading a case is generated for.
 
-    An entry keyed on anything else is never evaluated, and a table read
-    for which sections are excused and why is where that costs most. The
-    planted key is the still-open cycle, which `_sections` skips, and it
-    carries a live entry's own value: the key is then the only thing
-    that differs, so an implementation answering about a digest or a
-    reason instead does not pass this.
+    An entry keyed on anything else is never evaluated, and a table read for
+    which sections are excused and why is where that costs most. The planted key
+    is a heading no file carries, and it carries a live entry's own value: the
+    key is then the only thing that differs, so an implementation answering
+    about a digest or a reason instead does not pass this.
     """
     assert _KNOWN_DRIFT, "no exemption to ask about"
     dead = _exemptions_naming_no_released_heading(_KNOWN_DRIFT)
@@ -562,8 +558,8 @@ def test_an_exemption_may_name_the_release_being_cut(
 ) -> None:
     """`_exemptions_no_verdict_can_reach` leaves the release window alone.
 
-    A release pull request retitles the "work in progress" section and
-    the tag is pushed from the commit that lands it, so in between the
+    A release pull request writes the release's `## v<version>` section
+    and the tag is pushed from the commit that lands it, so in between the
     newest heading is on disk with no tag to read it at. An exemption
     written there is evaluated from the tag onward, and the check the
     table is held to is the one that says so. No tag resolves under the
@@ -657,8 +653,8 @@ def test_verify_skips_the_release_being_cut(
 ) -> None:
     """The newest heading names a tag that is pushed only after it lands.
 
-    A release pull request retitles the "work in progress" section to
-    the version being cut, and the tag is pushed from the commit that
+    A release pull request writes the release's `## v<version>` section,
+    and the tag is pushed from the commit that
     lands that pull request -- so in between, the newest heading
     resolves to no tag. The version is read back off the file rather
     than written here, so this asks about whatever release is open
