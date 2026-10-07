@@ -401,7 +401,7 @@ repos:
   # ahead of markdownlint-cli2 below on purpose: that hook's `--fix`
   # repairs the very seam this hook exists to name (btclib-org/.github#1293)
   - repo: https://github.com/btclib-org/.github
-    rev: f668578c07124c632dc36f9c4a92a3a4db8914e8
+    rev: 70f5915abed3b982009996ae52254fbc68c00dfc
     hooks:
       - id: check-changelog
         args: [--grandfathered, "23"]
@@ -544,9 +544,9 @@ repos:
       # three blind spots come from. Same `\x20` as above, and the same
       # reason.
       # `CHANGELOG.md` and `RELEASE_NOTES.md` are out of reach because
-      # section 9 makes them append-only: a refused shape in an entry
-      # that has landed has no repair, and there would be no green state
-      # to reach. `exclude:` selects files and pygrep reads whole ones,
+      # section 9 rewrites neither: a refused shape in an entry that has
+      # landed has no repair, and there would be no green state to
+      # reach. `exclude:` selects files and pygrep reads whole ones,
       # so an exclusion keyed on the older entries alone cannot be
       # written; and check-useless-excludes asks the pattern to match
       # some file the hook selects rather than each name in it, which is

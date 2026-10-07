@@ -16,17 +16,22 @@ The release notes, which say what a user has to *act* on, are in
 [RELEASE_NOTES.md](./RELEASE_NOTES.md); this file is the record behind
 them.
 
+A release's own pull request writes the release's section, from the squash
+subjects since the previous tag, and no other pull request adds an entry
+(sections 9 and 12 of the
+[organization's standard](https://github.com/btclib-org/.github#readme)).
+
 Only v2026.8.7 and what follows it are recorded in the changelog at all.
 The releases before it were documented at release-notes length in the
 first place, and are still in [RELEASE_NOTES.md](./RELEASE_NOTES.md)
 rather than duplicated here.
 
-This file carries the cycle in progress and the most recent release;
-every release before those has a file of its own under `changelog/`,
-holding that release's section and nothing of any other. Past a size
-ceiling GitHub's contents API answers a file with an empty `content` at
-HTTP 200, which reads as an empty file rather than as an error, and one
-file per release is what keeps each of them under it.
+This file carries the most recent release, and a `(work in progress…)`
+section where one remains; every release before it has a file of its own
+under `changelog/`, holding that release's section and nothing of any
+other. Past a size ceiling GitHub's contents API answers a file with an
+empty `content` at HTTP 200, which reads as an empty file rather than as
+an error, and one file per release is what keeps each of them under it.
 
 - [v2026.10.4](./changelog/v2026.10.4.md)
 - [v2026.10.3](./changelog/v2026.10.3.md)

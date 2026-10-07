@@ -19,8 +19,6 @@
 - [ ] `uv run pre-commit run --all-files` is clean (ruff, mypy strict,
       markdownlint, the copyright notice, `uv.lock`)
 - [ ] `uv run pytest` passes
-- [ ] `CHANGELOG.md` has an entry, if a user would notice the change;
-      `RELEASE_NOTES.md` too, if it is one a user has to act on
 
 ## Anything the reviewer should know
 
