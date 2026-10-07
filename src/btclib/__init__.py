@@ -95,6 +95,7 @@ __all__ = [
     "key",
     "muhash",
     "network",
+    "obfuscation",
     "p2p",
     "policy",
     "script",
