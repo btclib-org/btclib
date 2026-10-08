@@ -13,6 +13,7 @@ from collections.abc import Callable, Iterator
 from typing import Any
 
 import pytest
+from typing_extensions import override
 
 from btclib.b58 import prv_key_data_from_wif, wif_from_prv_key
 from btclib.base58 import decode
@@ -90,8 +91,11 @@ def test_non_ascii_base58_chains_nothing() -> None:
     assert refusal.value.__context__ is None
 
 
-def test_non_ascii_wif_chains_nothing() -> None:
-    """A WIF with a non-ASCII character is refused without a cause."""
+def test_non_ascii_wif_chain_holds_no_key() -> None:
+    """A WIF with a non-ASCII character is refused.
+
+    No exception in the chain holds it.
+    """
     bad = WIF[:-1] + "é"
     with pytest.raises(BTClibValueError, match="non-ascii character") as refusal:
         prv_key_data_from_wif(bad)
@@ -107,3 +111,27 @@ def test_non_ascii_bytes_chain_nothing() -> None:
     assert refusal.value.__cause__ is None
     assert refusal.value.__context__ is None
     _assert_secret_free(refusal.value, [WIF])
+
+
+def test_unchecked_prv_key_data_repr_hides_a_swapped_key() -> None:
+    """A key in the network position is not shown by the repr."""
+    swapped = PrvKeyData(KEY, WIF, check_validity=False)
+    assert WIF.lower() not in repr(swapped)
+    assert repr(swapped) == "PrvKeyData(q=..., network=..., compressed=True)"
+    assert "network='mainnet'" in repr(PrvKeyData(KEY))
+
+
+class _HostileEq:
+    @override
+    def __eq__(self, other: object) -> bool:  # pragma: no cover -- must stay uncalled
+        msg = "__eq__ called"
+        raise RuntimeError(msg)
+
+    __hash__ = None  # type: ignore[assignment]
+
+
+@pytest.mark.parametrize("network", [_HostileEq(), b"mainnet", [WIF]])
+def test_unchecked_prv_key_data_repr_runs_no_foreign_code(network: Any) -> None:
+    """A non-string network is hidden without comparing or hashing it."""
+    unchecked = PrvKeyData(KEY, network, check_validity=False)
+    assert repr(unchecked) == "PrvKeyData(q=..., network=..., compressed=True)"
