@@ -208,6 +208,17 @@ def decode(v: String, out_size: int | None = None) -> bytes:
     return _decode(v, out_size, quote_checksum=True)
 
 
+def _ascii_bytes(v: str) -> bytes:
+    """Return the ascii octets of a string, or refuse a character outside."""
+    try:
+        return v.encode("ascii")
+    except UnicodeEncodeError as e:
+        err_msg = f"non-ascii character in base58 string: {e}"
+    # raised outside the `except`: the Unicode error holds the whole
+    # string, and must not be left as the new error's context
+    raise BTClibValueError(err_msg)
+
+
 def _decode(v: String, out_size: int | None, *, quote_checksum: bool) -> bytes:
     """Decode as `decode` does, quoting the checksums only if asked.
 
@@ -221,10 +232,7 @@ def _decode(v: String, out_size: int | None, *, quote_checksum: bool) -> bytes:
         # gets the same answer: letting the UnicodeEncodeError out would
         # send an address carrying a smart quote or an accented letter
         # past every caller written to catch BTClibValueError
-        try:
-            v = v.encode("ascii")
-        except UnicodeEncodeError as e:
-            raise BTClibValueError(f"non-ascii character in base58 string: {e}") from e
+        v = _ascii_bytes(v)
     elif not isinstance(v, (bytes, bytearray, memoryview)):
         # what is neither went through untouched and failed on `len` below,
         # which is a TypeError about a builtin rather than about the

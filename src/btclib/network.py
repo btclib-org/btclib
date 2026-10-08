@@ -602,6 +602,9 @@ def normalized_network_name(network: Any) -> Any:
     return network.strip(string.whitespace).lower()
 
 
+_MAX_QUOTED_NETWORK_LENGTH = 16
+
+
 def validated_network_name(network: str) -> str:
     """Return the name of a network, normalized, or refuse it.
 
@@ -614,10 +617,16 @@ def validated_network_name(network: str) -> str:
     for; `network_from_name` is this function and the lookup after it.
     """
     if not isinstance(network, str):
-        raise BTClibTypeError(f"not a network name: {network!r}")
+        # the value is not quoted: a misplaced argument may be a key
+        raise BTClibTypeError(f"not a network name: {type(network).__name__}")
     name: str = normalized_network_name(network)
     if name not in NETWORKS:
-        err_msg = f"unknown network: '{network}'"
+        # a misplaced argument may be a key, so only a name short enough
+        # to be a typo of a real one is quoted
+        if len(network) <= _MAX_QUOTED_NETWORK_LENGTH:
+            err_msg = f"unknown network: '{network}'"
+        else:
+            err_msg = "unknown network (too long to quote)"
         err_msg += f"; it must be one of {sorted(NETWORKS)}"
         raise BTClibValueError(err_msg)
     return name
