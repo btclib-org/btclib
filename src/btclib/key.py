@@ -74,7 +74,7 @@ from typing_extensions import override
 
 from btclib.alias import Octets, Point
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.network import network_from_name, normalized_network_name
+from btclib.network import NETWORKS, network_from_name, normalized_network_name
 from btclib.utils import assert_type, bytes_from_octets, is_integer
 
 __all__ = [
@@ -236,8 +236,13 @@ class PrvKeyData:
 
     @override
     def __repr__(self) -> str:
-        # never echo private key material, as BIP32KeyData's repr does not
-        masked = f"{type(self).__name__}(q=..., network={self.network!r}"
+        # never echo private key material, as BIP32KeyData's repr does not;
+        # show the network only if it is a known name: swapped arguments
+        # put a key there when validity is not checked. The type is checked
+        # first, so no foreign __eq__ or __hash__ runs
+        net: object = self.network
+        shown = repr(net) if isinstance(net, str) and net in NETWORKS else "..."
+        masked = f"{type(self).__name__}(q=..., network={shown}"
         return f"{masked}, compressed={self.compressed!r})"
 
     @property

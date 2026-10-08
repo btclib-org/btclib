@@ -230,10 +230,13 @@ def str_from_string(s: String, what: str) -> str:
     # bytes_from_octets refuses one instead of copying it (issue #2295)
     _assert_byte_shaped(s)
 
+    # raised outside the `except`: the Unicode error holds the whole
+    # value, and must not be left as the new error's context
     try:
         return bytes(s).decode("ascii")
     except UnicodeDecodeError as e:
-        raise BTClibValueError(f"non-ascii character in {what}: {e}") from e
+        err_msg = f"non-ascii character in {what}: {e}"
+    raise BTClibValueError(err_msg)
 
 
 def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:

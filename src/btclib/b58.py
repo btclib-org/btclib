@@ -147,8 +147,9 @@ def prv_key_data_from_wif(
     the version prefix answers "is this a WIF at all", and a no is a
     NotAPrvKeyError; everything after it answers "is this WIF sound", and
     a no is an InvalidPrvKeyError. Both are BTClibValueError. No message
-    echoes the input, which is candidate key material, or the checksum
-    its key hashes to; a prefix and a size are not secret.
+    or chained exception echoes the input, which is candidate key
+    material, or the checksum its key hashes to; a prefix and a size are
+    not secret.
     """
     # None is a declared value here and means "whatever the WIF says", so
     # it is the one non-bool this position takes
