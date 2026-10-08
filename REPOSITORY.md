@@ -385,8 +385,7 @@ than replacing it: rules aggregate across rulesets and classic
 protection, taking the most restrictive combination wherever they
 overlap. `tag-integrity` targets tags rather than `main`, for an
 unrelated reason: `release.yml` publishes to PyPI on `push: tags:
-["v*"]`, and that tag was the one unattested link in an otherwise
-fully-signed chain (issue #1022).
+["v*"]`, so a tag push is what releases (issue #1022).
 
 - `main-integrity`: required signatures, required linear history, no
   force pushes, no deletions. No bypass actor, for anyone, ever.
@@ -430,8 +429,19 @@ gh api repos/btclib-org/btclib/rulesets --jq '.[].id' \
 
 `main-integrity` and `tag-integrity` both answer with an empty bypass
 list, and it is what makes an unsigned commit or a rewritten history
-unlandable, and an unsigned `v*` tag unpushable, by anyone, admin or
-not, through a pull request or otherwise.
+unlandable, and a `v*` tag push that brings an unsigned commit
+unpushable, by anyone, admin or not, through a pull request or
+otherwise.
+
+A `v*` tag push that brings an unsigned commit is refused. A tag on a
+commit already on `main` is accepted whether it is signed, unsigned or
+lightweight, so the rule does not make a release tag signed
+(btclib-org/.github#1635). That rests on `git tag -s` in the release
+steps and on reading the signature back:
+
+```shell
+gh api repos/<owner>/<repo>/git/tags/<sha> --jq .verification
+```
 
 **Two settings hold the door, not one.** The classic protection still
 carries `required_pull_request_reviews`, and what clears it for the
