@@ -611,9 +611,56 @@ def test_a_count_is_bounded_before_the_loop_that_allocates_on_it() -> None:
             bytes(32) + b"\x02" + b"\xfd\xff\xff" + b"\x00", check_validity=False
         )
     with pytest.raises(BTClibValueError, match="invalid index"):
+        PrefilledTransaction.parse(b"\xfd\xff\xff" + _TX.serialize(True), 1)
+
+
+def test_a_running_index_past_sixteen_bits_is_the_validity_check_s() -> None:
+    """Core's deserializer bounds each difference, `InitData` the sum."""
+    # a difference past 65,535 is refused whatever check_validity says
+    with pytest.raises(BTClibValueError, match="var_int too big"):
         PrefilledTransaction.parse(
-            b"\xfd\xff\xff" + _TX.serialize(True), 1, check_validity=False
+            b"\xfe\x00\x00\x01\x00" + _TX.serialize(True), check_validity=False
         )
+
+    # a difference of 65,535 after index 1 names index 65,537
+    data = b"\xfd\xff\xff" + _TX.serialize(True)
+    unchecked = PrefilledTransaction.parse(data, 1, check_validity=False)
+    assert unchecked.index == 1 + 1 + MAX_BLOCK_TX_INDEX
+    assert unchecked.tx == _TX
+    with pytest.raises(BTClibValueError, match="invalid index"):
+        unchecked.assert_valid()
+    assert unchecked.serialize(1, check_validity=False) == data
+
+    # and an entry after it is read, from the index the sum reached
+    after = PrefilledTransaction.parse(
+        b"\x00" + _TX.serialize(True), unchecked.index, check_validity=False
+    )
+    assert after.index == unchecked.index + 1
+    with pytest.raises(BTClibValueError, match="invalid previous_index"):
+        PrefilledTransaction.parse(b"\x00" + _TX.serialize(True), unchecked.index)
+
+    # inside a compact block, where the checked parse refuses the message
+    payload = _BLOCK_1.header.serialize() + bytes(8) + b"\x00" + b"\x03"
+    payload += b"\x01" + _TX.serialize(True) + data + b"\x00" + _TX.serialize(True)
+    with pytest.raises(BTClibValueError, match="invalid index"):
+        CmpctBlock.parse(payload)
+    compact_block = CmpctBlock.parse(payload, check_validity=False)
+    assert [p.index for p in compact_block.prefilled_txns] == [
+        1,
+        unchecked.index,
+        unchecked.index + 1,
+    ]
+    assert compact_block.serialize(check_validity=False) == payload
+
+
+def test_a_count_past_sixteen_bits_is_malformed_whatever_check_validity_says() -> None:
+    """Core's deserializer throws "indexes overflowed 16 bits" on the sum."""
+    payload = _BLOCK_1.header.serialize() + bytes(8)
+    payload += b"\xfd\xff\xff" + bytes(6 * MAX_BLOCK_TX_INDEX)
+    payload += b"\x01\x00" + _TX.serialize(True)
+    for check_validity in (True, False):
+        with pytest.raises(BTClibValueError, match="invalid transaction count"):
+            CmpctBlock.parse(payload, check_validity=check_validity)
 
 
 def test_the_previous_index_a_difference_is_taken_against() -> None:

@@ -171,18 +171,19 @@ CFCHECKPT_INTERVAL = 1000
 # it the most transactions such a block can be of: Core's
 # src/blockencodings.h, where `PrefilledTransaction::index` and the
 # element of `BlockTransactionsRequest`'s `std::vector<uint16_t> indexes`
-# are sixteen bits, and where the same bound is spelled out twice --
-# `DifferenceFormatter::Unser` throws "differential value overflow" on a
-# running index past it, and `CBlockHeaderAndShortTxIDs`'s deserializer
-# throws "indexes overflowed 16 bits" on a `BlockTxCount()` past it.
+# are sixteen bits, and where `DifferenceFormatter::Unser` throws
+# "differential value overflow" on a `getblocktxn` running index past it
+# and `CBlockHeaderAndShortTxIDs`'s deserializer throws "indexes
+# overflowed 16 bits" on a `BlockTxCount()` past it. `InitData` refuses
+# a prefilled running index past it, in src/blockencodings.cpp.
 #
 # **The name is this library's, where every other name here is Core's**,
 # and saying so is better than a citation that does not exist: Core has
 # no constant for this, writing `std::numeric_limits<uint16_t>::max()`
-# inline at both checks. One name and not two, because it is one fact --
-# a compact block's transaction index is a `uint16_t` -- read once as a
-# bound on a value and once as a bound on a count, which is how Core
-# reads it as well.
+# inline in the deserializer's count check and in `InitData`. One name
+# and not two, because it is one fact -- a compact block's transaction
+# index is a `uint16_t` -- read once as a bound on a value and once as a
+# bound on a count, which is how Core reads it as well.
 #
 # Core applies a second bound on the same count in
 # `PartiallyDownloadedBlock::InitData`, `MAX_BLOCK_WEIGHT /

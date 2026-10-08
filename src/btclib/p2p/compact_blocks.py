@@ -114,12 +114,14 @@ own tests cannot see.
 
 **The bound is one number under two roles, which is Core's own
 spelling.** `limits.MAX_BLOCK_TX_INDEX` bounds the count in front of
-every vector here and the value of every index, because Core writes
-`std::numeric_limits<uint16_t>::max()` at both: once in
-`CBlockHeaderAndShortTxIDs`'s deserializer, which throws "indexes
-overflowed 16 bits" on a `BlockTxCount()` past it, and once in
-`DifferenceFormatter::Unser`, which throws "differential value overflow"
-on an index past it. Core applies a second bound in `InitData`,
+every vector here and the value of every index, because Core bounds
+both at `uint16_t`'s maximum. `CBlockHeaderAndShortTxIDs`'s
+deserializer throws "indexes overflowed 16 bits" on a `BlockTxCount()`
+past it, and `DifferenceFormatter::Unser` throws "differential value
+overflow" on a `getblocktxn` index past it. A prefilled index is read as
+a difference into a `uint16_t`, and a sum past it is `InitData`'s
+`READ_STATUS_INVALID`, not the deserializer's. Core applies a second
+bound in `InitData`,
 `MAX_BLOCK_WEIGHT / MIN_SERIALIZABLE_TRANSACTION_WEIGHT`, and it is not
 published here because it is the weaker of the two and would be a dead
 constant: a hundred thousand is more than sixteen bits hold.
@@ -221,17 +223,22 @@ def _assert_valid_index(index: int, what: str) -> None:
         raise BTClibValueError(f"invalid {what}: {_message_text(index)}")
 
 
-def _assert_previous_index(previous_index: int) -> None:
+def _assert_previous_index(previous_index: int, *, check_validity: bool) -> None:
     """Refuse what no index of a preceding entry could be.
 
     One below zero is the value in front of a first entry and is the only
     negative one there is; the top is an index's own, a previous entry
-    being an entry.
+    being an entry. The top is asked only under `check_validity`: an
+    unchecked `PrefilledTransaction` may hold a running index past it
+    (see `PrefilledTransaction.parse`), and the entry after it has to be
+    read.
     """
     if not is_integer(previous_index):
         err_msg = f"invalid previous_index type: {type(previous_index).__name__}"
         raise BTClibTypeError(err_msg)
-    if not _NO_PREVIOUS_INDEX <= previous_index <= MAX_BLOCK_TX_INDEX:
+    if previous_index < _NO_PREVIOUS_INDEX or (
+        check_validity and previous_index > MAX_BLOCK_TX_INDEX
+    ):
         err_msg = f"invalid previous_index: {_message_text(previous_index)}"
         raise BTClibValueError(err_msg)
 
@@ -499,7 +506,7 @@ class PrefilledTransaction:
         if check_validity:
             self.assert_valid()
 
-        _assert_previous_index(previous_index)
+        _assert_previous_index(previous_index, check_validity=check_validity)
         difference = self.index - previous_index - 1
         if difference < 0:
             err_msg = f"index {_message_text(self.index)}"
@@ -520,16 +527,17 @@ class PrefilledTransaction:
     ) -> PrefilledTransaction:
         """Return the transaction and the index the difference names.
 
-        The difference is bounded before it is added, and the sum after:
-        both are `MAX_BLOCK_TX_INDEX`, which is what Core's
-        `DifferenceFormatter::Unser` refuses a running index past.
+        Each difference is bounded by `MAX_BLOCK_TX_INDEX`, as Core's
+        `COMPACTSIZE(obj.index)` into a `uint16_t` is. Their sum is
+        bounded only under `check_validity`: Core's deserializer stores
+        the differences, and `PartiallyDownloadedBlock::InitData` answers
+        `READ_STATUS_INVALID` to a sum past `uint16_t`'s maximum.
         """
         stream = bytesio_from_binarydata(data)
-        _assert_previous_index(previous_index)
+        _assert_previous_index(previous_index, check_validity=check_validity)
 
         difference = var_int.parse(stream, MAX_BLOCK_TX_INDEX)
         index = previous_index + 1 + difference
-        _assert_valid_index(index, "index")
         tx = Tx.parse(stream, check_validity=check_validity)
         assert_no_trailing(data, stream, "prefilled transaction")
 
@@ -695,8 +703,9 @@ class CmpctBlock(Payload):
 
         Each vector's length is read against `MAX_BLOCK_TX_INDEX` before
         the loop that allocates on it, btclib's `var_int.parse` allowing
-        33,554,432 of anything; the sum is what `assert_valid` holds to
-        the same bound afterwards, which is where Core checks it too.
+        33,554,432 of anything. Their sum is held to the same bound once
+        both are read, whatever `check_validity` says, as Core's
+        deserializer throws "indexes overflowed 16 bits" there.
         """
         stream = bytesio_from_binarydata(data)
 
@@ -726,6 +735,7 @@ class CmpctBlock(Payload):
             )
             prefilled_txns.append(prefilled_tx)
             previous_index = prefilled_tx.index
+        _assert_valid_count(len(short_ids) + len(prefilled_txns), "transaction")
         assert_no_trailing(data, stream, "cmpctblock payload")
 
         return cls(
