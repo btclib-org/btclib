@@ -99,7 +99,7 @@ jobs:
       id-token: write # the OIDC token the action mints at its own startup
     uses: btclib-org/.github/.github/workflows/reusable-claude-review.yml@main
     # this tree's prompt carries no paragraph of its own between the
-    # verdict paragraph and the callee's "Do not run the gates", and its
+    # findings paragraph and the callee's "Do not run the gates", and its
     # `claude_args` names no tool beyond the callee's own list -- so
     # neither extra-prompt nor extra-allowed-tools is passed. Both reach
     # only the callee's review job, never its mention job, which is why
