@@ -358,6 +358,34 @@ to `deps-latest`'s own result.
    is an edit to sealed text, which takes a `_KNOWN_DRIFT` entry of its own
    in that module.
 
+1. Run each dependent's suite with this release in place of its PyPI
+   version, whether or not the notes declare a break. Section 12 of the
+   [organization standard](https://github.com/btclib-org/.github#12-releasing)
+   has the rule. The dependents of `btclib` are `bitcoin-node-tests`,
+   `btclib-benchmarks`, `btclib-mnemonics`, `btclib-node` and
+   `btclib-wallet`. Re-derive them with the loop in that section
+   before each release rather than carry this list.
+
+   From a throwaway checkout of each dependent's default branch, with the
+   sha of the release pull request's head for `<sha>`, before it merges:
+
+   ```shell
+   ref=git+https://github.com/btclib-org/btclib@<sha>
+   ```
+
+   ```shell
+   uv run --locked --no-default-groups --group test \
+     --with "btclib @ ${ref:?}" \
+     python -m pytest --no-cov
+   ```
+
+   It is `python -m pytest`, not `pytest`: that script is the environment's
+   own and imports the locked version. `--no-cov` because the question is
+   pass or fail, not the dependent's coverage floor.
+
+   A dependent that fails gets its fix ready first. The release is tagged,
+   then the dependent releases with its floor raised to it.
+
 1. Run `uv run pre-commit run --all-files` and `uv run pytest --cov`,
    follow docs/README.rst to check that the documentation builds, and get
    the above onto `main` through the usual pull request. The local gates
@@ -499,6 +527,19 @@ to `deps-latest`'s own result.
    version on a commit nobody merged, a branch whose pull request is still
    open, or the pre-squash commit of one that landed, which the squash left
    on no branch at all.
+
+1. Read the tag's signature back from the API, now that it is pushed. It
+   answers `true`: an unsigned annotated tag answers `false`, and a
+   lightweight tag answers 404 at the second call. `version` is the one
+   set above:
+
+   ```shell
+   tagsha=$(gh api \
+     repos/btclib-org/btclib/git/refs/tags/"v${version:?}" \
+     --jq '.object.sha') &&
+   gh api repos/btclib-org/btclib/git/tags/"${tagsha:?}" \
+     --jq '.verification.verified'
+   ```
 
 1. The workflow builds the full matrix and the distribution files, then
    pauses at the `pypi` environment for the review "One-time setup"
