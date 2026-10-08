@@ -19,6 +19,30 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.10.8
+
+- **A key passed as the network, or a non-ASCII WIF, is no longer echoed in
+  an error or a repr**
+  ([GHSA-c6h8-5hv5-3gv7](https://github.com/btclib-org/btclib/security/advisories/GHSA-c6h8-5hv5-3gv7)).
+  Releases from 2020.3.20 can echo one. Upgrade, and treat a key such an
+  error or repr may have recorded as exposed.
+
+### Breaking changes
+
+- **A refused network name reads differently** (GHSA-c6h8-5hv5-3gv7). A
+  non-string is named by its type, a long name is not quoted. Act on it if you
+  match the message.
+- **`reconstruct` raises `ShortIdCollisionError` where short ids collide**
+  (closes #2570). It raised `BTClibValueError`; `ShortIdCollisionError` is a
+  `BTClibRuntimeError`. Act on it if you catch `BTClibValueError` there:
+  catch the new error and ask for the whole block, as Core does.
+- **`PrefilledTransaction.parse` and `CmpctBlock.parse` with
+  `check_validity=False` return an index past 65535** (closes #2572). They
+  raised. `PrefilledTransaction.serialize` there no longer raises for a
+  `previous_index` past 65535, and `CmpctBlock.parse` raises on short ids plus
+  prefilled transactions past 65535 where it returned. Act on it if you
+  relied on those refusals: check the index yourself or use `check_validity`.
+
 ## v2026.10.7
 
 - **The attestation bundle is attached as `v<version>.intoto.jsonl`** from

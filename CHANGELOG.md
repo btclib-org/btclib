@@ -33,6 +33,7 @@ other. Past a size ceiling GitHub's contents API answers a file with an
 empty `content` at HTTP 200, which reads as an empty file rather than as
 an error, and one file per release is what keeps each of them under it.
 
+- [v2026.10.7](./changelog/v2026.10.7.md)
 - [v2026.10.5](./changelog/v2026.10.5.md)
 - [v2026.10.4](./changelog/v2026.10.4.md)
 - [v2026.10.3](./changelog/v2026.10.3.md)
@@ -49,73 +50,27 @@ an error, and one file per release is what keeps each of them under it.
 - [v2026.8.9](./changelog/v2026.8.9.md)
 - [v2026.8.7](./changelog/v2026.8.7.md)
 
-## v2026.10.7
+## v2026.10.8
 
-### The forms set a type, and the history files lose `merge=union`
+### Refusals and `PrvKeyData`'s repr quote less of their argument
 
-Forms set a type, not a kind label (issue btclib-org/.github#1584). A rebase
-over a new entry stops on a conflict here (issue btclib-org/.github#1582). A
-release reviews the bestpractices.dev answers (issue btclib-org/.github#1589).
+A refused network name is quoted only when it is a string of 16 characters or
+fewer. `base58.decode` and `utils.str_from_string` chain no error for non-ASCII
+input, and `PrvKeyData`'s repr shows only a known network (GHSA-c6h8-5hv5-3gv7).
 
-### CodeQL runs the `security-extended` suite
+### `verify_input` reports the ECDSA signatures it accepted
 
-`codeql.yml` passes `queries: security-extended` to the shared analysis for a
-one-month trial (issue btclib-org/.github#1505).
+`verify_input`, `verify_transaction` and `verify_script` take a `signatures`
+list, and the interpreter appends the (pub_key, signature) pair of every ECDSA
+check that succeeds, as Core's `SignatureExtractorChecker` does (closes #2552).
 
-### The post-release install refreshes the index
+### `reconstruct` raises `ShortIdCollisionError` for colliding short ids
 
-RELEASING.md installs the release with `--refresh-package btclib`, because uv
-can answer from a cached index and miss a version just published
-(issue btclib-org/.github#1595).
+It derives from `BTClibRuntimeError`: Core asks for the whole block there and
+BIP152 says the peer is not penalized (closes #2570).
 
-### `--admin` waits for no required check
+### `PrefilledTransaction.parse` bounds the index only under `check_validity`
 
-`CONTRIBUTING.md`'s emergency paragraph says `--admin` skips the
-required checks too, and `REVIEWING.md`'s "hold the merge" excepts it
-(issue btclib-org/.github#1597).
-
-### RELEASING.md names a change to the release assets
-
-RELEASING.md asks that a release's notes name every change to its assets or to
-how they are verified. RELEASE_NOTES.md names the bundle's file name
-(issue btclib-org/.github#1596).
-
-### `check-changelog` refuses an entry added to an older release
-
-`check-changelog` refuses a `###` heading under a release older than the
-newest, absent from the file at the merge base with `origin/main`
-(issue btclib-org/.github#1614).
-
-### Three vendored pins follow upstream's tip
-
-`script_tests.json` is Core's file at `b47ec7c6e1`, `tx_valid.json` at
-`6cd2fa5fb4`, and `secp256k1_symbols.txt` is re-extracted at `186eec1c1b`
-(closes #2549).
-
-### A long BIP324 message type holding 0x7F is refused
-
-`bip324.message_from_contents` raises `BTClibValueError` for a long type with
-a 0x7F byte, as Core does since bitcoin/bitcoin#35958 (closes #2553).
-
-### `btclib.hashes` checks its ripemd160 at import
-
-Importing `btclib.hashes` raises `BTClibRuntimeError` if the selected ripemd160
-backend does not return the published digest of `b"abc"` (closes #2554).
-
-### `btclib.obfuscation` reads and writes Core's file obfuscation
-
-`obfuscate(data, key, offset)` XORs data found at byte `offset` of a file with
-the repeating 8-byte key, as Core's `Obfuscation` does for a v2 `mempool.dat`;
-`parse_key` and `serialize_key` handle the key (closes #2559).
-
-### `btclib.compressor` reads and writes Core's coin compression
-
-It has Core's `VARINT`, which is not CompactSize, and Core's amount and script
-compression, both ways. `compress_amount` also refuses an amount above
-`MAX_MONEY`, which Core does not (closes #2558).
-
-### Dependencies are refreshed, and no floor moves
-
-`uv lock --upgrade` moves aiohttp, bitcoin-core-rpc, filelock, hypothesis,
-iniconfig, platformdirs and tomli, none across a major version. btclib calls
-nothing that bitcoin-core-rpc 2026.10.4 changed.
+With `check_validity=False` it bounds each difference only, as Core's
+deserializer does. `CmpctBlock.parse` refuses short ids plus prefilled
+transactions past 65535 whatever `check_validity` says (closes #2572).
