@@ -128,8 +128,7 @@ wrong command, a red gate, a wrong setting, a packaging or a security
 defect. Prose is never filed — `README.md` included, and even where a
 grep can measure it. Wrong prose that leads to a wrong action is a
 functional defect, and is filed as one. A wording finding outside
-the diff is not in the review and is not filed: the session reports it as
-collateral, and the bot, which files nothing, says nothing of it.
+the diff is neither in the review nor filed.
 btclib-org/.github#1075 is where a tracker of prose findings was found
 not to converge.
 
@@ -340,8 +339,9 @@ one, is where the rule lives.
   go, not to be shortened.
 - Does the branch add an entry to `CHANGELOG.md` or `RELEASE_NOTES.md`?
   Outside a release's own pull request that is a blocking finding (section 9).
-  `check-changelog` refuses a new entry and reads nothing of a bullet
-  added under an entry the base holds.
+  `check-changelog` refuses a new entry in `CHANGELOG.md` and reads nothing
+  of a bullet added under an entry the base holds. It reads no other file, so
+  a new entry in `RELEASE_NOTES.md` is the reviewer's to catch.
 - A new or changed workflow: section 10 of the standard, and
   `REPOSITORY.md` before any rule or setting is touched. A renamed job
   is a required check renamed out of existence.
@@ -443,10 +443,11 @@ the previous round's verdict named. An amend and a rebase each leave it
 off the branch, so it is read from that verdict rather than from the
 branch's history.
 
-- **Resolve every thread the author addressed, and only those.** A
-  thread they declined stays open only if it is still blocking; where
-  their reason is sound, resolve it and say so. A finding declined as
-  out of scope and filed as an issue is addressed.
+- **The author resolves a thread once they have answered it**, a
+  declined one included, so that an answered thread does not hold the
+  merge. Read each answer, and reopen the thread only where its finding
+  is still blocking, saying why. A finding declined as out of scope and
+  filed as an issue is not reopened.
 - Do not re-open settled ground, and do not introduce a preference late.
   A new blocking finding at round three is legitimate only if the new
   commits introduced it, or if leaving it would be wrong on `main`.
