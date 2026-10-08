@@ -715,6 +715,7 @@ def _run_ops(  # noqa: C901, PLR0912
     script_index_ref: list[int],
     hash_types: list[int] | None,
     sighash_cache: _SigHashCache | None,
+    signatures: list[tuple[bytes, bytes]] | None,
 ) -> None:
     """Run verify_script's opcode dispatch loop.
 
@@ -784,6 +785,8 @@ def _run_ops(  # noqa: C901, PLR0912
             assert_nullfail(flags, result, [signature], op)
             del stack[-2:]
             stack.append(encode_num(int(result)))
+            if result and signatures is not None:
+                signatures.append((pub_key, signature))
 
         elif plain == "OP_CHECKMULTISIG":
             # Core's order, and it is the order that makes the two
@@ -800,7 +803,9 @@ def _run_ops(  # noqa: C901, PLR0912
             signature_num = _to_num(stack[-2 - pub_key_num], flags, _MAX_NUM_SIZE)
             assert_signature_num(signature_num, pub_key_num)
             _assert_operands(stack, 3 + pub_key_num + signature_num, op)
-            signatures = [stack[-3 - pub_key_num - k] for k in range(signature_num)]
+            multisig_signatures = [
+                stack[-3 - pub_key_num - k] for k in range(signature_num)
+            ]
 
             signature_index = 0
             for pub_key_index in range(pub_key_num):
@@ -809,10 +814,10 @@ def _run_ops(  # noqa: C901, PLR0912
                 if pub_key_num - pub_key_index < signature_num - signature_index:
                     break
                 pub_key = pub_keys[pub_key_index]
-                signature = signatures[signature_index]
-                signature_index += op_checksig(
+                signature = multisig_signatures[signature_index]
+                accepted = op_checksig(
                     signature,
-                    signatures,
+                    multisig_signatures,
                     pub_key,
                     script_bytes,
                     codesep_offset,
@@ -825,13 +830,17 @@ def _run_ops(  # noqa: C901, PLR0912
                     hash_types,
                     sighash_cache,
                 )
+                if accepted:
+                    if signatures is not None:
+                        signatures.append((pub_key, signature))
+                    signature_index += 1
 
             verified = signature_index == signature_num
             # the keys and the counts go, then the signatures from the
             # top, each tested for NULLFAIL as it goes, as Core's cleanup
             # does: a refusal leaves the signatures above it popped
             del stack[len(stack) - 2 - pub_key_num :]
-            for signature in signatures:
+            for signature in multisig_signatures:
                 if not verified:
                     assert_nullfail(flags, False, [signature], op)
                 stack.pop()
@@ -885,6 +894,7 @@ def verify_script(
     precomputed: PrecomputedTxData | None = None,
     hash_types: list[int] | None = None,
     sighash_cache: _SigHashCache | None = None,
+    signatures: list[tuple[bytes, bytes]] | None = None,
 ) -> None:
     """Execute the script over the caller's stack, as Core's EvalScript.
 
@@ -903,6 +913,9 @@ def verify_script(
     `op_checksig`; chaining scripts over one stack is chaining them
     over one collector too. `sighash_cache` is kept the same way, one
     for all the scripts of an input.
+
+    `signatures` is `verify_input`'s other collector, of the ECDSA
+    pairs accepted here, chained over the scripts the same way.
     """
     _eval_script(
         script_bytes,
@@ -916,6 +929,7 @@ def verify_script(
         precomputed,
         hash_types,
         sighash_cache,
+        signatures,
     )
 
 
@@ -952,7 +966,18 @@ def eval_script(
     result = list(stack)
     try:
         _eval_script(
-            script_bytes, result, 0, None, 0, flags, False, False, None, None, None
+            script_bytes,
+            result,
+            0,
+            None,
+            0,
+            flags,
+            False,
+            False,
+            None,
+            None,
+            None,
+            None,
         )
     except ScriptError as error:
         return result, error
@@ -971,6 +996,7 @@ def _eval_script(
     precomputed: PrecomputedTxData | None,
     hash_types: list[int] | None,
     sighash_cache: _SigHashCache | None,
+    signatures: list[tuple[bytes, bytes]] | None,
 ) -> None:
     """`verify_script`'s body, with the transaction optional.
 
@@ -1002,6 +1028,7 @@ def _eval_script(
             script_index_ref,
             hash_types,
             sighash_cache,
+            signatures,
         )
     except ScriptError as e:
         raise ScriptError(e.args[0], e.code, script_index_ref[0], len(stack)) from e
