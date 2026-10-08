@@ -165,9 +165,10 @@ free to move under a review:
 - the reviewer answers with findings — where, what is wrong, how they
   know it, and whether each is blocking;
 - the author accepts what is reasonable, declines the rest with a reason
-  in the thread, and pushes the answer without waiting for CI;
-- the reviewer resolves the threads they opened, that being what says a
-  finding is closed, and re-reviews the delta rather than the branch.
+  in the thread, pushes the answer without waiting for CI, and resolves
+  each thread once answered;
+- the reviewer reopens a thread whose finding is still blocking, and
+  re-reviews the delta rather than the branch.
 
 **What ends the loop is the ack of record**, and the author does not
 supply their own. A reading that says what it found and delivers no
