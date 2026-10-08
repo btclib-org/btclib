@@ -90,6 +90,7 @@ __all__ = [
     "RpcError",
     "ScriptError",
     "ScriptErrorCode",
+    "ShortIdCollisionError",
     "SignerError",
     "SignerNotFoundError",
 ]
@@ -295,6 +296,22 @@ class IncompleteMessageError(BTClibRuntimeError):
     @override
     def __str__(self) -> str:
         return f"{self.args[0]}: {self.missing} more bytes wanted"
+
+
+class ShortIdCollisionError(BTClibRuntimeError):
+    """A compact block's own short ids collide, so it cannot be rebuilt.
+
+    What `btclib.p2p.compact_blocks.reconstruct` raises where two
+    positions of a `cmpctblock` carry one short id. Core's `InitData`
+    answers `READ_STATUS_FAILED` there, and its caller asks for the whole
+    block. The `BTClibValueError`s `reconstruct` raises are Core's
+    `READ_STATUS_INVALID`, and its caller punishes the peer for those.
+
+    A BTClibRuntimeError and not a BTClibValueError: the message is valid,
+    and BIP152 says nodes "MUST NOT be penalized for such collisions". A
+    caller catching `BTClibValueError` as "the peer sent garbage" does
+    not catch this. `IncompleteMessageError` is the precedent.
+    """
 
 
 class ScriptErrorCode(IntEnum):

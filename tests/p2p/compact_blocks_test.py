@@ -49,7 +49,12 @@ from pathlib import Path
 import pytest
 
 from btclib.block import Block, BlockHeader
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import (
+    BTClibRuntimeError,
+    BTClibTypeError,
+    BTClibValueError,
+    ShortIdCollisionError,
+)
 from btclib.p2p import (
     CMPCTBLOCKS_VERSION,
     BlockTxn,
@@ -454,8 +459,12 @@ def test_a_cmpctblock_whose_short_ids_collide_is_read_and_not_rebuilt() -> None:
     )
     assert CmpctBlock.parse(colliding.serialize()) == colliding
 
-    with pytest.raises(BTClibValueError, match="short ids are not unique"):
+    with pytest.raises(ShortIdCollisionError, match="short ids are not unique"):
         reconstruct(colliding, [_TX])
+    # a caller treating `BTClibValueError` as a peer's fault must not
+    # catch it: BIP152 says the peer is not to be penalized
+    assert not issubclass(ShortIdCollisionError, BTClibValueError)
+    assert issubclass(ShortIdCollisionError, BTClibRuntimeError)
 
 
 def test_two_pool_transactions_of_one_short_id_leave_the_position_missing(

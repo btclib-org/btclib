@@ -98,13 +98,14 @@ which is a word for a package that opens no socket.
 **Short ids collide, and the two collisions are two different answers.**
 A `cmpctblock` whose own short ids are not unique cannot be reconstructed
 at all -- there is no index to ask for, because two positions want one
-transaction -- so `reconstruct` refuses it and BIP152's answer is to
-re-request the block. Core's is `if (shorttxids.size() !=
-cmpctblock.shorttxids.size()) return READ_STATUS_FAILED; // Short ID
-collision`. That refusal is `reconstruct`'s and not `assert_valid`'s: a
-message whose short ids collide is a message a peer legitimately sends,
-BIP152 saying that nodes "MUST NOT be penalized for such collisions", so
-it has to parse and serialize back. The other collision is two *pool*
+transaction -- so `reconstruct` refuses it with `ShortIdCollisionError`,
+and BIP152's answer is to re-request the block. Core's is `if
+(shorttxids.size() != cmpctblock.shorttxids.size()) return
+READ_STATUS_FAILED; // Short ID collision`. That refusal is
+`reconstruct`'s and not `assert_valid`'s: a message whose short ids
+collide is a message a peer legitimately sends, BIP152 saying that
+nodes "MUST NOT be penalized for such collisions", so it has to parse
+and serialize back. The other collision is two *pool*
 transactions answering one short id, and there the answer is that the
 index stays missing and is requested -- Core drops both and says why,
 "eating a round-trip due to FillBlock failure would be annoying". A
@@ -145,7 +146,11 @@ from btclib import var_int
 from btclib.alias import BinaryData, Octets
 from btclib.block.block import Block
 from btclib.block.block_header import BlockHeader
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import (
+    BTClibTypeError,
+    BTClibValueError,
+    ShortIdCollisionError,
+)
 from btclib.hashes import siphash
 
 # the thirty-two octets of a hash256 and the two checks over them, which
@@ -1022,7 +1027,9 @@ def reconstruct(compact_block: CmpctBlock, pool: Sequence[Tx] = ()) -> PartialBl
       answer is to ask for the block the ordinary way. Core's is
       `READ_STATUS_FAILED` with "Short ID collision" beside it. It is
       refused here and not in `CmpctBlock.assert_valid`, such a message
-      being one a peer legitimately sends.
+      being one a peer legitimately sends, and it is refused with
+      `ShortIdCollisionError`, so that a caller can tell it from the
+      refusals Core answers `READ_STATUS_INVALID`.
 
     A *pool* collision is the third case and is not a refusal: where two
     different transactions of the pool answer one short id, the position
@@ -1070,7 +1077,7 @@ def reconstruct(compact_block: CmpctBlock, pool: Sequence[Tx] = ()) -> PartialBl
 
     short_ids = compact_block.short_ids
     if len(set(short_ids)) != len(short_ids):
-        raise BTClibValueError("short ids are not unique: re-request the block")
+        raise ShortIdCollisionError("short ids are not unique: re-request the block")
 
     # the positions the short ids fill are the ones the prefilled
     # transactions left, in order: BIP152 says to place each "in the
