@@ -367,7 +367,8 @@ to `deps-latest`'s own result.
    before each release rather than carry this list.
 
    From a throwaway checkout of each dependent's default branch, with the
-   sha of the release pull request's head for `<sha>`, before it merges:
+   sha of the release branch's head, pushed, for `<sha>`, and again if the
+   pull request's head moves before the merge:
 
    ```shell
    ref=git+https://github.com/btclib-org/btclib@<sha>
