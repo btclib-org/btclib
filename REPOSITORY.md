@@ -397,9 +397,9 @@ unrelated reason: `release.yml` publishes to PyPI on `push: tags:
   and nothing else. No `deletion` or `non_fast_forward` rule, on
   purpose — RELEASING.md's own recovery path deletes and re-tags a
   release that failed before `publish-pypi`, and either rule would
-  block exactly that. No bypass actor, for anyone, ever: RELEASING.md's
-  tagging step already produces a signed tag by default, so there is no
-  case that needs one.
+  block exactly that. No bypass actor, for anyone, ever: a release tag is
+  cut on a commit already on `main`, which is signed, so no case needs
+  one.
 
 **The bypass mode is the whole of the design.** `pull_request` excuses
 its holder from the rule *while merging a pull request* and at no other
@@ -429,8 +429,7 @@ gh api repos/btclib-org/btclib/rulesets --jq '.[].id' \
 
 `main-integrity` and `tag-integrity` both answer with an empty bypass
 list, and it is what makes an unsigned commit or a rewritten history
-unlandable, and a `v*` tag push that brings an unsigned commit
-unpushable, by anyone, admin or not, through a pull request or
+unlandable, by anyone, admin or not, through a pull request or
 otherwise.
 
 A `v*` tag push that brings an unsigned commit is refused. A tag on a
