@@ -55,11 +55,9 @@ an error, and one file per release is what keeps each of them under it.
 
 ### `Tx.parse` caps the input and output counts only with `check_validity`
 
-Without `check_validity`, `Tx.parse`, `Tx.parse_without_witness` and
-`Block.parse` bound each count by `var_int.MAX_SIZE`, as Core's
-`ReadCompactSize` does, and leave a transaction too large for a block to
-`assert_valid`, which refuses it as oversize. With `check_validity` the counts
-are still capped by `MAX_TX_IN_COUNT` and `MAX_TX_OUT_COUNT` (closes #2592).
+Without it, `Tx.parse` bounds each count by `var_int.MAX_SIZE`, as Core's
+`ReadCompactSize` does, and `assert_valid` refuses a transaction too large for
+a block as oversize (closes #2592).
 
 ### Strategies for the transaction types check their round trips
 
@@ -73,10 +71,12 @@ It also reads the tag's signature back from the API once the tag is pushed
 
 ### The documents take the organization's shared text
 
-`CONTRIBUTING.md` and `REVIEWING.md` take `btclib-org/.github`'s shared halves
-(issue btclib-org/.github#1620, issue btclib-org/.github#1634).
-`REPOSITORY.md` says that `tag-integrity` refuses an unsigned commit, not an
-unsigned tag (issue btclib-org/.github#1635).
+`CONTRIBUTING.md` and `REVIEWING.md` take `btclib-org/.github`'s shared
+halves (issue btclib-org/.github#1620, issue btclib-org/.github#1634).
+
+### `tag-integrity` refuses an unsigned commit, not an unsigned tag
+
+`REPOSITORY.md` says so (issue btclib-org/.github#1635).
 
 ### CI
 
