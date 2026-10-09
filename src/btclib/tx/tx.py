@@ -529,7 +529,7 @@ class Tx:  # noqa: PLW1641
         `check_validity` is `parse`'s: it runs `assert_valid`, which
         refuses a transaction with no input. `DecodeTx` does not run
         `CheckTransaction`, so the reading it describes is
-        `check_validity=False`. It also lifts the bounds on the input and
+        `check_validity=False`. `check_validity` also bounds the input and
         output counts, as `parse` says.
         """
         return cls._parse(data, allow_witness=False, check_validity=check_validity)
