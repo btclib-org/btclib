@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from hypothesis import given
 from typing_extensions import override
 
 from btclib import var_int
@@ -33,6 +34,7 @@ from btclib.tx.limits import (
 )
 from btclib.tx.tx import _assert_valid_coinbase
 from tests.conftest import JsonGolden
+from tests.strategies import TXS
 
 
 def test_tx() -> None:
@@ -1386,3 +1388,17 @@ def test_a_zero_flag_after_no_input_is_no_input_and_no_output() -> None:
         raw, check_validity=False
     )
     assert Tx.parse(raw, check_validity=False) == Tx(1, 0, check_validity=False)
+
+
+@given(tx=TXS)
+def test_tx_round_trip(tx: Tx) -> None:
+    """Parse what serialize writes, with the witness and without it."""
+    with_witness = tx.serialize(include_witness=True)
+    assert Tx.parse(with_witness) == tx
+    assert Tx.parse(with_witness).hash == tx.hash
+
+    without = tx.serialize(include_witness=False)
+    stripped = Tx.parse_without_witness(without)
+    assert stripped.id == tx.id
+    assert stripped.serialize(include_witness=False) == without
+    assert all(not tx_in.script_witness.stack for tx_in in stripped.vin)

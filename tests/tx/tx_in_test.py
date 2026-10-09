@@ -8,6 +8,7 @@ from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
+from hypothesis import given
 from typing_extensions import override
 
 from btclib import var_int
@@ -16,6 +17,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.script import Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut, input_weight
 from tests.conftest import JsonGolden
+from tests.strategies import TX_INS
 
 
 def test_tx_in() -> None:
@@ -343,3 +345,13 @@ def test_input_weight_sums_to_tx_weight() -> None:
             + 4
         ) + (2 if tx.is_segwit else 0)
         assert tx.weight == inputs + rest
+
+
+@given(tx_in=TX_INS)
+def test_tx_in_round_trip(tx_in: TxIn) -> None:
+    """Parse what serialize writes: the witness is not part of the input."""
+    parsed = TxIn.parse(tx_in.serialize())
+    assert parsed.prev_out == tx_in.prev_out
+    assert parsed.script_sig == tx_in.script_sig
+    assert parsed.sequence == tx_in.sequence
+    assert parsed.script_witness == Witness()

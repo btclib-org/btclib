@@ -8,11 +8,13 @@ from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
+from hypothesis import given
 
 from btclib.exceptions import BTClibValueError
 from btclib.script import ScriptPubKey
 from btclib.tx import Tx, TxOut
 from tests.conftest import JsonGolden
+from tests.strategies import TX_OUTS
 
 
 def test_tx_out() -> None:
@@ -206,3 +208,9 @@ def test_a_pre_built_script_pub_key_is_validated_as_octets_are() -> None:
 
     # and there is no third case, the class being frozen: a field
     # reassigned behind either check is what `test_frozen` above refuses
+
+
+@given(tx_out=TX_OUTS)
+def test_tx_out_round_trip(tx_out: TxOut) -> None:
+    """Parse what serialize writes, whatever the output."""
+    assert TxOut.parse(tx_out.serialize()) == tx_out
