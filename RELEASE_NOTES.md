@@ -19,6 +19,18 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.10.9
+
+### Breaking changes
+
+- **`Tx.parse`, `Tx.parse_without_witness` and `Block.parse` with
+  `check_validity=False` return a transaction past `MAX_TX_IN_COUNT` inputs or
+  `MAX_TX_OUT_COUNT` outputs** (closes #2592). They raised. `assert_valid`
+  refuses such a transaction as oversize. `TxPayload.parse`,
+  `BlockPayload.parse` and the compact-block parsers with
+  `check_validity=False` do the same. Act on it if you relied on that
+  refusal: call `assert_valid`, or parse with `check_validity`.
+
 ## v2026.10.8
 
 - **A key passed as the network, or a non-ASCII WIF, is no longer echoed in

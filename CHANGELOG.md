@@ -33,6 +33,7 @@ other. Past a size ceiling GitHub's contents API answers a file with an
 empty `content` at HTTP 200, which reads as an empty file rather than as
 an error, and one file per release is what keeps each of them under it.
 
+- [v2026.10.8](./changelog/v2026.10.8.md)
 - [v2026.10.7](./changelog/v2026.10.7.md)
 - [v2026.10.5](./changelog/v2026.10.5.md)
 - [v2026.10.4](./changelog/v2026.10.4.md)
@@ -50,27 +51,34 @@ an error, and one file per release is what keeps each of them under it.
 - [v2026.8.9](./changelog/v2026.8.9.md)
 - [v2026.8.7](./changelog/v2026.8.7.md)
 
-## v2026.10.8
+## v2026.10.9
 
-### Refusals and `PrvKeyData`'s repr quote less of their argument
+### `Tx.parse` caps the input and output counts only with `check_validity`
 
-A refused network name is quoted only when it is a string of 16 characters or
-fewer. `base58.decode` and `utils.str_from_string` chain no error for non-ASCII
-input, and `PrvKeyData`'s repr shows only a known network (GHSA-c6h8-5hv5-3gv7).
+Without it, `Tx.parse` bounds each count by `var_int.MAX_SIZE`, as Core's
+`ReadCompactSize` does, and `assert_valid` refuses a transaction too large for
+a block as oversize (closes #2592).
 
-### `verify_input` reports the ECDSA signatures it accepted
+### Strategies for the transaction types check their round trips
 
-`verify_input`, `verify_transaction` and `verify_script` take a `signatures`
-list, and the interpreter appends the (pub_key, signature) pair of every ECDSA
-check that succeeds, as Core's `SignatureExtractorChecker` does (closes #2552).
+Hypothesis strategies for `OutPoint`, `TxOut`, `TxIn`, `Witness` and `Tx`
+check that each serializes and parses back to itself (issue #2582).
 
-### `reconstruct` raises `ShortIdCollisionError` for colliding short ids
+### `RELEASING.md` runs the dependents' suites before the tag
 
-It derives from `BTClibRuntimeError`: Core asks for the whole block there and
-BIP152 says the peer is not penalized (closes #2570).
+It also reads the tag's signature back from the API once the tag is pushed
+(issue btclib-org/.github#1647, issue btclib-org/.github#1660).
 
-### `PrefilledTransaction.parse` bounds the index only under `check_validity`
+### The documents take the organization's shared text
 
-With `check_validity=False` it bounds each difference only, as Core's
-deserializer does. `CmpctBlock.parse` refuses short ids plus prefilled
-transactions past 65535 whatever `check_validity` says (closes #2572).
+`CONTRIBUTING.md` and `REVIEWING.md` take `btclib-org/.github`'s shared
+halves (issue btclib-org/.github#1620, issue btclib-org/.github#1634).
+
+### `tag-integrity` refuses an unsigned commit, not an unsigned tag
+
+`REPOSITORY.md` says so (issue btclib-org/.github#1635).
+
+### CI
+
+The fuzz build's `oss-fuzz-base/base-builder-python` image is bumped.
+`claude-review.yml` puts the caller's paragraph after the findings paragraph.
