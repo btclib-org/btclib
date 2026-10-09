@@ -1130,6 +1130,55 @@ def test_a_declared_input_or_output_count_is_bounded_before_allocation() -> None
         Tx.parse(version + var_int.serialize(MAX_TX_IN_COUNT))
 
 
+def test_without_check_validity_a_count_above_the_caps_is_read_then_oversize() -> None:
+    """Core decodes a count the bytes back and refuses it as oversize.
+
+    `ReadCompactSize` bounds a count by MAX_SIZE only, and
+    `CheckTransaction` answers `bad-txns-oversize` afterwards.
+    """
+    version = (2).to_bytes(4, "little")
+    lock_time = bytes(4)
+    one_output = bytes(8) + var_int.serialize(0)
+
+    def minimal_input(index: int) -> bytes:
+        return b"\x11" * 32 + index.to_bytes(4, "little") + b"\x00" + b"\xff" * 4
+
+    n_in = MAX_TX_IN_COUNT + 1
+    inputs = b"".join(minimal_input(i) for i in range(n_in))
+    data = (
+        version
+        + var_int.serialize(n_in)
+        + inputs
+        + var_int.serialize(1)
+        + one_output
+        + lock_time
+    )
+    with pytest.raises(BTClibValueError, match="var_int too big"):
+        Tx.parse(data)
+    for parse in (Tx.parse, Tx.parse_without_witness):
+        tx = parse(data, check_validity=False)
+        assert len(tx.vin) == n_in
+        with pytest.raises(BTClibValueError, match="invalid transaction size"):
+            tx.assert_valid()
+
+    n_out = MAX_TX_OUT_COUNT + 1
+    data = (
+        version
+        + var_int.serialize(1)
+        + minimal_input(0)
+        + var_int.serialize(n_out)
+        + one_output * n_out
+        + lock_time
+    )
+    with pytest.raises(BTClibValueError, match="var_int too big"):
+        Tx.parse(data)
+    for parse in (Tx.parse, Tx.parse_without_witness):
+        tx = parse(data, check_validity=False)
+        assert len(tx.vout) == n_out
+        with pytest.raises(BTClibValueError, match="invalid transaction size"):
+            tx.assert_valid()
+
+
 def test_the_size_and_the_serialization_agree() -> None:
     """The summed widths are the bytes, for a segwit transaction and not.
 
