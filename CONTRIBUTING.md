@@ -576,6 +576,33 @@ Anything machine-local — an interpreter path, a telemetry answer, a theme —
 belongs in the editor's own user settings instead, those two files being
 read by every checkout of this repository.
 
+### A Dependabot `uv` pull request
+
+Dependabot's `uv` ecosystem rewrites `uv.lock` alone. Where a bump moves a
+package that `.clusterfuzzlite/requirements.txt` pins, the `uv-export`
+hook fails the lint job. An owner, as [`GOVERNANCE.md`][governance] names
+them, then commits the hook's output to the pull request's branch before it
+lands, signed and signed off. On a checkout of that branch:
+
+```shell
+uv run --locked --only-group lint pre-commit run uv-export --all-files
+git commit -S -s -m "Export .clusterfuzzlite/requirements.txt from uv.lock" \
+    .clusterfuzzlite/requirements.txt
+git push origin HEAD:<branch>
+```
+
+The hook exits 1 when it rewrites the file. The push is a plain one, never
+a force, so a branch that moved meanwhile refuses it.
+
+The commit is made by hand, not by a bot: the `ci:` block of
+`.pre-commit-config.yaml` says why.
+
+The cost is that Dependabot stops rebasing a pull request once extra
+commits have been pushed to it, as
+[GitHub's documentation](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/manage-your-dependency-security/manage-dependabot-prs#allowing-dependabot-to-rebase-and-force-push-over-extra-commits)
+says. `@dependabot recreate` in a comment rebuilds the branch without the
+commit, which is then made again.
+
 ### What runs when
 
 | workflow | when | what it varies |
