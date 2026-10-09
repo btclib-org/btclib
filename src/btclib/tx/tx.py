@@ -498,6 +498,11 @@ class Tx:  # noqa: PLW1641
 
         `parse_without_witness` is the reading without the marker, for a
         caller that has to take those two octets as counts.
+
+        `check_validity` also bounds the input count by MAX_TX_IN_COUNT
+        and the output count by MAX_TX_OUT_COUNT. Without it the bound is
+        `var_int.MAX_SIZE`, Core's, and a transaction too large for a
+        block is read and left to `assert_valid`.
         """
         return cls._parse(data, allow_witness=True, check_validity=check_validity)
 
@@ -524,7 +529,8 @@ class Tx:  # noqa: PLW1641
         `check_validity` is `parse`'s: it runs `assert_valid`, which
         refuses a transaction with no input. `DecodeTx` does not run
         `CheckTransaction`, so the reading it describes is
-        `check_validity=False`.
+        `check_validity=False`. It also lifts the bounds on the input and
+        output counts, as `parse` says.
         """
         return cls._parse(data, allow_witness=False, check_validity=check_validity)
 
@@ -566,18 +572,25 @@ class Tx:  # noqa: PLW1641
                 # put back what the probe read
                 stream.seek(-len(marker), SEEK_CUR)  # current position
 
-        # each count bounded by the block that would have to hold the
-        # transaction rather than by var_int's own MAX_SIZE, which answers
-        # whether a CompactSize is sane and not whether anything could
-        # hold this many (issue #569). What this adds to the short read
-        # that TxIn.parse and TxOut.parse already raise on is the message:
-        # a count above the bound is refused for what it says, before a
-        # byte of the first input is read, rather than for the bytes it
-        # turned out not to be followed by
-        n = var_int.parse(stream, MAX_TX_IN_COUNT)
+        # check_validity bounds each count by the block that would have to
+        # hold the transaction rather than by var_int's own MAX_SIZE, which
+        # answers whether a CompactSize is sane and not whether anything
+        # could hold this many (issue #569). What this adds to the short
+        # read that TxIn.parse and TxOut.parse already raise on is the
+        # message: a count above the bound is refused for what it says,
+        # before a byte of the first input is read.
+        #
+        # Without check_validity the count is Core's ReadCompactSize bound
+        # and nothing more: Core decodes any count the bytes back and
+        # refuses the transaction later, as bad-txns-oversize, which
+        # assert_valid also does (issue #2592).
+        max_in = MAX_TX_IN_COUNT if check_validity else var_int.MAX_SIZE
+        max_out = MAX_TX_OUT_COUNT if check_validity else var_int.MAX_SIZE
+
+        n = var_int.parse(stream, max_in)
         vin = [TxIn.parse(stream, check_validity=check_validity) for _ in range(n)]
 
-        n = var_int.parse(stream, MAX_TX_OUT_COUNT)
+        n = var_int.parse(stream, max_out)
         vout = [TxOut.parse(stream, check_validity=check_validity) for _ in range(n)]
 
         if segwit:
