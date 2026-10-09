@@ -7,12 +7,14 @@
 from dataclasses import FrozenInstanceError
 
 import pytest
+from hypothesis import given
 
 from btclib import var_int
 from btclib.consensus import MAX_WITNESS_STACK_ITEMS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import Witness
 from tests.conftest import JsonGolden
+from tests.strategies import WITNESSES
 
 
 def test_witness() -> None:
@@ -121,3 +123,9 @@ def test_a_declared_stack_size_is_bounded_before_allocation() -> None:
     # the bound itself is not refused: what stops that one is the stream
     with pytest.raises(BTClibValueError, match="not enough binary data"):
         Witness.parse(var_int.serialize(MAX_WITNESS_STACK_ITEMS))
+
+
+@given(witness=WITNESSES)
+def test_witness_round_trip(witness: Witness) -> None:
+    """Parse what serialize writes, whatever the stack."""
+    assert Witness.parse(witness.serialize()) == witness

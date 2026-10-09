@@ -8,10 +8,12 @@ from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
+from hypothesis import given
 
 from btclib.exceptions import BTClibValueError
 from btclib.tx import OutPoint, Tx
 from tests.conftest import JsonGolden
+from tests.strategies import OUT_POINTS
 
 
 def test_out_point() -> None:
@@ -144,3 +146,9 @@ def test_a_coinbase_marker_is_both_fields_or_neither() -> None:
         (b"\x01" * 32, 0),
     ):
         assert not OutPoint(tx_id, vout, check_validity=False).is_coinbase
+
+
+@given(out_point=OUT_POINTS)
+def test_out_point_round_trip(out_point: OutPoint) -> None:
+    """Parse what serialize writes, whatever the outpoint."""
+    assert OutPoint.parse(out_point.serialize()) == out_point
