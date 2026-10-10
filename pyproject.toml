@@ -60,7 +60,9 @@ dependencies = [
     "bitcoin-core-rpc>=2026.9.29",
     # the curve arithmetic and the schemes built on it, which btclib
     # imports from `btclib_ecc` where it uses them and does not
-    # re-export. 2026.10.2 fixes GHSA-r5pw-9wrg-m3mj and
+    # re-export. 2026.10.10 is the release whose lines SECURITY.md cites,
+    # which tests/security_citations_test.py reads from the installed
+    # package. It carries the fixes of GHSA-r5pw-9wrg-m3mj and
     # GHSA-m38m-987v-j55h, and its lift words an invalid x as `invalid
     # x-coordinate` or `x-coordinate not in 0..p-1`, which the taproot
     # tests rely on
