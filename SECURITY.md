@@ -386,13 +386,13 @@ commit it was read at:
     scalars are secrets, is a `mult` of each and their sum instead —
     `pedersen._commit` at
     `return _add(mult(r, ec.G, ec), mult(v, gen, ec), ec)`
-    ([`src/btclib_ecc/ecc/pedersen.py:375`](
-    https://github.com/btclib-org/btclib-ecc/blob/2f28aa691d801d6a129216b021f4a589bbcf766d/src/btclib_ecc/ecc/pedersen.py#L375
+    ([`src/btclib_ecc/ecc/pedersen.py:379`](
+    https://github.com/btclib-org/btclib-ecc/blob/6d5b8c6cbc2660faa686a47a9b3559ade3fc9723/src/btclib_ecc/ecc/pedersen.py#L379
     )), under `pedersen.commit`,
     `rangeproof.sign` and `rangeproof.rewind`. The sum is
     `curve._add` at `return _libsecp256k1_sum((P, Q))`
-    ([`src/btclib_ecc/curves/curve.py:1368`](
-    https://github.com/btclib-org/btclib-ecc/blob/478d2c6498c85fcb366df6bec207d5ef41204cdb/src/btclib_ecc/curves/curve.py#L1368
+    ([`src/btclib_ecc/curves/curve.py:1383`](
+    https://github.com/btclib-org/btclib-ecc/blob/6d5b8c6cbc2660faa686a47a9b3559ade3fc9723/src/btclib_ecc/curves/curve.py#L1383
     )): `secp256k1_ec_pubkey_combine`,
     whose group law `secp256k1_gej_add_ge` and whose inversion
     `secp256k1_fe_inv` are constant time. A commitment to a zero value
