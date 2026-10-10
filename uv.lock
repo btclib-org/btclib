@@ -451,8 +451,8 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "bitcoin-core-rpc", specifier = ">=2026.9.29" },
-    { name = "btclib-ecc", specifier = ">=2026.10.2" },
-    { name = "btclib-ecc", extras = ["secp256k1"], marker = "extra == 'secp256k1'", specifier = ">=2026.10.2" },
+    { name = "btclib-ecc", specifier = ">=2026.10.10" },
+    { name = "btclib-ecc", extras = ["secp256k1"], marker = "extra == 'secp256k1'", specifier = ">=2026.10.10" },
     { name = "btclib-secp256k1", marker = "extra == 'secp256k1'", specifier = ">=0.8.0.10" },
     { name = "cryptography", marker = "extra == 'bip324'", specifier = ">=42.0.0" },
     { name = "typing-extensions", specifier = ">=4.10" },
@@ -461,7 +461,7 @@ provides-extras = ["secp256k1", "bip324"]
 
 [package.metadata.requires-dev]
 bindings = [
-    { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.2" },
+    { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.10" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0.10" },
 ]
 bip324 = [{ name = "cryptography", specifier = ">=42.0.0" }]
@@ -473,7 +473,7 @@ check = [
     { name = "uv-build", specifier = ">=0.12.0,<0.13" },
 ]
 dev = [
-    { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.2" },
+    { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.10" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0.10" },
     { name = "check-sdist", specifier = ">=1.6.0" },
     { name = "check-wheel-contents", specifier = ">=0.6.3" },
@@ -497,7 +497,7 @@ dev = [
     { name = "uv-build", specifier = ">=0.12.0,<0.13" },
 ]
 docs = [
-    { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.2" },
+    { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.10" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0.10" },
     { name = "cryptography", specifier = ">=42.0.0" },
     { name = "furo", marker = "python_full_version >= '3.12'", specifier = ">=2025.12.19" },
@@ -515,7 +515,7 @@ harness = [
     { name = "pytest-xdist", specifier = ">=3.8.0" },
 ]
 lint = [
-    { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.2" },
+    { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.10" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0.10" },
     { name = "cryptography", specifier = ">=42.0.0" },
     { name = "mypy", specifier = ">=2.3.1" },
@@ -524,7 +524,7 @@ lint = [
 ]
 mutation = [{ name = "cosmic-ray", specifier = ">=8.7.0" }]
 test = [
-    { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.2" },
+    { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.10" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0.10" },
     { name = "coverage", specifier = ">=7.16.0" },
     { name = "cryptography", specifier = ">=42.0.0" },
@@ -538,14 +538,14 @@ test = [
 
 [[package]]
 name = "btclib-ecc"
-version = "2026.10.8"
+version = "2026.10.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7c/e3/d50d612819dbcbf997210fbfd6052980488b3ecb341ad291554d8b8a5b17/btclib_ecc-2026.10.8.tar.gz", hash = "sha256:c9344e91160c4ac31002fa340b8ba0c12f1cd9b1d8a10e178582240ee1c562b4", size = 1917104, upload-time = "2026-10-08T08:58:35.07Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ab/2f/e9e5379337728fe3d125096b9040f5d3f0f16a2c2690f62dd6ca9b3ef96c/btclib_ecc-2026.10.10.tar.gz", hash = "sha256:c236c64b0742d9d9a895efb95d0eeb6e547d2dafc7da269a2a273774141b5567", size = 1951652, upload-time = "2026-10-10T20:25:36.398Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1d/6f/fc9a0fd46b32db1fdbd9a3a21e12b4fecc8ac2ae0c202178363456045ee5/btclib_ecc-2026.10.8-py3-none-any.whl", hash = "sha256:f3399d24077a296faab8c8ad1e6119473d1268220092c141b7adb8da64e0a7c6", size = 280578, upload-time = "2026-10-08T08:58:33.412Z" },
+    { url = "https://files.pythonhosted.org/packages/b2/06/2d6d3a259a08895a974cbee0c1c9813d4aa22793886c4c9e7f6861667614/btclib_ecc-2026.10.10-py3-none-any.whl", hash = "sha256:7851602f4bddc77776ee660451f6c7eb280d198cf82115f4f64520c34676f07f", size = 294107, upload-time = "2026-10-10T20:25:34.573Z" },
 ]
 
 [package.optional-dependencies]
