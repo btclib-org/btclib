@@ -206,8 +206,8 @@ commit it was read at:
     the bullet above already gives: no Python object holding a secret
     is zeroized, on either path, and this one is no exception to it.
     `dsa.Signer.__init__` at `self._q.to_bytes(32, "big")`
-    ([`src/btclib_ecc/ecc/dsa.py:1468`](
-    https://github.com/btclib-org/btclib-ecc/blob/3b14ec0bac0fbe1b50cfae4d4ea09cb55002df73/src/btclib_ecc/ecc/dsa.py#L1468
+    ([`src/btclib_ecc/ecc/dsa.py:1473`](
+    https://github.com/btclib-org/btclib-ecc/blob/478d2c6498c85fcb366df6bec207d5ef41204cdb/src/btclib_ecc/ecc/dsa.py#L1473
     )) crosses the same boundary the other
     way, once, at construction: the plain `int` `scalar_from_prv_key`
     already produced becomes a transient `bytes` on the way into the
@@ -238,8 +238,8 @@ commit it was read at:
     whether it can: btclib_ecc's `curve._libsecp256k1_serves` asks for
     the switch above, then for secp256k1 as the curve, then for a hash
     function that is sha256 or absent — `hf is None or hf is sha256`
-    ([`src/btclib_ecc/curves/curve.py:643`](
-    https://github.com/btclib-org/btclib-ecc/blob/2f28aa691d801d6a129216b021f4a589bbcf766d/src/btclib_ecc/curves/curve.py#L643
+    ([`src/btclib_ecc/curves/curve.py:659`](
+    https://github.com/btclib-org/btclib-ecc/blob/478d2c6498c85fcb366df6bec207d5ef41204cdb/src/btclib_ecc/curves/curve.py#L659
     )) — with whatever further
     conditions the call site ands onto it. The hash function is matched
     by identity rather than by what it computes, so
@@ -362,8 +362,8 @@ commit it was read at:
     that arm and infinity is not delegated at all —
     `curve._libsecp256k1_mult` at
     `libsecp256k1_shared_point(_sec_from_point(Q), m, False)`
-    ([`src/btclib_ecc/curves/curve.py:906`](
-    https://github.com/btclib-org/btclib-ecc/blob/2f28aa691d801d6a129216b021f4a589bbcf766d/src/btclib_ecc/curves/curve.py#L906
+    ([`src/btclib_ecc/curves/curve.py:922`](
+    https://github.com/btclib-org/btclib-ecc/blob/478d2c6498c85fcb366df6bec207d5ef41204cdb/src/btclib_ecc/curves/curve.py#L922
     )). `dh.diffie_hellman` at
     `sec = libsecp256k1_shared_point(`
     ([`src/btclib_ecc/ecc/dh.py:119`](
@@ -391,8 +391,8 @@ commit it was read at:
     )), under `pedersen.commit`,
     `rangeproof.sign` and `rangeproof.rewind`. The sum is
     `curve._add` at `return _libsecp256k1_sum((P, Q))`
-    ([`src/btclib_ecc/curves/curve.py:1352`](
-    https://github.com/btclib-org/btclib-ecc/blob/2f28aa691d801d6a129216b021f4a589bbcf766d/src/btclib_ecc/curves/curve.py#L1352
+    ([`src/btclib_ecc/curves/curve.py:1368`](
+    https://github.com/btclib-org/btclib-ecc/blob/478d2c6498c85fcb366df6bec207d5ef41204cdb/src/btclib_ecc/curves/curve.py#L1368
     )): `secp256k1_ec_pubkey_combine`,
     whose group law `secp256k1_gej_add_ge` and whose inversion
     `secp256k1_fe_inv` are constant time. A commitment to a zero value
