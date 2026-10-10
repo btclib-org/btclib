@@ -4,9 +4,9 @@ bitcoin-core-rpc==2026.10.4 \
     --hash=sha256:0c86750c62e5439159077f82327783b7e9b30c248e37bfbcf45d8b56292abadf \
     --hash=sha256:6764c8a880e23a5b71806082308afb00eab1e683763aefbbf41c423134521c9f
     # via btclib
-btclib-ecc==2026.10.2 \
-    --hash=sha256:26e483624245acbe6c28c355e29ce85b874a9b93a7399fe7267f262794372e72 \
-    --hash=sha256:3fcfd3319ffada8abb12174fdace6bc4ea81efec8a2e45831d49ccbd73c97cda
+btclib-ecc==2026.10.8 \
+    --hash=sha256:c9344e91160c4ac31002fa340b8ba0c12f1cd9b1d8a10e178582240ee1c562b4 \
+    --hash=sha256:f3399d24077a296faab8c8ad1e6119473d1268220092c141b7adb8da64e0a7c6
     # via btclib
 typing-extensions==4.16.0 \
     --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8 \
