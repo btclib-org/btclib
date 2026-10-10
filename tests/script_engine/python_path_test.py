@@ -122,6 +122,13 @@ def test_invalid_taproot_vectors(vector: dict[str, Any]) -> None:
     tx_vector_module.test_invalid_taproot(vector)
 
 
+@pytest.mark.parametrize("signature, pub_key", script_vector_module.NULLFAIL_CASES)
+@pytest.mark.usefixtures("python_verification")
+def test_nullfail_refuses_what_cannot_verify(signature: bytes, pub_key: bytes) -> None:
+    """Rerun the NULLFAIL cases with Python verification underneath."""
+    script_vector_module.test_nullfail_refuses_what_cannot_verify(signature, pub_key)
+
+
 @pytest.mark.parametrize("delegated", [True, False], ids=["bindings", "python"])
 def test_verify_answers_false_for_what_cannot_be_parsed(*, delegated: bool) -> None:
     """A malformed signature is a failed CHECKSIG, not an exception.

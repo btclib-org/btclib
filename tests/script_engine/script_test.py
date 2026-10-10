@@ -12,6 +12,7 @@ from io import BytesIO
 from typing import Any, NamedTuple
 
 import pytest
+from btclib_ecc.curves import secp256k1
 from btclib_ecc.ecc import ssa
 from btclib_ecc.ecc.dsa import Sig, sign_
 from btclib_ecc.exceptions import BTClibEccValueError
@@ -1758,6 +1759,63 @@ def test_a_strict_der_signature_that_cannot_verify_is_a_false_check() -> None:
     with pytest.raises(ScriptError) as exc_info:
         verify_input(prevouts, tx, 0, "DERSIG")
     assert exc_info.value.code is ScriptErrorCode.SIG_DER
+
+
+# Core's STANDARD_SCRIPT_VERIFY_FLAGS, in src/policy/policy.h
+_STANDARD_FLAGS = (
+    ALL_FLAGS
+    | ScriptFlag.STRICTENC
+    | ScriptFlag.MINIMALDATA
+    | ScriptFlag.DISCOURAGE_UPGRADABLE_NOPS
+    | ScriptFlag.CLEANSTACK
+    | ScriptFlag.MINIMALIF
+    | ScriptFlag.NULLFAIL
+    | ScriptFlag.LOW_S
+    | ScriptFlag.DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM
+    | ScriptFlag.WITNESS_PUBKEYTYPE
+    | ScriptFlag.CONST_SCRIPTCODE
+    | ScriptFlag.DISCOURAGE_UPGRADABLE_TAPROOT_VERSION
+    | ScriptFlag.DISCOURAGE_OP_SUCCESS
+    | ScriptFlag.DISCOURAGE_UPGRADABLE_PUBKEYTYPE
+)
+_N = secp256k1.n.to_bytes(32, byteorder="big")
+_GENERATOR = PrvKeyData(1).pub.sec
+# x = 5 is not an x-coordinate: 5**3 + 7 is not a square mod p
+_OFF_CURVE_KEY = b"\x02" + (5).to_bytes(32, byteorder="big")
+# signature, public key; each signature ends with its hash type, 0x01
+NULLFAIL_CASES = [
+    pytest.param(bytes.fromhex("300602010002010101"), _GENERATOR, id="r is 0"),
+    pytest.param(
+        b"\x30\x26\x02\x21\x00" + _N + b"\x02\x01\x01\x01", _GENERATOR, id="r is n"
+    ),
+    pytest.param(
+        bytes.fromhex("300602010102010101"), _OFF_CURVE_KEY, id="key off the curve"
+    ),
+    pytest.param(bytes.fromhex("300602010102010101"), _GENERATOR, id="r is 1"),
+]
+
+
+@pytest.mark.parametrize("signature, pub_key", NULLFAIL_CASES)
+def test_nullfail_refuses_what_cannot_verify(signature: bytes, pub_key: bytes) -> None:
+    """NULLFAIL refuses a signature that cannot verify, whatever the reason.
+
+    Core's EvalChecksigPreTapscript fails with NULLFAIL on any failed check
+    of a non-empty signature. An r of 0 or n passes the encoding checks
+    and verifies nothing. A key off the curve passes STRICTENC and does
+    not parse. The r = 1 case is the control: script_tests.json's
+    CHECKSIG vector under NULLFAIL uses r = s = 1, a signature that
+    parses and fails to verify.
+
+    Without NULLFAIL, CHECKSIG pushes false and NOT makes it true.
+    """
+    prevouts = [TxOut(0, ScriptPubKey(serialize([pub_key, "OP_CHECKSIG", "OP_NOT"])))]
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), serialize([signature]), 0xFFFFFFFF)
+    tx = Tx(1, 0, [tx_in], [TxOut(0, ScriptPubKey(""))])
+
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(prevouts, tx, 0, _STANDARD_FLAGS)
+    assert exc_info.value.code is ScriptErrorCode.SIG_NULLFAIL
+    verify_input(prevouts, tx, 0, _STANDARD_FLAGS & ~ScriptFlag.NULLFAIL)
 
 
 @pytest.mark.parametrize("size", [0, 63, 66, 71])
