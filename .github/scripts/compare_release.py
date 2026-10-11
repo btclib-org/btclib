@@ -11,9 +11,9 @@ with this tree installed and one with the release from the index, and the
 two answers are compared. An answer is one of:
 
 - `refused`: the parser raised `BTClibException`;
-- `accepted <hex>`: it returned an object, shown by what `serialize()`
-  writes, or by `repr` where the object is a plain value or a dataclass,
-  and by its type name alone where it is anything else;
+- `accepted <description>`: it returned an object, described by the hex of
+  what `serialize()` writes, by `repr` where it is a plain value or a
+  dataclass, and by its type name alone otherwise;
 - `unserializable <name>`: it returned an object whose description raised;
 - `crashed <name>`: it raised anything else;
 - `absent`: the parser is not importable.
@@ -330,8 +330,8 @@ def render(release: Run, current: Run, differences: list[Difference]) -> str:
         lines.append("No difference.")
         return "\n".join(lines) + "\n"
     lines += [
-        f"{len(differences)} differences. A difference that is intended is named",
-        "in the pull request that causes it.",
+        f"Differences: {len(differences)}. A difference that is intended is",
+        "named in the pull request that causes it.",
         "",
         "| kind | harness | parser | input | release | this tree |",
         "| --- | --- | --- | --- | --- | --- |",
@@ -343,7 +343,7 @@ def render(release: Run, current: Run, differences: list[Difference]) -> str:
             f"| {d.kind} | `{d.harness}` | `{d.spec}` | {name} | {was} | {now} |"
         )
     if len(differences) > _MAX_ROWS:
-        lines += ["", f"{len(differences) - _MAX_ROWS} more differences not listed."]
+        lines += ["", f"Not listed: {len(differences) - _MAX_ROWS} more."]
     return "\n".join(lines) + "\n"
 
 

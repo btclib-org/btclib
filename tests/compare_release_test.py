@@ -262,7 +262,7 @@ def test_render_clips_and_escapes_a_row(cmp: Any) -> None:
     release = _run(cmp, ("h", "m:f", "a|b", "accepted " + "00" * 100))
     current = _run(cmp, ("h", "m:f", "a|b", "refused"))
     text = cmp.render(release, current, cmp.compare(release, current))
-    assert "1 differences." in text
+    assert "Differences: 1." in text
     assert "a\\|b" in text
     assert "... (209 characters)" in text
 
@@ -275,7 +275,7 @@ def test_render_limits_the_rows(cmp: Any, monkeypatch: pytest.MonkeyPatch) -> No
         cmp, ("h", "m:f", "a", "accepted 01"), ("h", "m:f", "b", "accepted 02")
     )
     text = cmp.render(release, current, cmp.compare(release, current))
-    assert "1 more differences not listed." in text
+    assert "Not listed: 1 more." in text
     assert text.count("\n| accepted by one") == 1
 
 
