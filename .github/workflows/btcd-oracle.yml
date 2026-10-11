@@ -25,11 +25,10 @@ name: btcd oracle
 # program, is built and run before it lands. Section 10 of the
 # organization standard keeps such a trigger where a run adds seconds to
 # the wait on a pull request's checks. This run is expected to end before
-# `test`'s, whose median on a pull request was 195 seconds on 2026-10-11;
-# that is confirmed on the first pull request's own run and not before.
+# `test`'s.
 #
-# The schedule runs after `fuzz` (Tuesday 04, about 90 minutes), so that the
-# artifacts it reads are that week's.
+# The schedule runs after `fuzz`'s, so that the artifacts it reads are that
+# week's.
 
 on:
   schedule:
