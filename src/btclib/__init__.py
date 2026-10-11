@@ -102,6 +102,7 @@ __all__ = [
     "testing",
     "tx",
     "utils",
+    "utreexo",
     "var_bytes",
     "var_int",
 ]

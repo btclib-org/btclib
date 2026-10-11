@@ -133,6 +133,7 @@ from btclib.p2p import (
 )
 from btclib.script import Witness, script, taproot
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
+from btclib.utreexo import Proof, Stump
 from tests import load_bin, module_names, public_classes_with
 
 # a value of no type any of these positions declares. `Any`, because
@@ -198,6 +199,8 @@ _OCTETS_DECODERS = (
     ("Block.parse", Block, "parse"),
     ("BasicBlockFilter.parse", BasicBlockFilter, "parse"),
     ("PartialMerkleTree.parse", PartialMerkleTree, "parse"),
+    ("Stump.parse", Stump, "parse"),
+    ("Proof.parse", Proof, "parse"),
     ("Witness.parse", Witness, "parse"),
     ("bms.Sig.parse", bms.Sig, "parse"),
     ("Message.parse", Message, "parse"),

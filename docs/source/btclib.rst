@@ -143,6 +143,13 @@ btclib.utils module
    :members:
    :show-inheritance:
 
+btclib.utreexo module
+---------------------
+
+.. automodule:: btclib.utreexo
+   :members:
+   :show-inheritance:
+
 btclib.var\_bytes module
 ------------------------
 

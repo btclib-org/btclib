@@ -8,6 +8,9 @@ tests/_data/chacha20_vectors.json -text
 tests/_data/key_io_invalid.json -text
 tests/_data/key_io_valid.json -text
 tests/_data/muhash_vectors.json -text
+tests/_data/rustreexo/cached_proof_tests.json -text
+tests/_data/rustreexo/test_cases.json -text
+tests/_data/rustreexo/update_data_tests.json -text
 tests/_data/secp256k1_symbols.txt -text
 tests/_data/siphash.json -text
 tests/block/_data/blockfilters.json -text
