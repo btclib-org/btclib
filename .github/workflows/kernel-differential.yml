@@ -23,9 +23,8 @@ name: kernel-differential
 # 3.13 and builds Core from source beyond that, so this runs on 3.13.
 # The version is pinned: a differential that moves with the kernel
 # reports the day the kernel changed rather than the day btclib did.
-# Raising it is a commit. The wheel's Core is the one its
-# `libbitcoinkernel` reports (`strings` on the library), which names the
-# py-bitcoinkernel commit whose depend/bitcoin it was built from.
+# Raising it is a commit. The wheel's Core is the depend/bitcoin tree of
+# py-bitcoinkernel at the tag of the pinned version.
 #
 # `python -m pytest`, not `pytest`: the console script runs in the
 # project environment, which does not see the overlay.

@@ -118,8 +118,8 @@ HYPOTHESIS_PROFILE=thorough uv run --locked --python 3.13 --group test \
 `kernel-differential.yml` runs the same command on `workflow_dispatch`,
 and the version it pins is the one to write for `<version>`.
 A failure prints the transaction, the spent outputs and the flags: triage
-it against Core's interpreter at the commit the kernel was built from
-before filing it.
+it against Core's interpreter, the depend/bitcoin tree of py-bitcoinkernel
+at the tag of the pinned version, before filing it.
 
 ## Fuzzing, and replaying a crash it finds
 
