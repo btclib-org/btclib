@@ -851,8 +851,8 @@ extend-ignore-re = ['`[^`]*`']
 # sake of the measurement alone
 source = ["btclib", "tests"]
 # tests/integration is omitted because the ratchet measures what an
-# ordinary run executes, and those tests skip themselves without
-# BTCLIB_INTEGRATION: their bodies would be uncovered lines of tests/ at
+# ordinary run executes, and those tests skip themselves without their
+# variable: their bodies would be uncovered lines of tests/ at
 # every commit, which is the ratchet reporting the switch rather than a
 # defect. What covers them is the opt-in run, and tests/README.md's *The
 # integration tests, and why they are off by default* carries the command
