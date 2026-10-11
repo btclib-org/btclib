@@ -28,10 +28,11 @@ Protocol-basics.rst encourages JSON-RPC 2.0 without requiring it, so no
 read back, which is the one place this module still meets the elder
 convention.
 
-**Five methods, the ones a fetcher over this protocol needs.**
+**The methods a fetcher over this protocol needs.**
 `blockchain.transaction.get` for a raw transaction,
 `blockchain.headers.subscribe` for the chain tip's height and header,
 `blockchain.block.header` for the header at a height,
+`blockchain.block.headers` for a chunk of consecutive headers,
 `blockchain.transaction.get_merkle` for the branch and position that
 proves a transaction confirmed, and `blockchain.estimatefee` for a fee
 rate quoted for a confirmation target. Each is a pair of functions, one
@@ -72,6 +73,8 @@ __all__ = [
     "assert_merkle_proof",
     "block_header_request",
     "block_header_response",
+    "block_headers_request",
+    "block_headers_response",
     "decode_response",
     "encode_request",
     "estimate_fee_request",
@@ -287,6 +290,62 @@ def block_header_response(line: bytes, request_id: int) -> bytes:
     if not isinstance(result, str):
         raise BTClibTypeError(f"block.header: not a hex string: {result!r}")
     return bytes_from_octets(result)
+
+
+def block_headers_request(request_id: int, start_height: int, count: int) -> bytes:
+    """Return the `blockchain.block.headers` request for `count` headers.
+
+    `cp_height` is left unsent, at its protocol default of zero, so the
+    answer carries no checkpoint `root` and `branch`.
+    """
+    return encode_request(request_id, "blockchain.block.headers", [start_height, count])
+
+
+def block_headers_response(line: bytes, request_id: int, count: int) -> list[bytes]:
+    """Return the raw headers `blockchain.block.headers` answered.
+
+    The parameter `count` is the number of headers asked for. The answer
+    is read in the shape from before protocol 1.6 (1.5 was skipped): one
+    object with the members `count`, `hex` and `max`. Floresta, the
+    server this is for, answers `server.version` with "1.4" and
+    `blockchain.block.headers` in this shape (`electrum_protocol.rs`,
+    floresta-electrum, commit b998d80). From 1.6 the headers come as a
+    `headers` list instead, which this does not read.
+    protocol-methods.rst documents only the 1.6 shape;
+    protocol-changes.rst's 1.6 entry records the change.
+
+    A server answers fewer headers than asked when it reaches its tip or
+    its own `max`, so the list can be shorter than the parameter, or
+    empty. Refused: a parameter `count` that is not an integer
+    (`BTClibTypeError`) or is negative (`BTClibValueError`), before the
+    line is read; an answer that is not an object
+    (`BTClibTypeError`); an answered `count` that is not an integer
+    (`BTClibTypeError`) or not from 0 to the parameter
+    (`BTClibValueError`); a `hex` that is not a string
+    (`BTClibTypeError`), not hex, or not 80 bytes for each header
+    answered (`BTClibValueError`). `max` is unread.
+    """
+    if not is_integer(count):
+        raise BTClibTypeError(f"block.headers: invalid count asked: {count!r}")
+    if count < 0:
+        raise BTClibValueError(f"block.headers: invalid count asked: {count!r}")
+    result = decode_response(line, request_id)
+    if not isinstance(result, dict):
+        raise BTClibTypeError(f"block.headers: not an object: {result!r}")
+    answered = result.get("count")
+    if not is_integer(answered):
+        raise BTClibTypeError(f"block.headers: invalid count: {answered!r}")
+    n = cast(int, answered)
+    if not 0 <= n <= count:
+        raise BTClibValueError(f"block.headers: invalid count: {answered!r}")
+    hex_ = result.get("hex")
+    if not isinstance(hex_, str):
+        raise BTClibTypeError(f"block.headers: not a hex string: {hex_!r}")
+    raw = bytes_from_octets(hex_)
+    if len(raw) != n * 80:
+        err_msg = f"block.headers: {len(raw)} bytes are not {n} headers"
+        raise BTClibValueError(err_msg)
+    return [raw[i * 80 : (i + 1) * 80] for i in range(n)]
 
 
 @dataclass(frozen=True)

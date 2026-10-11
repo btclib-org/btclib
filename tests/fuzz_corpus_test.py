@@ -83,8 +83,10 @@ import pytest
 from btclib.exceptions import BTClibException
 
 _FUZZ = Path(__file__).parent.parent / "fuzz"
-# the id every seed of fuzz/corpus/fuzz_electrum/ answers
+# the id every seed of fuzz/corpus/fuzz_electrum/ answers, and the number of
+# headers asked for by the one that answers blockchain.block.headers
 _REQUEST_ID = 1
+_HEADERS_ASKED = 2
 _CORPUS = _FUZZ / "corpus"
 
 
@@ -242,7 +244,11 @@ def _accept(spec: str, data: bytes) -> tuple[bool, bool | None]:
     """Try `spec` against `data`; return (accepted, round_trip)."""
     entry_point = _resolve(spec)
     # an Electrum decoder also takes the id of the request it answers
-    args = (data, _REQUEST_ID) if spec.endswith("_response") else (data,)
+    args: tuple[Any, ...] = (data,)
+    if spec.endswith("_response"):
+        args = (data, _REQUEST_ID)
+    if spec.endswith(":block_headers_response"):
+        args += (_HEADERS_ASKED,)
     try:
         obj = entry_point(*args)
     except BTClibException:
