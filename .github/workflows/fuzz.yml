@@ -151,6 +151,41 @@ jobs:
         with:
           language: python
           sanitizer: address
+      # The seeds of fuzz/corpus/ into the stored corpora, ahead of the
+      # download that run_fuzzers makes into the same directories.
+      #
+      # build.sh zips each fuzz/corpus/<target>/ as the target's
+      # `_seed_corpus.zip`, and clusterfuzz's libFuzzer engine unpacks
+      # that zip only into a corpus of at most MAX_FILES_FOR_UNPACK files
+      # (`unpack_seed_corpus_if_needed` in clusterfuzz/_internal/bot/
+      # fuzzers/engine_common.py, read at clusterfuzz 2.5.9, the release
+      # google/oss-fuzz's infra/cifuzz/requirements.txt pins; there that
+      # is five). Once its stored corpus has more files than that, the zip
+      # is never read, and a seed added after that point never reaches the
+      # fuzzer (issue #2614).
+      #
+      # Not `-max_len`: it caps the inputs libFuzzer reads and generates,
+      # and does not make it read the zip. With none given, libFuzzer
+      # takes the largest corpus file, so the cap follows the seed.
+      # Not `force_unpack`: the libFuzzer engine never sets it, and this
+      # action has no input that does.
+      #
+      # The download extracts the stored corpus into an existing
+      # directory without emptying it (`_download_artifact` in
+      # google/oss-fuzz's infra/cifuzz/filestore/github_actions/
+      # __init__.py), so what is copied here stays beside it, and is
+      # uploaded with the corpus afterwards. The repository is the one
+      # build_fuzzers cloned into storage/, the workspace holding no
+      # checkout of its own. `cp -R dir/.` copies what is there, and an
+      # empty directory is not an error.
+      - name: Seed the stored corpora
+        run: |
+          for dir in storage/btclib/fuzz/corpus/*/; do
+            target=$(basename "$dir")
+            mkdir -p "cifuzz-corpus/$target"
+            cp -R "$dir." "cifuzz-corpus/$target/"
+          done
+        working-directory: ${{ github.workspace }}
       - name: Run fuzzers
         # v1
         uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1
