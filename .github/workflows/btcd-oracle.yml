@@ -12,13 +12,12 @@ name: btcd oracle
 # fuzzers grew from them. Artifacts expire, so a repository whose last
 # `fuzz` run is old compares the seeds alone and says so.
 #
-# A sentinel and not a gate: the answer depends on btcd's releases and on
-# what the fuzzers found this week, neither of which a pull request
-# changes. A red run is a list of inputs to triage against Bitcoin Core,
-# not a failure of the tree, so nothing requires this check. Differences
-# already triaged are rules in `fuzz/btcd_oracle.py`, counted and not
-# listed, so a run is red only for a disagreement no rule explains. The
-# report is in the run's summary.
+# A sentinel and not a gate: what the fuzzers found this week can turn it
+# red with no change to the tree. A red run is a list of inputs to
+# triage against Bitcoin Core, not a failure of the tree, so nothing
+# requires this check. Differences already triaged are rules in
+# `fuzz/btcd_oracle.py`, counted and not listed, so a run is red only for
+# a disagreement no rule explains. The report is in the run's summary.
 #
 # The `pull_request` trigger is filtered to this file, the Go module and
 # the script, so that a Dependabot bump of btcd, or an edit of either
