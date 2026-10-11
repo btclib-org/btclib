@@ -644,6 +644,7 @@ a force.
 | `pypi-install` | weekly, a release | what PyPI serves |
 | `sdist-rebuild` | weekly | the latest release's sdist, rebuilt |
 | `py-arm-authority` | weekly, push to main | the arm-authority table |
+| `release-diff` | pull request on `src/` | the last release |
 | `release` | a tag | the workflows `release.yml` names in a `uses:` |
 
 That last cell is a pointer rather than a list on purpose: which

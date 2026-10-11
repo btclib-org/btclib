@@ -351,6 +351,7 @@ source-exclude = [
     # recognizes as reaching .github or fuzz/ is named here
     "/tests/check_py_arm_authority_test.py",
     "/tests/check_vendored_vectors_test.py",
+    "/tests/compare_release_test.py",
     "/tests/docs_commands_test.py",
     "/tests/interpreters_test.py",
     "/tests/mutation_sessions_test.py",
