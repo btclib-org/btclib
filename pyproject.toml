@@ -624,7 +624,7 @@ filterwarnings = ["error"]
 #
 #     uv run pytest --durations=0 --durations-min=0
 #
-# tests/integration/conftest.py gives each of its own tests a marker,
+# tests/integration/conftest.py gives each of its node tests a marker,
 # which pytest-timeout reads ahead of this key. A pytest without the
 # plugin does not know the key, which --strict-config makes an error: an
 # environment missing pytest-timeout exits before running a test rather
