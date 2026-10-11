@@ -17,9 +17,8 @@ name: qa-assets
 # the gates, so section 10's clock rule keeps the trigger. Only the
 # default branch schedules workflows.
 #
-# The checkouts are sparse and blobless: Core's qa-assets is several
-# hundred megabytes, and the replay reads only the directories listed
-# below.
+# The checkouts are sparse and blobless: Core's qa-assets is large, and
+# the replay reads only the directories listed below.
 # A row added to the table needs its directory added here; the test
 # fails on a directory the checkout lacks.
 on:
