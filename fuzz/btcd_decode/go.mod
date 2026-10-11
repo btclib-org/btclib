@@ -2,6 +2,8 @@ module github.com/btclib-org/btclib/fuzz/btcd_decode
 
 go 1.25.0
 
+toolchain go1.27.1
+
 require (
 	github.com/btcsuite/btcd/chainhash/v2 v2.0.0
 	github.com/btcsuite/btcd/wire/v2 v2.0.1
