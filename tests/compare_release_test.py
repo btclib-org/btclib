@@ -372,6 +372,8 @@ def test_render_says_where_the_inputs_came_from(cmp: Any) -> None:
 def test_both_probes_fit_in_half_the_job(cmp: Any) -> None:
     """The script's timeout fires before the workflow cancels the job."""
     workflow = _SCRIPT.parents[1] / "workflows" / "release-diff.yml"
-    minutes = re.findall(r"^ +timeout-minutes: (\d+)$", workflow.read_text(), re.M)
+    text = workflow.read_text(encoding="utf-8")
+    minutes = re.findall(r"^ +timeout-minutes: (\d+)$", text, re.MULTILINE)
     assert len(minutes) == 1
-    assert 2 * cmp._TIMEOUT <= int(minutes[0]) * 60 / 2
+    half_the_job = int(minutes[0]) * 60 / 2
+    assert half_the_job >= 2 * cmp._TIMEOUT
