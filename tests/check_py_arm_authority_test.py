@@ -340,3 +340,80 @@ def test_main_dry_run_prints_but_never_calls_issue(
 
     assert "1 disagreement(s) with a fresh measurement." in capsys.readouterr().out
     assert fake_gh.calls == []
+
+
+def _failing_gh(
+    checker: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    stderrs: list[str],
+) -> tuple[list[list[str]], list[int]]:
+    """Make `gh` fail with each of `stderrs` in turn, then answer `[]`.
+
+    Return the argv of every call and the seconds slept between them.
+    """
+    calls: list[list[str]] = []
+    slept: list[int] = []
+
+    def run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        if len(calls) <= len(stderrs):
+            raise subprocess.CalledProcessError(1, argv, stderr=stderrs[len(calls) - 1])
+        return subprocess.CompletedProcess(argv, 0, stdout="[]")
+
+    monkeypatch.setattr(checker.subprocess, "run", run)
+    monkeypatch.setattr(checker.time, "sleep", slept.append)
+    return calls, slept
+
+
+@pytest.mark.parametrize(
+    "stderr",
+    [
+        "gh: Not Found (HTTP 404)\n",
+        "gh: API rate limit exceeded for user ID 1. (HTTP 403)\n",
+        "gh: You have exceeded a secondary rate limit (HTTP 403)\n",
+    ],
+)
+def test_a_failed_gh_call_prints_its_stderr_and_is_not_retried_unless_a_server_error(
+    checker: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    stderr: str,
+) -> None:
+    """A 404 and both rate limits are final: gh's words reach stderr."""
+    calls, slept = _failing_gh(checker, monkeypatch, [stderr])
+
+    with pytest.raises(subprocess.CalledProcessError):
+        checker._open_issue_number("t")
+
+    assert stderr.strip() in capsys.readouterr().err
+    assert len(calls) == 1
+    assert slept == []
+
+
+def test_a_server_error_is_retried_and_the_retry_answers(
+    checker: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A 5xx is waited out, and each failure is printed."""
+    stderr = "gh: Bad Gateway (HTTP 502)\n"
+    calls, slept = _failing_gh(checker, monkeypatch, [stderr, stderr])
+
+    assert checker._open_issue_number("t") is None
+
+    assert len(calls) == 3
+    assert slept == [5, 10]
+    assert capsys.readouterr().err.count(stderr.strip()) == 2
+
+
+def test_a_server_error_that_persists_is_raised_after_the_last_attempt(
+    checker: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Three attempts in all, and then the error is the caller's."""
+    stderr = "gh: Bad Gateway (HTTP 502)\n"
+    calls, _ = _failing_gh(checker, monkeypatch, [stderr] * 4)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        checker._open_issue_number("t")
+
+    assert len(calls) == 3
