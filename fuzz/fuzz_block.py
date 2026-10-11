@@ -62,9 +62,10 @@ ENTRY_POINTS = ("btclib.block.block:Block.parse",)
 def fuzz_target(data: bytes) -> None:
     """Parse `data` as a block.
 
-    `BTClibException` is swallowed as `parse`'s own refusal of malformed
-    input; any other exception propagates, which is how atheris tells a
-    defect in `parse` from the domain of input it already rejects.
+    A `BTClibException` from `parse` is its refusal of malformed input and
+    is swallowed. Any other exception, and any exception from `serialize`,
+    propagates: that is how atheris tells a defect from the input `parse`
+    already rejects.
     """
     try:
         block = Block.parse(data)

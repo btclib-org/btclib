@@ -11,8 +11,9 @@ carries. The tree is the part a peer controls: a count of hashes, a
 count of flag bytes and what the two say about the shape of the block.
 
 `data` is unconstrained bytes handed straight to `parse`, which raises
-`BTClibException` on every malformed input. Any other exception is a
-defect in `parse` and propagates to atheris as the finding it is.
+`BTClibException` on every malformed input. Any other exception, and any
+from `serialize`, is a defect in one of the two and propagates to atheris as
+the finding it is.
 
 The format has one encoding, so what `parse` accepts must `serialize` back
 to `data` itself. An input that does not was misread by `parse` or

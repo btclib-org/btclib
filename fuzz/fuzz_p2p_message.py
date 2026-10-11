@@ -49,9 +49,10 @@ ENTRY_POINTS = ("btclib.p2p.message:Message.parse",)
 def fuzz_target(data: bytes) -> None:
     """Parse `data` as a p2p message, as a connection reading a socket would.
 
-    `BTClibException` is swallowed as `parse`'s own refusal of malformed
-    input; any other exception propagates, which is how atheris tells a
-    defect in `parse` from the domain of input it already rejects.
+    A `BTClibException` from `parse` is its refusal of malformed input and
+    is swallowed. Any other exception, and any exception from `serialize`,
+    propagates: that is how atheris tells a defect from the input `parse`
+    already rejects.
     """
     try:
         message = Message.parse(data)
