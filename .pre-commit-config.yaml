@@ -24,7 +24,7 @@ ci:
   # btclib-org/.github#1199). uv-lock locks with the interpreter
   # .python-version names, which the pre-commit.ci image does not carry,
   # and the hook fails downloading it there (issue btclib-org/.github#1348).
-  # actionlint-shellcheck is built there, and the run times out in it
+  # actionlint-shellcheck runs past pre-commit.ci's time limit there
   skip: [mypy, pyroma, uv-lock, actionlint-shellcheck]
 
 repos:
