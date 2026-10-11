@@ -14,8 +14,11 @@ and a generated corpus, to a live node.
 from __future__ import annotations
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
-from btclib.script import script_to_asm
+from btclib.script import parse, script_to_asm
+from tests.strategies import SCRIPTS
 
 # the signature and the key of Core's own `script_GetScriptAsm` test
 # (src/test/script_tests.cpp); a hash type byte follows the signature
@@ -214,4 +217,18 @@ def test_script_to_asm(script: str, asm: str, asm_decoded: str) -> None:
     assert script_to_asm(bytes.fromhex(script)) == asm
     assert (
         script_to_asm(bytes.fromhex(script), attempt_sighash_decode=True) == asm_decoded
+    )
+
+
+@given(script=SCRIPTS, decode=st.booleans())
+def test_script_to_asm_has_a_word_for_each_command_parse_returns(
+    script: bytes, decode: bool
+) -> None:
+    """`script_to_asm` cannot be read back, but it counts as parse does.
+
+    One word for each op code or push, and `[error]` where a push is cut
+    short, which is what parse returns there too.
+    """
+    assert len(script_to_asm(script, attempt_sighash_decode=decode).split()) == len(
+        parse(script)
     )

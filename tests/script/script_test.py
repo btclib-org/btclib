@@ -11,6 +11,7 @@ import string
 from typing import Any
 
 import pytest
+from hypothesis import given
 from typing_extensions import override
 
 from btclib.alias import ScriptList
@@ -34,6 +35,7 @@ from btclib.script.script import (
 from btclib.utils import encode_num, hex_string
 from tests import load, vector_id
 from tests.script import serialize_non_canonical
+from tests.strategies import COMMAND_LISTS, MIXED_COMMAND_LISTS, SCRIPTS
 
 
 def test_operators() -> None:
@@ -610,3 +612,32 @@ def test_script_from_dict_refuses_a_disagreeing_asm() -> None:
     # and the message names both, the one given and the one hex decodes to
     with pytest.raises(BTClibValueError, match=P2PKH_ASM):
         script_from_dict({"asm": "OP_RETURN", "hex": P2PKH})
+
+
+@given(commands=COMMAND_LISTS)
+def test_parse_reads_back_what_serialize_writes(commands: ScriptList) -> None:
+    """Parse what serialize writes, for the commands parse itself spells."""
+    assert parse(serialize(commands)) == commands
+
+
+@given(commands=MIXED_COMMAND_LISTS)
+def test_parse_names_the_bytes_serialize_wrote(
+    commands: ScriptList,
+) -> None:
+    """Whatever spelling serialize takes, parse names the bytes it wrote.
+
+    Integers, bytes, lower-case hex and the aliases come back as the one
+    spelling parse has, which writes the same bytes.
+    """
+    script = serialize(commands)
+    parsed = parse(script)
+    assert ERROR_COMMAND not in parsed
+    assert serialize(parsed) == script
+
+
+@given(script=SCRIPTS)
+def test_a_script_is_read_back_from_its_dict(script: bytes) -> None:
+    """Any bytes, a push cut short included, come back from `script_to_dict`."""
+    value = script_to_dict(script)
+    assert script_from_dict(value) == script
+    assert script_from_dict({"hex": value["hex"]}) == script
