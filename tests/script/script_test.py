@@ -11,7 +11,8 @@ import string
 from typing import Any
 
 import pytest
-from hypothesis import given
+from hypothesis import assume, given
+from hypothesis import strategies as st
 from typing_extensions import override
 
 from btclib.alias import ScriptList
@@ -641,3 +642,35 @@ def test_a_script_is_read_back_from_its_dict(script: bytes) -> None:
     value = script_to_dict(script)
     assert script_from_dict(value) == script
     assert script_from_dict({"hex": value["hex"]}) == script
+
+
+# an empty push in each of its three operators, among other bytes
+EMPTY_PUSHES = [b"\x4c\x00", b"\x4d\x00\x00", b"\x4e\x00\x00\x00\x00"]
+
+
+@pytest.mark.parametrize("script", [*EMPTY_PUSHES, b"\x00"], ids=bytes.hex)
+def test_an_empty_push_is_op_0_whatever_its_operator(script: bytes) -> None:
+    """Parse names the push of no data OP_0, as serialize writes it.
+
+    Core prints the same "0" for the four spellings.
+    """
+    assert parse(script) == ["OP_0"]
+    assert parse(b"\x51" + script + b"\x51") == ["OP_1", "OP_0", "OP_1"]
+    assert script_to_dict(script)["asm"] == "OP_0"
+    assert script_from_dict(script_to_dict(script)) == script
+
+
+@given(
+    script=st.lists(
+        st.one_of(st.sampled_from(EMPTY_PUSHES), st.binary(max_size=6)), max_size=8
+    ).map(b"".join)
+)
+def test_serialize_writes_back_what_parse_returns(script: bytes) -> None:
+    """The commands of any script, once serialized, parse to themselves.
+
+    The bytes may differ, a non-minimal push coming back minimal, and
+    ERROR_COMMAND is a place and not a command.
+    """
+    commands = parse(script)
+    assume(ERROR_COMMAND not in commands)
+    assert parse(serialize(commands)) == commands
