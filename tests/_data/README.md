@@ -127,8 +127,9 @@ bitcoin-core/secp256k1's `src` for `secp256k1_symbols.txt` on 2026-09-10,
 refreshed again on 2026-09-14, 2026-09-29, 2026-10-07 and 2026-10-26, at the
 tip of its path each time.
 BIP324's `packet_encoding_test_vectors.csv` followed on 2026-09-27, at the
-tip of its path, rust-bitcoin's `huge_witness.bin` on 2026-10-11, and
-bip-0054's vector files on 2026-10-26, each at the tip of its path.
+tip of its path, rust-bitcoin's `huge_witness.bin` on 2026-10-11,
+rustreexo's `test_values/` files on 2026-10-21, and bip-0054's vector
+files on 2026-10-26, each at the tip of its path.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -849,6 +850,68 @@ pair of exceptions. It broke past versions of rust-bitcoin and LND, as
 [an electrs issue](https://github.com/romanz/electrs/issues/783) records.
 The licence is rust-bitcoin's, whose `LICENSE` is the CC0 text.
 
+## mit-dci/rustreexo
+
+The Utreexo accumulator `btclib.utreexo` follows, read at the commit
+`b73cbac1f425f0e849faa279982ef4f5ec9f3754` that release 0.7.0 tags. Its
+`test_values/` files are the same bytes at that tag and at the tip of
+`main`, so each pin below is the last commit to touch the path and the
+weekly job finds it current.
+
+The crate is licensed `MIT OR Apache-2.0` (`Cargo.toml`, `LICENSE-MIT`,
+`LICENSE-APACHE`).
+
+`tests/utreexo_test.py` reads these files, in the directory
+`tests/_data/rustreexo/` because their upstream names, `test_cases.json`
+among them, say nothing outside their repository. A hash of zeros is an
+empty node there, as `Stump` takes it.
+
+### `tests/_data/rustreexo/test_cases.json`
+
+```text
+repo    mit-dci/rustreexo
+path    test_values/test_cases.json
+commit  8869ed90130464a50821054622437ba1ebf42961  2022-10-20
+blob    9290de291a4a2d66801e4708ffa0c0aaa4f49d0f
+pulled  2026-10-21
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. The `insertion_tests`, `deletion_tests` and
+`proof_tests`, all run. One proof test expects `false`. Another has
+targets that are nodes above the leaves, which `btclib.utreexo` reads as
+positions of the forest, as rustreexo does.
+
+### `tests/_data/rustreexo/update_data_tests.json`
+
+```text
+repo    mit-dci/rustreexo
+path    test_values/update_data_tests.json
+commit  ae74e64e5a238add561261a9961640ee46169320  2023-01-13
+blob    30d6eea8936999d8f88a255d3fb2d748d7f32304
+pulled  2026-10-21
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. Every case is run: the positions and hashes
+`Stump.update_data` reports for what it added, what it destroyed, and what the
+deletion changed.
+
+### `tests/_data/rustreexo/cached_proof_tests.json`
+
+```text
+repo    mit-dci/rustreexo
+path    test_values/cached_proof_tests.json
+commit  d7e3b1bd3922238309bd8ab01c765c35fe75ff4e  2023-01-23
+blob    810134b0f1b6077757cefff400c19aa8e6bc5126
+pulled  2026-10-21
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. Every case is run: a proof of leaves a wallet
+caches, updated by `Proof.update` across a block, verifies against the
+next `Stump` and has the targets and leaf hashes the file lists.
+
 ## Chain data, not a repository
 
 These are consensus bytes. There is no upstream repository to pin and no
@@ -1044,6 +1107,8 @@ Against a pinned upstream blob:
   `key_io_invalid.json`, `base58_encode_decode.json`, `siphash.json`,
   `blockfilters.json`, `checkblock_valid.json`, `checkblock_invalid.json`,
   `txsize.json`.
+- identical byte for byte, from rustreexo: `test_cases.json`,
+  `update_data_tests.json`, `cached_proof_tests.json`.
 - identical but for a trailing newline: `script_assets_test.json`,
   `sigops.json`, `coinbases.json`, `timestamps.json`.
 - identical but for line endings: `packet_encoding_test_vectors.csv`.
