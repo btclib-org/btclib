@@ -64,10 +64,10 @@ repos:
   # that then exits zero, which is the whole difference between a warning and
   # a gate.
   #
-  # A commit SHA stays acceptable, should a hook ever want one: the pattern
-  # refuses a value that is all digits, or one ending in a prerelease marker
-  # and its digits, and forty hex characters are neither -- unless every one
-  # of them is a digit, which is a SHA nobody has.
+  # A SHA stays acceptable, as the kjanat/actionlint rev below is: the
+  # pattern refuses a value that is all digits, or one ending in a
+  # prerelease marker and its digits, and forty hex characters are neither
+  # -- unless every one of them is a digit, which is a SHA nobody has.
   #
   # What may follow the value is a comment, which `held-rev` below makes
   # the prescribed form for a rev held at a version. Stopping at the quote
@@ -109,7 +109,10 @@ repos:
       # comment, so the hold goes and this hook has nothing left to find
       # disagreeing. Measured, not read: a `--freeze` run over a held
       # entry leaves the line a sha with a `# frozen:` trailer and this
-      # hook silent. No run here passes it.
+      # hook silent. pre-commit.ci takes that branch only on a line
+      # already frozen ("--freeze format is automatically preserved", its
+      # documentation says), which the actionlint line below is and a
+      # held line is not. No local run here passes it.
       #
       # `"? +#` right after the capture is what makes the marker name the
       # whole value. With no fixed anchor there the group gives characters
@@ -148,12 +151,11 @@ repos:
       # diff that adds the hold -- which is where the reason for the hold
       # is being written anyway.
       #
-      # What the census left outside the pattern: actionlint's is a floor
-      # rather than a ceiling, and `autoupdate` only ever proposes the
-      # newest release; a version in `additional_dependencies` is not a
-      # `rev`, and `autoupdate` rewrites `rev` and nothing else; pyroma
-      # carries no `rev:` at all, its bound sitting in pyproject.toml's
-      # `check` group instead (issue btclib-org/.github#1199)
+      # What the census left outside the pattern: a version in
+      # `additional_dependencies` is not a `rev`, and `autoupdate` rewrites
+      # `rev` and nothing else; pyroma carries no `rev:` at all, its bound
+      # sitting in pyproject.toml's `check` group instead (issue
+      # btclib-org/.github#1199)
       - id: held-rev
         name: a held rev names the version it is held at, and its issue
         language: pygrep
@@ -688,33 +690,30 @@ repos:
   # a typo in a context reference, an action input that does not exist, a
   # job depending on a job that is not there are what a run discovers by
   # failing instead.
-  # The Python packaging of actionlint rather than the upstream hook, whose
-  # only non-docker id is language: golang, i.e. a go toolchain on every
-  # machine that commits and on pre-commit.ci
-  - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
-    # not below actionlint 1.7.12: its list of runner labels is compiled
-    # in, and 1.7.9 does not know macos-26-intel, which the test matrix
-    # runs on
-    rev: v1.7.12.25
+  # kjanat/actionlint rather than rhysd/actionlint: upstream does not parse
+  # the `uses: $/...` self-repository reference zizmor's self-repository
+  # audit asks for (rhysd/actionlint#711; rhysd/actionlint#732 implements
+  # it), and the fork does. The rev is the sha `pre-commit autoupdate
+  # --freeze` writes for the tag its comment names, the annotated tag's
+  # own object, so a moved tag cannot change what runs here.
+  # The cost: pre-commit.ci's weekly bump keeps this line frozen, writing
+  # the new sha with `  # frozen: <tag>`, two spaces before the `#`,
+  # which prettier above rewrites to one. The bot's pull request then
+  # fails prettier until a commit restores the one-space form. A local
+  # `pre-commit autoupdate` without `--freeze` writes the tag name instead
+  # and drops the comment.
+  # The hook is `language: golang`, so pre-commit builds it with a go
+  # toolchain. `actionlint-shellcheck` installs a Go build of shellcheck
+  # beside actionlint in the hook's environment: actionlint hands the body
+  # of a `run:` step to shellcheck, and without one it validates the yaml
+  # around a script and not the script. No workflow has a
+  # `shell: python` step, so the pyflakes it also delegates to is not
+  # declared.
+  - repo: https://github.com/kjanat/actionlint
+    rev: 2da2ceb4af2c7ecc48f5b9311d85080c3971b5f0 # frozen: v1.17.0
     hooks:
-      - id: actionlint
+      - id: actionlint-shellcheck
         name: actionlint (github workflows)
-        # actionlint delegates the body of a run: step to shellcheck, and
-        # of a "shell: python" step to pyflakes, if it finds them on the
-        # PATH: without them it validates the yaml around a shell script
-        # and not the script. Declared here rather than installed by hand,
-        # so that every machine and pre-commit.ci check what CI checks --
-        # the runner image happens to carry shellcheck, so leaving it to
-        # chance meant CI checking more than a commit did.
-        # Pinned, because nothing bumps an additional dependency here:
-        # pre-commit.ci moves rev; Dependabot's pre-commit ecosystem
-        # exists and is not configured.
-        # That is the point rather than the cost -- a shellcheck release
-        # adding a check would otherwise turn a pull request red for
-        # having changed nothing
-        additional_dependencies:
-          - shellcheck-py==0.11.0.1
-          - pyflakes==4.0.1
   # actionlint asks whether a workflow is correct, zizmor whether it is
   # safe: a token persisted where a later step can read it, a cache
   # restored into the job that builds what gets published, an expression
@@ -728,17 +727,9 @@ repos:
   # here on is this tree's own regression, not advice to weigh
   # (btclib-org/.github#1164)
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    # self-repository flags every reusable-workflow and composite-action
-    # reference under .github/workflows/ that reads `uses: ./...`, and
-    # recommends `uses: $/...` in its place. That syntax is real GitHub,
-    # live since July 2026, and still not what the actionlint pinned
-    # above parses: rhysd/actionlint#711 asks for support and
-    # rhysd/actionlint#732 is its pull request, both open and unmerged,
-    # and the latest release, v1.7.12 (2026-03-30), predates the syntax.
-    # #1563 tracks that migration and only that -- the version above is
-    # not held on its account. The finding is declined per site instead,
-    # with an inline `# zizmor: ignore[self-repository]` on each
-    # `uses: ./` line below (btclib-org/.github#1144)
+    # self-repository flags a reusable-workflow or composite-action
+    # reference that reads `uses: ./...` and recommends `uses: $/...`,
+    # which release.yml spells; the actionlint above parses it
     rev: v1.30.1
     hooks:
       - id: zizmor

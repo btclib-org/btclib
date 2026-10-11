@@ -1,0 +1,10 @@
+---
+# kjanat/actionlint turns its cache policies on by default. The review
+# workflow calls a reusable workflow from an issue_comment trigger without
+# a `cache-mode`, which cache-call-unrestricted reports. The callee has no
+# cache step, so the finding is silenced for that one file. Issue #2633
+# adds `cache-mode: none` to that job and deletes this file.
+paths:
+  .github/workflows/claude-review.yml:
+    ignore:
+      - 'reusable workflow call ".+" has no explicit cache access limit'
