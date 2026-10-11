@@ -12,8 +12,8 @@ verdict is compared: the kernel reports no script error code.
 
 py-bitcoinkernel is not a dependency of btclib. The module is skipped
 where `pbk` is not importable, and `kernel-differential.yml` is what
-installs it. The kernel takes the seven consensus flags and no policy
-flag, so the policy flags are not drawn.
+installs it. The kernel takes the consensus flags and no policy flag, so
+the policy flags are not drawn.
 
 A failure prints the transaction, the spent outputs and the flags, and
 the exception btclib raised, to triage against Core's interpreter.
