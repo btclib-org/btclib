@@ -23,8 +23,7 @@ character class for the callee, `[A-Za-z_]+.parse`, would still have to
 answer which import a bare name resolves to, and one reaching for the
 whole dotted call loses `AddrV2.parse` to a class that excludes the digit.
 
-`fuzz_block_filters`, `fuzz_compact_blocks`, `fuzz_inventory` and
-`fuzz_negotiation` call `cls.parse(data)` inside a
+A harness that tries several classes calls `cls.parse(data)` inside a
 `for cls in (A, B, ...):` loop rather than naming a callee directly, so
 walking the call site alone resolves nothing: `cls` is a loop variable,
 not an import. The cross-check reads the loop's own iterable instead,
