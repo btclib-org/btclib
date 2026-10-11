@@ -191,8 +191,10 @@ repos:
         exclude: ^fuzz/corpus/
       - id: end-of-file-fixer
         # the corpus, for the reason given on trailing-whitespace above:
-        # this is the hook that rewrote a seed
-        exclude: ^fuzz/corpus/
+        # this is the hook that rewrote a seed. The rustreexo vectors end
+        # without a newline, as upstream publishes them: a newline appended
+        # voids the blob pin in tests/_data/README.md
+        exclude: ^(fuzz/corpus/|tests/_data/rustreexo/)
       - id: mixed-line-ending
         # not the default --fix=auto, which normalizes a file to its own
         # most frequent ending: a file entirely in CRLF is consistent by

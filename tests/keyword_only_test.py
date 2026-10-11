@@ -254,6 +254,8 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.tx:TxOut.parse": ["check_validity"],
     "btclib.tx:TxOut.serialize": ["check_validity"],
     "btclib.tx:TxOut.to_dict": ["check_validity"],
+    "btclib.utreexo:Proof.parse": ["check_validity"],
+    "btclib.utreexo:Stump.parse": ["check_validity"],
 }
 
 

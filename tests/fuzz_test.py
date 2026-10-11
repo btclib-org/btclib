@@ -95,6 +95,7 @@ from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
+from btclib.utreexo import Proof, Stump
 from tests import module_names, public_classes_with
 
 # What a btclib parser is allowed to raise: btclib's three classes, and
@@ -140,6 +141,8 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     # refusal, which stands in front of the Golomb decoding
     "BasicBlockFilter.parse": BasicBlockFilter.parse,
     "PartialMerkleTree.parse": PartialMerkleTree.parse,
+    "Stump.parse": Stump.parse,
+    "Proof.parse": Proof.parse,
     "Message.parse": Message.parse,
     "NetworkAddress.parse": NetworkAddress.parse,
     "TimestampedNetworkAddress.parse": TimestampedNetworkAddress.parse,
