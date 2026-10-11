@@ -33,8 +33,9 @@ push is accepted in every width that can hold it and written back in the
 shortest, as BIP62 asks, so `serialize(parse(data))` need not be `data`.
 What is asserted instead is that writing settles it: the octets `serialize`
 writes parse and are written back unchanged. The comparison is on octets
-and not on commands, because an empty push, `OP_PUSHDATA1 0x00`, parses as
-the command `""` and is written as `OP_0`, which parses as `"OP_0"`.
+and not on commands: `parse` spells an empty push `OP_PUSHDATA1 0x00` as `""`
+and `OP_0` as `"OP_0"`
+([ISS 2607](https://github.com/btclib-org/btclib/issues/2607)).
 
 The terminal `ERROR_COMMAND` is dropped first: it marks a place in the
 bytes and not an instruction, and `serialize` refuses it.
@@ -58,8 +59,7 @@ def fuzz_target(data: bytes) -> None:
     """Decode `data` as a script.
 
     Every exception propagates: `parse` refuses no octets, so there is no
-    expected failure to tell a defect from, and `serialize` refuses none
-    of what `parse` returns.
+    expected failure to tell a defect from.
     """
     commands = script.parse(data)
     if commands[-1:] == [script.ERROR_COMMAND]:

@@ -29,13 +29,12 @@ in both of the encodings BIP144's marker distinguishes (witness and
 stripped, one object and two serializations), and rust-bitcoin's
 huge-witness transaction, `tests/tx/_data/huge_witness.bin`.
 
-BIP144's marker makes a transaction two serializations, and each of them
-has one reading: `serialize(include_witness=True)` writes the marker
-where a witness is present, and `parse` refuses a marker over empty
-witnesses and any other flag. So what `parse` accepts must serialize back
-to `data` itself. An input that does not is one `parse` read as something
-other than what it was given, and the `AssertionError` reaches atheris as
-the finding it is.
+Each of BIP144's two serializations has one encoding.
+`serialize(include_witness=True)` writes the marker only where some input
+has a witness, and `parse` refuses a marker over empty witnesses and a flag
+above 1. So what `parse` accepts must serialize back to `data` itself. An
+input that does not was misread by `parse`, and the `AssertionError` reaches
+atheris as the finding it is.
 """
 
 from __future__ import annotations

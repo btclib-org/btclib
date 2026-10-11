@@ -28,9 +28,8 @@ segwit transaction, each written by `var_bytes.serialize`.
 The format has one encoding, its length being a canonical var_int. So the
 octets `parse` consumes must be what `serialize` writes for its answer.
 `data` may run on past them, because `parse` reads a stream and leaves the
-rest to its caller. An input that does not round-trip is one `parse` read
-as something other than what it was given, and the `AssertionError`
-reaches atheris as the finding it is.
+rest to its caller. An input that does not round-trip was misread by
+`parse`, and the `AssertionError` reaches atheris as the finding it is.
 """
 
 from __future__ import annotations

@@ -35,9 +35,8 @@ The seed corpus is one canonical encoding at each width the default
 The format has one encoding, a number written wider than it needs being
 refused. So the octets `parse` consumes must be what `serialize` writes for
 its answer. `data` may run on past them, because `parse` reads a stream and
-leaves the rest to its caller. An input that does not round-trip is one
-`parse` read as something other than what it was given, and the
-`AssertionError` reaches atheris as the finding it is.
+leaves the rest to its caller. An input that does not round-trip was misread
+by `parse`, and the `AssertionError` reaches atheris as the finding it is.
 """
 
 from __future__ import annotations

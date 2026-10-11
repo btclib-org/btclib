@@ -39,9 +39,8 @@ genesis, whose only transaction is its coinbase, and block 170, which
 carries one that is not.
 
 The format has one encoding, so what `parse` accepts must `serialize` back
-to `data` itself. An input that does not is one `parse` read as something
-other than what it was given, and the `AssertionError` reaches atheris as
-the finding it is.
+to `data` itself. An input that does not was misread by `parse`, and the
+`AssertionError` reaches atheris as the finding it is.
 """
 
 from __future__ import annotations

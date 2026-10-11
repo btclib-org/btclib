@@ -15,9 +15,8 @@ count of flag bytes and what the two say about the shape of the block.
 defect in `parse` and propagates to atheris as the finding it is.
 
 The format has one encoding, so what `parse` accepts must `serialize` back
-to `data` itself. An input that does not is one `parse` read as something
-other than what it was given, and the `AssertionError` reaches atheris as
-the finding it is.
+to `data` itself. An input that does not was misread by `parse`, and the
+`AssertionError` reaches atheris as the finding it is.
 """
 
 from __future__ import annotations

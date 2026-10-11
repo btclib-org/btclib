@@ -24,9 +24,8 @@ docstring is where that is argued; `Tx.parse` and `Block.parse` are
 holding a transaction or a block with no peer connection behind it.
 
 The format has one encoding, so what `parse` accepts must `serialize` back
-to `data` itself. An input that does not is one `parse` read as something
-other than what it was given, and the `AssertionError` reaches atheris as
-the finding it is.
+to `data` itself. An input that does not was misread by `parse`, and the
+`AssertionError` reaches atheris as the finding it is.
 """
 
 from __future__ import annotations
