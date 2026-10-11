@@ -363,6 +363,6 @@ def test_render_says_where_the_inputs_came_from(cmp: Any) -> None:
         ("h", "m:g", "corpus/h/a.bin", "refused"),
         ("h", "m:f", "fuzz artifact 01", "refused"),
     )
-    assert "on 1 inputs from `fuzz/corpus/` and 1 from the fuzz artifacts." in (
-        cmp.render(run, run, [])
-    )
+    text = cmp.render(run, run, [])
+    assert "Inputs: 1 from `fuzz/corpus/`, 1 from the fuzz artifacts." in text
+    assert "run on each side: 3." in text

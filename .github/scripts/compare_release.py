@@ -18,8 +18,9 @@ two answers are compared. An answer is one of:
 - `crashed <name>`: it raised anything else;
 - `absent`: the parser is not importable.
 
-A difference is a parser that accepts what the other refuses, accepts and
-serializes differently, crashes differently, or is absent from one side.
+A difference is a parser that accepts on one side only, accepts and
+serializes differently, refuses where the other crashes, crashes
+differently, or is absent from one side.
 
 The inputs are `fuzz/corpus/<harness>/*.bin` and, where
 `--fuzz-artifacts` names a directory, the corpora the `fuzz` workflow
@@ -312,16 +313,14 @@ def render(release: Run, current: Run, differences: list[Difference]) -> str:
     """Return the markdown report."""
     inputs = {(harness, name) for harness, _, name, _ in current.records}
     seeds = sum(name.startswith("corpus/") for _, name in inputs)
+    artifacts = len(inputs) - seeds
     lines = [
         "## Parsers: this tree against the last release",
         "",
         f"Release: btclib {release.version}, from `{release.file}`.",
         f"This tree: btclib {current.version}, from `{current.file}`.",
-        (
-            f"{len(current.records)} parser and input pairs were run on each side, "
-            f"on {seeds} inputs from `fuzz/corpus/` and {len(inputs) - seeds} "
-            "from the fuzz artifacts."
-        ),
+        f"Parser and input pairs run on each side: {len(current.records)}.",
+        f"Inputs: {seeds} from `fuzz/corpus/`, {artifacts} from the fuzz artifacts.",
         "",
     ]
     if not differences:
