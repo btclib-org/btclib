@@ -1,0 +1,111 @@
+---
+name: qa-assets
+
+# The fuzz corpora of Bitcoin Core and rust-bitcoin, replayed through the
+# btclib parsers that read the same bytes. Both qa-assets repositories
+# grow as their fuzzers run, so a parser that handled last week's inputs
+# may not handle this week's: a clock asks, because the corpora change
+# with no commit here.
+# tests/integration/qa_assets_test.py is the replay and holds the table
+# from a corpus directory to its parser; a failure there is an exception
+# other than BTClibException, named with the input that raised it.
+#
+# Informational: no aggregate job, a finding being an issue against a
+# parser and not a block on an unrelated merge. The pull request trigger
+# is filtered to this file and to the replay, so that a change to either
+# is run by the thing it changes. The replay is seconds beside the gates,
+# which section 10's clock rule keeps. Only the default branch schedules
+# workflows.
+#
+# The checkouts are sparse and blobless: Core's qa-assets is several
+# hundred megabytes, and the replay reads only the directories listed
+# below.
+# A row added to the table needs its directory added here; the test
+# fails on a directory the checkout lacks.
+on:
+  schedule:
+    # The time is section 10's grid in btclib-org/.github and not this
+    # file's to restate.
+    - cron: "4 3 * * 2"
+  workflow_dispatch:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, closed]
+    paths:
+      - .github/workflows/qa-assets.yml
+      - tests/integration/qa_assets_test.py
+
+permissions:
+  contents: read
+
+# named literally rather than through github.workflow, as section 10
+# asks, and keyed on the pull request's own number. No push trigger, so
+# the run in flight is the only reading a merge gets: a closed, merged
+# event queues behind it
+concurrency:
+  group: qa-assets-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !(github.event.action == 'closed' && github.event.pull_request.merged) }}
+
+jobs:
+  replay:
+    name: Replay the fuzz corpora
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout qa-assets
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: bitcoin-core/qa-assets
+          path: qa-assets
+          persist-credentials: false
+          filter: blob:none
+          sparse-checkout: |
+            fuzz_corpora/block
+            fuzz_corpora/block_deserialize
+            fuzz_corpora/block_header_and_short_txids_deserialize
+            fuzz_corpora/blockheader_deserialize
+            fuzz_corpora/blocktransactions_deserialize
+            fuzz_corpora/blocktransactionsrequest_deserialize
+            fuzz_corpora/decode_tx
+            fuzz_corpora/inv_deserialize
+            fuzz_corpora/merkle_block_deserialize
+            fuzz_corpora/out_point_deserialize
+            fuzz_corpora/partial_merkle_tree_deserialize
+            fuzz_corpora/prefilled_transaction_deserialize
+            fuzz_corpora/script_deserialize
+            fuzz_corpora/transaction
+            fuzz_corpora/tx_in
+            fuzz_corpora/tx_in_deserialize
+            fuzz_corpora/tx_out
+      - name: Checkout rust-bitcoin's qa-assets
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: rust-bitcoin/qa-assets
+          path: rust-bitcoin-qa-assets
+          persist-credentials: false
+          filter: blob:none
+          sparse-checkout: |
+            fuzz_corpora/bitcoin_deserialize_block
+            fuzz_corpora/bitcoin_deserialize_prefilled_transaction
+            fuzz_corpora/bitcoin_deserialize_transaction
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+      - name: Name the corpora read
+        run: |
+          git -C qa-assets log -1 --format='bitcoin-core/qa-assets %H %cI'
+          git -C rust-bitcoin-qa-assets log -1 --format='rust-bitcoin/qa-assets %H %cI'
+      - name: Replay
+        env:
+          BTCLIB_QA_ASSETS: ${{ github.workspace }}/qa-assets
+          BTCLIB_RUST_BITCOIN_QA_ASSETS: ${{ github.workspace }}/rust-bitcoin-qa-assets
+        # -n 0 and no coverage: the replay is one process, and the
+        # coverage floor is a claim about the ordinary run
+        run: >-
+          uv run --locked --no-default-groups --group test
+          pytest tests/integration/qa_assets_test.py -n 0 --no-cov

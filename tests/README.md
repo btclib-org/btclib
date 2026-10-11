@@ -66,9 +66,9 @@ uv run pytest --no-cov
 ## The integration tests, and why they are off by default
 
 `tests/integration/` is the only part of the suite that needs something
-this repository does not ship: a `bitcoind` to talk to. Each test skips
-itself without the switch that asks for it, so an ordinary run reports
-them skipped and says which switch was off:
+this repository does not ship: a `bitcoind` to talk to, or a qa-assets
+checkout. Each test skips itself without the switch that asks for it, so
+an ordinary run reports them skipped and says which switch was off:
 
 ```shell
 BTCLIB_INTEGRATION=1 uv run pytest tests/integration
@@ -96,6 +96,19 @@ every commit rather than a defect.
 They run unattended in `integration-bitcoind.yml`, which fails the job if
 its tests skipped rather than ran, and downloads a pinned Core release
 weekly, on every pull request and on every push to `main`.
+
+`tests/integration/qa_assets_test.py` needs the second: it replays the
+fuzz corpora of Bitcoin Core (`bitcoin-core/qa-assets`) and rust-bitcoin
+(`rust-bitcoin/qa-assets`) through the btclib parsers that read the same
+bytes, and fails on an exception that is not `BTClibException`. It skips
+a source without a checkout; the module docstring names the variables:
+
+```shell
+BTCLIB_QA_ASSETS=/path/to/qa-assets uv run pytest tests/integration/qa_assets_test.py
+```
+
+`qa-assets.yml` runs it weekly. Its table of directories is the
+module's `TARGETS`.
 
 ## The differential against libbitcoinkernel
 

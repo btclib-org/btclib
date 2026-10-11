@@ -4,12 +4,12 @@
 
 """What the integration tests need, and what makes them skip.
 
-Two switches, and both have to be on. `BTCLIB_INTEGRATION` in the
-environment is the opt-in: these tests start programs, listen on a
-socket and write to disk, which is not what `uv run pytest` should do to
-somebody who asked for the unit suite. The second is the program itself
--- `bitcoind` here -- because an opt-in that fails for a missing binary
-would report a defect that is not one.
+The tests that talk to a node need two switches, and both have to be on.
+`BTCLIB_INTEGRATION` in the environment is the opt-in: these tests start
+programs, listen on a socket and write to disk, which is not what
+`uv run pytest` should do to somebody who asked for the unit suite. The
+second is the program itself -- `bitcoind` here -- because an opt-in
+that fails for a missing binary would report a defect that is not one.
 
 So the ordinary run reports them skipped and says which switch was off,
 and the whole flow is one command:

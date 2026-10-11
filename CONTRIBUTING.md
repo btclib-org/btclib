@@ -609,6 +609,7 @@ a force.
 | `claude-review` | pull request, and `@claude` in a comment | — |
 | `codeql` | pull request, push to main, and weekly | 2 languages |
 | `fuzz` | weekly, and by hand before a release | — |
+| `qa-assets` | weekly | Core's and rust-bitcoin's fuzz corpora |
 | `scorecard` | weekly, push to main | — |
 | `os-ubuntu` | weekly, a release | ubuntu images and interpreters |
 | `os-macos` | weekly, a release | macOS images and interpreters |

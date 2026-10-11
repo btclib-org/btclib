@@ -166,3 +166,7 @@ jobs:
       # a file here could write
       integration-env-var: BTCLIB_INTEGRATION
       bitcoind-path-env-var: BTCLIB_BITCOIND
+      # tests/integration/qa_assets_test.py needs a qa-assets checkout,
+      # which this job has not got: qa-assets.yml runs it, and its skip
+      # reason starts with this
+      skip-reason-prefix: "qa-assets:"
