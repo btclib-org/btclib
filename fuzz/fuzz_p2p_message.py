@@ -14,20 +14,21 @@ only after a signature checks out -- and it is why this is the target
 rather than a deserializer a caller only reaches once a `version`
 message has already been accepted.
 
-A crash here on hostile bytes is a defect in `parse` itself, never in
-this harness: `data` is unconstrained bytes handed straight to `parse`,
-with nothing decoding, validating or otherwise standing between the
+A crash here on hostile bytes is a defect in `parse` or `serialize` itself,
+never in this harness: `data` is unconstrained bytes handed straight to
+`parse`, with nothing decoding, validating or otherwise standing between the
 fuzzer's own choice of octets and the parser being fuzzed. `parse`'s own
-contract is to raise `BTClibException` on every malformed input it can
-be given -- `BTClibValueError` for octets no valid message carries,
+contract is to raise `BTClibException` on every malformed input it can be
+given -- `BTClibValueError` for octets no valid message carries,
 `IncompleteMessageError` for one the peer has not finished sending -- so
 that family is caught below as the expected outcome. An `IndexError`, a
-`RecursionError` or an uncaught assertion is not, and propagates to
-atheris as the finding it is.
+`RecursionError` or an uncaught assertion is not, and propagates to atheris
+as the finding it is.
 
 The format has one encoding, so what `parse` accepts must `serialize` back
-to `data` itself. An input that does not was misread by `parse`, and the
-`AssertionError` reaches atheris as the finding it is.
+to `data` itself. An input that does not was misread by `parse` or
+miswritten by `serialize`, and the `AssertionError` reaches atheris as the
+finding it is.
 """
 
 from __future__ import annotations

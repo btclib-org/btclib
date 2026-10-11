@@ -17,13 +17,13 @@ The composite parsers reach this on every field they read, which is why
 it is fuzzed on its own as well: they filter what gets here, and a
 harness of its own does not.
 
-A crash here on hostile bytes is a defect in `parse` itself, never in
-this harness: `data` is unconstrained bytes handed straight to `parse`,
-with nothing decoding or validating in between. `BTClibException` is what
-`parse` answers a truncated, non-canonical or over-large var_int with, so
-that family is caught below as the expected outcome. An `IndexError`, a
-`RecursionError` or an uncaught assertion is not, and propagates to
-atheris as the finding it is.
+A crash here on hostile bytes is a defect in `parse` or `serialize` itself,
+never in this harness: `data` is unconstrained bytes handed straight to
+`parse`, with nothing decoding or validating in between. `BTClibException`
+is what `parse` answers a truncated, non-canonical or over-large var_int
+with, so that family is caught below as the expected outcome. An
+`IndexError`, a `RecursionError` or an uncaught assertion is not, and
+propagates to atheris as the finding it is.
 
 `max_size` is left at its default: it is the caller's argument and not
 the stream's, so a harness varying it would be fuzzing this library's
@@ -36,7 +36,8 @@ The format has one encoding, a number written wider than it needs being
 refused. So the octets `parse` consumes must be what `serialize` writes for
 its answer. `data` may run on past them, because `parse` reads a stream and
 leaves the rest to its caller. An input that does not round-trip was misread
-by `parse`, and the `AssertionError` reaches atheris as the finding it is.
+by `parse` or miswritten by `serialize`, and the `AssertionError` reaches
+atheris as the finding it is.
 """
 
 from __future__ import annotations

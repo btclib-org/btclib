@@ -10,13 +10,13 @@ first place a declared length is compared against what a stream actually
 holds. `fuzz/fuzz_var_int.py` fuzzes the length on its own; this is the
 read that follows it.
 
-A crash here on hostile bytes is a defect in `parse` itself, never in
-this harness: `data` is unconstrained bytes handed straight to `parse`,
-with nothing decoding or validating in between. `BTClibException` is what
-`parse` answers a length no stream can satisfy with, so that family is
-caught below as the expected outcome. An `IndexError`, a `RecursionError`
-or an uncaught assertion is not, and propagates to atheris as the finding
-it is.
+A crash here on hostile bytes is a defect in `parse` or `serialize` itself,
+never in this harness: `data` is unconstrained bytes handed straight to
+`parse`, with nothing decoding or validating in between. `BTClibException`
+is what `parse` answers a length no stream can satisfy with, so that family
+is caught below as the expected outcome. An `IndexError`, a `RecursionError`
+or an uncaught assertion is not, and propagates to atheris as the finding it
+is.
 
 `forbid_zero_size` is left at its default, for the reason
 `fuzz/fuzz_var_int.py` leaves `max_size` at its own: it is what the
@@ -28,8 +28,9 @@ segwit transaction, each written by `var_bytes.serialize`.
 The format has one encoding, its length being a canonical var_int. So the
 octets `parse` consumes must be what `serialize` writes for its answer.
 `data` may run on past them, because `parse` reads a stream and leaves the
-rest to its caller. An input that does not round-trip was misread by
-`parse`, and the `AssertionError` reaches atheris as the finding it is.
+rest to its caller. An input that does not round-trip was misread by `parse`
+or miswritten by `serialize`, and the `AssertionError` reaches atheris as
+the finding it is.
 """
 
 from __future__ import annotations

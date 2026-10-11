@@ -19,8 +19,9 @@ both against the same bytes rather than picking one, the same
 `data -> object` shape either way.
 
 The format has one encoding, so what `parse` accepts must `serialize` back
-to `data` itself. An input that does not was misread by `parse`, and the
-`AssertionError` reaches atheris as the finding it is.
+to `data` itself. An input that does not was misread by `parse` or
+miswritten by `serialize`, and the `AssertionError` reaches atheris as the
+finding it is.
 """
 
 from __future__ import annotations

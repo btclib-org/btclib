@@ -20,9 +20,9 @@ refusal for a `contextlib.suppress(BTClibException)` to cover, and every
 exception `parse` raises is the finding. `fuzz/fuzz_tapscript.py`, whose
 parser does refuse, catches that family the way the p2p harnesses do.
 
-A crash here on hostile bytes is a defect in `parse` itself, never in
-this harness: `data` is unconstrained bytes handed straight to `parse`,
-with nothing decoding or validating in between.
+A crash here on hostile bytes is a defect in `parse` or `serialize` itself,
+never in this harness: `data` is unconstrained bytes handed straight to
+`parse`, with nothing decoding or validating in between.
 
 The seed corpus is a script_pub_key of the vendored segwit transaction,
 and an `OP_RETURN` whose payload is written with an `OP_PUSHDATA1` --
