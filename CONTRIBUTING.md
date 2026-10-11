@@ -639,6 +639,7 @@ a force.
 | `deps-latest` | weekly | platforms sampled, deps upgraded |
 | `deps-oldest` | weekly | the floor interpreter, deps at their floors |
 | `links`, `mutation` | weekly | — |
+| `kernel-differential` | by hand, before a release | the kernel as oracle |
 | `vendored-vectors` | weekly | the pin ledgers |
 | `pypi-install` | weekly, a release | what PyPI serves |
 | `sdist-rebuild` | weekly | the latest release's sdist, rebuilt |

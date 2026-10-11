@@ -854,7 +854,14 @@ source = ["btclib", "tests"]
 # every commit, which is the ratchet reporting the switch rather than a
 # defect. What covers them is the opt-in run, and the module docstrings
 # carry the command
-omit = ["*/site-packages/*", "tests/integration/*"]
+omit = [
+    "*/site-packages/*",
+    "tests/integration/*",
+    # skips itself where py-bitcoinkernel is not importable, so its body
+    # is uncovered at every commit for the reason above; the opt-in run
+    # is kernel-differential.yml
+    "tests/script_engine/kernel_differential_test.py",
+]
 # statement coverage alone calls a half-tested `if` fully covered: the
 # line ran, one of its two ways out never did, and the ways out that go
 # unexercised here are exactly the ones the library exists to get right
