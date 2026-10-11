@@ -365,6 +365,8 @@ source-exclude = [
     # unpacked sdist
     "/tests/fuzz_corpus_test.py",
     "/tests/fuzz_harness_test.py",
+    # the same reasoning: this one loads fuzz/btcd_oracle.py
+    "/tests/btcd_oracle_test.py",
     # a third shape of the same reasoning: this one reaches outside the
     # sdist through `.git` rather than through a tracked directory, and
     # what it reads (`git show <tag>:...`, a release's own tag) has no

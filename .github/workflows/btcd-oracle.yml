@@ -1,0 +1,119 @@
+---
+name: btcd oracle
+
+# Reads every input of the fuzz corpora with btcd's `wire` package and with
+# btclib, and lists each one they read differently: one accepts and the
+# other refuses, or both accept and write different octets back.
+# `fuzz/btcd_oracle.py` is the comparison and `fuzz/btcd_decode` the btcd
+# side, pinned to a release in its own go.mod.
+#
+# The inputs are `fuzz/corpus`, the seeds, and the `cifuzz-corpus-*`
+# artifacts of the newest successful `fuzz` run, which are what the
+# fuzzers grew from them. Artifacts expire, so a repository whose last
+# `fuzz` run is old compares the seeds alone and says so.
+#
+# A sentinel and not a gate: the answer depends on btcd's releases and on
+# what the fuzzers found this week, neither of which a pull request
+# changes. A red run is a list of inputs to triage against Bitcoin Core,
+# not a failure of the tree, so nothing requires this check. Differences
+# already triaged are rules in `fuzz/btcd_oracle.py`, counted and not
+# listed, so a run is red only for a disagreement no rule explains. The
+# report is in the run's summary.
+#
+# The `pull_request` trigger is filtered to this file, the Go module and
+# the script, so that a Dependabot bump of btcd, or an edit of either
+# program, is built and run before it lands. Section 10 of the
+# organization standard keeps such a trigger where a run adds seconds to
+# the wait on a pull request's checks. This run is expected to end before
+# `test`'s, whose median on a pull request was 195 seconds on 2026-10-11;
+# that is confirmed on the first pull request's own run and not before.
+#
+# The schedule runs after `fuzz` (Tuesday 04, about 90 minutes), so that the
+# artifacts it reads are that week's.
+
+on:
+  schedule:
+    # section 10's calendar in btclib-org/.github, and not this file's to
+    # restate. Only the default branch schedules workflows, so on any
+    # other branch this is reachable through the dispatch below
+    - cron: "4 1 * * 3"
+  workflow_dispatch:
+  pull_request:
+    # ready_for_review and closed for the reason vendored-vectors.yml's
+    # own trigger gives
+    types: [opened, reopened, synchronize, ready_for_review, closed]
+    paths:
+      - .github/workflows/btcd-oracle.yml
+      - fuzz/btcd_decode/**
+      - fuzz/btcd_oracle.py
+
+permissions:
+  contents: read
+
+# github.event.pull_request.number, not github.head_ref, for the reason
+# vendored-vectors.yml's own concurrency block gives
+concurrency:
+  group: btcd-oracle-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !(github.event.action == 'closed' && github.event.pull_request.merged) }}
+
+jobs:
+  compare:
+    name: Compare btclib with btcd over the fuzz corpora
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
+    runs-on: ubuntu-latest
+    # far above what the build and the comparison take: what this bounds
+    # is a hung job
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read # gh run list, gh run download
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+      # the `go` line of go.mod names the toolchain, so the Go release is
+      # pinned in the one file that also pins btcd's
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: fuzz/btcd_decode/go.mod
+          cache-dependency-path: fuzz/btcd_decode/go.sum
+      # the artifacts are the newest successful fuzz run's. None is not an
+      # error: the seeds are compared either way
+      - name: Download the corpora the last fuzz run grew
+        run: |
+          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" \
+            --workflow fuzz.yml --branch main --status success --limit 1 \
+            --json databaseId --jq '.[0].databaseId // empty')
+          mkdir -p "$RUNNER_TEMP/corpora"
+          if [ -z "$run_id" ]; then
+            echo "::warning::no successful fuzz run; comparing the seeds alone"
+            exit 0
+          fi
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'cifuzz-corpus-*' --dir "$RUNNER_TEMP/corpora" ||
+            echo "::warning::fuzz run $run_id left no corpus artifact"
+      - name: Sync the environment
+        run: uv sync --locked --no-default-groups
+      # the script exits 1 when it lists an input no rule explains, which
+      # turns the job red; the report goes to the summary as well, where a
+      # reader opens it first
+      - name: Compare
+        run: |
+          set -o pipefail
+          status=0
+          uv run --locked --no-default-groups python fuzz/btcd_oracle.py \
+            fuzz/corpus "$RUNNER_TEMP/corpora" | tee report.txt || status=$?
+          {
+            echo '```text'
+            cat report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"

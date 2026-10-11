@@ -36,7 +36,7 @@
 # been public a week -- it means the offer comes at most a week after
 # that, rather than at most a month. No ecosystem here tracks anything
 # security-critical, so nothing here wants to be faster than that. The
-# docker entry at the bottom declares it too, and says why it holds
+# docker entry below declares it too, and says why it holds
 # nothing back there
 version: 2
 updates:
@@ -95,6 +95,21 @@ updates:
       day: thursday
     groups:
       base-image:
+        patterns: ["*"]
+    cooldown:
+      default-days: 7
+
+  # fuzz/btcd_decode/go.mod pins the btcd wire release that
+  # btcd-oracle.yml compares btclib with. A pull request here is a newer
+  # release to run the weekly comparison against; the workflow is a
+  # sentinel, so nothing is gated on it.
+  - package-ecosystem: gomod
+    directory: /fuzz/btcd_decode
+    schedule:
+      interval: weekly
+      day: thursday
+    groups:
+      btcd:
         patterns: ["*"]
     cooldown:
       default-days: 7
