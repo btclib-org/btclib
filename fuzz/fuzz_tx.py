@@ -24,9 +24,10 @@ caught below as the expected outcome. An `IndexError`, a `RecursionError`
 or an uncaught assertion is not, and propagates to atheris as the finding
 it is.
 
-The seed corpus is the vendored segwit transaction `tests/tx/_data` holds,
-written in both of the encodings BIP144's marker distinguishes: witness
-and stripped, one object and two serializations.
+The seeds are the segwit transaction `tests/tx/_data/<txid>.bin`, written
+in both of the encodings BIP144's marker distinguishes (witness and
+stripped, one object and two serializations), and rust-bitcoin's
+huge-witness transaction, `tests/tx/_data/huge_witness.bin`.
 """
 
 from __future__ import annotations

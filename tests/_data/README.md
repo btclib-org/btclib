@@ -733,18 +733,55 @@ it is used, pinned to `fbbe9245` (2023-04-27), the tip of its path:
   btclib holds them as the hex the header field carries rather than the
   int upstream reads them as.
 
+### `tests/tx/_data/huge_witness.bin`
+
+```text
+repo     rust-bitcoin/rust-bitcoin
+path     bitcoin/tests/data/huge_witness.hex
+commit   d6ca7e4b9f02d076d0f968ae5ed4389627ecca27  2022-11-01
+blob     34aec3a8febe78db4292b50373f42fe815d87610
+ours     ea59fbca3937c4dfcdf9476330ce0938decf5c19
+licence  CC0-1.0
+pulled   2026-10-11
+behind   0 revisions; that commit is the only one to touch the path
+size     500,142 bytes, vsize 125,109, 1 input, 1 output
+txid     73be398c4bdc43709db7398106609eea2a7841aaf3a4fa2000dc18184faa2a7e
+wtxid    48b0f5ea87a2a7acbd7e7d9a44821f0cbeaeda73443c3c867ccc081fdebbcc67
+```
+
+Verdict: **transcribed**, mechanically. Upstream keeps the transaction as
+a hex string; our file is the bytes it spells, decoded, which is why `ours`
+differs from `blob`. Decoding is the whole difference:
+
+```shell
+gh api "repos/rust-bitcoin/rust-bitcoin/git/blobs/<the blob above>" \
+    -H 'Accept: application/vnd.github.raw' | xxd -r -p | git hash-object --stdin
+```
+
+The bytes, not the hex, so that the file stays under `check-added-large-files`
+and is the same blob as the seed `fuzz/corpus/fuzz_tx/huge_witness.bin`.
+The file keeps upstream's stem. The txid and the wtxid are what Bitcoin Core's
+`decoderawtransaction` answers (`txid` and `hash`), and
+`tests/tx/huge_witness_test.py` holds `Tx.parse` to them.
+
+Nearly all of the transaction is witness: a stack of empty items with a
+pair of exceptions. It broke past versions of rust-bitcoin and LND, as
+[an electrs issue](https://github.com/romanz/electrs/issues/783) records.
+The licence is rust-bitcoin's, whose `LICENSE` is the CC0 text.
+
 ## Chain data, not a repository
 
 These are consensus bytes. There is no upstream repository to pin and no
 commit to name: the authority is the chain, and any node or block
 explorer settles a dispute. The identifier is the block hash or the txid,
 which is what `Block.parse` and `Tx.parse` recompute from the bytes on
-every run — so the first two entries verify themselves, and are the only
-vendored vectors that do. The third holds parts of transactions rather
-than whole ones, and says what that costs. The fourth is chain data
-inside an envelope: bodies a node and an explorer send, carrying bytes
-the first entry already holds, and it is the one entry here that needs no
-node to re-derive.
+every run — so the first two entries verify themselves. So does the
+rust-bitcoin transaction above, whose bytes come from upstream and not from
+a node; no other vendored vector does. The third holds parts of
+transactions rather than whole ones, and says what that costs. The
+fourth is chain data inside an envelope: bodies a node and an explorer
+send, carrying bytes the first entry already holds, and it is the one
+entry here that needs no node to re-derive.
 
 ### `tests/block/_data/block_*.bin`
 
@@ -772,7 +809,7 @@ sees it, which no RPC hands over. It is derivable —
 `Block.parse(complete).serialize(include_witness=False)` reproduces it
 byte for byte, checked — and that is how to regenerate it.
 
-### `tests/tx/_data/*.bin` — segwit transactions
+### `tests/tx/_data/` — a segwit transaction
 
 ```text
 txid   d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970
@@ -781,10 +818,10 @@ size   4,740 bytes, vsize 1,471, 8 inputs, 1 output
 pulled 2020-12-02
 ```
 
-Verdict: **recorded**. The file is named after the txid, and `Tx.parse`
-recomputes it, so a corrupted copy announces itself. `bitcoin-cli
-getrawtransaction <txid>` returns these bytes, given a node with the
-transaction index.
+Verdict: **recorded**. The file is `<txid>.bin`, named after the txid
+above, and `Tx.parse` recomputes it, so a corrupted copy announces itself.
+`bitcoin-cli getrawtransaction <txid>` returns these bytes, given a node
+with the transaction index.
 
 ### `tests/script/_data/unspendable_script_pub_keys.json`
 
@@ -935,9 +972,10 @@ Not checked byte for byte against one:
 - transcribed, every value matched either in the pinned text or, for a
   source file, by the check the entry itself states:
   `bip67_test_vectors.json`, `chacha20_vectors.json`,
-  `muhash_vectors.json`, `secp256k1_symbols.txt`.
-- chain data, identified by block hash or txid: the blocks and
-  transactions under `tests/block/_data/` and `tests/tx/_data/`, and
+  `muhash_vectors.json`, `secp256k1_symbols.txt`,
+  `huge_witness.bin`.
+- chain data, identified by block hash or txid: the blocks under
+  `tests/block/_data/`, the segwit transaction under `tests/tx/_data/`, and
   `unspendable_script_pub_keys.json`, which is scripts rather than whole
   transactions and so is the one that cannot recompute its own
   identifier.

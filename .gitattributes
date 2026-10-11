@@ -22,3 +22,4 @@ tests/script/_data/taproot_test_vector.json -text
 tests/script_engine/_data/script_tests.json -text
 tests/script_engine/_data/tx_invalid.json -text
 tests/script_engine/_data/tx_valid.json -text
+tests/tx/_data/huge_witness.bin -text
