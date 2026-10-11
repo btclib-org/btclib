@@ -11,11 +11,11 @@ name: kernel-differential
 # is a disagreement to triage against Core's interpreter, not a failing
 # merge.
 #
-# By hand only. A run takes minutes (the install, then the search at the
+# By hand only, before a release and on a branch that changes
+# src/btclib/script/: the maintainer decided against a schedule
+# (issue #2588). A run takes minutes (the install, then the search at the
 # `thorough` profile), and section 10 of the organization standard gives
-# a path-filtered pull_request trigger only to a run of seconds; a
-# schedule needs a row in that standard's calendar first. Dispatch it
-# before a release, and on a branch that changes src/btclib/script/.
+# a path-filtered pull_request trigger only to a run of seconds.
 #
 # py-bitcoinkernel is an alpha and not a dependency of btclib. `--with`
 # overlays it on the locked environment for this run, so uv.lock and the
