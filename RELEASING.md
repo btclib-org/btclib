@@ -427,32 +427,29 @@ to `deps-latest`'s own result.
    screenshot — both are steps nothing else enforces, and a pull request
    that never mentions them reads exactly like one that skipped them.
 
-   And land it the way every other pull request here lands: the squash
-   button, pressed by auto-merge once the review and the checks are in.
+   And land it as CONTRIBUTING.md's *Landing it* says: squashed, by
+   GitHub.
    There is no other way in: `main` takes a pull request and nothing
    else. That the commit under the tag carries GitHub's web-flow
    signature rather than the maintainer's costs nothing: the branch rule
    asks for a valid signature and not for a particular signer.
 
-   The release pull request waits for an approving review from somebody
-   other than its author, like any other. Where the base branch policy
-   refuses `gh pr merge <n> --squash` for want of it — `the base branch
-   policy prohibits the merge` — approve first.
-
-   `--admin` lifts that refusal through the maintainer's bypass, which
-   the maintainer uses only in an emergency, when that approval cannot
-   come. The bypass needs `enforce_admins` `false` together
-   with holding `admin`, the pair REPOSITORY.md's "Branch protection"
-   names. Name the release commit's title and body explicitly when using
-   it, rather than leave them to the two `squash_merge_commit_*`
-   repository defaults recorded in REPOSITORY.md's *Merge methods*:
+   Where nobody else approves, the maintainer lands it through the
+   bypass. `GOVERNANCE.md`'s *How a decision is made*, in
+   btclib-org/.github, says when. The bypass needs `enforce_admins`
+   `false` together with holding `admin`, the pair REPOSITORY.md's
+   "Branch protection" names. Name the release commit's title and body
+   explicitly when using it, rather than leave them to the two
+   `squash_merge_commit_*` repository defaults recorded in
+   REPOSITORY.md's *Merge methods*:
    `gh pr merge <n> --squash --admin --match-head-commit <head>`, with
    `--body-file <path> --subject <title>` added.
 
    `gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f
-   merge_method=squash` is the fallback for when `--admin` is
-   unavailable, and needs `commit_title` and `commit_message` passed the
-   same way for the same reason. It is what landed btclib-secp256k1's
+   merge_method=squash -f sha=<head>` is the fallback for when
+   `--admin` is unavailable, `sha` being its `--match-head-commit`, and
+   needs `commit_title` and `commit_message` passed the same way for the
+   same reason. It is what landed btclib-secp256k1's
    0.8.0.4 clean — but only because that branch carried a single commit,
    so the repository default's concatenation of every commit and that
    commit's own message were the same string; a multi-commit release
