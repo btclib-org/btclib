@@ -23,11 +23,15 @@ propagates to atheris as the finding it is.
 The seed corpus is the witness of the vendored segwit transaction's own
 input, and the empty stack, which is what an input with no witness
 serializes as.
+
+The format has one encoding, so what `parse` accepts must `serialize` back
+to `data` itself. An input that does not is one `parse` read as something
+other than what it was given, and the `AssertionError` reaches atheris as
+the finding it is.
 """
 
 from __future__ import annotations
 
-import contextlib
 import sys
 
 import atheris
@@ -48,8 +52,11 @@ def fuzz_target(data: bytes) -> None:
     input; any other exception propagates, which is how atheris tells a
     defect in `parse` from the domain of input it already rejects.
     """
-    with contextlib.suppress(BTClibException):
-        Witness.parse(data)
+    try:
+        witness = Witness.parse(data)
+    except BTClibException:
+        return
+    assert witness.serialize() == data
 
 
 def main() -> None:

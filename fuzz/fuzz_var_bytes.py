@@ -24,11 +24,18 @@ caller knows about the field, not what the octets say.
 
 The seed corpus is the empty payload and a script_pub_key of the vendored
 segwit transaction, each written by `var_bytes.serialize`.
+
+The format has one encoding, its length being a canonical var_int. So the
+octets `parse` consumes must be what `serialize` writes for its answer.
+`data` may run on past them, because `parse` reads a stream and leaves the
+rest to its caller. An input that does not round-trip is one `parse` read
+as something other than what it was given, and the `AssertionError`
+reaches atheris as the finding it is.
 """
 
 from __future__ import annotations
 
-import contextlib
+import io
 import sys
 
 import atheris
@@ -49,8 +56,12 @@ def fuzz_target(data: bytes) -> None:
     input; any other exception propagates, which is how atheris tells a
     defect in `parse` from the domain of input it already rejects.
     """
-    with contextlib.suppress(BTClibException):
-        var_bytes.parse(data)
+    stream = io.BytesIO(data)
+    try:
+        octets = var_bytes.parse(stream)
+    except BTClibException:
+        return
+    assert var_bytes.serialize(octets) == data[: stream.tell()]
 
 
 def main() -> None:

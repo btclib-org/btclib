@@ -28,11 +28,18 @@ is the walk that reads all of them.
 The seed corpus is a single-key leaf script -- an x-only public key
 pushed and checked -- and a script whose `OP_SUCCESS80` is followed by
 the raw octets BIP342 does not require to be a script at all.
+
+**A script has several encodings of one value, so this asserts less.** A
+push is accepted in every width that can hold it and written back in the
+shortest, as BIP62 asks, so `serialize(parse(data))` need not be `data`.
+What is asserted instead is that writing settles it: the octets `serialize`
+writes parse and are written back unchanged. The comparison is on octets
+and not on commands, because an empty push, `OP_PUSHDATA1 0x00`, parses as
+the command `""` and is written as `OP_0`, which parses as `"OP_0"`.
 """
 
 from __future__ import annotations
 
-import contextlib
 import sys
 
 import atheris
@@ -53,8 +60,12 @@ def fuzz_target(data: bytes) -> None:
     input; any other exception propagates, which is how atheris tells a
     defect in `parse` from the domain of input it already rejects.
     """
-    with contextlib.suppress(BTClibException):
-        taproot.parse(data)
+    try:
+        commands = taproot.parse(data)
+    except BTClibException:
+        return
+    written = taproot.serialize(commands)
+    assert taproot.serialize(taproot.parse(written)) == written
 
 
 def main() -> None:

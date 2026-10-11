@@ -16,11 +16,15 @@ so this harness runs both `parse` methods against the same bytes.
 `NetworkAddressV2.parse` is not fuzzed on its own: it is not a `Payload`,
 only a component `AddrV2.parse` already calls on every entry of the
 octets this harness feeds it.
+
+The format has one encoding, so what `parse` accepts must `serialize` back
+to `data` itself. An input that does not is one `parse` read as something
+other than what it was given, and the `AssertionError` reaches atheris as
+the finding it is.
 """
 
 from __future__ import annotations
 
-import contextlib
 import sys
 
 import atheris
@@ -45,10 +49,12 @@ def fuzz_target(data: bytes) -> None:
     atheris tells a defect in `parse` from the domain of input it
     already rejects.
     """
-    with contextlib.suppress(BTClibException):
-        AddrV2.parse(data)
-    with contextlib.suppress(BTClibException):
-        SendAddrV2.parse(data)
+    for cls in (AddrV2, SendAddrV2):
+        try:
+            parsed = cls.parse(data)
+        except BTClibException:
+            continue
+        assert parsed.serialize() == data
 
 
 def main() -> None:

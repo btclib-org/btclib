@@ -37,9 +37,13 @@ the corpus half: every seed is tried against every one of its harness's
 declared entry points, and passes if at least one accepts it without
 raising `BTClibException`. Where the accepting object serializes --
 `.serialize()`, or `.b64encode()` behind a `.b64decode()` entry point --
-the reserialization has to reproduce the seed's own bytes; where it does
-not (`var_int.parse` returns a plain `int`, `script.parse` a plain
-`list`), the seed is accepted parse-only and nothing else is asked of it.
+the reserialization has to reproduce the seed's own bytes. A parser that
+answers with a plain value has its module's `serialize` named in
+`_WRITERS` below: `var_int.parse` and `var_bytes.parse` must reproduce
+the bytes, and `script.parse` and `taproot.parse` the weaker form their
+harnesses assert, since a script has several encodings of one value. An
+Electrum answer is JSON, which has no serialization to compare with, so
+that seed is accepted parse-only and nothing else is asked of it.
 
 **Trying every declared entry point rather than picking one by filename
 convention buys the manifest's simplicity at a stated price: where a
@@ -79,13 +83,16 @@ import ast
 import contextlib
 import copy
 import importlib
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
 from typing_extensions import override
 
+from btclib import var_bytes, var_int
 from btclib.exceptions import BTClibException
+from btclib.script import script, taproot
 
 _FUZZ = Path(__file__).parent.parent / "fuzz"
 _CORPUS = _FUZZ / "corpus"
@@ -265,8 +272,37 @@ def _reserialize(obj: Any) -> bytes:
         return obj.serialize(include_witness=True)  # type: ignore[no-any-return]
 
 
+# The entry points whose parse answers with a plain value, so there is no
+# `.serialize` to call: the module's own function writes it back. The flag
+# is True where the format has several encodings of one value, and the
+# harness then asserts that writing settles it rather than that it
+# reproduces the input.
+_WRITERS: dict[str, tuple[Callable[[Any], bytes], bool]] = {
+    "btclib.var_int:parse": (var_int.serialize, False),
+    "btclib.var_bytes:parse": (var_bytes.serialize, False),
+    "btclib.script.script:parse": (script.serialize, True),
+    "btclib.script.taproot:parse": (taproot.serialize, True),
+}
+
+
+def _written_settles(spec: str, obj: Any) -> bool:
+    """Return whether the octets written for `obj` write back unchanged."""
+    write, _ = _WRITERS[spec]
+    reparse = _resolve(spec)
+    if obj[-1:] == [script.ERROR_COMMAND]:
+        # a place in the bytes and not an instruction, which serialize refuses
+        obj = obj[:-1]
+    written = write(obj)
+    return write(reparse(written)) == written
+
+
 def _round_trip(spec: str, obj: Any, data: bytes) -> bool | None:
     """Return whether `obj` reserializes to `data`, or None if unchecked."""
+    if spec in _WRITERS:
+        write, several_encodings = _WRITERS[spec]
+        if several_encodings:
+            return _written_settles(spec, obj)
+        return write(obj) == data
     attr = spec.rsplit(".", 1)[-1]
     if attr == "b64decode":
         if not hasattr(obj, "b64encode"):
@@ -414,6 +450,44 @@ def test_accepted_seed_round_trips(harness: str, seed: Path) -> None:
         if accepted and round_trip is False
     ]
     assert not mismatches, f"{seed} does not round-trip under: {mismatches}"
+
+
+@pytest.mark.parametrize(
+    "spec, data",
+    [
+        ("btclib.var_int:parse", b"\xfd\xfc\x00"),
+        ("btclib.var_bytes:parse", b"\xfd\x01\x00\x00"),
+    ],
+)
+def test_a_non_canonical_length_is_refused_not_reserialized(
+    spec: str, data: bytes
+) -> None:
+    """The strong form holds for a var_int because the parser refuses these."""
+    with pytest.raises(BTClibException):
+        _resolve(spec)(data)
+
+
+def test_a_script_has_several_encodings_of_one_value() -> None:
+    """A push over a wider operator is why a script is held to the weak form."""
+    data = bytes.fromhex("4c0141")
+    commands = script.parse(data)
+    assert script.serialize(commands) != data
+    assert _round_trip("btclib.script.script:parse", commands, data) is True
+    assert _round_trip("btclib.script.taproot:parse", taproot.parse(data), data)
+
+
+def test_the_round_trip_sees_a_difference() -> None:
+    """The control: a writer that disagrees with the input is not a pass."""
+    assert _round_trip("btclib.var_int:parse", 1, b"\x02") is False
+    assert _round_trip("btclib.var_bytes:parse", b"", b"\x01\x00") is False
+
+
+def test_a_script_ending_in_the_error_command_is_checked_without_it() -> None:
+    """A push running past the end is decoded, and its marker not written."""
+    data = bytes.fromhex("514c")
+    commands = script.parse(data)
+    assert commands[-1] == script.ERROR_COMMAND
+    assert _round_trip("btclib.script.script:parse", commands, data) is True
 
 
 # ---- unit tests of the pure ast helpers, for the branches no harness trips

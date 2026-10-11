@@ -12,11 +12,15 @@ same reasoning puts `Reject.parse` here, reached directly on
 `message.payload` once a caller has read `message.command`.
 
 One `Payload` subclass and therefore one entry point, `Reject.parse`.
+
+The format has one encoding, so what `parse` accepts must `serialize` back
+to `data` itself. An input that does not is one `parse` read as something
+other than what it was given, and the `AssertionError` reaches atheris as
+the finding it is.
 """
 
 from __future__ import annotations
 
-import contextlib
 import sys
 
 import atheris
@@ -37,8 +41,11 @@ def fuzz_target(data: bytes) -> None:
     input; any other exception propagates, which is how atheris tells a
     defect in `parse` from the domain of input it already rejects.
     """
-    with contextlib.suppress(BTClibException):
-        Reject.parse(data)
+    try:
+        reject = Reject.parse(data)
+    except BTClibException:
+        return
+    assert reject.serialize() == data
 
 
 def main() -> None:

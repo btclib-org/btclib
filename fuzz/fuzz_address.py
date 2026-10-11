@@ -17,11 +17,15 @@ the address count against `MAX_ADDR_TO_SEND` before building anything --
 argued. `NetworkAddress` and `TimestampedNetworkAddress` are not fuzzed
 on their own: neither is a `Payload`, both being components `Addr.parse`
 already calls on every entry of the octets this harness feeds it.
+
+The format has one encoding, so what `parse` accepts must `serialize` back
+to `data` itself. An input that does not is one `parse` read as something
+other than what it was given, and the `AssertionError` reaches atheris as
+the finding it is.
 """
 
 from __future__ import annotations
 
-import contextlib
 import sys
 
 import atheris
@@ -42,8 +46,11 @@ def fuzz_target(data: bytes) -> None:
     input; any other exception propagates, which is how atheris tells a
     defect in `parse` from the domain of input it already rejects.
     """
-    with contextlib.suppress(BTClibException):
-        Addr.parse(data)
+    try:
+        addr = Addr.parse(data)
+    except BTClibException:
+        return
+    assert addr.serialize() == data
 
 
 def main() -> None:

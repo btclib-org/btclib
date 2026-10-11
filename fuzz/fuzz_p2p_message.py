@@ -24,11 +24,15 @@ be given -- `BTClibValueError` for octets no valid message carries,
 that family is caught below as the expected outcome. An `IndexError`, a
 `RecursionError` or an uncaught assertion is not, and propagates to
 atheris as the finding it is.
+
+The format has one encoding, so what `parse` accepts must `serialize` back
+to `data` itself. An input that does not is one `parse` read as something
+other than what it was given, and the `AssertionError` reaches atheris as
+the finding it is.
 """
 
 from __future__ import annotations
 
-import contextlib
 import sys
 
 import atheris
@@ -49,8 +53,11 @@ def fuzz_target(data: bytes) -> None:
     input; any other exception propagates, which is how atheris tells a
     defect in `parse` from the domain of input it already rejects.
     """
-    with contextlib.suppress(BTClibException):
-        Message.parse(data)
+    try:
+        message = Message.parse(data)
+    except BTClibException:
+        return
+    assert message.serialize() == data
 
 
 def main() -> None:

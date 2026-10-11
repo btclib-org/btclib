@@ -31,11 +31,18 @@ callers rather than this parser.
 
 The seed corpus is one canonical encoding at each width the default
 `max_size` admits, written by `var_int.serialize`.
+
+The format has one encoding, a number written wider than it needs being
+refused. So the octets `parse` consumes must be what `serialize` writes for
+its answer. `data` may run on past them, because `parse` reads a stream and
+leaves the rest to its caller. An input that does not round-trip is one
+`parse` read as something other than what it was given, and the
+`AssertionError` reaches atheris as the finding it is.
 """
 
 from __future__ import annotations
 
-import contextlib
+import io
 import sys
 
 import atheris
@@ -56,8 +63,12 @@ def fuzz_target(data: bytes) -> None:
     input; any other exception propagates, which is how atheris tells a
     defect in `parse` from the domain of input it already rejects.
     """
-    with contextlib.suppress(BTClibException):
-        var_int.parse(data)
+    stream = io.BytesIO(data)
+    try:
+        value = var_int.parse(stream)
+    except BTClibException:
+        return
+    assert var_int.serialize(value) == data[: stream.tell()]
 
 
 def main() -> None:

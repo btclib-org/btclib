@@ -28,11 +28,18 @@ The seeds are the segwit transaction `tests/tx/_data/<txid>.bin`, written
 in both of the encodings BIP144's marker distinguishes (witness and
 stripped, one object and two serializations), and rust-bitcoin's
 huge-witness transaction, `tests/tx/_data/huge_witness.bin`.
+
+BIP144's marker makes a transaction two serializations, and each of them
+has one reading: `serialize(include_witness=True)` writes the marker
+where a witness is present, and `parse` refuses a marker over empty
+witnesses and any other flag. So what `parse` accepts must serialize back
+to `data` itself. An input that does not is one `parse` read as something
+other than what it was given, and the `AssertionError` reaches atheris as
+the finding it is.
 """
 
 from __future__ import annotations
 
-import contextlib
 import sys
 
 import atheris
@@ -53,8 +60,11 @@ def fuzz_target(data: bytes) -> None:
     input; any other exception propagates, which is how atheris tells a
     defect in `parse` from the domain of input it already rejects.
     """
-    with contextlib.suppress(BTClibException):
-        Tx.parse(data)
+    try:
+        tx = Tx.parse(data)
+    except BTClibException:
+        return
+    assert tx.serialize(include_witness=True) == data
 
 
 def main() -> None:
