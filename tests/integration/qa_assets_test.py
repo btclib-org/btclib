@@ -12,8 +12,9 @@ may refuse them with a `BTClibException`; any other exception is a
 defect, because the parsers' contract is that malformed octets are
 refused in that one family.
 
-A source is skipped unless its variable names a checkout: `BTCLIB_QA_ASSETS`
-for Core's, `BTCLIB_RUST_BITCOIN_QA_ASSETS` for rust-bitcoin's.
+A source is skipped where its variable is unset or empty:
+`BTCLIB_QA_ASSETS` for Core's checkout, `BTCLIB_RUST_BITCOIN_QA_ASSETS`
+for rust-bitcoin's.
 
     BTCLIB_QA_ASSETS=/path/to/qa-assets uv run pytest \
         tests/integration/qa_assets_test.py
@@ -27,7 +28,7 @@ a file of `src/test/fuzz/` in `bitcoin/bitcoin`, or of
 `fuzz/fuzz_targets/` in `rust-bitcoin/rust-bitcoin`. Core's
 targets read an object off the front of the input and ignore what
 follows (`SpanReader{buffer} >> obj`), while `parse` on bytes refuses
-trailing bytes before it builds anything. So a Core row hands `parse` a
+trailing bytes before it builds the object. So a Core row hands `parse` a
 `BytesIO`, which it reads from and leaves where the object ends, and
 reaches the code a refused-at-the-end input would never reach. The rows
 whose source consumes the whole input (`decode_tx`, which needs the hex

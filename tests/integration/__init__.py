@@ -5,9 +5,8 @@
 """The tests that need something this repository does not ship.
 
 A bitcoind to talk to, an HWI to run, a device to press a button on.
-Each skips itself without its switch in the environment --
-`BTCLIB_INTEGRATION`, or `BTCLIB_QA_ASSETS` and
-`BTCLIB_RUST_BITCOIN_QA_ASSETS` for the corpora replay -- and the skip
-message says which was off; `pyproject.toml` leaves this package out
-of the coverage ratchet for the same reason.
+Each skips itself without its variable -- `BTCLIB_INTEGRATION`,
+`BTCLIB_QA_ASSETS` or `BTCLIB_RUST_BITCOIN_QA_ASSETS` -- and the skip
+message says which; `pyproject.toml` leaves this package out of the
+coverage ratchet for the same reason.
 """

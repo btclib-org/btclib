@@ -584,11 +584,11 @@ addopts = "-ra --cov --durations=8 -n auto --dist worksteal --strict-config --st
 xfail_strict = true
 # --strict-markers is on, so a marker is declared here or it is a typo.
 # `integration` is what needs something this repository does not ship: a
-# bitcoind to talk to, or a qa-assets checkout. Those tests skip
-# themselves without BTCLIB_INTEGRATION, or BTCLIB_QA_ASSETS and
-# BTCLIB_RUST_BITCOIN_QA_ASSETS, in the environment, so the marker is
+# bitcoind to talk to, or a qa-assets checkout. Each skips itself
+# without its variable in the environment (BTCLIB_INTEGRATION,
+# BTCLIB_QA_ASSETS or BTCLIB_RUST_BITCOIN_QA_ASSETS), so the marker is
 # for selecting them (`-m integration`) and for excluding them from a
-# run that has the variable set for other reasons
+# run that has one set for other reasons
 markers = [
     "integration: needs an external program or corpus, opt-in via an environment variable",
     "bindings: compares against btclib_secp256k1, so it needs it installed",

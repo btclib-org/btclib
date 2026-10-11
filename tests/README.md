@@ -93,15 +93,16 @@ says where it omits them: the ratchet measures what an ordinary run
 executes, and a body that skips itself would be an uncovered line at
 every commit rather than a defect.
 
-They run unattended in `integration-bitcoind.yml`, which fails the job if
-its tests skipped rather than ran, and downloads a pinned Core release
-weekly, on every pull request and on every push to `main`.
+The node tests run unattended in `integration-bitcoind.yml`, which fails
+the job if they skipped rather than ran, and downloads a pinned Core
+release weekly, on every pull request and on every push to `main`.
 
-`tests/integration/qa_assets_test.py` needs the second: it replays the
-fuzz corpora of Bitcoin Core (`bitcoin-core/qa-assets`) and rust-bitcoin
-(`rust-bitcoin/qa-assets`) through the btclib parsers that read the same
-bytes, and fails on an exception that is not `BTClibException`. It skips
-a source without a checkout; the module docstring names the variables:
+`tests/integration/qa_assets_test.py` needs a qa-assets checkout
+instead: it replays the fuzz corpora of Bitcoin Core
+(`bitcoin-core/qa-assets`) and rust-bitcoin (`rust-bitcoin/qa-assets`)
+through the btclib parsers that read the same bytes, and fails on an
+exception that is not `BTClibException`. It skips a source whose
+variable is unset or empty; the module docstring names the variables:
 
 ```shell
 BTCLIB_QA_ASSETS=/path/to/qa-assets uv run pytest tests/integration/qa_assets_test.py

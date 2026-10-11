@@ -13,9 +13,9 @@ name: qa-assets
 # Informational: no aggregate job, a finding being an issue against a
 # parser and not a block on an unrelated merge. The pull request trigger
 # is filtered to this file and to the replay, so that a change to either
-# is run by the thing it changes. The replay is seconds beside the gates,
-# which section 10's clock rule keeps. Only the default branch schedules
-# workflows.
+# is run by the thing it changes. The replay adds seconds to the wait on
+# the gates, so section 10's clock rule keeps the trigger. Only the
+# default branch schedules workflows.
 #
 # The checkouts are sparse and blobless: Core's qa-assets is several
 # hundred megabytes, and the replay reads only the directories listed
