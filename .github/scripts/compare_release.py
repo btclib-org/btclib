@@ -14,6 +14,7 @@ two answers are compared. An answer is one of:
 - `accepted <hex>`: it returned an object, shown by what `serialize()`
   writes, or by `repr` where the object is a plain value or a dataclass,
   and by its type name alone where it is anything else;
+- `unserializable <name>`: it returned an object whose description raised;
 - `crashed <name>`: it raised anything else;
 - `absent`: the parser is not importable.
 
@@ -60,6 +61,8 @@ _CONTEXT = 8
 _PLAIN = (type(None), bool, int, float, str, bytes, list, tuple, dict)
 
 ABSENT = "absent"
+# the first word of an outcome where the parser returned an object
+_ACCEPTED = ("accepted", "unserializable")
 # one record of a probe: (harness, entry point, input name, outcome)
 Record = tuple[str, str, str, str]
 
@@ -105,7 +108,10 @@ def _answer(
         return "refused"
     except Exception as exc:  # noqa: BLE001
         return f"crashed {type(exc).__name__}"
-    return f"accepted {_describe(obj)}"
+    try:
+        return f"accepted {_describe(obj)}"
+    except Exception as exc:  # noqa: BLE001
+        return f"unserializable {type(exc).__name__}"
 
 
 def _probe(request: dict[str, Any]) -> dict[str, Any]:
@@ -254,10 +260,13 @@ def _kind(release: str, current: str) -> str | None:
     heads = (release.split(" ", 1)[0], current.split(" ", 1)[0])
     if ABSENT in heads:
         return "entry point absent"
-    if heads[0] != heads[1]:
+    taken = [head in _ACCEPTED for head in heads]
+    if taken[0] != taken[1]:
         return "accepted by one, not the other"
-    if heads[0] == "accepted":
+    if all(taken):
         return "serialized differently"
+    if heads[0] != heads[1]:
+        return "refused by one, crashed in the other"
     return "crashed differently"
 
 
@@ -301,12 +310,18 @@ def _cells(release: str, current: str) -> tuple[str, str]:
 
 def render(release: Run, current: Run, differences: list[Difference]) -> str:
     """Return the markdown report."""
+    inputs = {(harness, name) for harness, _, name, _ in current.records}
+    seeds = sum(name.startswith("corpus/") for _, name in inputs)
     lines = [
         "## Parsers: this tree against the last release",
         "",
         f"Release: btclib {release.version}, from `{release.file}`.",
         f"This tree: btclib {current.version}, from `{current.file}`.",
-        f"{len(current.records)} parser and input pairs were run on each side.",
+        (
+            f"{len(current.records)} parser and input pairs were run on each side, "
+            f"on {seeds} inputs from `fuzz/corpus/` and {len(inputs) - seeds} "
+            "from the fuzz artifacts."
+        ),
         "",
     ]
     if not differences:

@@ -211,6 +211,11 @@ def test_run_probe_reports_a_failed_interpreter(cmp: Any) -> None:
         ("accepted 01", "crashed KeyError", "accepted by one, not the other"),
         ("accepted 01", "accepted 02", "serialized differently"),
         ("crashed KeyError", "crashed ValueError", "crashed differently"),
+        ("refused", "crashed KeyError", "refused by one, crashed in the other"),
+        ("crashed KeyError", "refused", "refused by one, crashed in the other"),
+        ("accepted 01", "unserializable KeyError", "serialized differently"),
+        ("unserializable KeyError", "refused", "accepted by one, not the other"),
+        ("unserializable A", "unserializable B", "serialized differently"),
         ("absent", "refused", "entry point absent"),
         ("accepted 01", "absent", "entry point absent"),
     ],
@@ -336,3 +341,28 @@ def test_render_shows_the_cells_from_where_they_differ(cmp: Any) -> None:
     assert cells[-3] != cells[-2]
     assert "01" in cells[-3]
     assert "02" in cells[-2]
+
+
+class _BrokenSerialize:
+    def serialize(self) -> bytes:
+        msg = "cannot"
+        raise KeyError(msg)
+
+
+def test_an_object_that_cannot_be_described_is_an_outcome(cmp: Any) -> None:
+    """The probe reports it and goes on, so the comparison has a report."""
+    answer = cmp._answer("m:p", lambda _data: _BrokenSerialize(), ValueError, b"", 1)
+    assert answer == "unserializable KeyError"
+
+
+def test_render_says_where_the_inputs_came_from(cmp: Any) -> None:
+    """The report counts the seeds and the artifact inputs apart."""
+    run = _run(
+        cmp,
+        ("h", "m:f", "corpus/h/a.bin", "refused"),
+        ("h", "m:g", "corpus/h/a.bin", "refused"),
+        ("h", "m:f", "fuzz artifact 01", "refused"),
+    )
+    assert "on 1 inputs from `fuzz/corpus/` and 1 from the fuzz artifacts." in (
+        cmp.render(run, run, [])
+    )
