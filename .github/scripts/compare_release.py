@@ -50,8 +50,11 @@ from pathlib import Path
 from typing import Any
 
 _ROOT = Path(__file__).resolve().parents[2]
-# one interpreter's whole run, in seconds
-_TIMEOUT = 900
+# one interpreter's whole run, in seconds. The two run one after the other
+# and together take at most half the job's `timeout-minutes` in
+# release-diff.yml, so this timeout fires before the job is cancelled and
+# the log names the interpreter that ran out of time.
+_TIMEOUT = 300
 # rows listed in the report before it says how many more there are
 _MAX_ROWS = 200
 # the longest answer shown in a row, in characters, and how many of the

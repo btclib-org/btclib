@@ -16,6 +16,7 @@ import dataclasses
 import importlib.util
 import io
 import json
+import re
 import sys
 import tarfile
 from pathlib import Path
@@ -366,3 +367,11 @@ def test_render_says_where_the_inputs_came_from(cmp: Any) -> None:
     text = cmp.render(run, run, [])
     assert "Inputs: 1 from `fuzz/corpus/`, 1 from the fuzz artifacts." in text
     assert "run on each side: 3." in text
+
+
+def test_both_probes_fit_in_half_the_job(cmp: Any) -> None:
+    """The script's timeout fires before the workflow cancels the job."""
+    workflow = _SCRIPT.parents[1] / "workflows" / "release-diff.yml"
+    minutes = re.findall(r"^ +timeout-minutes: (\d+)$", workflow.read_text(), re.M)
+    assert len(minutes) == 1
+    assert 2 * cmp._TIMEOUT <= int(minutes[0]) * 60 / 2

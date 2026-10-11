@@ -56,6 +56,8 @@ jobs:
     name: Compare the parsers with the last release
     if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
+    # fits both probes of compare_release.py, as its _TIMEOUT says
+    # (tests/compare_release_test.py holds the two together)
     timeout-minutes: 20
     permissions:
       contents: read
