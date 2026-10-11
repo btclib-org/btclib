@@ -91,7 +91,10 @@ jobs:
           sparse-checkout: |
             fuzz_corpora/bitcoin_deserialize_block
             fuzz_corpora/bitcoin_deserialize_prefilled_transaction
+            fuzz_corpora/bitcoin_deserialize_script
             fuzz_corpora/bitcoin_deserialize_transaction
+            fuzz_corpora/bitcoin_deserialize_witness
+            fuzz_corpora/bitcoin_script_bytes_to_asm_fmt
       - name: Setup uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:

@@ -31,25 +31,28 @@ trailing bytes before it builds anything. So a Core row hands `parse` a
 `BytesIO`, which it reads from and leaves where the object ends, and
 reaches the code a refused-at-the-end input would never reach. The rows
 whose source consumes the whole input (`decode_tx`, which needs the hex
-of the whole input to decode, and rust-bitcoin's `decode_from_slice`)
-hand it the bytes.
+of the whole input to decode, and every rust-bitcoin row) hand it the
+bytes.
 
 Each parser that takes `check_validity` is replayed with it on and off,
 the second reaching the code that runs on a structure the first would
 have refused.
 
-Directories of Core's qa-assets that are not replayed, each for a reason
-read from Core's source:
+A directory gets a row only where its target reads the input as the
+octets of one format btclib parses. So these are not replayed:
 
-- `script`, `primitives_transaction` and the other targets built on
-  `ConsumeScript`: Core reads the input with a `FuzzedDataProvider`,
-  which draws a script from choices, so the bytes are not a script.
-- `psbt`, `partially_signed_transaction_deserialize` and
-  `descriptor_parse`: btclib reads neither; `btclib-wallet` does.
-- the text targets (`key_io`, `parse_script`, `bech32_random_decode`):
-  not octets of a format.
+- a target that builds its values from the input, as Core's
+  `FuzzedDataProvider` does (`script`, `primitives_transaction`) and
+  rust-bitcoin's typed `fuzz_target!` does (`bitcoin_arbitrary_block`):
+  the bytes are choices, not a format;
+- a text target (`key_io`, `parse_script`, `bitcoin_parse_address`):
+  not octets of a format;
+- PSBT and descriptors (`psbt`, `descriptor_parse`,
+  `bitcoin_0_32_deserialize_psbt`): btclib reads neither;
+  `btclib-wallet` does;
+- a target that reads no format (`hashes_sha256`).
 
-rust-bitcoin's other directories are not replayed.
+Some directories that fit have no row yet: issue #2631.
 """
 
 from __future__ import annotations
@@ -76,6 +79,7 @@ from btclib.p2p.compact_blocks import (
 )
 from btclib.p2p.inventory import Inventory
 from btclib.p2p.merkleblock import MerkleBlock
+from btclib.script.witness import Witness
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn
@@ -110,6 +114,11 @@ def _parser(parse: Callable[..., object]) -> Parser:
 def _script_deserialize(data: BinaryData, check_validity: bool) -> object:
     """Return the script a CompactSize-prefixed byte vector holds."""
     return script.parse(var_bytes.parse(data))
+
+
+def _script(data: BinaryData, check_validity: bool) -> object:
+    """Return the script the octets are, with no length prefix."""
+    return script.parse(data)
 
 
 def _decode_hex_tx_without_witness(data: BinaryData, check_validity: bool) -> object:
@@ -218,6 +227,30 @@ TARGETS = (
         (_parser(PrefilledTransaction.parse),),
         source="rust-bitcoin",
         front=False,
+    ),
+    Target(
+        "bitcoin_deserialize_script",
+        "deserialize_script.rs: bitcoin::ScriptPubKeyBuf,"
+        " a CompactSize length and its bytes",
+        (_script_deserialize,),
+        source="rust-bitcoin",
+        front=False,
+        validity=(True,),
+    ),
+    Target(
+        "bitcoin_deserialize_witness",
+        "deserialize_witness.rs: bitcoin::Witness",
+        (_parser(Witness.parse),),
+        source="rust-bitcoin",
+        front=False,
+    ),
+    Target(
+        "bitcoin_script_bytes_to_asm_fmt",
+        "script_bytes_to_asm_fmt.rs: bitcoin::WitnessScript::from_bytes",
+        (_script,),
+        source="rust-bitcoin",
+        front=False,
+        validity=(True,),
     ),
 )
 
