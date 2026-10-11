@@ -297,7 +297,10 @@ def _written_settles(spec: str, obj: Any) -> bool:
 
 
 def _round_trip(spec: str, obj: Any, data: bytes) -> bool | None:
-    """Return whether `obj` reserializes to `data`, or None if unchecked."""
+    """Return whether `obj` passes its harness's round trip on `data`.
+
+    None where nothing is checked.
+    """
     if spec in _WRITERS:
         write, several_encodings = _WRITERS[spec]
         if several_encodings:
@@ -438,7 +441,7 @@ def test_every_seed_is_accepted(harness: str, seed: Path) -> None:
     ids=[str(seed.relative_to(_CORPUS)) for _, seed in _SEEDS],
 )
 def test_accepted_seed_round_trips(harness: str, seed: Path) -> None:
-    """Where a round trip is checkable, it reproduces the seed byte for byte."""
+    """Where a round trip is checkable, the seed passes its harness's."""
     tree = _parse_module((_FUZZ / f"{harness}.py").read_text(encoding="utf-8"), harness)
     declared = _entry_points(tree)
     assert declared
@@ -462,7 +465,7 @@ def test_accepted_seed_round_trips(harness: str, seed: Path) -> None:
 def test_a_non_canonical_length_is_refused_not_reserialized(
     spec: str, data: bytes
 ) -> None:
-    """The strong form holds for a var_int because the parser refuses these."""
+    """A var_int or var_bytes has one encoding: the parser refuses these."""
     with pytest.raises(BTClibException):
         _resolve(spec)(data)
 
