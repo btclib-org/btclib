@@ -19,6 +19,7 @@ check would cost far more than the hashing.
 import itertools
 import time
 from collections.abc import Callable
+from typing import TypeVar
 
 import pytest
 from btclib_ecc.ecc import ssa
@@ -49,6 +50,8 @@ _OP_2DROP = b"\x6d"
 # fraction of it
 _DEEP = 100_000
 _BOUND = 60
+_REPEATS = 15
+_T = TypeVar("_T")
 
 
 def _spend(leaf: bytes, stack: list[bytes] | None = None) -> tuple[TxOut, Tx]:
@@ -66,6 +69,23 @@ def _seconds(leaf: bytes) -> float:
     start = time.perf_counter()
     verify_transaction([prevout], tx)
     return time.perf_counter() - start
+
+
+def _ratio(small: _T, large: _T, seconds: Callable[[_T], float]) -> float:
+    """Return the best time of `large` over the best of `small`.
+
+    Small then large, so that a change of load reaches both. The best of
+    each, so that a slow run cannot hide the growth. Under load a run is
+    slowed by the time it is descheduled, and the longer run is more likely
+    to be; with `_REPEATS` of each, at least one of the large runs is
+    likely to go undisturbed.
+    """
+    small_times: list[float] = []
+    large_times: list[float] = []
+    for _ in range(_REPEATS):
+        small_times.append(seconds(small))
+        large_times.append(seconds(large))
+    return min(large_times) / min(small_times)
 
 
 def _nested_if(depth: int) -> bytes:
@@ -134,15 +154,7 @@ def test_four_times_the_script_takes_about_four_times_as_long(
     make: Callable[[int], bytes],
 ) -> None:
     """Four times the script: 16 times as long if quadratic, 4 if linear."""
-    small, large = make(_DEEP // 4), make(_DEEP)
-    # small then large, five times, so a change of load reaches both; the
-    # best of each, so a slow small run cannot hide the growth
-    small_times: list[float] = []
-    large_times: list[float] = []
-    for _ in range(5):
-        small_times.append(_seconds(small))
-        large_times.append(_seconds(large))
-    ratio = min(large_times) / min(small_times)
+    ratio = _ratio(make(_DEEP // 4), make(_DEEP), _seconds)
     assert ratio < 10, f"{ratio:.1f} times as long for four times the script"
 
 
@@ -156,12 +168,7 @@ def test_four_times_the_signature_checks_take_about_four_times_as_long(
     """The annex and the output a check commits to cost their size once."""
     monkeypatch.setattr(tapscript, "ssa_verify", lambda *_: True)
     small, large = make(2_000), make(8_000)
-    small_times: list[float] = []
-    large_times: list[float] = []
-    for _ in range(5):
-        small_times.append(_seconds_of(*small))
-        large_times.append(_seconds_of(*large))
-    ratio = min(large_times) / min(small_times)
+    ratio = _ratio(small, large, lambda case: _seconds_of(*case))
     assert ratio < 10, f"{ratio:.1f} times as long for four times the checks"
 
 
