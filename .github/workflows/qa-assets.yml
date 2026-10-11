@@ -106,8 +106,7 @@ jobs:
         env:
           BTCLIB_QA_ASSETS: ${{ github.workspace }}/qa-assets
           BTCLIB_RUST_BITCOIN_QA_ASSETS: ${{ github.workspace }}/rust-bitcoin-qa-assets
-        # -n 0 and no coverage: the replay is one process, and the
-        # coverage floor is a claim about the ordinary run
+        # no coverage: the floor is a claim about the ordinary run
         run: >-
           uv run --locked --no-default-groups --group test
           pytest tests/integration/qa_assets_test.py -n 0 --no-cov

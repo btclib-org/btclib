@@ -17,8 +17,9 @@ name: integration-bitcoind
 # btclib-org/.github's: reusable-integration-bitcoind.yml, called at
 # @main so a fix there reaches this tree in one landing (section 10 of
 # its README.md). What stays here is the trigger, the cron minute, the
-# concurrency group, the pinned release and its sha256, and the two
-# environment-variable names tests/integration/conftest.py reads.
+# concurrency group, the pinned release and its sha256, the two
+# environment-variable names tests/integration/conftest.py reads, and the
+# prefix that exempts qa_assets_test.py's skips.
 #
 # `regtest / Regtest against Bitcoin Core` is a required check on main:
 # what it asks is whether Core accepts what this branch built, and the
