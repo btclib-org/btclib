@@ -30,9 +30,9 @@ import atheris
 from btclib import electrum
 from btclib.exceptions import BTClibException
 
-# tests/fuzz_corpus_test.py reads this by ast.literal_eval, never by
-# importing the module -- atheris above is CI-only and undeclared in
-# pyproject.toml, so the test must not execute this file
+# tests/fuzz_corpus_test.py reads this with ast.literal_eval.
+# tests/fuzz_harness_test.py imports this file with an empty atheris,
+# so atheris may be called only from main()
 ENTRY_POINTS = (
     "btclib.electrum:decode_response",
     "btclib.electrum:transaction_get_response",

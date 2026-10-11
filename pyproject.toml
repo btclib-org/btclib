@@ -359,10 +359,11 @@ source-exclude = [
     "/tests/verify_dist_contents_test.py",
     "/tests/what_runs_when_test.py",
     # the same reasoning, for fuzz/ rather than .github/scripts: git-only
-    # below is why it is not in the sdist, and this test reads
+    # below is why it is not in the sdist, and these tests read
     # fuzz/fuzz_*.py and fuzz/corpus/ off the tree, both absent from an
     # unpacked sdist
     "/tests/fuzz_corpus_test.py",
+    "/tests/fuzz_harness_test.py",
     # a third shape of the same reasoning: this one reaches outside the
     # sdist through `.git` rather than through a tracked directory, and
     # what it reads (`git show <tag>:...`, a release's own tag) has no

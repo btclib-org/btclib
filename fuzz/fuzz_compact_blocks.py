@@ -31,12 +31,11 @@ import atheris
 from btclib.exceptions import BTClibException
 from btclib.p2p.compact_blocks import BlockTxn, CmpctBlock, GetBlockTxn, SendCmpct
 
-# tests/fuzz_corpus_test.py reads this by ast.literal_eval, never by
-# importing the module -- atheris below is CI-only and undeclared in
-# pyproject.toml, so the test must not execute this file. Its own
-# cross-check derives this same list from the for loop's own tuple
-# below instead of resolving a callee name, cls being a loop variable
-# rather than one
+# tests/fuzz_corpus_test.py reads this with ast.literal_eval, and
+# derives this same list from the for loop's own tuple below, since
+# cls there is a loop variable rather than a callee name.
+# tests/fuzz_harness_test.py imports this file with an empty atheris,
+# so atheris may be called only from main()
 ENTRY_POINTS = (
     "btclib.p2p.compact_blocks:SendCmpct.parse",
     "btclib.p2p.compact_blocks:CmpctBlock.parse",

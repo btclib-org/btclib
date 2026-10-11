@@ -40,9 +40,9 @@ import atheris
 from btclib.exceptions import BTClibException
 from btclib.tx.tx import Tx
 
-# tests/fuzz_corpus_test.py reads this by ast.literal_eval, never by
-# importing the module -- atheris below is CI-only and undeclared in
-# pyproject.toml, so the test must not execute this file
+# tests/fuzz_corpus_test.py reads this with ast.literal_eval.
+# tests/fuzz_harness_test.py imports this file with an empty atheris,
+# so atheris may be called only from main()
 ENTRY_POINTS = ("btclib.tx.tx:Tx.parse",)
 
 
