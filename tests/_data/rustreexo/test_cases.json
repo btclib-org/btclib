@@ -1,0 +1,502 @@
+{
+  "insertion_tests": [
+    {
+      "leaf_preimages": [0, 1, 2, 3, 4, 5, 6, 7],
+      "expected_roots": [
+        "b151a956139bb821d4effa34ea95c17560e0135d1e4661fc23cedc3af49dac42"
+      ]
+    },
+    {
+      "leaf_preimages": [0, 1, 2, 3, 4, 5, 6],
+      "expected_roots": [
+        "df46b17be5f66f0750a4b3efa26d4679db170a72d41eb56c3e4ff75a58c65386",
+        "9eec588c41d87b16b0ee226cb38da3864f9537632321d8be855a73d5616dcc73",
+        "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6"
+      ]
+    },
+    {
+      "leaf_preimages": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+      "expected_roots": [
+        "b151a956139bb821d4effa34ea95c17560e0135d1e4661fc23cedc3af49dac42",
+        "9c053db406c1a077112189469a3aca0573d3481bef09fa3d2eda3304d7d44be8",
+        "55d0a0ef8f5c25a9da266b36c0c5f4b31008ece82df2512c8966bddcc27a66a0",
+        "4d7b3ef7300acf70c892d8327db8272f54434adbc61a4e130a563cb59a0d0f47"
+      ]
+    },
+    {
+      "leaf_preimages": [
+        70, 13, 55, 152, 74, 33, 39, 122, 252, 53, 224, 211, 11, 25, 122, 14, 191, 152, 115,
+        205, 160, 163, 90, 191, 199, 242, 216, 32, 141, 6, 200, 109, 211, 53, 72, 250, 108,
+        163, 224, 90, 17, 25, 92, 254, 172, 211, 26, 231, 254, 159, 183, 180, 135, 131, 194,
+        83, 207, 158, 226, 49, 138, 136, 73, 143, 105, 164, 50, 58, 94, 168, 90, 128, 132,
+        238, 168, 47, 153, 20, 90, 106, 113, 168, 27, 136, 206, 3, 117, 87, 213, 48, 104, 7,
+        59, 167, 164, 161, 151, 11, 63, 145, 61, 24, 40, 231, 49, 78, 86, 52, 208, 35, 97, 15,
+        215, 238, 255, 227, 180, 226, 18, 223, 126, 157, 123, 81, 149, 46, 133, 132, 173, 190,
+        87, 227, 139, 199, 209, 17, 210, 112, 204, 177, 71, 195, 56, 23, 67, 15, 226, 97, 62,
+        7, 235, 63, 200, 140, 104, 4, 130, 47, 168, 33, 122, 118, 169, 129, 20, 186, 121, 114,
+        107, 79, 215, 226, 45, 0, 108, 43, 53, 218, 252, 71, 176, 54, 93, 0, 168, 238, 209, 41,
+        198, 111, 235, 215, 216, 60, 135, 230, 205, 177, 102
+      ],
+      "expected_roots": [
+        "950c36521c4a3fa45862f31682f68b26af1e4a486fbf4d7f779a4bfcb8c9bbe9",
+        "c9e5725dcf415c6eb0a2d381aa8b7678bc7a810ec46d8f330d4ef3ce023858bf",
+        "a2402edac76acbf77c01dce0cdf0fbcf5e6e1acdf9eb97b891c2a6dc8582086a",
+        "bb2202e245081accf9dfebba226acdef30ba221c8350ef5c707b0f9d294afe08",
+        "252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111"
+      ]
+    }
+  ],
+  "proof_tests": [
+    {
+      "numleaves": 6,
+      "roots": [
+        "df46b17be5f66f0750a4b3efa26d4679db170a72d41eb56c3e4ff75a58c65386",
+        "9eec588c41d87b16b0ee226cb38da3864f9537632321d8be855a73d5616dcc73"
+      ],
+      "targets": [],
+      "target_preimages": [],
+      "proofhashes": [],
+      "expected": true
+    },
+    {
+      "numleaves": 6,
+      "roots": [
+        "df46b17be5f66f0750a4b3efa26d4679db170a72d41eb56c3e4ff75a58c65386",
+        "9eec588c41d87b16b0ee226cb38da3864f9537632321d8be855a73d5616dcc73"
+      ],
+      "targets": [0, 1, 2, 3],
+      "target_preimages": [0, 1, 2, 3],
+      "proofhashes": [],
+      "expected": true
+    },
+    {
+      "numleaves": 6,
+      "roots": [
+        "df46b17be5f66f0750a4b3efa26d4679db170a72d41eb56c3e4ff75a58c65386",
+        "9eec588c41d87b16b0ee226cb38da3864f9537632321d8be855a73d5616dcc73"
+      ],
+      "targets": [4, 5],
+      "target_preimages": [4, 5],
+      "proofhashes": [],
+      "expected": true
+    },
+    {
+      "numleaves": 8,
+      "roots": [
+        "b151a956139bb821d4effa34ea95c17560e0135d1e4661fc23cedc3af49dac42"
+      ],
+      "targets": [0],
+      "target_preimages": [0],
+      "proofhashes": [
+        "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+        "9576f4ade6e9bc3a6458b506ce3e4e890df29cb14cb5d3d887672aef55647a2b",
+        "29590a14c1b09384b94a2c0e94bf821ca75b62eacebc47893397ca88e3bbcbd7"
+      ],
+      "expected": true
+    },
+    {
+      "numleaves": 8,
+      "roots": [
+        "b151a956139bb821d4effa34ea95c17560e0135d1e4661fc23cedc3af49dac42"
+      ],
+      "targets": [5, 3, 1],
+      "target_preimages": [5, 3, 1],
+      "proofhashes": [
+        "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986",
+        "e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71",
+        "34028bbc87000c39476cdc60cf80ca32d579b3a0e2d3f80e0ad8c3739a01aa91"
+      ],
+      "expected": true
+    },
+    {
+      "numleaves": 8,
+      "roots": [
+        "859dad99dda0f8d0adb71f87a8b509fdfa9a0c1ab048399ca7b0da9fd6b258f8"
+      ],
+      "targets": [0, 9, 11],
+      "target_preimages": [0, 3, 7],
+      "proofhashes": [
+        "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+        "9eec588c41d87b16b0ee226cb38da3864f9537632321d8be855a73d5616dcc73"
+      ],
+      "expected": true
+    },
+    {
+      "numleaves": 8,
+      "roots": [
+        "b151a956139bb821d4effa34ea95c17560e0135d1e4661fc23cedc3af49dac42"
+      ],
+      "targets": [0],
+      "target_preimages": [0],
+      "proofhashes": [
+        "7cf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+        "9576f4ade6e9bc3a6458b506ce3e4e890df29cb14cb5d3d887672aef55647a2b",
+        "29590a14c1b09384b94a2c0e94bf821ca75b62eacebc47893397ca88e3bbcbd7"
+      ],
+      "expected": false,
+      "reason": "First proof hash is wrong"
+    },
+    {
+      "numleaves": 8,
+      "roots": [
+        "b151a956139bb821d4effa34ea95c17560e0135d1e4661fc23cedc3af49dac42"
+      ],
+      "targets": [0, 1, 2],
+      "target_preimages": [0, 1, 2],
+      "proofhashes": [
+        "084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5",
+        "29590a14c1b09384b94a2c0e94bf821ca75b62eacebc47893397ca88e3bbcbd7"
+      ],
+      "expected": true
+    },
+    {
+      "numleaves": 8,
+      "roots": [
+        "b151a956139bb821d4effa34ea95c17560e0135d1e4661fc23cedc3af49dac42"
+      ],
+      "targets": [1, 2, 6],
+      "target_preimages": [1, 2, 6],
+      "proofhashes": [
+        "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        "084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5",
+        "ca358758f6d27e6cf45272937977a748fd88391db679ceda7dc7bf1f005ee879",
+        "9eec588c41d87b16b0ee226cb38da3864f9537632321d8be855a73d5616dcc73"
+      ],
+      "expected": true
+    },
+    {
+      "numleaves": 20,
+      "roots": [
+        "e121f8ffd6ca510cb55fe2d6373de3d018f7d2e9fbecb3a6d8342e1f9f6e6c7a",
+        "3cb920c113e8ce3ace35fc835e6ff83a6566c4c127ea67eebc0f5d25d2295ea2"
+      ],
+      "targets": [0, 5],
+      "target_preimages": [0, 5],
+      "proofhashes": [
+        "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+        "e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71",
+        "9576f4ade6e9bc3a6458b506ce3e4e890df29cb14cb5d3d887672aef55647a2b",
+        "34028bbc87000c39476cdc60cf80ca32d579b3a0e2d3f80e0ad8c3739a01aa91",
+        "29a408b4bec8f8d5f3a45a0d733d096524269029a690d7d98b5ce627fef5ef36"
+      ],
+      "expected": true
+    },
+    {
+      "numleaves": 100,
+      "roots": [
+        "72c32219411b8566bda58d4310b605f85a08b8eeb661b8c57e7ef09966fcc1eb",
+        "0a2c57a002817e70a57e44d88ce570c3b197bd54047d5883b469c0ba0df6257e",
+        "33436f0f467c317f77eb7bf06dd182e90fd41ad27d34d09923866d89f41c4c27"
+      ],
+      "targets": [20, 30, 31, 32],
+      "target_preimages": [20, 30, 31, 32],
+      "proofhashes": [
+        "2f0fd1e89b8de1d57292742ec380ea47066e307ad645f5bc3adad8a06ff58608",
+        "bb7208bc9b5d7c04f1236a82a0093a5e33f40423d5ba8d4266f7092c3ba43b62",
+        "60e6d84b9ad3355211af775aff3338289431744c79fc06f5e2c065cbdd690f79",
+        "9a899064135333436906fe5b714ca017e61d9e952860dcda410dec4bd0fd59a5",
+        "18b41f49a19d41613b4f717b3ef291e2cde3b963fcf60f9a371affd761f1b998",
+        "3cb920c113e8ce3ace35fc835e6ff83a6566c4c127ea67eebc0f5d25d2295ea2",
+        "6faf95884aaf779221fbe2f81d68bbac26a70751d384fa5831b2d6d0cf07293d",
+        "a8fdcb2277476c5a76bf6a5e1d107f5c48ec59a7c813f6f9f1419a648e5568af",
+        "94b8dc9cecafe156b80e4e64414cf4204858f56713776c525c38fb14c2c5e622",
+        "e121f8ffd6ca510cb55fe2d6373de3d018f7d2e9fbecb3a6d8342e1f9f6e6c7a",
+        "8ec4ba1ba4d169b8a1e5261408d9799185d984206b1d8779e4a5c1e431023fc1"
+      ],
+      "expected": true
+    },
+    {
+      "numleaves": 100,
+      "roots": [
+        "72c32219411b8566bda58d4310b605f85a08b8eeb661b8c57e7ef09966fcc1eb",
+        "0a2c57a002817e70a57e44d88ce570c3b197bd54047d5883b469c0ba0df6257e",
+        "33436f0f467c317f77eb7bf06dd182e90fd41ad27d34d09923866d89f41c4c27"
+      ],
+      "targets": [99, 20, 19, 10, 30, 32, 31],
+      "target_preimages": [99, 20, 19, 10, 30, 32, 31],
+      "proofhashes": [
+        "e7cf46a078fed4fafd0b5e3aff144802b853f8ae459a4f0c14add3314b7cc3a6",
+        "f299791cddd3d6664f6670842812ef6053eb6501bd6282a476bbbf3ee91e750c",
+        "2f0fd1e89b8de1d57292742ec380ea47066e307ad645f5bc3adad8a06ff58608",
+        "bb7208bc9b5d7c04f1236a82a0093a5e33f40423d5ba8d4266f7092c3ba43b62",
+        "3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d",
+        "cd9c77062a338e63a63ca623db438cb8676f15466641079ee61ec2dda98de796",
+        "83b2d85c9ae3143b1b1598076c85b3830d7f35a6c67c6ad122df8ab6235c40a1",
+        "60e6d84b9ad3355211af775aff3338289431744c79fc06f5e2c065cbdd690f79",
+        "9a899064135333436906fe5b714ca017e61d9e952860dcda410dec4bd0fd59a5",
+        "18b41f49a19d41613b4f717b3ef291e2cde3b963fcf60f9a371affd761f1b998",
+        "46c5f8e5b7ccdb3eb2014f988c30a73ba8bacfccf282293acbe559e56d540a17",
+        "e799acb98a071c4884707e4bc8c093ba22571c8d84cc0223ab0c2c9327313a5b",
+        "6faf95884aaf779221fbe2f81d68bbac26a70751d384fa5831b2d6d0cf07293d",
+        "a8fdcb2277476c5a76bf6a5e1d107f5c48ec59a7c813f6f9f1419a648e5568af",
+        "b151a956139bb821d4effa34ea95c17560e0135d1e4661fc23cedc3af49dac42",
+        "94b8dc9cecafe156b80e4e64414cf4204858f56713776c525c38fb14c2c5e622",
+        "8ec4ba1ba4d169b8a1e5261408d9799185d984206b1d8779e4a5c1e431023fc1"
+      ],
+      "expected": true
+    },
+    {
+      "numleaves": 100,
+      "roots": [
+        "72c32219411b8566bda58d4310b605f85a08b8eeb661b8c57e7ef09966fcc1eb",
+        "0a2c57a002817e70a57e44d88ce570c3b197bd54047d5883b469c0ba0df6257e",
+        "33436f0f467c317f77eb7bf06dd182e90fd41ad27d34d09923866d89f41c4c27"
+      ],
+      "targets": [20, 19, 10, 30, 31, 32, 99],
+      "target_preimages": [20, 19, 10, 30, 31, 32, 99],
+      "proofhashes": [
+        "e7cf46a078fed4fafd0b5e3aff144802b853f8ae459a4f0c14add3314b7cc3a6",
+        "f299791cddd3d6664f6670842812ef6053eb6501bd6282a476bbbf3ee91e750c",
+        "2f0fd1e89b8de1d57292742ec380ea47066e307ad645f5bc3adad8a06ff58608",
+        "bb7208bc9b5d7c04f1236a82a0093a5e33f40423d5ba8d4266f7092c3ba43b62",
+        "3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d",
+        "cd9c77062a338e63a63ca623db438cb8676f15466641079ee61ec2dda98de796",
+        "83b2d85c9ae3143b1b1598076c85b3830d7f35a6c67c6ad122df8ab6235c40a1",
+        "60e6d84b9ad3355211af775aff3338289431744c79fc06f5e2c065cbdd690f79",
+        "9a899064135333436906fe5b714ca017e61d9e952860dcda410dec4bd0fd59a5",
+        "18b41f49a19d41613b4f717b3ef291e2cde3b963fcf60f9a371affd761f1b998",
+        "46c5f8e5b7ccdb3eb2014f988c30a73ba8bacfccf282293acbe559e56d540a17",
+        "e799acb98a071c4884707e4bc8c093ba22571c8d84cc0223ab0c2c9327313a5b",
+        "6faf95884aaf779221fbe2f81d68bbac26a70751d384fa5831b2d6d0cf07293d",
+        "a8fdcb2277476c5a76bf6a5e1d107f5c48ec59a7c813f6f9f1419a648e5568af",
+        "b151a956139bb821d4effa34ea95c17560e0135d1e4661fc23cedc3af49dac42",
+        "94b8dc9cecafe156b80e4e64414cf4204858f56713776c525c38fb14c2c5e622",
+        "8ec4ba1ba4d169b8a1e5261408d9799185d984206b1d8779e4a5c1e431023fc1"
+      ],
+      "expected": true
+    }
+  ],
+  "deletion_tests": [
+    {
+      "leaf_preimages": [0, 1, 2, 3, 4, 5, 6, 7],
+      "target_values": [1, 7],
+      "proofhashes": [
+        "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6",
+        "9576f4ade6e9bc3a6458b506ce3e4e890df29cb14cb5d3d887672aef55647a2b",
+        "9eec588c41d87b16b0ee226cb38da3864f9537632321d8be855a73d5616dcc73"
+      ],
+      "expected_roots": [
+        "332c306188d35eb22ecb05d8c00446cd6a7a475f6615f46207cfaa713bb3e62c"
+      ]
+    },
+    {
+      "leaf_preimages": [0, 1, 2, 3, 4, 5, 6, 7],
+      "target_values": [1, 5, 7],
+      "proofhashes": [
+       "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+       "e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71",
+       "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6",
+       "9576f4ade6e9bc3a6458b506ce3e4e890df29cb14cb5d3d887672aef55647a2b"
+      ],
+      "expected_roots": [
+        "3b8b6eb231437092f6d9fbf8a0696b7cb446e40f1bf81ddb23d3eabb3080b0dd"
+      ]
+    },
+    {
+      "leaf_preimages": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
+      ],
+      "target_values": [1, 10],
+      "proofhashes": [
+        "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        "e7cf46a078fed4fafd0b5e3aff144802b853f8ae459a4f0c14add3314b7cc3a6",
+        "9576f4ade6e9bc3a6458b506ce3e4e890df29cb14cb5d3d887672aef55647a2b",
+        "cd9c77062a338e63a63ca623db438cb8676f15466641079ee61ec2dda98de796",
+        "29590a14c1b09384b94a2c0e94bf821ca75b62eacebc47893397ca88e3bbcbd7",
+        "e799acb98a071c4884707e4bc8c093ba22571c8d84cc0223ab0c2c9327313a5b"
+      ],
+      "expected_roots": [
+        "37968ef73d30dda38ede8357d66593c72acd4f0eb9f7a1a9acfeb7de850c05b4",
+        "3cb920c113e8ce3ace35fc835e6ff83a6566c4c127ea67eebc0f5d25d2295ea2"
+      ]
+    },
+    {
+      "leaf_preimages": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
+      ],
+      "target_values": [1, 10, 16],
+      "proofhashes": [
+        "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        "e7cf46a078fed4fafd0b5e3aff144802b853f8ae459a4f0c14add3314b7cc3a6",
+        "4a64a107f0cb32536e5bce6c98c393db21cca7f4ea187ba8c4dca8b51d4ea80a",
+        "9576f4ade6e9bc3a6458b506ce3e4e890df29cb14cb5d3d887672aef55647a2b",
+        "cd9c77062a338e63a63ca623db438cb8676f15466641079ee61ec2dda98de796",
+        "96d56447466674521007145ed72f8757517c72f7737dc4a0dcd3ecb996968971",
+        "29590a14c1b09384b94a2c0e94bf821ca75b62eacebc47893397ca88e3bbcbd7",
+        "e799acb98a071c4884707e4bc8c093ba22571c8d84cc0223ab0c2c9327313a5b"
+      ],
+      "expected_roots": [
+        "37968ef73d30dda38ede8357d66593c72acd4f0eb9f7a1a9acfeb7de850c05b4",
+        "21326d8aebeb6ef7bc02f40bdf778a02ba1c836b257f946ae21cab2a6f95fa18"
+      ]
+    },
+    {
+      "leaf_preimages": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+      ],
+      "target_values": [1, 10, 5],
+      "proofhashes": [
+        "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        "e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71",
+        "e7cf46a078fed4fafd0b5e3aff144802b853f8ae459a4f0c14add3314b7cc3a6",
+        "9576f4ade6e9bc3a6458b506ce3e4e890df29cb14cb5d3d887672aef55647a2b",
+        "34028bbc87000c39476cdc60cf80ca32d579b3a0e2d3f80e0ad8c3739a01aa91",
+        "cd9c77062a338e63a63ca623db438cb8676f15466641079ee61ec2dda98de796"
+      ],
+      "expected_roots": [
+        "e4676ba63c94588bcb4083e5474063b633aa631897ddaabde7a4da45936890cb",
+        "cae921bbf649d4dd84c252c55c540e2e30c6c00cb089d9704bd613ecea308643",
+        "55d0a0ef8f5c25a9da266b36c0c5f4b31008ece82df2512c8966bddcc27a66a0",
+        "4d7b3ef7300acf70c892d8327db8272f54434adbc61a4e130a563cb59a0d0f47"
+      ]
+    },
+    {
+      "leaf_preimages": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+      ],
+      "target_values": [0, 1, 10, 5],
+      "proofhashes": [
+        "e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71",
+        "e7cf46a078fed4fafd0b5e3aff144802b853f8ae459a4f0c14add3314b7cc3a6",
+        "9576f4ade6e9bc3a6458b506ce3e4e890df29cb14cb5d3d887672aef55647a2b",
+        "34028bbc87000c39476cdc60cf80ca32d579b3a0e2d3f80e0ad8c3739a01aa91",
+        "cd9c77062a338e63a63ca623db438cb8676f15466641079ee61ec2dda98de796"
+      ],
+      "expected_roots": [
+        "352d0d5e172316e73b6d0d40605ad411c79b7e7c1ed0b4529c565f08057bc4a8",
+        "cae921bbf649d4dd84c252c55c540e2e30c6c00cb089d9704bd613ecea308643",
+        "55d0a0ef8f5c25a9da266b36c0c5f4b31008ece82df2512c8966bddcc27a66a0",
+        "4d7b3ef7300acf70c892d8327db8272f54434adbc61a4e130a563cb59a0d0f47"
+      ]
+    },
+    {
+      "leaf_preimages": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+      ],
+      "target_values": [0, 1, 5, 14],
+      "proofhashes": [
+        "e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71",
+        "9576f4ade6e9bc3a6458b506ce3e4e890df29cb14cb5d3d887672aef55647a2b",
+        "34028bbc87000c39476cdc60cf80ca32d579b3a0e2d3f80e0ad8c3739a01aa91"
+      ],
+      "expected_roots":[
+        "352d0d5e172316e73b6d0d40605ad411c79b7e7c1ed0b4529c565f08057bc4a8",
+        "9c053db406c1a077112189469a3aca0573d3481bef09fa3d2eda3304d7d44be8",
+        "55d0a0ef8f5c25a9da266b36c0c5f4b31008ece82df2512c8966bddcc27a66a0",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ]
+    },
+    {
+      "leaf_preimages": [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+      ],
+      "target_values": [1, 6, 5, 3],
+      "proofhashes": [
+        "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986",
+        "e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71",
+        "ca358758f6d27e6cf45272937977a748fd88391db679ceda7dc7bf1f005ee879"
+      ],
+      "expected_roots": [
+        "d6ab1f11dd0ceee1862aa84b5e4d2c7520a8651fa2652529e8c49cc2b43b4476",
+        "9c053db406c1a077112189469a3aca0573d3481bef09fa3d2eda3304d7d44be8",
+        "55d0a0ef8f5c25a9da266b36c0c5f4b31008ece82df2512c8966bddcc27a66a0",
+        "4d7b3ef7300acf70c892d8327db8272f54434adbc61a4e130a563cb59a0d0f47"
+      ]
+    },
+    {
+      "leaf_preimages": [
+        0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+       20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+       40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
+       60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
+       80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99
+      ],
+      "target_values": [0, 1, 2, 4, 5, 9],
+      "proofhashes": [
+        "084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5",
+        "beead77994cf573341ec17b58bbf7eb34d2711c993c1d976b128b3188dc1829a",
+        "34028bbc87000c39476cdc60cf80ca32d579b3a0e2d3f80e0ad8c3739a01aa91",
+        "c413035120e8c9b0ca3e40c93d06fe60a0d056866138300bb1f1dd172b4923c3",
+        "e799acb98a071c4884707e4bc8c093ba22571c8d84cc0223ab0c2c9327313a5b",
+        "a9597b23de170cbd52de7b993e5fa70b89536485d7c3e0309245bffdf13290ad",
+        "e2a793580a9b6c9dff9d7f333f68ed708e9aa6232d2a1dc1e921be09949450c9"
+      ],
+      "expected_roots": [
+        "2bd42a5f0ea1798ba955bab6f3ef2e920c8cf7dc9fd205e73c73bd54af706e2a",
+        "0a2c57a002817e70a57e44d88ce570c3b197bd54047d5883b469c0ba0df6257e",
+        "33436f0f467c317f77eb7bf06dd182e90fd41ad27d34d09923866d89f41c4c27"
+      ]
+    },
+    {
+      "leaf_preimages":  [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+        20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+        40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
+        60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
+        80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99
+      ],
+      "target_values":  [38],
+      "proofhashes": [
+        "265fda17a34611b1533d8a281ff680dc5791b0ce0a11c25b35e11c8e75685509",
+        "7c804d37a0128caccf89b63d53248b708d4e6702dbdd90b01cdf8bf2be45d0f8",
+        "b743944ca9a4e59a94fd2f32adc6d40f800a012098d7d96aab47cd3883ee7810",
+        "94b8dc9cecafe156b80e4e64414cf4204858f56713776c525c38fb14c2c5e622",
+        "8ec4ba1ba4d169b8a1e5261408d9799185d984206b1d8779e4a5c1e431023fc1",
+        "c20eb2e3805095a3a63d869af5fde12237ba512104438ad914b1c0e2a53743a2"
+      ],
+      "expected_roots": [
+        "2a722b6de15cfb2771f91613ab098bdb9b7f9731ac05992aba76d02aecff591e",
+        "0a2c57a002817e70a57e44d88ce570c3b197bd54047d5883b469c0ba0df6257e",
+        "33436f0f467c317f77eb7bf06dd182e90fd41ad27d34d09923866d89f41c4c27"
+      ]
+    },
+    {
+      "leaf_preimages": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      "target_values":[0, 4, 5, 6, 7, 8],
+      "proofhashes": [
+        "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+        "2b4c342f5433ebe591a1da77e013d1b72475562d48578dca8b84bac6651c3cb9",
+        "9576f4ade6e9bc3a6458b506ce3e4e890df29cb14cb5d3d887672aef55647a2b",
+        "c413035120e8c9b0ca3e40c93d06fe60a0d056866138300bb1f1dd172b4923c3"
+      ],
+      "expected_roots":[
+        "2b77298feac78ab51bc5079099a074c6d789bd350442f5079fcba2b3402694e5",
+        "84915b5adf9243dd83d67bb7d25b7a0c595ea1c37b97412e21e480c1a46f93bf"
+      ]
+    },
+    {
+      "leaf_preimages": [0, 1, 2, 3, 4, 5, 6, 7],
+      "target_values": [0, 1, 2, 3, 4, 5, 6, 7],
+      "expected_roots": [
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "proofhashes": []
+    },
+    {
+      "leaf_preimages": [0, 1, 2, 3, 4, 5, 6, 7],
+      "target_values": [0, 1, 2, 3],
+      "expected_roots": [
+        "29590a14c1b09384b94a2c0e94bf821ca75b62eacebc47893397ca88e3bbcbd7"
+      ],
+      "proofhashes": [
+        "29590a14c1b09384b94a2c0e94bf821ca75b62eacebc47893397ca88e3bbcbd7"
+      ]
+    },
+    {
+      "leaf_preimages": [0, 1, 2, 3, 4, 5, 6, 7],
+      "target_values": [0, 2, 4, 6],
+      "expected_roots": [
+        "54128834807e7f8763ff00fef2e7aea740c1d19977f95ee138ee6eecd0b9c702"
+      ],
+      "proofhashes": [
+        "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+        "084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5",
+        "e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db",
+        "ca358758f6d27e6cf45272937977a748fd88391db679ceda7dc7bf1f005ee879"
+      ]
+    }
+  ]
+}

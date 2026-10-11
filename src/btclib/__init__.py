@@ -102,6 +102,7 @@ __all__ = [
     "script",
     "tx",
     "utils",
+    "utreexo",
     "var_bytes",
     "var_int",
 ]
