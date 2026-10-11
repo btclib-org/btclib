@@ -112,8 +112,8 @@ has one wherever a trusted dealer distributes the shares: that dealer
 transiently knows the whole key. Avoiding it takes a distributed key
 generation, and `btclib_ecc.ecc.frost` takes key material already split
 rather than splitting any.
-[ISS 257](https://github.com/btclib-org/btclib/issues/257) is where
-interactive threshold signing, key generation included, is tracked.
+[ISS 2200](https://github.com/btclib-org/btclib/issues/2200) tracks
+key generation: a dealer split first, then ChillDKG.
 
 ## *t* = *n* FROST is not MuSig2
 
