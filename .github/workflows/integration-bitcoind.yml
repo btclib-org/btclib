@@ -2,8 +2,8 @@
 name: integration-bitcoind
 
 # The suite's one part that needs a program this repository does not ship:
-# a bitcoind to talk to. `tests/integration/` skips itself without
-# BTCLIB_INTEGRATION, so every other workflow reports those tests skipped
+# a bitcoind to talk to. The node tests of `tests/integration/` skip
+# without BTCLIB_INTEGRATION, so every other workflow reports them skipped
 # and nothing ever asks a real node whether its `gettxoutsetinfo` agrees
 # with what `btclib.coinstats` computes, whether Core still speaks the
 # p2p octets this library emits and parses, or whether its

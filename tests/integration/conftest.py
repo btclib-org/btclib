@@ -93,7 +93,7 @@ def _free_port() -> int:
 def bitcoind_path() -> str:
     """Return the bitcoind to run, skipping the whole module without one."""
     if not os.environ.get("BTCLIB_INTEGRATION"):
-        pytest.skip("set BTCLIB_INTEGRATION=1 to run the integration tests")
+        pytest.skip("set BTCLIB_INTEGRATION=1 to run the node tests")
     path = os.environ.get("BTCLIB_BITCOIND") or shutil.which("bitcoind")
     if path is None:
         pytest.skip("no bitcoind: name one in BTCLIB_BITCOIND or put it on PATH")
