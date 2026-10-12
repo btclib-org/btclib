@@ -852,8 +852,8 @@ source = ["btclib", "tests"]
 # ordinary run executes, and those tests skip themselves without
 # BTCLIB_INTEGRATION: their bodies would be uncovered lines of tests/ at
 # every commit, which is the ratchet reporting the switch rather than a
-# defect. What covers them is the opt-in run, and the docstrings of the
-# modules under tests/integration carry the command
+# defect. What covers them is the opt-in run, and tests/README.md's *The
+# integration tests, and why they are off by default* carries the command
 omit = [
     "*/site-packages/*",
     "tests/integration/*",
