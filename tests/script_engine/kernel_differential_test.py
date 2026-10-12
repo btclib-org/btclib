@@ -13,7 +13,7 @@ verdict is compared: the kernel reports no script error code.
 The kernel takes the consensus flags and no policy flag, so the policy
 flags are not drawn. tests/README.md says how to run the module.
 
-A failure prints the transaction, the spent outputs and the flags, and
+A disagreement prints the transaction, the spent outputs and the flags, and
 the exception btclib raised.
 """
 
