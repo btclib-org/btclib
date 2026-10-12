@@ -66,6 +66,9 @@ repos/btclib-org/btclib/branches/main/protection --jq
 | `lint / Dependency review` | `lint.yml`, calling `reusable-lint.yml` |
 | `lint / Sign-off` | `lint.yml`, calling `reusable-lint.yml` |
 
+A merge through the maintainer's bypass waits for none of these
+checks, as `CONTRIBUTING.md`'s *Landing it* says.
+
 A workflow needs an aggregate when every one of its jobs has to gate:
 `test.yml` is the one with several, and a context naming any one of them
 would leave the rest outside the rule. Where a single job is what gates,
@@ -345,10 +348,11 @@ Everything reaches it through a pull request: the checks above with
 no force pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.
 
-That last one is what lets the maintainer land without the review. The
-maintainer uses it only in an emergency: every other pull request, the
-maintainer's included, waits for an approving review from somebody other
-than its author, as CONTRIBUTING.md says.
+That last one is what lets the maintainer land without the review.
+[`GOVERNANCE.md`'s *How a decision is
+made*](https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md#how-a-decision-is-made),
+in btclib-org/.github, says when the maintainer does. CONTRIBUTING.md's
+*Landing it* has the commands.
 
 ```shell
 gh api repos/btclib-org/btclib/branches/main/protection \
@@ -403,8 +407,9 @@ unrelated reason: `release.yml` publishes to PyPI on `push: tags:
 
 **The bypass mode is the whole of the design.** `pull_request` excuses
 its holder from the rule *while merging a pull request* and at no other
-time, so it excuses the approving review and nothing further. The
-maintainer uses it only in an emergency. A direct push to `main` is
+time, so it excuses the approving review and nothing further.
+`GOVERNANCE.md`'s *How a decision is made* says when the maintainer uses
+it. A direct push to `main` is
 refused for everyone, the holder included: outside a pull request there
 is no bypass to apply, and the rule says changes must come through one.
 
@@ -461,11 +466,10 @@ case where a commit lands that no pull request knows about.
 ## Merge methods
 
 **Squash is the only *button* enabled, and it is how a pull request
-lands here** — auto-merge presses it once the review and the checks are
-in, so the default landing is one GitHub performs and signs with its
-web-flow key. That signature satisfies `main-integrity` exactly as the
-maintainer's own would: what the rule requires is a valid signature, not
-a particular signer.
+lands here**, as CONTRIBUTING.md's *Landing it* says. GitHub performs
+the squash and signs it with its web-flow key. That signature satisfies
+`main-integrity` exactly as the maintainer's own would: what the rule
+requires is a valid signature, not a particular signer.
 
 ```shell
 gh api repos/btclib-org/btclib \
@@ -478,11 +482,11 @@ gh api repos/btclib-org/btclib \
 #  "squash_merge_commit_title":"COMMIT_OR_PR_TITLE"}
 ```
 
-`allow_auto_merge` is what makes "auto-merge presses it" above a setting
-this file reads back rather than a fact about a workflow: turned off,
-every landing here would wait for somebody to press *Squash and merge* by
-hand at the moment the last check goes green, and nothing would turn red
-to say so.
+`allow_auto_merge` is what makes the auto-merge landing in
+CONTRIBUTING.md's *Landing it* a setting this file reads back rather
+than a fact about a workflow: turned off, an approved pull request would
+wait for somebody to merge it by hand at the moment the last check goes
+green, and nothing would turn red to say so.
 
 **There is no second path**, the section above having the bypass mode
 that closes it and the ruleset entry that names `squash` as the only

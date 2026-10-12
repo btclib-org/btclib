@@ -401,9 +401,8 @@ unfinished review.** Somebody who reads a diff and says what they found
 is worth more than the same person saying nothing because a verdict on
 the whole change was the price of speaking, and the readings worth
 having are the ones nobody was assigned. What a pull request lands on is
-the ack of record and an approving review from somebody other than its
-author. Every other comment on it is evidence a person weighs before
-pressing.
+the ack of record and what `CONTRIBUTING.md`'s *Landing it* asks for.
+Every other comment on it is evidence a person weighs before pressing.
 
 **A `NACK` is a decision and having no verdict is not.** Both leave the
 pull request unacked, which is what makes them easy to read as one
