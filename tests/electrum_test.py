@@ -32,6 +32,8 @@ from btclib.electrum import (
     assert_merkle_proof,
     block_header_request,
     block_header_response,
+    block_headers_request,
+    block_headers_response,
     decode_response,
     encode_request,
     estimate_fee_request,
@@ -372,6 +374,121 @@ def test_block_header_response_refuses_a_non_string_result() -> None:
     """The wire answer, with no `cp_height`, is hex text and nothing else."""
     with pytest.raises(BTClibTypeError, match="not a hex string"):
         block_header_response(reply(id=4, result=None), 4)
+
+
+# the first two headers of the chain, from the spec's own example
+GENESIS_RAW = (
+    "0100000000000000000000000000000000000000000000000000000000000000000000003b"
+    "a3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff"
+    "001d1dac2b7c"
+)
+BLOCK_1_RAW = (
+    "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000"
+    "982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649"
+    "ffff001d01e36299"
+)
+
+
+def test_block_headers_round_trips_the_raw_headers() -> None:
+    """No `cp_height` sent; the answer is the `count`, `hex`, `max` object."""
+    request = block_headers_request(5, 0, 2)
+    assert json.loads(request)["params"] == [0, 2]
+
+    result = {"count": 2, "hex": GENESIS_RAW + BLOCK_1_RAW, "max": 2016}
+    headers = block_headers_response(reply(id=5, result=result), 5, 2)
+    assert headers == [bytes.fromhex(GENESIS_RAW), bytes.fromhex(BLOCK_1_RAW)]
+    assert BlockHeader.parse(headers[1]).previous_block_hash == (
+        BlockHeader.parse(headers[0]).hash
+    )
+
+
+def test_block_headers_response_returns_fewer_headers_than_asked() -> None:
+    """A server reaching its tip or its maximum answers fewer, even none."""
+    one = {"count": 1, "hex": GENESIS_RAW, "max": 2016}
+    assert block_headers_response(reply(id=5, result=one), 5, 10) == [
+        bytes.fromhex(GENESIS_RAW)
+    ]
+    none = {"count": 0, "hex": "", "max": 2016}
+    assert block_headers_response(reply(id=5, result=none), 5, 10) == []
+
+
+@pytest.mark.parametrize("asked", ["2", None, True, 1.5])
+def test_block_headers_response_refuses_an_asked_count_that_is_no_integer(
+    asked: object,
+) -> None:
+    """The number asked for is an integer, checked before the line is read."""
+    result = {"count": 1, "hex": GENESIS_RAW, "max": 2016}
+    with pytest.raises(BTClibTypeError, match="invalid count asked"):
+        block_headers_response(reply(id=5, result=result), 5, asked)  # type: ignore[arg-type]
+
+
+def test_block_headers_response_refuses_a_negative_asked_count() -> None:
+    """The number asked for is not negative."""
+    result = {"count": 0, "hex": "", "max": 2016}
+    with pytest.raises(BTClibValueError, match="invalid count asked"):
+        block_headers_response(reply(id=5, result=result), 5, -1)
+
+
+def test_block_headers_response_refuses_a_non_object() -> None:
+    """A bare list is not an object."""
+    with pytest.raises(BTClibTypeError, match="not an object"):
+        block_headers_response(reply(id=5, result=[GENESIS_RAW]), 5, 1)
+
+
+def test_block_headers_response_does_not_read_the_1_6_shape() -> None:
+    """From protocol 1.6 the answer carries `headers`, not `hex`."""
+    result = {"count": 1, "headers": [GENESIS_RAW], "max": 2016}
+    with pytest.raises(BTClibTypeError, match="not a hex string"):
+        block_headers_response(reply(id=5, result=result), 5, 1)
+
+
+@pytest.mark.parametrize("count", [1.0, "1", True, None])
+def test_block_headers_response_refuses_a_count_that_is_no_integer(
+    count: object,
+) -> None:
+    """The answered count is an integer."""
+    result = {"count": count, "hex": GENESIS_RAW, "max": 2016}
+    with pytest.raises(BTClibTypeError, match="invalid count"):
+        block_headers_response(reply(id=5, result=result), 5, 2)
+
+
+def test_block_headers_response_refuses_a_missing_count() -> None:
+    """No `count` member is no integer."""
+    with pytest.raises(BTClibTypeError, match="invalid count"):
+        block_headers_response(reply(id=5, result={"hex": GENESIS_RAW}), 5, 2)
+
+
+@pytest.mark.parametrize("count", [-1, 3])
+def test_block_headers_response_refuses_a_count_out_of_range(count: int) -> None:
+    """The answered count is from 0 to the number asked."""
+    result = {"count": count, "hex": GENESIS_RAW, "max": 2016}
+    with pytest.raises(BTClibValueError, match="invalid count"):
+        block_headers_response(reply(id=5, result=result), 5, 2)
+
+
+@pytest.mark.parametrize("hex_", [None, 12345, [GENESIS_RAW]])
+def test_block_headers_response_refuses_a_non_string_hex(hex_: object) -> None:
+    """The `hex` member is text."""
+    result = {"count": 1, "hex": hex_, "max": 2016}
+    with pytest.raises(BTClibTypeError, match="not a hex string"):
+        block_headers_response(reply(id=5, result=result), 5, 1)
+
+
+def test_block_headers_response_refuses_hex_that_is_not_hex() -> None:
+    """Text that is not hex is refused by the octets reader."""
+    result = {"count": 1, "hex": "zz" * 80, "max": 2016}
+    with pytest.raises(BTClibValueError):
+        block_headers_response(reply(id=5, result=result), 5, 1)
+
+
+@pytest.mark.parametrize(
+    "hex_", [GENESIS_RAW[:-2], GENESIS_RAW + "00", GENESIS_RAW + BLOCK_1_RAW, ""]
+)
+def test_block_headers_response_refuses_hex_not_80_bytes_a_header(hex_: str) -> None:
+    """One header is counted, so the `hex` is eighty bytes exactly."""
+    result = {"count": 1, "hex": hex_, "max": 2016}
+    with pytest.raises(BTClibValueError, match="are not 1 headers"):
+        block_headers_response(reply(id=5, result=result), 5, 1)
 
 
 def test_transaction_get_merkle_round_trips_the_proof() -> None:

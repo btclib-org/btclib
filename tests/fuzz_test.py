@@ -230,10 +230,20 @@ _MODULE_DECODER_NAMES = ("parse", "decode")
 # request whose id the decoder is given. `decode_response` reads the line
 # and each `*_response` function the `result` it returns, so a decoder
 # is driven by the lines its own result shape accepts as well as by
-# bytes that are no JSON at all
+# bytes that are no JSON at all. `block_headers_response` also takes the
+# number of headers asked for
 ELECTRUM_REQUEST_ID = 1
+ELECTRUM_HEADERS_ASKED = 2
 ELECTRUM_RESPONSES: dict[str, Callable[[bytes], Any]] = {
-    name: partial(getattr(electrum, name), request_id=ELECTRUM_REQUEST_ID)
+    name: partial(
+        getattr(electrum, name),
+        request_id=ELECTRUM_REQUEST_ID,
+        **(
+            {"count": ELECTRUM_HEADERS_ASKED}
+            if name == "block_headers_response"
+            else {}
+        ),
+    )
     for name in electrum.__all__
     if name.endswith("_response")
 }
@@ -615,9 +625,24 @@ def test_witness_consumer_honors_the_exception_contract(
 # nothing beneath it. The leaves are what the helpers ask of a field, an
 # integer, a hex string, a list, a number, and what they refuse
 _ELECTRUM_KEYS = st.sampled_from(
-    ["id", "result", "error", "height", "hex", "block_height", "merkle", "pos"]
+    [
+        "id",
+        "result",
+        "error",
+        "height",
+        "hex",
+        "block_height",
+        "merkle",
+        "pos",
+        "count",
+        "max",
+    ]
 )
 _ELECTRUM_HEX = st.binary(max_size=80).map(bytes.hex) | st.just("00" * 32)
+# whole headers, up to the number `ELECTRUM_HEADERS_ASKED` asks for
+_ELECTRUM_HEADERS_HEX = st.integers(0, ELECTRUM_HEADERS_ASKED).flatmap(
+    lambda n: st.binary(min_size=80 * n, max_size=80 * n).map(bytes.hex)
+)
 _ELECTRUM_JSON = st.recursive(
     st.none()
     | st.booleans()
@@ -648,6 +673,13 @@ _ELECTRUM_RESULTS = (
             "merkle": st.lists(_ELECTRUM_HEX | _ELECTRUM_JSON, max_size=3)
             | _ELECTRUM_JSON,
             "pos": st.integers() | _ELECTRUM_JSON,
+        }
+    )
+    | st.fixed_dictionaries(
+        {
+            "count": st.integers(-1, ELECTRUM_HEADERS_ASKED + 1) | _ELECTRUM_JSON,
+            "hex": _ELECTRUM_HEADERS_HEX | _ELECTRUM_HEX | _ELECTRUM_JSON,
+            "max": st.integers() | _ELECTRUM_JSON,
         }
     )
     | st.floats(allow_nan=False, allow_infinity=False)

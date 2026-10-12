@@ -11,7 +11,8 @@ hands the same bytes to all of them: what the line says is what decides
 which of them gets past the first.
 
 The line is bytes, and `REQUEST_ID` is the id every seed under
-`fuzz/corpus/fuzz_electrum/` answers.
+`fuzz/corpus/fuzz_electrum/` answers. `HEADERS_ASKED` is the number of
+headers the request behind `block_headers.bin` asked for.
 
 `BTClibException` is `decode_response`'s own refusal of a line that is
 no valid answer, and `RpcError` is a server's own error object, which is
@@ -37,11 +38,13 @@ ENTRY_POINTS = (
     "btclib.electrum:transaction_get_response",
     "btclib.electrum:headers_subscribe_response",
     "btclib.electrum:block_header_response",
+    "btclib.electrum:block_headers_response",
     "btclib.electrum:transaction_get_merkle_response",
     "btclib.electrum:estimate_fee_response",
 )
 
 REQUEST_ID = 1
+HEADERS_ASKED = 2
 
 
 def fuzz_target(data: bytes) -> None:
@@ -54,6 +57,8 @@ def fuzz_target(data: bytes) -> None:
         electrum.headers_subscribe_response(data, REQUEST_ID)
     with contextlib.suppress(BTClibException):
         electrum.block_header_response(data, REQUEST_ID)
+    with contextlib.suppress(BTClibException):
+        electrum.block_headers_response(data, REQUEST_ID, HEADERS_ASKED)
     with contextlib.suppress(BTClibException):
         electrum.transaction_get_merkle_response(data, REQUEST_ID)
     with contextlib.suppress(BTClibException):
