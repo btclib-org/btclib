@@ -106,7 +106,7 @@ def test_exceptions() -> None:
 
     # a character outside ascii is an invalid base58 character like any
     # other, not a UnicodeEncodeError
-    err_msg = "non-ascii character in base58 string: "
+    err_msg = "^non-ascii character in base58 string at position 1$"
     with pytest.raises(BTClibValueError, match=err_msg):
         decode("hèllo world")
 

@@ -209,11 +209,15 @@ def decode(v: String, out_size: int | None = None) -> bytes:
 
 
 def _ascii_bytes(v: str) -> bytes:
-    """Return the ascii octets of a string, or refuse a character outside."""
+    """Return the ascii octets of a string, or refuse a character outside.
+
+    The refusal names the position and never the character: the string
+    can be a WIF.
+    """
     try:
         return v.encode("ascii")
     except UnicodeEncodeError as e:
-        err_msg = f"non-ascii character in base58 string: {e}"
+        err_msg = f"non-ascii character in base58 string at position {e.start}"
     # raised outside the `except`: the Unicode error holds the whole
     # string, and must not be left as the new error's context
     raise BTClibValueError(err_msg)
