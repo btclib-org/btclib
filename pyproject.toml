@@ -852,14 +852,15 @@ source = ["btclib", "tests"]
 # ordinary run executes, and those tests skip themselves without
 # BTCLIB_INTEGRATION: their bodies would be uncovered lines of tests/ at
 # every commit, which is the ratchet reporting the switch rather than a
-# defect. What covers them is the opt-in run, and the module docstrings
-# carry the command
+# defect. What covers them is the opt-in run, and the docstrings of the
+# modules under tests/integration carry the command
 omit = [
     "*/site-packages/*",
     "tests/integration/*",
     # skips itself where py-bitcoinkernel is not importable, so its body
     # is uncovered at every commit for the reason above; the opt-in run
-    # is kernel-differential.yml
+    # is kernel-differential.yml, and tests/README.md's *The differential
+    # against libbitcoinkernel* carries the command
     "tests/script_engine/kernel_differential_test.py",
 ]
 # statement coverage alone calls a half-tested `if` fully covered: the
