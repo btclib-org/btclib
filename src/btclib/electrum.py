@@ -89,6 +89,30 @@ __all__ = [
 ]
 
 
+# Exactly what is sent: `bytes.fromhex` would skip whitespace, and the
+# string and not its decoding goes on the wire.
+_TX_ID = re.compile(r"[0-9a-fA-F]{64}")
+
+
+def _assert_integer(value: object, what: str, *, non_negative: bool) -> None:
+    """Refuse what is not an integer, a bool not being one.
+
+    Where `non_negative`, refuse what is below zero too.
+    """
+    if not is_integer(value):
+        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+    if non_negative and cast(int, value) < 0:
+        raise BTClibValueError(f"invalid {what}: {_message_text(value)} < 0")
+
+
+def _assert_tx_id(tx_id: str) -> None:
+    """Refuse what is not a transaction hash as a hexadecimal string."""
+    if not isinstance(tx_id, str):
+        raise BTClibTypeError(f"invalid tx_id type: {type(tx_id).__name__}")
+    if not _TX_ID.fullmatch(tx_id):
+        raise BTClibValueError(f"invalid tx_id: {_message_text(tx_id)}")
+
+
 def encode_request(request_id: int, method: str, params: Any = ()) -> bytes:
     """Return one JSON-RPC request line, newline-terminated.
 
@@ -96,9 +120,26 @@ def encode_request(request_id: int, method: str, params: Any = ()) -> bytes:
     `LineTransport` (`btclib_wallet.fetch.transport`) takes and returns exactly
     one such line, so a caller building one by hand -- outside the
     per-method helpers below -- still gets the framing right.
+
+    Refused: a `request_id` that is not an integer, a `method` that is not a
+    string, `params` that is not a list or a tuple (`BTClibTypeError`), and
+    a request JSON cannot write: `params` holding an unwritable object
+    (`BTClibTypeError`), or a `NaN`, an infinity, an integer too large or
+    a nesting too deep (`BTClibValueError`).
     """
+    _assert_integer(request_id, "request_id", non_negative=False)
+    if not isinstance(method, str):
+        raise BTClibTypeError(f"invalid method type: {type(method).__name__}")
+    if not isinstance(params, (list, tuple)):
+        raise BTClibTypeError(f"invalid params type: {type(params).__name__}")
     request = {"id": request_id, "method": method, "params": list(params)}
-    return json.dumps(request).encode("utf-8") + b"\n"
+    try:
+        line = json.dumps(request, allow_nan=False)
+    except TypeError as e:
+        raise BTClibTypeError(f"request not JSON: {e}") from e
+    except (ValueError, RecursionError) as e:
+        raise BTClibValueError(f"request not JSON: {e}") from e
+    return line.encode("utf-8") + b"\n"
 
 
 def _raise_rpc_error(error: object) -> NoReturn:
@@ -213,7 +254,12 @@ def decode_response(line: bytes, request_id: int) -> Any:
 
 
 def transaction_get_request(request_id: int, tx_id: str) -> bytes:
-    """Return the `blockchain.transaction.get` request for `tx_id`."""
+    """Return the `blockchain.transaction.get` request for `tx_id`.
+
+    Refused: a `tx_id` that is not a string (`BTClibTypeError`) or not 32
+    bytes of hex (`BTClibValueError`).
+    """
+    _assert_tx_id(tx_id)
     return encode_request(request_id, "blockchain.transaction.get", [tx_id])
 
 
@@ -280,7 +326,11 @@ def block_header_request(request_id: int, height: int) -> bytes:
     this codec has no method for and
     `btclib_wallet.fetch.Fetcher.get_block_header`'s own checks, run on
     the header this returns, have no use for.
+
+    Refused: a `height` that is not an integer (`BTClibTypeError`) or is
+    negative (`BTClibValueError`).
     """
+    _assert_integer(height, "height", non_negative=True)
     return encode_request(request_id, "blockchain.block.header", [height])
 
 
@@ -297,7 +347,12 @@ def block_headers_request(request_id: int, start_height: int, count: int) -> byt
 
     `cp_height` is left unsent, at its protocol default of zero, so the
     answer carries no checkpoint `root` and `branch`.
+
+    Refused: a `start_height` or a `count` that is not an integer
+    (`BTClibTypeError`) or is negative (`BTClibValueError`).
     """
+    _assert_integer(start_height, "start_height", non_negative=True)
+    _assert_integer(count, "count", non_negative=True)
     return encode_request(request_id, "blockchain.block.headers", [start_height, count])
 
 
@@ -367,7 +422,13 @@ class MerkleProof:
 
 
 def transaction_get_merkle_request(request_id: int, tx_id: str, height: int) -> bytes:
-    """Return the `blockchain.transaction.get_merkle` request."""
+    """Return the `blockchain.transaction.get_merkle` request.
+
+    Refused: a `tx_id` as `transaction_get_request` refuses it, and a
+    `height` that is not an integer (`BTClibTypeError`).
+    """
+    _assert_tx_id(tx_id)
+    _assert_integer(height, "height", non_negative=False)
     return encode_request(
         request_id, "blockchain.transaction.get_merkle", [tx_id, height]
     )
@@ -415,7 +476,11 @@ def verify_merkle_proof(tx_id: Octets, proof: MerkleProof, header: BlockHeader) 
 
 
 def estimate_fee_request(request_id: int, target: int) -> bytes:
-    """Return the `blockchain.estimatefee` request for `target` blocks."""
+    """Return the `blockchain.estimatefee` request for `target` blocks.
+
+    Refused: a `target` that is not an integer (`BTClibTypeError`).
+    """
+    _assert_integer(target, "target", non_negative=False)
     return encode_request(request_id, "blockchain.estimatefee", [target])
 
 

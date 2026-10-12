@@ -125,6 +125,122 @@ def test_encode_request_is_one_newline_terminated_json_object() -> None:
     }
 
 
+@pytest.mark.parametrize("request_id", [True, 1.0, "1", None])
+def test_encode_request_refuses_a_request_id_that_is_not_an_integer(
+    request_id: object,
+) -> None:
+    """A bool is no id, and a float or a string is not one either."""
+    with pytest.raises(BTClibTypeError, match="invalid request_id type"):
+        encode_request(request_id, "server.version")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("method", [None, 5, b"server.version"])
+def test_encode_request_refuses_a_method_that_is_not_a_string(method: object) -> None:
+    """The method is a JSON string."""
+    with pytest.raises(BTClibTypeError, match="invalid method type"):
+        encode_request(1, method)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("params", [5, "ab", None, {"a": 1}, {1}, b"ab", iter([1])])
+def test_encode_request_refuses_params_that_are_not_a_list_or_a_tuple(
+    params: object,
+) -> None:
+    """`list("ab")` is two parameters; no other shape is accepted either."""
+    with pytest.raises(BTClibTypeError, match="invalid params type"):
+        encode_request(1, "m", params)
+
+
+def test_encode_request_accepts_a_list_and_a_tuple() -> None:
+    """Both spell the same params array."""
+    assert encode_request(1, "m", (1, "a")) == encode_request(1, "m", [1, "a"])
+
+
+def test_encode_request_refuses_params_that_json_cannot_write() -> None:
+    """A refusal of this library's, not the bare `TypeError` of `json`."""
+    with pytest.raises(BTClibTypeError, match="request not JSON"):
+        encode_request(1, "m", [object()])
+
+
+def test_encode_request_refuses_a_request_json_cannot_write_by_its_id() -> None:
+    """The fault is the id here, and the message says the request."""
+    with pytest.raises(BTClibValueError, match="request not JSON"):
+        encode_request(10**5000, "m")
+
+
+def test_encode_request_refuses_params_nested_too_deep() -> None:
+    """A refusal of this library's, not a bare `RecursionError`."""
+    params: list[object] = []
+    for _ in range(100_000):
+        params = [params]
+    with pytest.raises(BTClibValueError, match="request not JSON"):
+        encode_request(1, "m", params)
+
+
+@pytest.mark.parametrize("number", [float("nan"), float("inf"), -float("inf")])
+def test_encode_request_refuses_a_non_finite_number_in_params(number: float) -> None:
+    """`NaN` and `Infinity` are not JSON (RFC 8259)."""
+    with pytest.raises(BTClibValueError, match="request not JSON"):
+        encode_request(1, "m", [number])
+
+
+@pytest.mark.parametrize("tx_id", [None, 5, b"\x00" * 32, object()])
+def test_transaction_requests_refuse_a_tx_id_that_is_not_a_string(
+    tx_id: object,
+) -> None:
+    """The transaction hash is a hexadecimal string."""
+    with pytest.raises(BTClibTypeError, match="invalid tx_id type"):
+        transaction_get_request(1, tx_id)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid tx_id type"):
+        transaction_get_merkle_request(1, tx_id, 1)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "tx_id",
+    ["", "zz", TX_ID[:-2], TX_ID + "00", "g" * 64, " " + TX_ID + "\n", "ab ab" * 13],
+)
+def test_transaction_requests_refuse_a_tx_id_that_is_not_32_bytes_of_hex(
+    tx_id: str,
+) -> None:
+    """A hash of another length, or not hex, names no transaction."""
+    with pytest.raises(BTClibValueError):
+        transaction_get_request(1, tx_id)
+    with pytest.raises(BTClibValueError):
+        transaction_get_merkle_request(1, tx_id, 1)
+
+
+@pytest.mark.parametrize("value", [True, 1.0, "1", None, object()])
+def test_requests_refuse_a_number_that_is_not_an_integer(value: object) -> None:
+    """Heights, counts and targets are integers, a bool not being one."""
+    with pytest.raises(BTClibTypeError, match="invalid height type"):
+        block_header_request(1, value)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid start_height type"):
+        block_headers_request(1, value, 1)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid count type"):
+        block_headers_request(1, 0, value)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid height type"):
+        transaction_get_merkle_request(1, TX_ID, value)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid target type"):
+        estimate_fee_request(1, value)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid request_id type"):
+        headers_subscribe_request(value)  # type: ignore[arg-type]
+
+
+def test_requests_refuse_a_negative_height_or_count() -> None:
+    """The protocol names these as non-negative integers."""
+    with pytest.raises(BTClibValueError, match="invalid height: -1 < 0"):
+        block_header_request(1, -1)
+    with pytest.raises(BTClibValueError, match="invalid start_height: -1 < 0"):
+        block_headers_request(1, -1, 1)
+    with pytest.raises(BTClibValueError, match="invalid count: -1 < 0"):
+        block_headers_request(1, 0, -1)
+
+
+def test_requests_accept_zero() -> None:
+    """Zero is a height and a count; the genesis block is at height 0."""
+    assert json.loads(block_header_request(1, 0))["params"] == [0]
+    assert json.loads(block_headers_request(1, 0, 0))["params"] == [0, 0]
+
+
 def test_decode_response_returns_the_result() -> None:
     """A well-formed reply answers with its own `result`."""
     assert decode_response(reply(id=3, result="ok"), 3) == "ok"
