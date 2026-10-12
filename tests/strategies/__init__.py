@@ -158,5 +158,11 @@ MIXED_COMMAND_LISTS = st.lists(_MIXED_COMMANDS, max_size=12)
 SCRIPTS = st.one_of(
     st.binary(max_size=80),
     COMMAND_LISTS.map(serialize),
-    st.builds(bytes.__add__, COMMAND_LISTS.map(serialize), st.binary(max_size=40)),
+    # a lambda: PyPy's bytes.__add__ is a function, which hypothesis labels
+    # by its code, and that builtin code has no `co_code`
+    st.builds(
+        lambda script, tail: script + tail,
+        COMMAND_LISTS.map(serialize),
+        st.binary(max_size=40),
+    ),
 )
