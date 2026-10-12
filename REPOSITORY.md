@@ -349,10 +349,10 @@ no force pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.
 
 That last one is what lets the maintainer land without the review.
-[`GOVERNANCE.md`'s *How a decision is
-made*](https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md#how-a-decision-is-made),
-in btclib-org/.github, says when the maintainer does. CONTRIBUTING.md's
-*Landing it* has the commands.
+btclib-org/.github's
+[`GOVERNANCE.md`](https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md#how-a-decision-is-made),
+*How a decision is made*, says when the maintainer does.
+CONTRIBUTING.md's *Landing it* has the commands.
 
 ```shell
 gh api repos/btclib-org/btclib/branches/main/protection \
@@ -408,8 +408,8 @@ unrelated reason: `release.yml` publishes to PyPI on `push: tags:
 **The bypass mode is the whole of the design.** `pull_request` excuses
 its holder from the rule *while merging a pull request* and at no other
 time, so it excuses the approving review and nothing further.
-`GOVERNANCE.md`'s *How a decision is made* says when the maintainer uses
-it. A direct push to `main` is
+btclib-org/.github's `GOVERNANCE.md`, *How a decision is made*, says
+when the maintainer uses it. A direct push to `main` is
 refused for everyone, the holder included: outside a pull request there
 is no bypass to apply, and the rule says changes must come through one.
 

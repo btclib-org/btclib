@@ -435,8 +435,8 @@ to `deps-latest`'s own result.
    asks for a valid signature and not for a particular signer.
 
    Where nobody else approves, the maintainer lands it through the
-   bypass. `GOVERNANCE.md`'s *How a decision is made*, in
-   btclib-org/.github, says when. The bypass needs `enforce_admins`
+   bypass. btclib-org/.github's `GOVERNANCE.md`, *How a decision is
+   made*, says when. The bypass needs `enforce_admins`
    `false` together with holding `admin`, the pair REPOSITORY.md's
    "Branch protection" names. Name the release commit's title and body
    explicitly when using it, rather than leave them to the two
