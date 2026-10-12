@@ -308,12 +308,21 @@ def _zero_other_sequences(new_tx: Tx, vin_i: int) -> None:
 # it serializes to, so what those bytes cannot stand for is what this
 # refuses. Not the money range: -1 is a signed CAmount and BIP143 hashes it
 # (issue 388), so `valid_sats_amount` would refuse a preimage Core writes
-_CAMOUNT = range(-(2**63), 2**63)
+_CAMOUNT_MIN = -(2**63)
+_CAMOUNT_MAX = 2**63 - 1
 
 
 def _assert_valid_camount(amount: int, name: str) -> None:
-    """Refuse an amount no eight-byte signed field can hold."""
-    if amount not in _CAMOUNT:
+    """Refuse an amount no eight-byte signed field can hold.
+
+    The type before the bounds, which are compared and not looked up in a
+    `range`: its `in` is O(1) for an exact `int` or `bool` only, and walks
+    the range one element at a time for anything else, a float, a str or
+    an int subclass such as an `IntEnum` included.
+    """
+    if not is_integer(amount):
+        raise BTClibTypeError(f"invalid {name} type: {type(amount).__name__}")
+    if not _CAMOUNT_MIN <= amount <= _CAMOUNT_MAX:
         raise BTClibValueError(f"invalid {name}: {_message_text(amount)}")
 
 
