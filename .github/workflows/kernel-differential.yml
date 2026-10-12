@@ -1,0 +1,65 @@
+---
+name: kernel-differential
+
+# Asks whether btclib's script engine and Bitcoin Core's agree on random
+# spends. tests/README.md's *The differential against libbitcoinkernel*
+# says what it runs, how to run it locally and how to triage a failure.
+#
+# Informational: it gates nothing and is not a required check. A red run
+# is a disagreement, not a failing merge.
+#
+# By hand only: the maintainer decided against a schedule (issue #2588).
+# A run takes minutes (the install, then the search at the `thorough`
+# profile), and section 10 of the organization standard gives a
+# path-filtered pull_request trigger only to a run of seconds.
+#
+# py-bitcoinkernel is an alpha. It ships wheels for CPython 3.10 to 3.13
+# and builds Core from source beyond that, so this runs on 3.13. The
+# version is pinned: a differential that moves with the kernel reports
+# the day the kernel changed rather than the day btclib did. Raising it
+# is a commit.
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: hypothesis seed; the same seed draws the same spends
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+# named literally rather than through github.workflow, as elsewhere here
+concurrency:
+  group: kernel-differential-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  differential:
+    name: Script engine against libbitcoinkernel
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Compare the verdicts
+        env:
+          HYPOTHESIS_PROFILE: thorough
+          SEED: ${{ inputs.seed }}
+        run: |
+          run=(uv run --locked --python 3.13 --group test
+            --with py-bitcoinkernel==0.1.0a5)
+          # name a missing pbk, rather than leave pytest's exit 5 for a
+          # module that skipped itself
+          "${run[@]}" python -c "import pbk"
+          seed=()
+          if [ -n "$SEED" ]; then seed=("--hypothesis-seed=$SEED"); fi
+          "${run[@]}" python -m pytest \
+            tests/script_engine/kernel_differential_test.py \
+            -n 0 --no-cov -rs "${seed[@]}"
