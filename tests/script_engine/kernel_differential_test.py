@@ -10,13 +10,11 @@ and Core's own `VerifyScript`, reached through the kernel, then answer
 whether it is valid, and the two answers must be the same. Only the
 verdict is compared: the kernel reports no script error code.
 
-py-bitcoinkernel is not a dependency of btclib. The module is skipped
-where `pbk` is not importable, and `kernel-differential.yml` is what
-installs it. The kernel takes the consensus flags and no policy flag, so
-the policy flags are not drawn.
+The kernel takes the consensus flags and no policy flag, so the policy
+flags are not drawn. tests/README.md says how to run the module.
 
 A failure prints the transaction, the spent outputs and the flags, and
-the exception btclib raised, to triage against Core's interpreter.
+the exception btclib raised.
 """
 
 from __future__ import annotations

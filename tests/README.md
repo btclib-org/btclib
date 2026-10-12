@@ -99,14 +99,14 @@ weekly, on every pull request and on every push to `main`.
 
 ## The differential against libbitcoinkernel
 
-`tests/script_engine/kernel_differential_test.py` gives random spends to
-`verify_input` and to Bitcoin Core's interpreter, through the
+`tests/script_engine/kernel_differential_test.py` compares the verdicts
+of `verify_input` and of Bitcoin Core's interpreter, through the
 libbitcoinkernel of [py-bitcoinkernel](https://pypi.org/project/py-bitcoinkernel/),
-and fails on any difference in verdict. py-bitcoinkernel is not a
-dependency of btclib, so the module skips itself without it and is
-outside the coverage ratchet, as `tests/integration/` is. Overlay it on
-the locked environment, on an interpreter it ships wheels for, and call
-`python -m pytest`: the `pytest` script does not see an overlay.
+on random spends. py-bitcoinkernel is not a dependency of btclib, so the
+module skips itself without it and is outside the coverage ratchet, as
+`tests/integration/` is. Overlay it on the locked environment, on an
+interpreter it ships wheels for, and call `python -m pytest`: the
+`pytest` script does not see an overlay.
 
 ```shell
 HYPOTHESIS_PROFILE=thorough uv run --locked --python 3.13 --group test \
@@ -116,10 +116,12 @@ HYPOTHESIS_PROFILE=thorough uv run --locked --python 3.13 --group test \
 ```
 
 `kernel-differential.yml` runs the same command on `workflow_dispatch`,
-and the version it pins is the one to write for `<version>`.
-A failure prints the transaction, the spent outputs and the flags: triage
-it against Core's interpreter, the depend/bitcoin tree of py-bitcoinkernel
-at the tag of the pinned version, before filing it.
+and the version it pins is the one to write for `<version>`. The command
+rebuilds `.venv` on 3.13; `UV_PROJECT_ENVIRONMENT=<another directory>`
+leaves it alone.
+
+Triage a failure against Core's interpreter, the depend/bitcoin tree of
+py-bitcoinkernel at the tag of the pinned version, before filing it.
 
 ## Fuzzing, and replaying a crash it finds
 

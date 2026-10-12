@@ -2,32 +2,22 @@
 name: kernel-differential
 
 # Asks whether btclib's script engine and Bitcoin Core's agree on random
-# spends: tests/script_engine/kernel_differential_test.py draws them with
-# hypothesis and gives each to `verify_input` and to libbitcoinkernel,
-# through py-bitcoinkernel. Nothing else in the suite runs the engine
-# beside Core's interpreter on inputs nobody wrote down.
+# spends. tests/README.md's *The differential against libbitcoinkernel*
+# says what it runs, how to run it locally and how to triage a failure.
 #
 # Informational: it gates nothing and is not a required check. A red run
-# is a disagreement to triage against Core's interpreter, not a failing
-# merge.
+# is a disagreement, not a failing merge.
 #
-# By hand only, before a release and on a branch that changes
-# src/btclib/script/: the maintainer decided against a schedule
-# (issue #2588). A run takes minutes (the install, then the search at the
-# `thorough` profile), and section 10 of the organization standard gives
-# a path-filtered pull_request trigger only to a run of seconds.
+# By hand only: the maintainer decided against a schedule (issue #2588).
+# A run takes minutes (the install, then the search at the `thorough`
+# profile), and section 10 of the organization standard gives a
+# path-filtered pull_request trigger only to a run of seconds.
 #
-# py-bitcoinkernel is an alpha and not a dependency of btclib. `--with`
-# overlays it on the locked environment for this run, so uv.lock and the
-# dependency groups do not name it. It ships wheels for CPython 3.10 to
-# 3.13 and builds Core from source beyond that, so this runs on 3.13.
-# The version is pinned: a differential that moves with the kernel
-# reports the day the kernel changed rather than the day btclib did.
-# Raising it is a commit. The wheel's Core is the depend/bitcoin tree of
-# py-bitcoinkernel at the tag of the pinned version.
-#
-# `python -m pytest`, not `pytest`: the console script runs in the
-# project environment, which does not see the overlay.
+# py-bitcoinkernel is an alpha. It ships wheels for CPython 3.10 to 3.13
+# and builds Core from source beyond that, so this runs on 3.13. The
+# version is pinned: a differential that moves with the kernel reports
+# the day the kernel changed rather than the day btclib did. Raising it
+# is a commit.
 
 on:
   workflow_dispatch:
