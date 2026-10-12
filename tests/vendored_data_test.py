@@ -189,7 +189,7 @@ _EXEMPT: dict[str, str] = {
     "One of the seven is misnamed, and the file is vendored with the name": _UPSTREAM_FACT,
     "three other findings as petertodd/python-bitcoinlib#323. Renaming it": _UPSTREAM_FACT,
     "- the six nBits-to-difficulty pairs of": _UPSTREAM_FACT,
-    "every run — so the first two entries verify themselves, and are the only": _UPSTREAM_FACT,
+    "every run — so the first two entries verify themselves. So does the": _UPSTREAM_FACT,
     "`bitcoin-cli getblock <hash> 0` returns the first three and": _UPSTREAM_FACT,
     "The twelve `scriptPubKey`s reported in issue #123, the five transactions": _UPSTREAM_FACT,
     "that carry them being the five the issue lists. Each entry holds the": _UPSTREAM_FACT,
@@ -320,7 +320,7 @@ _SECTION_HEADING = re.compile(r"^#{2,3} .+$", re.MULTILINE)
 # vendored as a file: ..." heading has prose of its own and never matches,
 # which is the point: such an entry has no name to compare the Summary
 # against. The same shape also excludes a heading with trailing prose after
-# the path -- "### `tests/tx/_data/*.bin` — segwit transactions" and "###
+# the path -- "### `tests/tx/_data/` — a segwit transaction" and "###
 # `tests/fetch/_data/*` — response bodies" among them -- and neither is
 # transcribed today, so nothing is missed; a transcribed entry written with a
 # trailing dash would drop out of both sets with nothing red to say so
