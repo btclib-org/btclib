@@ -28,9 +28,9 @@ import atheris
 from btclib.exceptions import BTClibException
 from btclib.p2p.addrv2 import AddrV2, SendAddrV2
 
-# tests/fuzz_corpus_test.py reads this by ast.literal_eval, never by
-# importing the module -- atheris below is CI-only and undeclared in
-# pyproject.toml, so the test must not execute this file
+# tests/fuzz_corpus_test.py reads this with ast.literal_eval.
+# tests/fuzz_harness_test.py imports this file with an empty atheris,
+# so atheris may be called only from main()
 ENTRY_POINTS = (
     "btclib.p2p.addrv2:AddrV2.parse",
     "btclib.p2p.addrv2:SendAddrV2.parse",

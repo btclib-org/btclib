@@ -4,12 +4,10 @@
 
 """A fuzz/corpus/ seed is still a valid serialization of what it parses.
 
-`fuzz/fuzz_<name>.py` and `fuzz/corpus/fuzz_<name>/` are read from disk;
-neither is imported. Every harness imports atheris at module level,
-which is CI-only and undeclared in `[dependency-groups]`, so this module
-never runs `import fuzz.fuzz_<name>` and never executes a harness's own
-code -- it parses the source with `ast` and resolves what a harness
-*names* against the installed btclib instead.
+This module reads `fuzz/fuzz_<name>.py` with `ast` and never executes it.
+It resolves what a harness *names* against the installed btclib.
+`fuzz_harness_test.py` is the other half: it runs each harness's
+`fuzz_target` on its seeds.
 
 `ENTRY_POINTS`, a module-level tuple of `"module:Qual.name"` string
 literals, is what each harness names. `test_entry_points_are_declared`
