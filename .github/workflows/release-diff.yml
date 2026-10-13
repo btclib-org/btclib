@@ -2,26 +2,17 @@
 name: release diff
 
 # Runs the parsers of this tree and of the last release on the same
-# inputs and lists every input where they differ: one accepts and the
-# other refuses, or both accept and serialize differently. The inputs are
-# `fuzz/corpus/` and the corpora the `fuzz` workflow last uploaded.
-# `.github/scripts/compare_release.py` does the comparing and the
-# summary of the run is its report.
-#
-# Informational, and must not appear in main's required checks: a
-# difference is not a defect, because a change that makes a parser accept
-# or serialize other bytes is sometimes the point of the pull request.
-# The script exits 0 whatever it finds, and that pull request names the
-# difference it intends.
+# inputs and lists every input where they differ. The summary of the run
+# is the report. `.github/scripts/compare_release.py` does the comparing,
+# and its docstring says what the inputs and the differences are and why
+# the run is informational: it must not appear in main's required checks.
 #
 # The release is whatever the index serves when the run starts, installed
 # into a venv of its own beside the one `uv sync` makes for this tree.
 # Both venvs take every other package at the version `uv.lock` pins
 # (the constraints file below), so a difference is btclib's and not a
-# dependency's. `--no-cache`, because the cache can hold a build of this
-# tree's own earlier state and answer for the index. `.python-version`
-# gives both venvs one interpreter, `uv venv` reading it from the
-# checkout.
+# dependency's. `.python-version` gives both venvs one interpreter,
+# `uv venv` reading it from the checkout.
 #
 # A pull request touching `src/` is the trigger. Its run ends before
 # `test`'s, so it adds nothing to the pull request's wait (section 10's
@@ -80,8 +71,7 @@ jobs:
             --output-file "$RUNNER_TEMP/constraints.txt"
           uv venv "$RUNNER_TEMP/release"
           uv pip install --python "$RUNNER_TEMP/release/bin/python" \
-            --no-cache --only-binary btclib \
-            --constraint "$RUNNER_TEMP/constraints.txt" btclib
+            --only-binary btclib --constraint "$RUNNER_TEMP/constraints.txt" btclib
 
       # best effort: the artifacts expire, and a fork's run may not be
       # allowed to list them. Without them the seeds are all there is, and
