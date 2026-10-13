@@ -135,7 +135,7 @@ first, against the branch, and the pull request follows:
 branch=repos/btclib-org/btclib/branches/main
 gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
 {
-  "strict": true,
+  "strict": false,
   "checks": [
     {"context": "test: every job passed", "app_id": 15368},
     {"context": "docs / Build the documentation", "app_id": 15368},
@@ -168,7 +168,7 @@ holds the path for the same reason the JSON is not on one line, which is
 
 **PATCH that sub-endpoint, never PUT the whole protection object**: a
 partial PUT drops the reviews and the rest. Repeat
-`strict: true` in the body, which replaces the object rather than merging
+`strict: false` in the body, which replaces the object rather than merging
 into it.
 
 ## Code scanning
@@ -343,8 +343,8 @@ gh api repos/btclib-org/btclib --jq '.default_branch'
 # main
 ```
 
-Everything reaches it through a pull request: the checks above with
-`strict`, one approving review, `dismiss_stale_reviews`, linear history,
+Everything reaches it through a pull request: the checks above, one
+approving review, `dismiss_stale_reviews`, linear history,
 no force pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.
 
@@ -353,6 +353,17 @@ btclib-org/.github's
 [`GOVERNANCE.md`](https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md#how-a-decision-is-made),
 *How a decision is made*, says when the maintainer does.
 CONTRIBUTING.md's *Landing it* has the commands.
+
+`strict` is off: a pull request need not be up to date with `main` to
+merge. [Section 11 of the
+standard](https://github.com/btclib-org/.github/blob/main/README.md#branch-protection-and-rulesets)
+has the ground.
+
+```shell
+gh api repos/btclib-org/btclib/branches/main/protection/required_status_checks \
+  --jq '.strict'
+# false
+```
 
 ```shell
 gh api repos/btclib-org/btclib/branches/main/protection \
