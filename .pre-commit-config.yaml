@@ -405,7 +405,7 @@ repos:
   # ahead of markdownlint-cli2 below on purpose: that hook's `--fix`
   # repairs the very seam this hook exists to name (btclib-org/.github#1293)
   - repo: https://github.com/btclib-org/.github
-    rev: 70f5915abed3b982009996ae52254fbc68c00dfc
+    rev: 9e89a1daa5e9cc59bd22bd8664eb20b621e15fc5
     hooks:
       - id: check-changelog
         args: [--grandfathered, "23"]
@@ -589,7 +589,7 @@ repos:
   # yaml, `.vscode` and .markdownlint.jsonc, and prettier is also what
   # parses the last two -- check-json cannot read a comment
   - repo: https://github.com/rbubley/mirrors-prettier
-    rev: v3.9.9
+    rev: v3.9.10
     hooks:
       - id: prettier
         name: prettier (yaml and jsonc, in place fixes)
@@ -753,7 +753,7 @@ repos:
   # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
   # pyupgrade, and yesqa
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.10
+    rev: v0.17.0
     hooks:
       - id: ruff-check
         name: ruff check (in place fixes)
@@ -773,7 +773,7 @@ repos:
   # not run over them -- and .github/scripts is read from the tree by
   # whoever changes it
   - repo: https://github.com/jsh9/pydoclint
-    rev: 0.11.0
+    rev: 0.11.1
     hooks:
       - id: pydoclint
         name: pydoclint (arguments and return values)
@@ -844,7 +844,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.23
+    rev: 0.13.0
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock
