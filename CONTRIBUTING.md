@@ -634,8 +634,8 @@ grep -n 'uses: \$/\.github/workflows/' .github/workflows/release.yml
 ```
 
 A `when` cell leaves out a `pull_request` trigger that `paths:` filters.
-Such a workflow also runs on a pull request that changes the workflow or
-a file it reads, and its `paths:` say which.
+Such a workflow also runs on a pull request that changes a file its
+`paths:` names.
 
 The `test`, `lint`/`docs` and `integration-bitcoind` rows are what a
 merge waits for, and between them they report the required checks, which

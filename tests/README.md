@@ -65,10 +65,10 @@ uv run pytest --no-cov
 
 ## The integration tests, and why they are off by default
 
-`tests/integration/` is the only part of the suite that needs something
-this repository does not ship: a `bitcoind` to talk to, or a qa-assets
-checkout. Each test skips itself without the switch that asks for it, so
-an ordinary run reports them skipped and says which switch was off:
+`tests/integration/` needs something this repository does not ship: a
+`bitcoind` to talk to, or a qa-assets checkout. Each test skips itself
+without the switch that asks for it, so an ordinary run reports them
+skipped and says which switch was off:
 
 ```shell
 BTCLIB_INTEGRATION=1 uv run pytest tests/integration
