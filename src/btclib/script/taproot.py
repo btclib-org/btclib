@@ -139,8 +139,8 @@ def serialize(script: ScriptList) -> bytes:
 def _read_push_data(s: BytesIO, i: int) -> bytes:
     """Read the data of the push whose first byte is i, 0 < i <= 78.
 
-    The 520-byte element limit is not checked here, unlike in
-    script.parse: an OP_SUCCESS makes a tapscript valid whatever else it
+    The 520-byte element limit is not checked here, and script.parse
+    checks none: an OP_SUCCESS makes a tapscript valid whatever else it
     holds, so only the caller -- which knows whether one has been met --
     can turn an oversized element into a refusal.
     """

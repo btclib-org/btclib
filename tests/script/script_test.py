@@ -644,7 +644,7 @@ def test_a_script_is_read_back_from_its_dict(script: bytes) -> None:
     assert script_from_dict({"hex": value["hex"]}) == script
 
 
-# an empty push in each of its three operators, among other bytes
+# an empty push in each of its three non-minimal operators
 EMPTY_PUSHES = [b"\x4c\x00", b"\x4d\x00\x00", b"\x4e\x00\x00\x00\x00"]
 
 
