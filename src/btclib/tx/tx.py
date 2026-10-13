@@ -56,17 +56,25 @@ _TX_MAX_STANDARD_VERSION = 3
 
 
 def _assert_valid_4_byte_field(name: str, value: int) -> None:
-    """Refuse an int no four unsigned bytes can hold.
+    """Refuse a value that cannot be written as four unsigned bytes.
+
+    What is not an `int` is a `BTClibTypeError` and an int outside
+    0..0xFFFFFFFF a `BTClibValueError`. Left to themselves, the
+    comparison answers a str, bytes or None with a TypeError, and
+    `int.to_bytes` a float with an AttributeError and an int outside the
+    range with an OverflowError (issue #690), past the
+    `except BTClibValueError` every caller here is written to catch.
+
+    A bool is an `int` here and is written as 0 or 1; refusing it is a
+    semantic check, and `check_validity` gates those.
 
     Called from `serialize` as well as from `assert_valid`, and
     unconditionally there: `check_validity=False` is what lets
     `legacy` and `merkle_root_and_mutated_from_transactions` copy or
-    walk a transaction without judging it whole, and the width is the
-    one thing serializing four bytes cannot skip regardless -- the
-    alternative is `int.to_bytes`'s own OverflowError, past the
-    BTClibValueError every caller here is written to catch (issue
-    #690).
+    walk a transaction without judging it whole.
     """
+    if not isinstance(value, int):
+        raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
     if not 0 <= value <= 0xFFFFFFFF:
         raise BTClibValueError(f"invalid {name}: {_message_text(value)}")
 
@@ -431,13 +439,8 @@ class Tx:  # noqa: PLW1641
         if check_validity:
             self.assert_valid()
         else:
-            # the width alone, checked here regardless: check_validity=False
-            # is what lets a caller copy or walk a transaction without
-            # judging it whole (`legacy`'s copy, the merkle root's loop),
-            # and int.to_bytes below would otherwise answer a version or
-            # lock_time outside it with an OverflowError, past the
-            # BTClibValueError every caller here is written to catch
-            # (issue #690)
+            # checked here regardless of the flag, as
+            # `_assert_valid_4_byte_field` says
             _assert_valid_4_byte_field("version", self.version)
             _assert_valid_4_byte_field("lock time", self.lock_time)
 
