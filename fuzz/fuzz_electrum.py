@@ -30,21 +30,22 @@ import atheris
 from btclib import electrum
 from btclib.exceptions import BTClibException
 
-# tests/fuzz_corpus_test.py reads this with ast.literal_eval.
-# tests/fuzz_harness_test.py imports this file with an empty atheris,
-# so atheris may be called only from main()
-ENTRY_POINTS = (
-    "btclib.electrum:decode_response",
-    "btclib.electrum:transaction_get_response",
-    "btclib.electrum:headers_subscribe_response",
-    "btclib.electrum:block_header_response",
-    "btclib.electrum:block_headers_response",
-    "btclib.electrum:transaction_get_merkle_response",
-    "btclib.electrum:estimate_fee_response",
-)
-
 REQUEST_ID = 1
 HEADERS_ASKED = 2
+
+# what each entry point takes after the line. tests/fuzz_corpus_test.py
+# reads this with ast and checks it against fuzz_target's calls.
+# tests/fuzz_harness_test.py imports this file with an empty atheris,
+# so atheris may be called only from main()
+ENTRY_POINTS = {
+    "btclib.electrum:decode_response": (REQUEST_ID,),
+    "btclib.electrum:transaction_get_response": (REQUEST_ID,),
+    "btclib.electrum:headers_subscribe_response": (REQUEST_ID,),
+    "btclib.electrum:block_header_response": (REQUEST_ID,),
+    "btclib.electrum:block_headers_response": (REQUEST_ID, HEADERS_ASKED),
+    "btclib.electrum:transaction_get_merkle_response": (REQUEST_ID,),
+    "btclib.electrum:estimate_fee_response": (REQUEST_ID,),
+}
 
 
 def fuzz_target(data: bytes) -> None:

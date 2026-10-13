@@ -4,9 +4,10 @@
 
 """List the inputs on which this tree's parsers and the last release's differ.
 
-Every `fuzz/fuzz_*.py` names the parsers it fuzzes in `ENTRY_POINTS`, read
-here with `ast` and never imported, as `tests/fuzz_corpus_test.py` does.
-Each parser is run on every input of its harness in two interpreters, one
+Every `fuzz/fuzz_*.py` names the parsers it fuzzes in `ENTRY_POINTS`, with
+what each takes after the input, in the form `tests/fuzz_corpus_test.py`'s
+docstring gives. It is read here with `ast` and never imported. Each
+parser is run on every input of its harness in two interpreters, one
 with this tree installed and one with the release from the index, and the
 two answers are compared. An answer is one of:
 
@@ -39,15 +40,20 @@ from __future__ import annotations
 
 import argparse
 import ast
+import contextlib
+import copy
 import dataclasses
 import importlib
 import json
 import subprocess
 import sys
 import tarfile
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from typing_extensions import override
 
 _ROOT = Path(__file__).resolve().parents[2]
 # one interpreter's whole run, in seconds. The two run one after the other
@@ -101,13 +107,11 @@ def _describe(obj: Any) -> str:
 
 
 def _answer(
-    spec: str, parser: Any, refusal: type[Exception], data: bytes, request_id: int
+    parser: Any, refusal: type[Exception], data: bytes, arguments: tuple[Any, ...]
 ) -> str:
-    """Run `parser` on `data` and return its outcome."""
-    # an Electrum decoder also takes the id of the request it answers
-    args = (data, request_id) if spec.endswith("_response") else (data,)
+    """Run `parser` on `data`, then `arguments`, and return its outcome."""
     try:
-        obj = parser(*args)
+        obj = parser(data, *arguments)
     except refusal:
         return "refused"
     except Exception as exc:  # noqa: BLE001
@@ -123,8 +127,8 @@ def _probe(request: dict[str, Any]) -> dict[str, Any]:
     btclib = importlib.import_module("btclib")
     refusal = importlib.import_module("btclib.exceptions").BTClibException
     parsers: dict[str, Any] = {}
-    for specs in request["entries"].values():
-        for spec in specs:
+    for entries in request["entries"].values():
+        for spec, _ in entries:
             try:
                 parsers[spec] = _resolve(spec)
             except (ImportError, AttributeError):
@@ -132,12 +136,12 @@ def _probe(request: dict[str, Any]) -> dict[str, Any]:
     records: list[Record] = []
     for harness, name, hex_data in request["inputs"]:
         data = bytes.fromhex(hex_data)
-        for spec in request["entries"][harness]:
+        for spec, arguments in request["entries"][harness]:
             parser = parsers[spec]
             outcome = (
                 ABSENT
                 if parser is None
-                else _answer(spec, parser, refusal, data, request["request_id"])
+                else _answer(parser, refusal, data, ast.literal_eval(arguments))
             )
             records.append((harness, spec, name, outcome))
     return {
@@ -171,38 +175,45 @@ class Difference:
     current: str
 
 
-def entry_points(harness: Path) -> tuple[str, ...]:
-    """Return the `ENTRY_POINTS` tuple of a harness, read unimported."""
-    tree = ast.parse(harness.read_text(encoding="utf-8"), filename=str(harness))
+class _Inline(ast.NodeTransformer):
+    """Replace each name by the value `values` gives it."""
+
+    def __init__(self, values: dict[str, Any]) -> None:
+        self.values = values
+
+    @override
+    def visit_Name(self, node: ast.Name) -> ast.Constant:
+        if node.id not in self.values:
+            raise ValueError(node.id)
+        return ast.Constant(self.values[node.id])
+
+
+def _literals(tree: ast.Module) -> dict[str, Any]:
+    """Return each module-level `NAME = <literal>`, a name read as its value."""
+    values: dict[str, Any] = {}
     for node in tree.body:
         if (
             isinstance(node, ast.Assign)
             and len(node.targets) == 1
             and isinstance(node.targets[0], ast.Name)
-            and node.targets[0].id == "ENTRY_POINTS"
         ):
-            value = ast.literal_eval(node.value)
-            if isinstance(value, tuple) and all(isinstance(v, str) for v in value):
-                return value
-    msg = f"{harness} declares no ENTRY_POINTS tuple of strings"
-    raise ValueError(msg)
+            with contextlib.suppress(ValueError):
+                inlined = _Inline(values).visit(copy.deepcopy(node.value))
+                values[node.targets[0].id] = ast.literal_eval(inlined)
+    return values
 
 
-def request_id(harness_dir: Path) -> int:
-    """Return the `REQUEST_ID` the Electrum harness answers, read with `ast`."""
-    for harness in sorted(harness_dir.glob("fuzz_*.py")):
-        tree = ast.parse(harness.read_text(encoding="utf-8"), filename=str(harness))
-        for node in tree.body:
-            if (
-                isinstance(node, ast.Assign)
-                and len(node.targets) == 1
-                and isinstance(node.targets[0], ast.Name)
-                and node.targets[0].id == "REQUEST_ID"
-            ):
-                value = ast.literal_eval(node.value)
-                if isinstance(value, int):
-                    return value
-    msg = f"no harness of {harness_dir} declares an integer REQUEST_ID"
+def entry_points(harness: Path) -> dict[str, tuple[Any, ...]]:
+    """Return what each entry point of a harness takes after the input."""
+    tree = ast.parse(harness.read_text(encoding="utf-8"), filename=str(harness))
+    value = _literals(tree).get("ENTRY_POINTS")
+    if isinstance(value, tuple):
+        value = dict.fromkeys(value, ())
+    if isinstance(value, dict) and all(
+        isinstance(k, str) and isinstance(v, tuple) for k, v in value.items()
+    ):
+        return value
+    msg = f"{harness} declares no ENTRY_POINTS tuple of strings or dict of tuples"
     raise ValueError(msg)
 
 
@@ -221,12 +232,18 @@ def tar_inputs(path: Path) -> list[tuple[str, bytes]]:
 
 def collect(
     harness_dir: Path, artifacts: Path | None
-) -> tuple[dict[str, tuple[str, ...]], list[tuple[str, str, str]]]:
-    """Return the entry points per harness and the inputs, as hex."""
-    entries: dict[str, tuple[str, ...]] = {}
+) -> tuple[dict[str, list[tuple[str, str]]], list[tuple[str, str, str]]]:
+    """Return the entry points per harness and the inputs, as hex.
+
+    An entry point comes with the `repr` of its arguments, which the probe
+    reads back with `ast.literal_eval`: JSON has no bytes and no tuple.
+    """
+    entries: dict[str, list[tuple[str, str]]] = {}
     inputs: list[tuple[str, str, str]] = []
     for harness in sorted(harness_dir.glob("fuzz_*.py")):
-        entries[harness.stem] = entry_points(harness)
+        entries[harness.stem] = [
+            (spec, repr(arguments)) for spec, arguments in entry_points(harness).items()
+        ]
         seeds = sorted((harness_dir / "corpus" / harness.stem).glob("*.bin"))
         for seed in seeds:
             name = f"corpus/{harness.stem}/{seed.name}"
@@ -274,23 +291,43 @@ def _kind(release: str, current: str) -> str | None:
     return "crashed differently"
 
 
+def _tally(outcomes: list[str]) -> str:
+    """Return how many inputs ended each way, an accepted object not shown."""
+    counts = Counter(
+        "accepted" if outcome.startswith("accepted ") else outcome
+        for outcome in outcomes
+    )
+    return ", ".join(f"{n} {outcome}" for outcome, n in sorted(counts.items()))
+
+
 def compare(release: Run, current: Run) -> list[Difference]:
-    """Return every difference, an absent entry point once and not per input."""
+    """Return every difference, an absent entry point once and not per input.
+
+    The row of an absent entry point counts each side's outcomes.
+    """
     differences: list[Difference] = []
-    absent: set[tuple[str, str]] = set()
+    absent: dict[tuple[str, str], tuple[list[str], list[str]]] = {}
     for (harness, spec, name, was), (_, _, _, now) in zip(
         release.records, current.records, strict=True
     ):
         kind = _kind(was, now)
-        if kind is None:
-            continue
         if kind == "entry point absent":
-            if (harness, spec) in absent:
-                continue
-            absent.add((harness, spec))
-            name = "(every input)"  # noqa: PLW2901
-            was, now = (s if s == ABSENT else "present" for s in (was, now))  # noqa: PLW2901
-        differences.append(Difference(kind, harness, spec, name, was, now))
+            sides = absent.setdefault((harness, spec), ([], []))
+            sides[0].append(was)
+            sides[1].append(now)
+        elif kind is not None:
+            differences.append(Difference(kind, harness, spec, name, was, now))
+    differences += [
+        Difference(
+            "entry point absent",
+            harness,
+            spec,
+            "(every input)",
+            _tally(was),
+            _tally(now),
+        )
+        for (harness, spec), (was, now) in absent.items()
+    ]
     return sorted(differences, key=lambda d: (d.kind, d.harness, d.spec, d.name))
 
 
@@ -359,11 +396,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--fuzz-artifacts", type=Path, default=None)
     args = parser.parse_args(argv)
     entries, inputs = collect(args.harness_dir, args.fuzz_artifacts)
-    request = {
-        "entries": entries,
-        "inputs": inputs,
-        "request_id": request_id(args.harness_dir),
-    }
+    request = {"entries": entries, "inputs": inputs}
     release = run_probe(args.release, request)
     current = run_probe(args.current, request)
     sys.stdout.write(render(release, current, compare(release, current)))
