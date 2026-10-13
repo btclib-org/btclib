@@ -186,7 +186,7 @@ def test_wrapped_p2pkh() -> None:
     verify_transaction([utxo], tx)
 
 
-@pytest.mark.parametrize("push", ["00", "4c00", "4d0000"])
+@pytest.mark.parametrize("push", ["00", "4c00", "4d0000", "4e00000000"])
 def test_an_empty_redeem_script_is_pushed_in_any_operator(push: str) -> None:
     """The push of no data is the redeem script hash160(b"") commits to."""
     script_pub_key = serialize(["OP_HASH160", hash160(b""), "OP_EQUAL"])
