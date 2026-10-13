@@ -256,8 +256,8 @@ def decode_response(line: bytes, request_id: int) -> Any:
 def transaction_get_request(request_id: int, tx_id: str) -> bytes:
     """Return the `blockchain.transaction.get` request for `tx_id`.
 
-    Refused: a `tx_id` that is not a string (`BTClibTypeError`) or not 32
-    bytes of hex (`BTClibValueError`).
+    Refused: a `tx_id` that is not a string (`BTClibTypeError`) or not 64
+    hex characters (`BTClibValueError`).
     """
     _assert_tx_id(tx_id)
     return encode_request(request_id, "blockchain.transaction.get", [tx_id])

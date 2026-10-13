@@ -167,13 +167,21 @@ def test_encode_request_refuses_a_request_json_cannot_write_by_its_id() -> None:
         encode_request(10**5000, "m")
 
 
-def test_encode_request_refuses_params_nested_too_deep() -> None:
-    """A refusal of this library's, not a bare `RecursionError`."""
-    params: list[object] = []
-    for _ in range(100_000):
-        params = [params]
+def test_encode_request_refuses_a_nesting_json_cannot_write(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A refusal of this library's, not a bare `RecursionError`.
+
+    How deep a nesting overflows depends on the platform's stack, so
+    `json.dumps` is made to overflow.
+    """
+
+    def overflow(*args: object, **kwargs: object) -> str:
+        raise RecursionError("maximum recursion depth exceeded")
+
+    monkeypatch.setattr("btclib.electrum.json.dumps", overflow)
     with pytest.raises(BTClibValueError, match="request not JSON"):
-        encode_request(1, "m", params)
+        encode_request(1, "m", [[]])
 
 
 @pytest.mark.parametrize("number", [float("nan"), float("inf"), -float("inf")])
@@ -196,9 +204,18 @@ def test_transaction_requests_refuse_a_tx_id_that_is_not_a_string(
 
 @pytest.mark.parametrize(
     "tx_id",
-    ["", "zz", TX_ID[:-2], TX_ID + "00", "g" * 64, " " + TX_ID + "\n", "ab ab" * 13],
+    [
+        "",
+        "zz",
+        TX_ID[:-2],
+        TX_ID + "00",
+        "g" * 64,
+        " " + TX_ID + "\n",
+        "ab ab" * 13,
+        TX_ID[:31] + " " + TX_ID[32:],
+    ],
 )
-def test_transaction_requests_refuse_a_tx_id_that_is_not_32_bytes_of_hex(
+def test_transaction_requests_refuse_a_tx_id_that_is_not_64_hex_characters(
     tx_id: str,
 ) -> None:
     """A hash of another length, or not hex, names no transaction."""
