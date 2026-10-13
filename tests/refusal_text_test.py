@@ -40,7 +40,9 @@ def _chain(exc: BaseException) -> Iterator[BaseException]:
 
 def _assert_secret_free(exc: BaseException, secrets: list[str]) -> None:
     for e in _chain(exc):
-        text = " ".join([str(e), repr(e), repr(e.args), str(vars(e))]).lower()
+        # `vars(e)` does not show the `object` of a UnicodeError
+        held = [str(vars(e)), str(getattr(e, "object", None))]
+        text = " ".join([str(e), repr(e), repr(e.args), *held]).lower()
         for secret in secrets:
             assert secret.lower() not in text
             assert secret.lower()[:12] not in text
@@ -87,6 +89,10 @@ def test_non_ascii_base58_chains_nothing() -> None:
     bad = WIF[:-1] + "\u00e9"
     with pytest.raises(BTClibValueError, match="non-ascii character") as refusal:
         decode(bad)
+    where = len(WIF) - 1
+    assert str(refusal.value) == (
+        f"non-ascii character in base58 string at position {where}"
+    )
     assert refusal.value.__cause__ is None
     assert refusal.value.__context__ is None
 
@@ -99,6 +105,10 @@ def test_non_ascii_wif_chain_holds_no_key() -> None:
     bad = WIF[:-1] + "é"
     with pytest.raises(BTClibValueError, match="non-ascii character") as refusal:
         prv_key_data_from_wif(bad)
+    where = len(WIF) - 1
+    assert str(refusal.value) == (
+        f"not a WIF (non-ascii character in base58 string at position {where})"
+    )
     _assert_secret_free(refusal.value, [WIF, bad])
     _assert_secret_free(refusal.value, [WIF[:20]])
 
