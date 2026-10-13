@@ -181,7 +181,7 @@ jobs:
       # afterwards. The repository is the one build_fuzzers cloned into
       # storage/, the workspace holding no checkout of its own. Only
       # `*.bin` is copied, as build.sh zips only those, and a directory
-      # with none is skipped.
+      # with none copies nothing.
       - name: Seed the stored corpora
         run: |
           for dir in storage/btclib/fuzz/corpus/*/; do
