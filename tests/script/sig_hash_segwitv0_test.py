@@ -8,10 +8,12 @@ test vector at
 https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 """
 
+import enum
+
 import pytest
 
 from btclib import var_bytes
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.script import Witness, sig_hash
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
@@ -408,6 +410,61 @@ def test_an_amount_no_field_can_hold_is_refused_rather_than_overflowing() -> Non
     # for their script_pub_keys
     prevouts = [TxOut(2**63, tx.vout[0].script_pub_key, check_validity=False)]
     with pytest.raises(BTClibValueError, match="invalid spent amount: "):
+        sig_hash.from_tx(prevouts, tx, 0, sig_hash.ALL)
+
+
+_NOT_AN_INT = [1.5, 1.0, "1", b"\x01", None, True, False]
+
+
+@pytest.mark.parametrize("amount", _NOT_AN_INT)
+def test_an_amount_that_is_not_an_int_is_a_type_error(amount: object) -> None:
+    """The type is refused before the bounds, and does not hang (issue 2627).
+
+    See `_assert_valid_camount`. A bool is an int to Python and not to
+    `is_integer`.
+    """
+    tx = Tx.parse(_BIP143_TX)
+    script_code = bytes.fromhex(_WITNESS_SCRIPT)
+
+    with pytest.raises(BTClibTypeError, match="invalid amount type: "):
+        sig_hash.segwit_v0(script_code, tx, 0, sig_hash.SINGLE, amount)  # type: ignore[arg-type]
+
+
+class _Sats(enum.IntEnum):
+    ONE_THOUSAND = 1000
+
+
+def test_an_int_subclass_amount_is_hashed_as_the_int() -> None:
+    """The bounds are compared, so an `IntEnum` does not walk a `range`.
+
+    `is_integer` accepts it on purpose; see `_assert_valid_camount` for
+    why a `range` membership test would not return.
+    """
+    tx = Tx.parse(_BIP143_TX)
+    script_code = bytes.fromhex(_WITNESS_SCRIPT)
+
+    assert sig_hash.segwit_v0(
+        script_code, tx, 0, sig_hash.ALL, _Sats.ONE_THOUSAND
+    ) == sig_hash.segwit_v0(script_code, tx, 0, sig_hash.ALL, 1000)
+
+
+@pytest.mark.parametrize("value", _NOT_AN_INT)
+def test_a_value_that_is_not_an_int_is_a_type_error_wherever_it_is_hashed(
+    value: object,
+) -> None:
+    """The output value and the spent amount go through the same check."""
+    tx = Tx.parse(_BIP143_TX)
+    script_code = bytes.fromhex(_WITNESS_SCRIPT)
+
+    # the output the SINGLE branch hashes on its own
+    tx.vout[0] = TxOut(value, tx.vout[0].script_pub_key, check_validity=False)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid output value type: "):
+        sig_hash.segwit_v0(script_code, tx, 0, sig_hash.SINGLE, _AMOUNT)
+
+    # and the prevouts a taproot preimage commits to
+    tx = Tx.parse(_BIP143_TX)
+    prevouts = [TxOut(value, tx.vout[0].script_pub_key, check_validity=False)]  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid spent amount type: "):
         sig_hash.from_tx(prevouts, tx, 0, sig_hash.ALL)
 
 
