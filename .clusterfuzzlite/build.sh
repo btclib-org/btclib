@@ -60,8 +60,8 @@ pip3 install --no-deps --no-build-isolation -e .
 # The zip is read only by a target with a few stored corpus files:
 # clusterfuzz unpacks it into a corpus of at most MAX_FILES_FOR_UNPACK
 # files (issue #2614). The "Seed the stored corpora" step of
-# .github/workflows/fuzz.yml copies the directory itself into the stored
-# corpus, which is what reaches a target that has one.
+# .github/workflows/fuzz.yml copies the seeds into the stored corpus,
+# which is what reaches a target that has one.
 for fuzzer in $(find "$SRC/btclib/fuzz" -maxdepth 1 -name 'fuzz_*.py'); do
   compile_python_fuzzer "$fuzzer" --collect-data=btclib \
     --collect-data=btclib_ecc

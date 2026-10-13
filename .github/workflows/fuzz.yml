@@ -171,19 +171,26 @@ jobs:
       # action has no input that does.
       #
       # The download extracts the stored corpus into an existing
-      # directory without emptying it (`_download_artifact` in
-      # google/oss-fuzz's infra/cifuzz/filestore/github_actions/
-      # __init__.py), so what is copied here stays beside it, and is
-      # uploaded with the corpus afterwards. The repository is the one
-      # build_fuzzers cloned into storage/, the workspace holding no
-      # checkout of its own. `cp -R dir/.` copies what is there, and an
-      # empty directory is not an error.
+      # directory without emptying it, and `extractall` overwrites a file
+      # of the same name (`_download_artifact` in google/oss-fuzz's
+      # infra/cifuzz/filestore/github_actions/__init__.py). A seed copied
+      # under its own name would be replaced by its stored copy once it
+      # is edited in place, so each seed is copied under the SHA-1 of its
+      # content, as libFuzzer names corpus files: a stored file of that
+      # name has that content. The copies are uploaded with the corpus
+      # afterwards. The repository is the one build_fuzzers cloned into
+      # storage/, the workspace holding no checkout of its own. Only
+      # `*.bin` is copied, as build.sh zips only those, and a directory
+      # with none is skipped.
       - name: Seed the stored corpora
         run: |
           for dir in storage/btclib/fuzz/corpus/*/; do
             target=$(basename "$dir")
             mkdir -p "cifuzz-corpus/$target"
-            cp -R "$dir." "cifuzz-corpus/$target/"
+            for seed in "$dir"*.bin; do
+              [ -f "$seed" ] || continue
+              cp "$seed" "cifuzz-corpus/$target/$(sha1sum "$seed" | cut -d' ' -f1)"
+            done
           done
         working-directory: ${{ github.workspace }}
       - name: Run fuzzers
