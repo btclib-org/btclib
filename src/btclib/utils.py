@@ -348,7 +348,7 @@ def _assert_valid_4_byte_field(name: str, value: int) -> None:
     """Refuse a value that cannot be written as four unsigned bytes.
 
     What is not an `int` is a `BTClibTypeError` and an int outside
-    0..0xFFFFFFFF a `BTClibValueError`. Left to themselves, comparing a
+    0..0xFFFFFFFF a `BTClibValueError`. Without this check, comparing a
     str, bytes or None raises TypeError, a float has no `to_bytes`
     (AttributeError), and `int.to_bytes` raises OverflowError for an int
     outside the range (issue #690): none of them the `BTClibTypeError` or

@@ -368,7 +368,7 @@ def test_a_version_too_wide_for_its_four_bytes_is_refused_too() -> None:
         sig_hash.legacy(_SCRIPT_CODE, tx, 0, sig_hash.ALL)
 
 
-def test_the_other_two_widths_of_the_copy_are_refused_as_well() -> None:
+def test_the_sequence_the_vout_and_the_values_of_the_copy_are_refused() -> None:
     """The sequence, the vout and the output values of the copy are refused.
 
     `Tx.serialize`, `TxIn.serialize` and `OutPoint.serialize` check the

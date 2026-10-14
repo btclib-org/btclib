@@ -571,10 +571,10 @@ def _legacy(
 
     # the fields of what is left, and only of what is left: the copy above
     # is what `Tx.serialize` is about to write, and NONE and SINGLE have
-    # already dropped the outputs they do not commit to. `Tx.serialize`,
-    # `TxIn` and `OutPoint` check the version, the lock time, the sequence
-    # and the vout themselves, but take a bool; the output values are what
-    # it hands to TxOut, which checks nothing
+    # already dropped the outputs they do not commit to. The four-byte
+    # fields are checked as the comment above `_serialized_4_byte_field`
+    # says, and the output values here, since `TxOut.serialize` checks
+    # nothing when told not to
     _assert_valid_preimage_field("version", new_tx.version)
     _assert_valid_preimage_field("lock time", new_tx.lock_time)
     for txin in new_tx.vin:
