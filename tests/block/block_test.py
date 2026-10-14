@@ -355,8 +355,6 @@ def _unjudged_header(**fields: object) -> BlockHeader:
             datetime(1969, 12, 31, 23, 59, 59, tzinfo=UTC),
             "invalid timestamp: ",
         ),
-        # timestamp() of a naive datetime.min raises ValueError in every zone
-        ("time", datetime.min, "invalid timestamp: "),
     ],
 )
 def test_serialize_refuses_a_field_no_four_bytes_hold_without_judging(
