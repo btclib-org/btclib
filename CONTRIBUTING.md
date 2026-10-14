@@ -120,37 +120,6 @@ and the forge then shows the base's old text as additions with nothing
 red anywhere. Read the child's diff afterwards rather than trusting the
 rebase, and retarget each child onto `main` as its parent lands.
 
-### The landing queue
-
-Where more than one pull request is open against this repository, only
-one is carried to `main` at a time: rebased onto the tip, reviewed on
-that head, and landed, while every other one waits, untouched, for its
-turn. This governs which of several *already open* pull requests reaches
-`main` next; *One subject, opened as soon as it is written* above governs
-the moment before that, when a finished one is opened — the two do not
-conflict, since a pull request is still opened without delay and still
-waits its turn once several are open.
-
-The reason is CI throughput, not the ack a waiting pull request keeps —
-`REVIEWING.md`'s *The verdict* states what an ack belongs to, and
-*Landing it* below states which rebase voids one. Every rebase queues
-this repository's whole check matrix against the organization's ceiling
-on concurrent jobs, so rebasing every waiting pull request after each
-landing spends that capacity on runs the next landing invalidates
-anyway, and delays the one pull request that is actually next: work
-spent on a pull request that is not next is work that delays the one
-that is. The ceiling's figure is `REPOSITORY.md`'s, under *Plan-gated
-settings*, beside the command that re-derives it.
-
-Order is cheapest and least contended first, most invasive last, so that
-a large change does not sit at the head blocking everything behind it.
-
-The maintainer may declare a bounded exception — several pull requests in
-flight against one repository, for a named piece of work — trading the
-cost above for throughput; it is recorded as a comment in
-[btclib-org/.github](https://github.com/btclib-org/.github/issues), by
-*The issue tracker* above, and holds only for the work it names.
-
 ### The review
 
 A review is given promptly and on local evidence. It does not wait for
@@ -185,12 +154,19 @@ App ([ISS 1362][i1362]).
 
 ### Landing it
 
-CI is read once, and this is where. Rebase onto `main`'s tip, push that
-head so the checks run on the tree that will land, and only then wait for
-them: checks read before a rebase describe a tree nobody is landing. A
-rebase that moved nothing but the base leaves the ack standing; one that
-resolved a conflict does not, that resolution being a change no reviewer
-has seen.
+CI is read once, and this is where: on the head that lands. `main` does
+not ask that head to be up to date with it, and [section 11][s-branch]
+says why. So a branch is rebased only where it conflicts with `main`, or
+where its checks ran on a `main` that has since been repaired, because
+re-running its checks would test the same merge commit. A rebase that
+moved nothing but the base leaves the ack standing; one that resolved a
+conflict does not, that resolution being a change no reviewer has seen.
+
+When `main`'s CI is red after a merge, its repair lands before any other
+pull request, and no `--auto` below stays armed until then: what lands
+meanwhile is merged onto a tree known to be broken, and `main`'s next run
+cannot tell a new failure from the one already there. An armed pull
+request whose checks ran before the break merges on them all the same.
 
 Then squash, [the only method the rule accepts][s11].
 
@@ -255,6 +231,7 @@ settings and why they are what they are.
 [s-title]: https://github.com/btclib-org/.github#what-a-pull-request-says-it-is
 [s-rev]: https://github.com/btclib-org/.github#review
 [s-sigs]: https://github.com/btclib-org/.github#signatures
+[s-branch]: https://github.com/btclib-org/.github#branch-protection-and-rulesets
 [i1362]: https://github.com/btclib-org/.github/issues/1362#issuecomment-6110475722
 [dco]: https://developercertificate.org/
 [governance]: https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md
