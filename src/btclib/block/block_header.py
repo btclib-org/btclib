@@ -21,6 +21,7 @@ from btclib.block.proof_of_work import (
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.utils import (
+    _assert_valid_4_byte_field,
     _message_hex,
     assert_no_trailing,
     assert_type,
@@ -51,6 +52,23 @@ _REQUIRED_LENGTH = 4 + _HF_LEN + 32 + 4 + 4 + 4
 # the signature is what lets ruff's B008 stay enabled to catch the
 # mutable defaults that are not.
 _EPOCH = datetime.fromtimestamp(0, UTC)
+
+
+def _assert_valid_version(value: int) -> None:
+    """Refuse a version that cannot be written as a signed four-byte int.
+
+    The range of Core's `CBlockHeader::nVersion`, an int32_t
+    (src/primitives/block.h), and nothing narrower: zero and negative
+    versions are as well formed as any other. What is not an `int` is a
+    `BTClibTypeError` and an int outside -0x80000000..0x7FFFFFFF a
+    `BTClibValueError`, where a non-int has no `to_bytes`
+    (AttributeError) and `int.to_bytes` raises OverflowError for an int
+    outside the range.
+    """
+    if not isinstance(value, int):
+        raise BTClibTypeError(f"invalid version type: {type(value).__name__}")
+    if not -0x80000000 <= value <= 0x7FFFFFFF:
+        raise BTClibValueError(f"invalid version: {_message_hex(value)}")
 
 
 def _time_from_isoformat(time: Any) -> datetime:
@@ -360,15 +378,12 @@ class BlockHeader:
         """
         self._assert_valid_types()
 
-        # the range of Core's `CBlockHeader::nVersion`, an int32_t
-        # (src/primitives/block.h), and nothing narrower: zero and negative
-        # versions are as well formed as any other. Refusing a version by
+        # the range is `_assert_valid_version`'s. Refusing a version by
         # its value is `bad-version` in Core's ContextualCheckBlockHeader
         # (src/validation.cpp), a consensus rule keyed on the BIP34, BIP66
         # and BIP65 activation heights, which is chain state. Core's
         # context-free CheckBlockHeader checks the proof of work alone
-        if not -0x80000000 <= self.version <= 0x7FFFFFFF:
-            raise BTClibValueError(f"invalid version: {_message_hex(self.version)}")
+        _assert_valid_version(self.version)
 
         # a naive datetime has no instant attached to it: timestamp()
         # would assume the local time zone, so both this check and the
@@ -444,9 +459,20 @@ class BlockHeader:
         )
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
-        """Return a BlockHeader binary serialization."""
+        """Return a BlockHeader binary serialization.
+
+        With `check_validity` False, the version, the time and the nonce
+        are still checked against the four bytes each is written in, so
+        that `hash` and a caller walking an unjudged header get a
+        `BTClibValueError` (or a `BTClibTypeError`) and no
+        `OverflowError` from `int.to_bytes`.
+        """
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_version(self.version)
+            _assert_valid_4_byte_field("timestamp", int(self.time.timestamp()))
+            _assert_valid_4_byte_field("nonce", self.nonce)
 
         return b"".join(
             [

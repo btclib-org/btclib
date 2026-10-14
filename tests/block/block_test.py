@@ -323,6 +323,98 @@ def test_check_validity_defaults_to_true_everywhere_it_appears() -> None:
     assert header.hash
 
 
+def _unjudged_header(**fields: object) -> BlockHeader:
+    """Return a header built without judging it, with the given fields."""
+    values: dict[str, object] = {
+        "version": 1,
+        "previous_block_hash": bytes(32),
+        "merkle_root": bytes(32),
+        "time": datetime(2020, 1, 1, tzinfo=UTC),
+        "bits": bytes.fromhex("1d00ffff"),
+        "nonce": 0,
+    }
+    values.update(fields)
+    return BlockHeader(**values, check_validity=False)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "field, value, err_msg",
+    [
+        ("version", 2**32, "invalid version: "),
+        ("version", 2**31, "invalid version: "),
+        ("version", -(2**31) - 1, "invalid version: "),
+        ("nonce", 2**32, "invalid nonce: "),
+        ("nonce", -1, "invalid nonce: "),
+        (
+            "time",
+            datetime(2106, 2, 7, 6, 28, 16, tzinfo=UTC),
+            "invalid timestamp: ",
+        ),
+        (
+            "time",
+            datetime(1969, 12, 31, 23, 59, 59, tzinfo=UTC),
+            "invalid timestamp: ",
+        ),
+    ],
+)
+def test_serialize_refuses_a_field_no_four_bytes_hold_without_judging(
+    field: str, value: object, err_msg: str
+) -> None:
+    """The width of a field is not one of the checks `check_validity` skips.
+
+    `int.to_bytes` raises OverflowError for these, from outside the
+    library's exception contract, and `hash` serializes with
+    `check_validity=False` whatever the header's state.
+    """
+    header = _unjudged_header(**{field: value})
+
+    with pytest.raises(BTClibValueError, match=err_msg):
+        header.serialize(check_validity=False)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        header.hash  # noqa: B018
+
+
+@pytest.mark.parametrize(
+    "field, value, serialized",
+    [
+        ("version", 2**31 - 1, bytes.fromhex("ffffff7f")),
+        ("version", -(2**31), bytes.fromhex("00000080")),
+        ("nonce", 2**32 - 1, bytes.fromhex("ffffffff")),
+        ("time", datetime(1970, 1, 1, tzinfo=UTC), bytes(4)),
+        (
+            "time",
+            datetime(2106, 2, 7, 6, 28, 15, tzinfo=UTC),
+            bytes.fromhex("ffffffff"),
+        ),
+    ],
+)
+def test_serialize_without_judging_writes_the_edge_of_each_field(
+    field: str, value: object, serialized: bytes
+) -> None:
+    """The last value each field holds still serializes."""
+    header = _unjudged_header(**{field: value})
+    data = header.serialize(check_validity=False)
+
+    offset = {"version": 0, "time": 68, "nonce": 76}[field]
+    assert data[offset : offset + 4] == serialized
+    assert header.hash == hash256(data)[::-1]
+
+
+@pytest.mark.parametrize(
+    "field, err_msg",
+    [("version", "invalid version type: str"), ("nonce", "invalid nonce type: float")],
+)
+def test_serialize_without_judging_refuses_a_field_that_is_no_int(
+    field: str, err_msg: str
+) -> None:
+    """A field rebound to a non-int is a BTClibTypeError, no AttributeError."""
+    header = _unjudged_header()
+    setattr(header, field, "1" if field == "version" else 1.5)
+
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        header.serialize(check_validity=False)
+
+
 def _coinbase_and_a_transaction_missing_its_outputs() -> tuple[Tx, Tx]:
     """Return a valid coinbase and a second transaction `assert_valid` refuses.
 

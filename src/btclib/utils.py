@@ -358,10 +358,11 @@ def _assert_valid_4_byte_field(name: str, value: int) -> None:
     semantic check, and `check_validity` gates those.
 
     Called from `Tx.assert_valid`, from `sig_hash`, and from the
-    serializers of `Tx`, `TxIn` and `OutPoint` where `check_validity`
-    is False, so the four-byte fields of those three are checked whatever the
-    flag: `check_validity=False` is what lets a caller copy or walk a
-    transaction without judging it whole.
+    serializers of `Tx`, `TxIn`, `OutPoint` and `BlockHeader` (its time
+    and nonce) where `check_validity` is False, so the four-byte fields
+    of those four are checked whatever the flag: `check_validity=False`
+    is what lets a caller copy or walk a transaction without judging it
+    whole.
     """
     if not isinstance(value, int):
         raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
