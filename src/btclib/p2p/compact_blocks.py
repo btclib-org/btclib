@@ -261,6 +261,28 @@ def _assert_increasing(indexes: Sequence[int], what: str) -> None:
         previous = index
 
 
+def _assert_valid_nonce(nonce: int, *, check_validity: bool) -> None:
+    """Refuse a nonce eight unsigned octets do not hold.
+
+    A non-int is a `BTClibTypeError` and an int outside eight unsigned
+    octets a `BTClibValueError`, where `int.to_bytes` would raise
+    `AttributeError` and `OverflowError`.
+
+    Called by `CmpctBlock.assert_valid` with `check_validity` True, and by
+    `CmpctBlock.short_id_key` and `CmpctBlock.serialize` with it False,
+    so the nonce is checked wherever it is written. A bool is refused only
+    under `check_validity`; unchecked, it is written as zero or one.
+    """
+    if not isinstance(nonce, int):
+        raise BTClibTypeError(f"invalid nonce type: {type(nonce).__name__}")
+    # a bool is an int and would read as the nonce one or zero, which
+    # the range check below cannot tell from a nonce whose value that is
+    if check_validity and isinstance(nonce, bool):
+        raise BTClibTypeError("invalid nonce type: bool")
+    if not 0 <= nonce <= _MAX_NONCE:
+        raise BTClibValueError(f"invalid nonce: {_message_text(nonce)}")
+
+
 def _assert_valid_count(count: int, what: str) -> None:
     """Refuse a vector longer than a block's transaction count can be."""
     if count > MAX_BLOCK_TX_INDEX:
@@ -623,7 +645,12 @@ class CmpctBlock(Payload):
         short ids, which is what BIP152 asks for -- "Nodes SHOULD NOT use
         the same nonce across multiple different blocks" -- so that a
         collision is one peer's and not the network's.
+
+        A nonce that is not an int is a `BTClibTypeError` and one outside
+        eight unsigned octets a `BTClibValueError`, whatever
+        `check_validity` the message was built with.
         """
+        _assert_valid_nonce(self.nonce, check_validity=False)
         preimage = self.header.serialize(check_validity=False)
         preimage += self.nonce.to_bytes(_NONCE_SIZE, byteorder="little", signed=False)
         digest = hashlib.sha256(preimage).digest()
@@ -651,12 +678,7 @@ class CmpctBlock(Payload):
         """Refuse a header, a nonce, a short id or an index the fields lack."""
         _assert_valid_header(self.header)
 
-        # a bool is an int and would read as the nonce one or zero, which
-        # the range check cannot tell from a nonce whose value that is
-        if not is_integer(self.nonce):
-            raise BTClibTypeError(f"invalid nonce type: {type(self.nonce).__name__}")
-        if not 0 <= self.nonce <= _MAX_NONCE:
-            raise BTClibValueError(f"invalid nonce: {_message_text(self.nonce)}")
+        _assert_valid_nonce(self.nonce, check_validity=True)
 
         for short_id in self.short_ids:
             if not is_integer(short_id):
@@ -682,6 +704,9 @@ class CmpctBlock(Payload):
         """Return the header, the nonce, then the two vectors."""
         if check_validity:
             self.assert_valid()
+        else:
+            # assert_valid checks the nonce when the flag is set
+            _assert_valid_nonce(self.nonce, check_validity=False)
 
         out = self.header.serialize(check_validity=check_validity)
         out += self.nonce.to_bytes(_NONCE_SIZE, byteorder="little", signed=False)
