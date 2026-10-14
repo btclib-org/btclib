@@ -65,10 +65,13 @@ jobs:
           sparse-checkout: |
             fuzz_corpora/block
             fuzz_corpora/block_deserialize
+            fuzz_corpora/block_filter_deserialize
             fuzz_corpora/block_header_and_short_txids_deserialize
             fuzz_corpora/blockheader_deserialize
+            fuzz_corpora/blockmerkleroot
             fuzz_corpora/blocktransactions_deserialize
             fuzz_corpora/blocktransactionsrequest_deserialize
+            fuzz_corpora/coins_deserialize
             fuzz_corpora/decode_tx
             fuzz_corpora/inv_deserialize
             fuzz_corpora/merkle_block_deserialize
@@ -80,6 +83,7 @@ jobs:
             fuzz_corpora/tx_in
             fuzz_corpora/tx_in_deserialize
             fuzz_corpora/tx_out
+            fuzz_corpora/txoutcompressor_deserialize
       - name: Checkout rust-bitcoin's qa-assets
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -88,12 +92,60 @@ jobs:
           persist-credentials: false
           filter: blob:none
           sparse-checkout: |
+            fuzz_corpora/bip158_parse_filter
+            fuzz_corpora/bitcoin_0_32_deser_net_msg
             fuzz_corpora/bitcoin_deserialize_block
             fuzz_corpora/bitcoin_deserialize_prefilled_transaction
             fuzz_corpora/bitcoin_deserialize_script
             fuzz_corpora/bitcoin_deserialize_transaction
             fuzz_corpora/bitcoin_deserialize_witness
+            fuzz_corpora/bitcoin_encoding_roundtrip_block
+            fuzz_corpora/bitcoin_encoding_roundtrip_block_header
+            fuzz_corpora/bitcoin_encoding_roundtrip_out_point
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_address_addr_v1_message
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_address_addr_v2_message
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_address_address
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_bip152_block_transactions
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_bip152_block_transactions_request
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_bip152_header_and_short_ids
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_bip152_prefilled_transaction
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_bip434_feature
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_bip434_feature_data
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_bip434_feature_id
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_merkle_tree_merkle_block
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_merkle_tree_partial_merkle_tree
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_addr_payload
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_addr_v2_payload
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_blockdata_get_blocks_message
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_blockdata_get_headers_message
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_blockdata_inventory
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_compact_blocks_send_cmpct
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_erlay_send_tx_rcn_cl
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_fee_filter
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_filter_c_f_checkpt
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_filter_c_f_headers
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_filter_c_filter
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_filter_get_c_f_checkpt
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_filter_get_c_f_headers
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_filter_get_c_filters
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_inventory_payload
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_network_user_agent
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_ping
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_pong
+            fuzz_corpora/bitcoin_encoding_roundtrip_p2p_message_v1_network_message
+            fuzz_corpora/bitcoin_encoding_roundtrip_redeem_script_buf
+            fuzz_corpora/bitcoin_encoding_roundtrip_script_pub_key_buf
+            fuzz_corpora/bitcoin_encoding_roundtrip_script_sig_buf
+            fuzz_corpora/bitcoin_encoding_roundtrip_tap_script_buf
+            fuzz_corpora/bitcoin_encoding_roundtrip_transaction
+            fuzz_corpora/bitcoin_encoding_roundtrip_tx_in
+            fuzz_corpora/bitcoin_encoding_roundtrip_tx_out
+            fuzz_corpora/bitcoin_encoding_roundtrip_witness
+            fuzz_corpora/bitcoin_encoding_roundtrip_witness_script_buf
             fuzz_corpora/bitcoin_script_bytes_to_asm_fmt
+            fuzz_corpora/consensus_encoding_decode_byte_vec
+            fuzz_corpora/consensus_encoding_decode_compact_size
+            fuzz_corpora/p2p_deserialize_raw_net_msg
       - name: Setup uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
