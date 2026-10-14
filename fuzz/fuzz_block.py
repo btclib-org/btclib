@@ -24,11 +24,11 @@ behind the count are, which is what this harness varies.
 no octet of its own in front; this target is what a caller reading a
 block from a file or an rpc answer reaches instead.
 
-A crash here on hostile bytes is a defect in `parse` itself, never in
-this harness: `data` is unconstrained bytes handed straight to `parse`,
-with nothing decoding or validating in between. Proof of work and merkle
-root are `assert_valid`'s, which `parse` runs after the octets are read
-and which answers a wrong one with `BTClibException` like every other
+A crash here on hostile bytes is a defect in `parse` or `serialize` itself,
+never in this harness: `data` is unconstrained bytes handed straight to
+`parse`, with nothing decoding or validating in between. Proof of work and
+merkle root are `assert_valid`'s, which `parse` runs after the octets are
+read and which answers a wrong one with `BTClibException` like every other
 refusal, so the whole of the parse is exercised whatever the header
 declares. An `IndexError`, a `RecursionError` or an uncaught assertion is
 not caught below, and propagates to atheris as the finding it is.
@@ -37,11 +37,15 @@ The seed corpus is the two smallest vendored blocks `tests/block/_data`
 holds, whose own hashes `tests/_data/README.md` records: the block after
 genesis, whose only transaction is its coinbase, and block 170, which
 carries one that is not.
+
+The format has one encoding, so what `parse` accepts must `serialize` back
+to `data` itself. An input that does not was misread by `parse` or
+miswritten by `serialize`, and the `AssertionError` reaches atheris as the
+finding it is.
 """
 
 from __future__ import annotations
 
-import contextlib
 import sys
 
 import atheris
@@ -58,12 +62,16 @@ ENTRY_POINTS = ("btclib.block.block:Block.parse",)
 def fuzz_target(data: bytes) -> None:
     """Parse `data` as a block.
 
-    `BTClibException` is swallowed as `parse`'s own refusal of malformed
-    input; any other exception propagates, which is how atheris tells a
-    defect in `parse` from the domain of input it already rejects.
+    A `BTClibException` from `parse` is its refusal of malformed input and
+    is swallowed. Any other exception, and any exception from `serialize`,
+    propagates: that is how atheris tells a defect from the input `parse`
+    already rejects.
     """
-    with contextlib.suppress(BTClibException):
-        Block.parse(data)
+    try:
+        block = Block.parse(data)
+    except BTClibException:
+        return
+    assert block.serialize() == data
 
 
 def main() -> None:

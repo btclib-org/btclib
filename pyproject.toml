@@ -1319,9 +1319,10 @@ ignore = [
 # ClusterFuzzLite's build.sh hands this straight to PyInstaller, never
 # to an import -- the same reason .github/scripts/*.py is exempt above,
 # and the same answer: no __init__.py, so as not to misrepresent fuzz/
-# as a package
-"fuzz/*.py" = ["INP001"]
-"**/__init__.py" = ["F401"] # re-exported imports
+# as a package. S101 too: a harness reports a finding by failing an
+# assert, which atheris records as the crash it is
+"fuzz/*.py" = ["INP001", "S101"]
+"**/__init__.py" = ["F401"]      # re-exported imports
 # preview mode's undefined-export does not special-case a module-level
 # __getattr__ (astral-sh/ruff#18504, open): these modules publish this
 # way, as each docstring says, and F822 sees no import to bind the name

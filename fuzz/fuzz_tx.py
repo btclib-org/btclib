@@ -16,23 +16,29 @@ no octet of its own in front, and the two targets differ in what reaches
 them: that one is what a `tx` message carries, this one what every caller
 holding a transaction with no connection behind it passes.
 
-A crash here on hostile bytes is a defect in `parse` itself, never in
-this harness: `data` is unconstrained bytes handed straight to `parse`,
-with nothing decoding or validating in between. `parse`'s own contract is
-to answer malformed input with `BTClibException`, so that family is
-caught below as the expected outcome. An `IndexError`, a `RecursionError`
-or an uncaught assertion is not, and propagates to atheris as the finding
-it is.
+A crash here on hostile bytes is a defect in `parse` or `serialize` itself,
+never in this harness: `data` is unconstrained bytes handed straight to
+`parse`, with nothing decoding or validating in between. `parse`'s own
+contract is to answer malformed input with `BTClibException`, so that family
+is caught below as the expected outcome. An `IndexError`, a `RecursionError`
+or an uncaught assertion is not, and propagates to atheris as the finding it
+is.
 
 The seeds are the segwit transaction `tests/tx/_data/<txid>.bin`, written
 in both of the encodings BIP144's marker distinguishes (witness and
 stripped, one object and two serializations), and rust-bitcoin's
 huge-witness transaction, `tests/tx/_data/huge_witness.bin`.
+
+Each of BIP144's two serializations has one encoding.
+`serialize(include_witness=True)` writes the marker only where some input
+has a witness, and `parse` refuses a marker over empty witnesses and a flag
+above 1. So what `parse` accepts must serialize back to `data` itself. An
+input that does not was misread by `parse` or miswritten by `serialize`, and
+the `AssertionError` reaches atheris as the finding it is.
 """
 
 from __future__ import annotations
 
-import contextlib
 import sys
 
 import atheris
@@ -49,12 +55,16 @@ ENTRY_POINTS = ("btclib.tx.tx:Tx.parse",)
 def fuzz_target(data: bytes) -> None:
     """Parse `data` as a transaction.
 
-    `BTClibException` is swallowed as `parse`'s own refusal of malformed
-    input; any other exception propagates, which is how atheris tells a
-    defect in `parse` from the domain of input it already rejects.
+    A `BTClibException` from `parse` is its refusal of malformed input and
+    is swallowed. Any other exception, and any exception from `serialize`,
+    propagates: that is how atheris tells a defect from the input `parse`
+    already rejects.
     """
-    with contextlib.suppress(BTClibException):
-        Tx.parse(data)
+    try:
+        tx = Tx.parse(data)
+    except BTClibException:
+        return
+    assert tx.serialize(include_witness=True) == data
 
 
 def main() -> None:

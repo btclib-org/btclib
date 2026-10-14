@@ -18,6 +18,10 @@ headers the request behind `block_headers.bin` asked for.
 no valid answer, and `RpcError` is a server's own error object, which is
 one too. Any other exception is a defect in the decoder and propagates
 to atheris as the finding it is.
+
+No round trip is asserted: the answer is a JSON line, which has many
+spellings of one value (whitespace, key order, escapes, number forms), and
+what the decoders return is not a serialization of it.
 """
 
 from __future__ import annotations

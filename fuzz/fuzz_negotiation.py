@@ -16,11 +16,15 @@ caller has read `message.command`.
 
 Every `Payload` subclass the module defines is run against the same
 bytes rather than one of them being picked.
+
+The format has one encoding, so what `parse` accepts must `serialize` back
+to `data` itself. An input that does not was misread by `parse` or
+miswritten by `serialize`, and the `AssertionError` reaches atheris as the
+finding it is.
 """
 
 from __future__ import annotations
 
-import contextlib
 import sys
 
 import atheris
@@ -55,10 +59,10 @@ ENTRY_POINTS = (
 def fuzz_target(data: bytes) -> None:
     """Parse `data` under each of the module's commands in turn.
 
-    `BTClibException` is swallowed as each `parse`'s own refusal of
-    malformed input; any other exception propagates, which is how
-    atheris tells a defect in `parse` from the domain of input it
-    already rejects.
+    A `BTClibException` from each `parse` is its refusal of malformed input
+    and is swallowed. Any other exception, and any exception from
+    `serialize`, propagates: that is how atheris tells a defect from the
+    input each `parse` already rejects.
     """
     for cls in (
         GetAddr,
@@ -69,8 +73,11 @@ def fuzz_target(data: bytes) -> None:
         FeeFilter,
         Feature,
     ):
-        with contextlib.suppress(BTClibException):
-            cls.parse(data)
+        try:
+            parsed = cls.parse(data)
+        except BTClibException:
+            continue
+        assert parsed.serialize() == data
 
 
 def main() -> None:

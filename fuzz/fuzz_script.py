@@ -20,13 +20,22 @@ refusal for a `contextlib.suppress(BTClibException)` to cover, and every
 exception `parse` raises is the finding. `fuzz/fuzz_tapscript.py`, whose
 parser does refuse, catches that family the way the p2p harnesses do.
 
-A crash here on hostile bytes is a defect in `parse` itself, never in
-this harness: `data` is unconstrained bytes handed straight to `parse`,
-with nothing decoding or validating in between.
+A crash here on hostile bytes is a defect in `parse` or `serialize` itself,
+never in this harness: `data` is unconstrained bytes handed straight to
+`parse`, with nothing decoding or validating in between.
 
 The seed corpus is a script_pub_key of the vendored segwit transaction,
 and an `OP_RETURN` whose payload is written with an `OP_PUSHDATA1` --
 the shortest of the three widths a declared length is read from.
+
+**A script has several encodings of one value, so this asserts less.** A
+push is accepted in every width that can hold it and written back in the
+shortest, as BIP62 asks, so `serialize(parse(data))` need not be `data`.
+What is asserted instead is that writing settles it: the octets `serialize`
+writes parse back to the commands they were written from.
+
+The terminal `ERROR_COMMAND` is dropped first: it marks a place in the
+bytes and not an instruction, and `serialize` refuses it.
 """
 
 from __future__ import annotations
@@ -49,7 +58,10 @@ def fuzz_target(data: bytes) -> None:
     Every exception propagates: `parse` refuses no octets, so there is no
     expected failure to tell a defect from.
     """
-    script.parse(data)
+    commands = script.parse(data)
+    if commands[-1:] == [script.ERROR_COMMAND]:
+        commands = commands[:-1]
+    assert script.parse(script.serialize(commands)) == commands
 
 
 def main() -> None:

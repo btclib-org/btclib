@@ -13,13 +13,13 @@ different rules on this one -- an unknown op code is refused where
 follows returned unparsed -- so the two decoders answer the same octets
 differently and neither reaches the other.
 
-A crash here on hostile bytes is a defect in `parse` itself, never in
-this harness: `data` is unconstrained bytes handed straight to `parse`,
-with nothing decoding or validating in between. `BTClibException` is what
-`parse` answers an unknown op code, a truncated push and an oversized
-element with, so that family is caught below as the expected outcome. An
-`IndexError`, a `RecursionError` or an uncaught assertion is not, and
-propagates to atheris as the finding it is.
+A crash here on hostile bytes is a defect in `parse` or `serialize` itself,
+never in this harness: `data` is unconstrained bytes handed straight to
+`parse`, with nothing decoding or validating in between. `BTClibException`
+is what `parse` answers an unknown op code, a truncated push and an
+oversized element with, so that family is caught below as the expected
+outcome. An `IndexError`, a `RecursionError` or an uncaught assertion is
+not, and propagates to atheris as the finding it is.
 
 `exit_on_op_success` is left at its default: it decides which of two
 answers `parse` computes rather than what the octets are, so the default
@@ -28,11 +28,16 @@ is the walk that reads all of them.
 The seed corpus is a single-key leaf script -- an x-only public key
 pushed and checked -- and a script whose `OP_SUCCESS80` is followed by
 the raw octets BIP342 does not require to be a script at all.
+
+**A script has several encodings of one value, so this asserts less.** A
+push is accepted in every width that can hold it and written back in the
+shortest, as BIP62 asks, so `serialize(parse(data))` need not be `data`.
+What is asserted instead is that writing settles it: the octets `serialize`
+writes parse back to the commands they were written from.
 """
 
 from __future__ import annotations
 
-import contextlib
 import sys
 
 import atheris
@@ -49,12 +54,16 @@ ENTRY_POINTS = ("btclib.script.taproot:parse",)
 def fuzz_target(data: bytes) -> None:
     """Parse `data` as a tapscript.
 
-    `BTClibException` is swallowed as `parse`'s own refusal of malformed
-    input; any other exception propagates, which is how atheris tells a
-    defect in `parse` from the domain of input it already rejects.
+    A `BTClibException` from `parse` is its refusal of malformed input and
+    is swallowed. Any other exception, and any exception from `serialize`,
+    propagates: that is how atheris tells a defect from the input `parse`
+    already rejects.
     """
-    with contextlib.suppress(BTClibException):
-        taproot.parse(data)
+    try:
+        commands = taproot.parse(data)
+    except BTClibException:
+        return
+    assert taproot.parse(taproot.serialize(commands)) == commands
 
 
 def main() -> None:

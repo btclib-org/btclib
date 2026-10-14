@@ -23,8 +23,7 @@ character class for the callee, `[A-Za-z_]+.parse`, would still have to
 answer which import a bare name resolves to, and one reaching for the
 whole dotted call loses `AddrV2.parse` to a class that excludes the digit.
 
-`fuzz_block_filters`, `fuzz_compact_blocks`, `fuzz_inventory` and
-`fuzz_negotiation` call `cls.parse(data)` inside a
+A harness that tries several classes calls `cls.parse(data)` inside a
 `for cls in (A, B, ...):` loop rather than naming a callee directly, so
 walking the call site alone resolves nothing: `cls` is a loop variable,
 not an import. The cross-check reads the loop's own iterable instead,
@@ -37,9 +36,14 @@ the corpus half: every seed is tried against every one of its harness's
 declared entry points, and passes if at least one accepts it without
 raising `BTClibException`. Where the accepting object serializes --
 `.serialize()`, or `.b64encode()` behind a `.b64decode()` entry point --
-the reserialization has to reproduce the seed's own bytes; where it does
-not (`var_int.parse` returns a plain `int`, `script.parse` a plain
-`list`), the seed is accepted parse-only and nothing else is asked of it.
+the reserialization has to reproduce the seed's own bytes. A parser that
+answers with a plain value has its module's `serialize` named in
+`_WRITERS` below: `var_int.parse` and `var_bytes.parse` must reproduce
+the bytes, and `script.parse` and `taproot.parse` the weaker form their
+harnesses assert, since a script has several encodings of one value: the
+octets written parse back to the same commands. An Electrum answer is
+JSON, which has no serialization to compare with, so that seed is
+accepted parse-only and nothing else is asked of it.
 
 **Trying every declared entry point rather than picking one by filename
 convention buys the manifest's simplicity at a stated price: where a
@@ -79,13 +83,16 @@ import ast
 import contextlib
 import copy
 import importlib
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
 from typing_extensions import override
 
+from btclib import var_bytes, var_int
 from btclib.exceptions import BTClibException
+from btclib.script import script, taproot
 
 _FUZZ = Path(__file__).parent.parent / "fuzz"
 _CORPUS = _FUZZ / "corpus"
@@ -265,8 +272,39 @@ def _reserialize(obj: Any) -> bytes:
         return obj.serialize(include_witness=True)  # type: ignore[no-any-return]
 
 
+# The entry points whose parse answers with a plain value, so there is no
+# `.serialize` to call: the module's own function writes it back. The flag
+# is True where the format has several encodings of one value, and the
+# harness then asserts that the written octets parse back to the same
+# value rather than that they reproduce the input.
+_WRITERS: dict[str, tuple[Callable[[Any], bytes], bool]] = {
+    "btclib.var_int:parse": (var_int.serialize, False),
+    "btclib.var_bytes:parse": (var_bytes.serialize, False),
+    "btclib.script.script:parse": (script.serialize, True),
+    "btclib.script.taproot:parse": (taproot.serialize, True),
+}
+
+
+def _written_settles(spec: str, obj: Any) -> bool:
+    """Return whether the octets written for `obj` parse back to `obj`."""
+    write, _ = _WRITERS[spec]
+    reparse = _resolve(spec)
+    if obj[-1:] == [script.ERROR_COMMAND]:
+        # a place in the bytes and not an instruction, which serialize refuses
+        obj = obj[:-1]
+    return bool(reparse(write(obj)) == obj)
+
+
 def _round_trip(spec: str, obj: Any, data: bytes) -> bool | None:
-    """Return whether `obj` reserializes to `data`, or None if unchecked."""
+    """Return whether `obj` passes its harness's round trip on `data`.
+
+    None where nothing is checked.
+    """
+    if spec in _WRITERS:
+        write, several_encodings = _WRITERS[spec]
+        if several_encodings:
+            return _written_settles(spec, obj)
+        return write(obj) == data
     attr = spec.rsplit(".", 1)[-1]
     if attr == "b64decode":
         if not hasattr(obj, "b64encode"):
@@ -402,7 +440,7 @@ def test_every_seed_is_accepted(harness: str, seed: Path) -> None:
     ids=[str(seed.relative_to(_CORPUS)) for _, seed in _SEEDS],
 )
 def test_accepted_seed_round_trips(harness: str, seed: Path) -> None:
-    """Where a round trip is checkable, it reproduces the seed byte for byte."""
+    """Where a round trip is checkable, the seed passes its harness's."""
     tree = _parse_module((_FUZZ / f"{harness}.py").read_text(encoding="utf-8"), harness)
     declared = _entry_points(tree)
     assert declared
@@ -414,6 +452,57 @@ def test_accepted_seed_round_trips(harness: str, seed: Path) -> None:
         if accepted and round_trip is False
     ]
     assert not mismatches, f"{seed} does not round-trip under: {mismatches}"
+
+
+@pytest.mark.parametrize(
+    "spec, data",
+    [
+        ("btclib.var_int:parse", b"\xfd\xfc\x00"),
+        ("btclib.var_bytes:parse", b"\xfd\x01\x00\x00"),
+    ],
+)
+def test_a_non_canonical_length_is_refused_not_reserialized(
+    spec: str, data: bytes
+) -> None:
+    """A var_int or var_bytes has one encoding: the parser refuses these."""
+    with pytest.raises(BTClibException):
+        _resolve(spec)(data)
+
+
+def test_a_script_has_several_encodings_of_one_value() -> None:
+    """A push over a wider operator is why a script is held to the weak form."""
+    data = bytes.fromhex("4c0141")
+    commands = script.parse(data)
+    assert script.serialize(commands) != data
+    assert _round_trip("btclib.script.script:parse", commands, data) is True
+    assert _round_trip("btclib.script.taproot:parse", taproot.parse(data), data)
+
+
+@pytest.mark.parametrize(
+    "data", [b"\x4c\x00", b"\x4d\x00\x00", b"\x4e\x00\x00\x00\x00"]
+)
+def test_an_empty_push_in_any_width_parses_back_to_the_same_commands(
+    data: bytes,
+) -> None:
+    """Every width of an empty push is the same command, as OP_0 is."""
+    assert script.parse(data) == script.parse(b"\x00")
+    assert taproot.parse(data) == taproot.parse(b"\x00")
+    assert _round_trip("btclib.script.script:parse", script.parse(data), data) is True
+    assert _round_trip("btclib.script.taproot:parse", taproot.parse(data), data) is True
+
+
+def test_the_round_trip_sees_a_difference() -> None:
+    """The control: a writer that disagrees with the input is not a pass."""
+    assert _round_trip("btclib.var_int:parse", 1, b"\x02") is False
+    assert _round_trip("btclib.var_bytes:parse", b"", b"\x01\x00") is False
+
+
+def test_a_script_ending_in_the_error_command_is_checked_without_it() -> None:
+    """A push running past the end is decoded, and its marker not written."""
+    data = bytes.fromhex("514c")
+    commands = script.parse(data)
+    assert commands[-1] == script.ERROR_COMMAND
+    assert _round_trip("btclib.script.script:parse", commands, data) is True
 
 
 # ---- unit tests of the pure ast helpers, for the branches no harness trips
