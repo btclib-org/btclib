@@ -277,7 +277,9 @@ def _assert_valid_uint(
 
     A non-int is a `BTClibTypeError` and an int outside 0 to `maximum` a
     `BTClibValueError`, where `int.to_bytes` would raise `AttributeError`
-    and `OverflowError`. Private and unvalidated of `what`, as a private
+    and `OverflowError`, and where `int(value)`, which writes the announce
+    octet, would turn a float or a numeric str into an int the field never
+    held. Private and unvalidated of `what`, as a private
     twin is: every caller hands it a literal of this module.
 
     Called with `check_validity` True by `CmpctBlock.assert_valid` for
@@ -440,8 +442,6 @@ class SendCmpct(Payload):
         # push every new block
         assert_type(self.announce, bool, "announce")
 
-        # a bool is an int and would read as version one or zero, which
-        # the range check cannot tell from a version whose value that is
         _assert_valid_uint(self.version, "version", _MAX_VERSION, check_validity=True)
 
     @override
@@ -450,8 +450,9 @@ class SendCmpct(Payload):
         if check_validity:
             self.assert_valid()
         else:
-            # the announce octet is written through `int`, which would raise
-            # its own error on `"no"` and `None`
+            # the announce octet is written through `int`, which wrote one
+            # for `1.5` and `"1"` and raised its own error on `"no"` and
+            # `None`: only an int is written
             _assert_valid_uint(
                 self.announce, "announce", _MAX_OCTET, check_validity=False
             )
