@@ -269,7 +269,12 @@ to, and what counters each.
   that may be key material does not echo them: `tests/key_test.py` pins
   the messages the key parsers refuse with, and btclib_ecc's own
   `tests/ecc/dsa_test.py` asserts that a private key handed where a
-  public key belongs is not repeated in the error.
+  public key belongs is not repeated in the error. The rule is section 7's
+  [*A refusal carries no secret*](https://github.com/btclib-org/.github/blob/main/README.md#a-refusal-carries-no-secret),
+  which asks every such refusal for a test calling `assert_secret_free`
+  from `tests/secret_free/__init__.py`. No test calls it yet:
+  `tests/refusal_text_test.py` has a helper of its own, and
+  btclib-org/btclib#2625 owes the move to the shared one.
 - **Deserialization of untrusted data (CWE-502).** btclib reads only its
   own binary formats, its text encodings and json, through the parsers
   and `from_dict` above. The census under *Threat model* lists neither

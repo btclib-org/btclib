@@ -1,0 +1,43 @@
+---
+name: api-break
+
+# Labels a pull request `api-break` when it changes the public API against
+# its base, and takes the label off when a later push repairs it. The
+# answer is a label and gates nothing: the job is no required check, and
+# the run stays green where griffe cannot compare.
+#
+# The job is btclib-org/.github's, called at @main so a fix there reaches
+# this tree in one landing (section 10 of its README.md); what stays here
+# is the trigger, the concurrency group and the package
+# (btclib-org/.github#1674).
+
+on:
+  pull_request:
+    # ready_for_review, so a pull request marked ready gets the run the
+    # draft condition in reusable-api-break.yml withheld while it was a
+    # draft.
+    # closed too, as the other pull request workflows of this tree: the
+    # closed event lands in the pull request's own group, and the job
+    # declines the work on it.
+    types: [opened, reopened, synchronize, ready_for_review, closed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# named literally rather than through github.workflow, which in a called
+# workflow is the caller's name; the pull request's number and not
+# github.head_ref, for the reason links.yml gives beside its own group
+concurrency:
+  group: api-break-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !(github.event.action == 'closed' && github.event.pull_request.merged) }}
+
+jobs:
+  # package: btclib is what release.yml passes to reusable-public-api.yml
+  api-break:
+    uses: btclib-org/.github/.github/workflows/reusable-api-break.yml@main
+    permissions:
+      contents: read
+      pull-requests: write # the label; read-only on a fork
+    with:
+      package: btclib
