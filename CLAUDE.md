@@ -114,6 +114,16 @@ constraints. Do not use Fable unless instructed.
 - **`uv run --project <worktree>` does not change the working
   directory,** so `testpaths` resolves against the primary checkout: use
   `env -C <worktree> uv run pytest`.
+- **rust-bitcoin's fuzz corpora carry fake hashes and signatures:** its
+  fuzz binaries, all but the `hashes_*` targets, build with
+  `--cfg=hashes_fuzz --cfg=secp256k1_fuzz` (`fuzz/rustflags.sh`), which
+  swap its hashes and secp256k1 for stubs. A checksum, hash or
+  signature in those corpora of `rust-bitcoin/qa-assets` fails a real
+  check, so a replay that checks one never reaches what follows it.
+- **`Block(...)`, `Block.parse` and `Block.serialize` validate against
+  mainnet's proof-of-work limit** by default, which no test can mine:
+  `Block.assert_valid`'s docstring says how a block of another network
+  is checked.
 
 ## Conventions to match
 
