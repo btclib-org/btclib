@@ -51,6 +51,7 @@ _OP_2DROP = b"\x6d"
 _DEEP = 100_000
 _BOUND = 60
 _REPEATS = 15
+_LIMIT = 2
 _T = TypeVar("_T")
 
 
@@ -75,13 +76,13 @@ def _ratio(small: _T, large: _T, seconds: Callable[[_T], float]) -> float:
     """Return the best time of `large` over the best of four runs of `small`.
 
     `large` is four times `small`, so the ratio is about 1 if the work is
-    linear and about 4 if it is quadratic, and the tests bound it at 2,
-    as far in proportion from either. Each side lasts about as long as the
-    other, so what slows a run under load is as likely to reach either
-    side; a short run against a long one leaves the long one the likelier
-    to be slowed. The sides alternate, so that a change of load reaches
-    both, and the best of each is taken, so that a slow run cannot hide
-    the growth.
+    linear and about 4 if it is quadratic, and the tests bound it at
+    `_LIMIT`, as far in proportion from either. Each side lasts about as
+    long as the other, so what slows a run under load is as likely to
+    reach either side; a short run against a long one leaves the long one
+    the likelier to be slowed. The sides alternate, so that a change of
+    load reaches both, and the best of each is taken, so that a slow run
+    cannot hide the growth.
     """
     small_times: list[float] = []
     large_times: list[float] = []
@@ -158,7 +159,9 @@ def test_four_times_the_script_takes_about_four_times_as_long(
 ) -> None:
     """Four times the script: 16 times as long if quadratic, 4 if linear."""
     ratio = _ratio(make(_DEEP // 4), make(_DEEP), _seconds)
-    assert ratio < 2, f"{ratio:.1f} times as long as four quarters of the script"
+    assert ratio < _LIMIT, (
+        f"{ratio:.1f} times as long as four runs of a quarter of the script"
+    )
 
 
 @pytest.mark.timeout(_BOUND * 5)
@@ -172,7 +175,9 @@ def test_four_times_the_signature_checks_take_about_four_times_as_long(
     monkeypatch.setattr(tapscript, "ssa_verify", lambda *_: True)
     small, large = make(2_000), make(8_000)
     ratio = _ratio(small, large, lambda case: _seconds_of(*case))
-    assert ratio < 2, f"{ratio:.1f} times as long as four quarters of the checks"
+    assert ratio < _LIMIT, (
+        f"{ratio:.1f} times as long as four runs of a quarter of the checks"
+    )
 
 
 @pytest.mark.timeout(_BOUND)
