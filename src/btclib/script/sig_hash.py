@@ -316,12 +316,9 @@ def _zero_other_sequences(new_tx: Tx, vin_i: int) -> None:
 # refuses. Not the money range: -1 is a signed CAmount and BIP143 hashes it
 # (issue 388), so `valid_sats_amount` would refuse a preimage Core writes
 def _assert_valid_camount(amount: int, name: str) -> None:
-    """Refuse an amount no eight-byte signed field can hold, and a bool.
+    """Refuse what `_assert_valid_8_byte_signed_field` refuses, and a bool.
 
-    A preimage is a signature's message, so a bool there is a schema
-    mistake, not a number: `is_integer` does not take it. The rest is
-    `_assert_valid_8_byte_signed_field`'s, which `TxOut.serialize` runs
-    too.
+    A bool for the reason `_assert_valid_preimage_field` gives.
     """
     if not is_integer(amount):
         raise BTClibTypeError(f"invalid {name} type: {type(amount).__name__}")
