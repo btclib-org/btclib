@@ -348,12 +348,11 @@ def _assert_valid_4_byte_field(name: str, value: int) -> None:
     """Refuse a value that cannot be written as four unsigned bytes.
 
     What is not an `int` is a `BTClibTypeError` and an int outside
-    0..0xFFFFFFFF a `BTClibValueError`. Without this check, comparing a
-    str, bytes or None raises TypeError, a float has no `to_bytes`
-    (AttributeError), and `int.to_bytes` raises OverflowError for an int
-    outside the range (issue #690): none of them the `BTClibTypeError` or
-    `BTClibValueError` the library's contract promises a caller
-    (CONTRIBUTING.md, *The public surface*).
+    0..0xFFFFFFFF a `BTClibValueError`. Without this check, a str, bytes,
+    float or None has no `to_bytes` (AttributeError), and `int.to_bytes`
+    raises OverflowError for an int outside the range (issue #690): none
+    of them the `BTClibTypeError` or `BTClibValueError` the library's
+    contract promises a caller (CONTRIBUTING.md, *The public surface*).
 
     A bool is an `int` here and is written as 0 or 1; refusing it is a
     semantic check, and `check_validity` gates those.
