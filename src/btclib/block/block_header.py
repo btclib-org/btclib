@@ -76,11 +76,11 @@ def _timestamp_of(time: datetime) -> int:
 
     The value the four bytes hold. `datetime.timestamp()` raises a plain
     ValueError, OverflowError or OSError for a time it cannot place: a
-    naive `datetime.min` is before year 1 in every time zone, since a
-    naive time is read in the local one, and a naive time before 1970 is
-    an OSError on Windows. None is an exception the library promises, so
-    all three are a `BTClibValueError`; a time of another type is a
-    `BTClibTypeError`.
+    naive `datetime.min`, whose local-time conversion reaches before year
+    1 in every time zone, a naive `datetime.max` east of UTC, and a naive
+    time before 1970 on Windows (OSError). None is an exception the
+    library promises, so all three are a `BTClibValueError`; a time of
+    another type is a `BTClibTypeError`.
     """
     assert_type(time, datetime, "timestamp")
     try:
@@ -419,8 +419,10 @@ class BlockHeader:
 
         if timestamp < 1231006505:
             err_msg = "invalid timestamp (before genesis)"
-            date = datetime.fromtimestamp(timestamp, UTC)
-            err_msg += f": {date}"
+            # self.time, not `fromtimestamp(timestamp, UTC)`: that raises
+            # ValueError for an aware `datetime.min` east of UTC, whose
+            # instant is before year 1
+            err_msg += f": {self.time}"
             raise BTClibValueError(err_msg)
 
         # the header field is four unsigned bytes, so 2106-02-07 06:28:15Z
@@ -429,12 +431,12 @@ class BlockHeader:
         # OverflowError of int.to_bytes -- which names neither the field nor
         # the object, so the caller of Block.serialize is told "int too big
         # to convert" about a header it has just been told is valid.
-        # self.time, where the bound above renders the instant through
-        # fromtimestamp: this branch is the one that catches datetime.max,
-        # whose timestamp() is 253402300799.999999 rounded up to
-        # 253402300800.0 by the float, i.e. year 10000, and fromtimestamp
-        # answers that with a ValueError -- building the message would
-        # throw the very exception this check exists to replace
+        # self.time, not the instant through fromtimestamp: this branch
+        # catches datetime.max, whose timestamp() is 253402300799.999999
+        # rounded up to 253402300800.0 by the float, i.e. year 10000, and
+        # fromtimestamp answers that with a ValueError -- building the
+        # message would throw the very exception this check exists to
+        # replace
         if timestamp > 0xFFFFFFFF:
             err_msg = "invalid timestamp (after the last 4-bytes instant)"
             err_msg += f": {self.time}"
@@ -487,9 +489,11 @@ class BlockHeader:
         """
         if check_validity:
             self.assert_valid()
+            timestamp = _timestamp_of(self.time)
         else:
             _assert_valid_version(self.version)
-            _assert_valid_4_byte_field("timestamp", _timestamp_of(self.time))
+            timestamp = _timestamp_of(self.time)
+            _assert_valid_4_byte_field("timestamp", timestamp)
             _assert_valid_4_byte_field("nonce", self.nonce)
 
         return b"".join(
@@ -497,7 +501,7 @@ class BlockHeader:
                 self.version.to_bytes(4, byteorder="little", signed=True),  # int32_t
                 self.previous_block_hash[::-1],
                 self.merkle_root[::-1],
-                int(self.time.timestamp()).to_bytes(4, "little", signed=False),
+                timestamp.to_bytes(4, "little", signed=False),
                 self.bits[::-1],
                 self.nonce.to_bytes(4, byteorder="little", signed=False),
             ]

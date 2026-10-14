@@ -355,7 +355,7 @@ def _unjudged_header(**fields: object) -> BlockHeader:
             datetime(1969, 12, 31, 23, 59, 59, tzinfo=UTC),
             "invalid timestamp: ",
         ),
-        # `timestamp()` raises ValueError for a naive time in every zone
+        # timestamp() of a naive datetime.min raises ValueError in every zone
         ("time", datetime.min, "invalid timestamp: "),
     ],
 )
@@ -400,6 +400,33 @@ def test_serialize_without_judging_writes_the_edge_of_each_field(
     offset = {"version": 0, "time": 68, "nonce": 76}[field]
     assert data[offset : offset + 4] == serialized
     assert header.hash == hash256(data)[::-1]
+
+
+@pytest.mark.parametrize(
+    "time",
+    [
+        # before year 1 in UTC: `fromtimestamp(..., UTC)` raised ValueError
+        # when the message of assert_valid was built from it
+        datetime.min.replace(tzinfo=timezone(timedelta(hours=23))),
+        datetime.min.replace(tzinfo=timezone(timedelta(hours=1))),
+        # timestamp() raises ValueError in every zone
+        datetime.min,
+        # timestamp() raises ValueError east of UTC and answers year 10000
+        # elsewhere, so what is pinned is the exception, not the message
+        datetime.max,
+    ],
+    ids=["aware-min+23h", "aware-min+1h", "naive-min", "naive-max"],
+)
+def test_a_time_at_the_edge_of_datetime_is_a_btclib_error(time: datetime) -> None:
+    """No plain ValueError leaves `assert_valid`, `serialize` or `hash`."""
+    header = _unjudged_header(time=time)
+
+    with pytest.raises(BTClibValueError):
+        header.assert_valid()
+    with pytest.raises(BTClibValueError):
+        header.serialize(check_validity=False)
+    with pytest.raises(BTClibValueError):
+        header.hash  # noqa: B018
 
 
 @pytest.mark.parametrize(

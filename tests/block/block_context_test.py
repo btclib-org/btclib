@@ -264,7 +264,7 @@ def test_a_timestamp_may_be_two_hours_ahead_and_no_more() -> None:
         header.assert_valid_time(header.time.replace(tzinfo=None))
 
     # a time `timestamp()` cannot place is refused, not left to a plain
-    # ValueError: a naive `datetime.min` is before year 1 in every zone
+    # ValueError: timestamp() of a naive datetime.min fails in every zone
     header.time = datetime.min
     with pytest.raises(BTClibValueError, match="invalid timestamp: "):
         header.assert_valid_time(now)
