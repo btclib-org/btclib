@@ -48,7 +48,9 @@ What belongs here is everything btclib does around the arithmetic:
     runs whenever the conditions below are not met
 - the distributions published to PyPI and their provenance
 
-What a refusal may print of a value that may be secret is the rule [*A refusal carries no secret*](https://github.com/btclib-org/.github/blob/main/README.md#a-refusal-carries-no-secret); a refusal that prints more belongs here.
+What a refusal may print of a value that may be secret is the rule
+[*A refusal carries no secret*](https://github.com/btclib-org/.github/blob/main/README.md#a-refusal-carries-no-secret);
+a refusal that prints more belongs here.
 
 Report it wherever you found it, though: routing a report is the
 maintainers' job, not the reporter's, and a doubt about which project
