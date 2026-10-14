@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 from btclib_ecc.curves import bytes_from_point, mult
+from hypothesis import given
 
 from btclib import b32, b58, var_bytes
 from btclib.alias import ScriptList
@@ -53,6 +54,7 @@ from btclib.script.script_pub_key import (
     script_from_script_pub_key,
 )
 from tests import load, vector_id
+from tests.strategies import SCRIPT_PUB_KEYS
 
 
 def test_eq() -> None:
@@ -1391,3 +1393,24 @@ def test_an_address_with_a_character_lowering_onto_the_alphabet_is_refused() -> 
     for decoder in (b32.witness_from_address, ScriptPubKey.from_address):
         with pytest.raises(BTClibValueError, match="data part character out of range"):
             decoder(kelvin)
+
+
+@given(script_pub_key=SCRIPT_PUB_KEYS)
+def test_script_pub_key_is_read_back_from_its_address(
+    script_pub_key: ScriptPubKey,
+) -> None:
+    """Whatever has an address is the script that address is read as.
+
+    Testnet, signet and testnet4 share their address prefixes, so the
+    network read back is the one of its type, which is what equality
+    compares.
+    """
+    addr = script_pub_key.address
+    if not addr:
+        assert script_pub_key.type in {"nulldata", "p2ms", "p2pk", "unknown"}
+        return
+    read_back = ScriptPubKey.from_address(addr)
+    assert read_back == script_pub_key
+    assert hash(read_back) == hash(script_pub_key)
+    assert read_back.type == script_pub_key.type
+    assert read_back.address == addr
