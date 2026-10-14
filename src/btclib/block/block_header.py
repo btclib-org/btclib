@@ -61,9 +61,9 @@ def _assert_valid_version(value: int) -> None:
     (src/primitives/block.h), and nothing narrower: zero and negative
     versions are as well formed as any other. What is not an `int` is a
     `BTClibTypeError` and an int outside -0x80000000..0x7FFFFFFF a
-    `BTClibValueError`, where a non-int has no `to_bytes`
-    (AttributeError) and `int.to_bytes` raises OverflowError for an int
-    outside the range.
+    `BTClibValueError`. Without this check, a non-int has no `to_bytes`
+    (AttributeError) and `int.to_bytes` raises OverflowError outside the
+    range.
     """
     if not isinstance(value, int):
         raise BTClibTypeError(f"invalid version type: {type(value).__name__}")
@@ -462,15 +462,17 @@ class BlockHeader:
         """Return a BlockHeader binary serialization.
 
         With `check_validity` False, the version, the time and the nonce
-        are still checked against the four bytes each is written in, so
-        that `hash` and a caller walking an unjudged header get a
-        `BTClibValueError` (or a `BTClibTypeError`) and no
-        `OverflowError` from `int.to_bytes`.
+        are still checked against the four bytes each is written in, and
+        the time against being a `datetime`, so that `hash` and a caller
+        walking an unjudged header get a `BTClibValueError` or a
+        `BTClibTypeError`, and no `OverflowError` from `int.to_bytes` or
+        `AttributeError` from a field of another type.
         """
         if check_validity:
             self.assert_valid()
         else:
             _assert_valid_version(self.version)
+            assert_type(self.time, datetime, "timestamp")
             _assert_valid_4_byte_field("timestamp", int(self.time.timestamp()))
             _assert_valid_4_byte_field("nonce", self.nonce)
 

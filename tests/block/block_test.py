@@ -401,18 +401,26 @@ def test_serialize_without_judging_writes_the_edge_of_each_field(
 
 
 @pytest.mark.parametrize(
-    "field, err_msg",
-    [("version", "invalid version type: str"), ("nonce", "invalid nonce type: float")],
+    "field, value, err_msg",
+    [
+        ("version", "1", "invalid version type: str"),
+        ("nonce", 1.5, "invalid nonce type: float"),
+        ("time", "2020", "invalid timestamp type: str"),
+        ("time", 0, "invalid timestamp type: int"),
+        ("time", None, "invalid timestamp type: NoneType"),
+    ],
 )
-def test_serialize_without_judging_refuses_a_field_that_is_no_int(
-    field: str, err_msg: str
+def test_serialize_without_judging_refuses_a_field_of_the_wrong_type(
+    field: str, value: object, err_msg: str
 ) -> None:
-    """A field rebound to a non-int is a BTClibTypeError, no AttributeError."""
+    """A field of the wrong type is a BTClibTypeError, no AttributeError."""
     header = _unjudged_header()
-    setattr(header, field, "1" if field == "version" else 1.5)
+    setattr(header, field, value)
 
     with pytest.raises(BTClibTypeError, match=err_msg):
         header.serialize(check_validity=False)
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        header.hash  # noqa: B018
 
 
 def _coinbase_and_a_transaction_missing_its_outputs() -> tuple[Tx, Tx]:

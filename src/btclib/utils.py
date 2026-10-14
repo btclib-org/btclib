@@ -361,7 +361,7 @@ def _assert_valid_4_byte_field(name: str, value: int) -> None:
     serializers of `Tx`, `TxIn`, `OutPoint` and `BlockHeader` (its time
     and nonce) where `check_validity` is False, so the four-byte fields
     of those four are checked whatever the flag: `check_validity=False`
-    is what lets a caller copy or walk a transaction without judging it
+    is what lets a caller copy or walk an object without judging it
     whole.
     """
     if not isinstance(value, int):
