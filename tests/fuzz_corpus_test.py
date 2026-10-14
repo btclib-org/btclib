@@ -9,15 +9,19 @@ It resolves what a harness *names* against the installed btclib.
 `fuzz_harness_test.py` is the other half: it runs each harness's
 `fuzz_target` on its seeds.
 
-`ENTRY_POINTS`, a module-level tuple of `"module:Qual.name"` string
-literals, is what each harness names. `test_entry_points_are_declared`
-below finds it with `ast.literal_eval`; `test_entry_points_match_the_calls`
-cross-checks it against the `.parse`, `.b64decode` and `.*_response` calls
-`fuzz_target`'s own body makes, walked with `ast` rather than matched with
-a regex -- a character class for the callee, `[A-Za-z_]+.parse`, would
-still have to answer which import a bare name resolves to, and one
-reaching for the whole dotted call loses `AddrV2.parse` to a class that
-excludes the digit.
+`ENTRY_POINTS`, a module-level tuple of `"module:Qual.name"` strings,
+is what each harness names. Where an entry point takes more than the
+input, `ENTRY_POINTS` is a dict from that string to the tuple of what
+follows the input in the call, and a name in it stands for the
+module-level literal assigned to it above. `.github/scripts/compare_release.py`
+calls the entry points as this declaration says.
+`test_entry_points_are_declared` below finds it with `ast.literal_eval`;
+`test_entry_points_match_the_calls` cross-checks it, arguments included,
+against the `.parse`, `.b64decode` and `.*_response` calls `fuzz_target`'s
+own body makes, walked with `ast` rather than matched with a regex -- a
+character class for the callee, `[A-Za-z_]+.parse`, would still have to
+answer which import a bare name resolves to, and one reaching for the
+whole dotted call loses `AddrV2.parse` to a class that excludes the digit.
 
 `fuzz_block_filters`, `fuzz_compact_blocks`, `fuzz_inventory` and
 `fuzz_negotiation` call `cls.parse(data)` inside a
@@ -72,19 +76,18 @@ newline a fixer appends.
 from __future__ import annotations
 
 import ast
+import contextlib
+import copy
 import importlib
 from pathlib import Path
 from typing import Any
 
 import pytest
+from typing_extensions import override
 
 from btclib.exceptions import BTClibException
 
 _FUZZ = Path(__file__).parent.parent / "fuzz"
-# the id every seed of fuzz/corpus/fuzz_electrum/ answers, and the number of
-# headers asked for by the one that answers blockchain.block.headers
-_REQUEST_ID = 1
-_HEADERS_ASKED = 2
 _CORPUS = _FUZZ / "corpus"
 
 
@@ -97,19 +100,48 @@ def _parse_module(source: str, filename: str) -> ast.Module:
     return ast.parse(source, filename=filename)
 
 
-def _entry_points(tree: ast.Module) -> tuple[str, ...] | None:
-    """Return the module-level ENTRY_POINTS tuple of strings, or None."""
+class _Inline(ast.NodeTransformer):
+    """Replace each name by the value `values` gives it."""
+
+    def __init__(self, values: dict[str, Any]) -> None:
+        self.values = values
+
+    @override
+    def visit_Name(self, node: ast.Name) -> ast.Constant:
+        if node.id not in self.values:
+            raise ValueError(node.id)
+        return ast.Constant(self.values[node.id])
+
+
+def _literal(node: ast.expr, values: dict[str, Any]) -> Any:
+    """Return the literal `node` is, a name standing for its value."""
+    return ast.literal_eval(_Inline(values).visit(copy.deepcopy(node)))
+
+
+def _literals(tree: ast.Module) -> dict[str, Any]:
+    """Return each module-level `NAME = <literal>` of `tree`, in order."""
+    values: dict[str, Any] = {}
     for node in tree.body:
         if (
             isinstance(node, ast.Assign)
             and len(node.targets) == 1
             and isinstance(node.targets[0], ast.Name)
-            and node.targets[0].id == "ENTRY_POINTS"
         ):
-            value = ast.literal_eval(node.value)
-            assert isinstance(value, tuple) and all(isinstance(v, str) for v in value)
-            return value
-    return None
+            with contextlib.suppress(ValueError):
+                values[node.targets[0].id] = _literal(node.value, values)
+    return values
+
+
+def _entry_points(tree: ast.Module) -> dict[str, tuple[Any, ...]] | None:
+    """Return ENTRY_POINTS as a dict from entry point to arguments, or None."""
+    value = _literals(tree).get("ENTRY_POINTS")
+    if value is None:
+        return None
+    if isinstance(value, tuple):
+        value = dict.fromkeys(value, ())
+    assert isinstance(value, dict)
+    assert all(isinstance(k, str) and isinstance(v, tuple) for k, v in value.items())
+    return value
 
 
 def _fuzz_target(tree: ast.Module) -> ast.FunctionDef | None:
@@ -170,11 +202,17 @@ def _canonical_spec(module: str, remote: str, attr: str) -> str:
 
 
 def _called_specs(
-    func: ast.FunctionDef, bindings: dict[str, tuple[str, str]]
-) -> set[str]:
-    """Every .parse, .b64decode and .*_response call `func` makes, as specs."""
+    func: ast.FunctionDef,
+    bindings: dict[str, tuple[str, str]],
+    values: dict[str, Any],
+) -> dict[str, list[tuple[Any, ...]]]:
+    """Every .parse, .b64decode and .*_response call `func` makes.
+
+    Each spec maps to what its calls pass after the input, one tuple per
+    call, a name read as the value `values` gives it.
+    """
     expansions = _loop_expansions(func)
-    specs: set[str] = set()
+    specs: dict[str, list[tuple[Any, ...]]] = {}
     for node in ast.walk(func):
         if not isinstance(node, ast.Call):
             continue
@@ -187,12 +225,17 @@ def _called_specs(
             continue
         if not isinstance(callee.value, ast.Name):
             continue
+        if node.keywords:
+            msg = f"{ast.unparse(node)} passes a keyword, which ENTRY_POINTS cannot say"
+            raise AssertionError(msg)
+        arguments = tuple(_literal(arg, values) for arg in node.args[1:])
         for name in expansions.get(callee.value.id, [callee.value.id]):
             if name not in bindings:
                 msg = f"{name!r} is called with .{callee.attr} and imported nowhere"
                 raise AssertionError(msg)
             module, remote = bindings[name]
-            specs.add(_canonical_spec(module, remote, callee.attr))
+            spec = _canonical_spec(module, remote, callee.attr)
+            specs.setdefault(spec, []).append(arguments)
     return specs
 
 
@@ -238,17 +281,13 @@ def _seed_paths(name: str) -> tuple[Path, ...]:
     return tuple(sorted((_CORPUS / name).glob("*.bin")))
 
 
-def _accept(spec: str, data: bytes) -> tuple[bool, bool | None]:
+def _accept(
+    spec: str, arguments: tuple[Any, ...], data: bytes
+) -> tuple[bool, bool | None]:
     """Try `spec` against `data`; return (accepted, round_trip)."""
     entry_point = _resolve(spec)
-    # an Electrum decoder also takes the id of the request it answers
-    args: tuple[Any, ...] = (data,)
-    if spec.endswith("_response"):
-        args = (data, _REQUEST_ID)
-    if spec.endswith(":block_headers_response"):
-        args += (_HEADERS_ASKED,)
     try:
-        obj = entry_point(*args)
+        obj = entry_point(data, *arguments)
     except BTClibException:
         return False, None
     return True, _round_trip(spec, obj, data)
@@ -314,11 +353,16 @@ def test_entry_points_match_the_calls(path: Path) -> None:
     func = _fuzz_target(tree)
     assert func is not None, f"{path.name} defines no module-level fuzz_target"
     bindings = _import_bindings(tree)
-    called = _called_specs(func, bindings)
-    assert called == set(declared), (
+    called = _called_specs(func, bindings, _literals(tree))
+    assert set(called) == set(declared), (
         f"{path.name}'s ENTRY_POINTS {sorted(declared)} does not match what"
         f" fuzz_target calls: {sorted(called)}"
     )
+    for spec, arguments in declared.items():
+        assert all(called_with == arguments for called_with in called[spec]), (
+            f"{path.name} calls {spec} with {called[spec]} after the input,"
+            f" and its ENTRY_POINTS says {arguments}"
+        )
 
 
 @pytest.mark.parametrize("path", _HARNESSES, ids=lambda p: p.stem)
@@ -348,7 +392,7 @@ def test_every_seed_is_accepted(harness: str, seed: Path) -> None:
     declared = _entry_points(tree)
     assert declared
     data = seed.read_bytes()
-    accepted = [spec for spec in declared if _accept(spec, data)[0]]
+    accepted = [spec for spec, args in declared.items() if _accept(spec, args, data)[0]]
     assert accepted, f"{seed} is refused by every declared entry point: {declared}"
 
 
@@ -365,8 +409,8 @@ def test_accepted_seed_round_trips(harness: str, seed: Path) -> None:
     data = seed.read_bytes()
     mismatches = [
         spec
-        for spec in declared
-        for accepted, round_trip in (_accept(spec, data),)
+        for spec, args in declared.items()
+        for accepted, round_trip in (_accept(spec, args, data),)
         if accepted and round_trip is False
     ]
     assert not mismatches, f"{seed} does not round-trip under: {mismatches}"
@@ -401,7 +445,7 @@ def test_called_specs_rejects_an_unbound_callee() -> None:
     func = _fuzz_target(_module(source))
     assert func is not None
     with pytest.raises(AssertionError, match="imported nowhere"):
-        _called_specs(func, {})
+        _called_specs(func, {}, {})
 
 
 def test_called_specs_ignores_a_bare_name_call() -> None:
@@ -414,7 +458,7 @@ def test_called_specs_ignores_a_bare_name_call() -> None:
     source = "def fuzz_target(data):\n    parse(data)\n"
     func = _fuzz_target(_module(source))
     assert func is not None
-    assert _called_specs(func, {}) == set()
+    assert _called_specs(func, {}, {}) == {}
 
 
 def test_called_specs_ignores_a_two_level_attribute() -> None:
@@ -427,7 +471,7 @@ def test_called_specs_ignores_a_two_level_attribute() -> None:
     source = "def fuzz_target(data):\n    foo.bar.parse(data)\n"
     func = _fuzz_target(_module(source))
     assert func is not None
-    assert _called_specs(func, {}) == set()
+    assert _called_specs(func, {}, {}) == {}
 
 
 class _Armored:
@@ -447,3 +491,36 @@ def test_round_trip_of_a_b64decode_entry_point() -> None:
     assert _round_trip(spec, _Armored(), b"YQ==") is True
     assert _round_trip(spec, _Armored(), b"Yg==") is False
     assert _round_trip(spec, object(), b"") is None
+
+
+def test_entry_points_with_arguments() -> None:
+    """A dict declares arguments, a name read as the literal assigned to it."""
+    source = 'N = 1\nENTRY_POINTS = {"m:f": (N, 2), "m:g": ()}\n'
+    assert _entry_points(_module(source)) == {"m:f": (1, 2), "m:g": ()}
+    assert _entry_points(_module('ENTRY_POINTS = ("m:f",)\n')) == {"m:f": ()}
+
+
+def test_literals_skips_what_is_not_a_literal() -> None:
+    """A call, or a name assigned nowhere above, is no literal."""
+    source = "a = f()\nb = a\nc = (1,)\nd = c\n"
+    assert _literals(_module(source)) == {"c": (1,), "d": (1,)}
+
+
+def test_called_specs_reads_the_arguments_after_the_input() -> None:
+    """Each call's arguments are read, a name through `values`."""
+    source = "def fuzz_target(data):\n    m.f_response(data, N, 2)\n"
+    func = _fuzz_target(_module(source))
+    assert func is not None
+    bindings = {"m": ("btclib", "electrum")}
+    assert _called_specs(func, bindings, {"N": 1}) == {
+        "btclib.electrum:f_response": [(1, 2)]
+    }
+
+
+def test_called_specs_rejects_a_keyword_argument() -> None:
+    """A keyword ENTRY_POINTS cannot declare is a loud failure."""
+    source = "def fuzz_target(data):\n    m.f_response(data, count=2)\n"
+    func = _fuzz_target(_module(source))
+    assert func is not None
+    with pytest.raises(AssertionError, match="passes a keyword"):
+        _called_specs(func, {"m": ("btclib", "electrum")}, {})

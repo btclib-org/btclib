@@ -1,0 +1,100 @@
+---
+name: release diff
+
+# Runs the parsers of this tree and of the last release on the same
+# inputs and lists every input where they differ. The summary of the run
+# is the report. `.github/scripts/compare_release.py` does the comparing,
+# and its docstring says what the inputs and the differences are and why
+# the run is informational: it must not appear in main's required checks.
+#
+# The release is whatever the index serves when the run starts, installed
+# into a venv of its own beside the one `uv sync` makes for this tree.
+# Both venvs take every other package at the version `uv.lock` pins
+# (the constraints file below), so a difference is btclib's and not a
+# dependency's. `.python-version` gives both venvs one interpreter,
+# `uv venv` reading it from the checkout.
+#
+# A pull request touching `src/` is the trigger. Its run ends before
+# `test`'s, so it adds nothing to the pull request's wait (section 10's
+# clock). There is no schedule, because what it answers is a question
+# about one pull request's diff.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    # ready_for_review, so a pull request marked ready gets the run the
+    # draft condition below withheld while it was a draft.
+    # closed too, as the other pull request workflows of this tree: the
+    # closed event lands in the pull request's own group, and the job
+    # below declines the work on it.
+    types: [opened, reopened, synchronize, ready_for_review, closed]
+    paths:
+      - src/**
+      - .github/workflows/release-diff.yml
+      - .github/scripts/compare_release.py
+
+permissions:
+  contents: read
+
+# the pull request's number and not github.head_ref, for the reason
+# links.yml gives beside its own group (issue #2101)
+concurrency:
+  group: release-diff-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !(github.event.action == 'closed' && github.event.pull_request.merged) }}
+
+jobs:
+  compare:
+    name: Compare the parsers with the last release
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
+    runs-on: ubuntu-latest
+    # fits both probes of compare_release.py, as its _TIMEOUT says
+    # (tests/compare_release_test.py holds the two together)
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read # the corpus artifacts of the last fuzz run
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+
+      - name: Install this tree
+        run: uv sync --locked --no-default-groups
+
+      - name: Install the last release
+        run: |
+          uv export --locked --no-default-groups --no-emit-project --no-hashes \
+            --output-file "$RUNNER_TEMP/constraints.txt"
+          uv venv "$RUNNER_TEMP/release"
+          uv pip install --python "$RUNNER_TEMP/release/bin/python" \
+            --only-binary btclib --constraint "$RUNNER_TEMP/constraints.txt" btclib
+
+      # best effort: the artifacts expire, and a fork's run may not be
+      # allowed to list them. Without them the seeds are all there is, and
+      # the log says so
+      - name: Download the corpora of the last fuzz run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow fuzz.yml \
+            --branch main --status success --limit 1 --json databaseId \
+            --jq '.[0].databaseId // empty' || true)
+          if [ -z "$id" ] || ! gh run download "$id" \
+              --repo "$GITHUB_REPOSITORY" --pattern 'cifuzz-corpus-*' \
+              --dir "$RUNNER_TEMP/fuzz-artifacts"; then
+            echo "::warning::no fuzz corpus downloaded; only fuzz/corpus/ is compared"
+          fi
+
+      - name: Compare
+        run: |
+          set -o pipefail
+          uv run --locked --no-default-groups \
+            python .github/scripts/compare_release.py \
+            --current .venv/bin/python \
+            --release "$RUNNER_TEMP/release/bin/python" \
+            --fuzz-artifacts "$RUNNER_TEMP/fuzz-artifacts" |
+            tee -a "$GITHUB_STEP_SUMMARY"
