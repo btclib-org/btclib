@@ -16,8 +16,10 @@ name: btcd oracle
 # red with no change to the tree. A red run is a list of inputs to
 # triage against Bitcoin Core, not a failure of the tree, so nothing
 # requires this check. Differences already triaged are rules in
-# `fuzz/btcd_oracle.py`, counted and not listed, so a run is red only for
-# a disagreement no rule explains. The report is in the run's summary.
+# `fuzz/btcd_oracle.py`, counted and not listed. btcd's dropping of the I2P
+# and CJDNS entries of an addrv2 message has no rule, so it stays listed
+# until btcd releases the fix (btcsuite/btcd PR 2533, open). The report is
+# in the run's summary.
 #
 # The `pull_request` trigger is filtered to this file, the Go module and
 # the script, so that a Dependabot bump of btcd, or an edit of either
