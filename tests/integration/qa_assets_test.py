@@ -33,7 +33,8 @@ trailing bytes before it builds the object. So a Core row hands `parse` a
 reaches the code a refused-at-the-end input would never reach. The rows
 whose source consumes the whole input (`decode_tx`, which needs the hex
 of the whole input to decode, and the rust-bitcoin rows that decode the
-whole input with `decode_from_slice` or `from_bytes`) hand it the bytes. The
+whole input with `decode_from_slice`, `from_bytes` or 0.32's `deserialize`)
+hand it the bytes. The
 rust-bitcoin rows whose decoder stops at the end of one value
 (`consensus_encoding_decode_compact_size` and
 `consensus_encoding_decode_byte_vec`) hand it a stream, as Core's do.
@@ -83,11 +84,9 @@ and with the same framing. So these are not replayed:
   the `alert` payload, and the fixed-width scalars such as amounts,
   hashes, versions, service flags and the magic.
 
-rust-bitcoin builds its fuzz binaries with `--cfg=hashes_fuzz`
-(`fuzz/rustflags.sh`), under which SHA256 is an XOR of its input. So the
-checksum of a frame in the corpora is not SHA256d's, and the `Message`
-rows rewrite it, where the length field fits the input, before parsing.
-No other row reads a hash the corpus computed.
+The `Message` rows rewrite the checksum of a frame before parsing, for
+the reason `_message_with_real_checksum` gives. No other row reads a hash
+the corpus computed.
 """
 
 from __future__ import annotations
@@ -180,8 +179,8 @@ _FRAME_HEADER = 24
 def _block_filter(data: BinaryData, check_validity: bool) -> object:
     """Return the filter `BlockFilter::Unserialize` builds.
 
-    It reads the type, the block hash and the encoded filter, then decodes
-    the Golomb-coded set and refuses a type other than the basic one.
+    It reads the type, the block hash and the encoded filter, refuses a
+    type other than the basic one, then decodes the Golomb-coded set.
     """
     return CFilter.parse(data, check_validity=check_validity).basic_filter
 
@@ -199,13 +198,14 @@ def _basic_filter(data: BinaryData, check_validity: bool) -> object:
 def _message_with_real_checksum(data: BinaryData, check_validity: bool) -> object:
     """Return the message, its checksum made that of SHA256d of the payload.
 
-    rust-bitcoin's fuzz binaries are built with `--cfg=hashes_fuzz`, under
-    which SHA256 is an XOR of its input, so the checksums in the corpora
-    are not SHA256d's and every frame fails `Message.parse` at the
-    checksum. Where the length field fits the input, the checksum is
-    rewritten before parsing, so that the frame passes the checksum and
-    reaches the trailing-octet check and the constructor; the payload stays
-    opaque octets, and no payload parser runs.
+    The fuzz binaries of rust-bitcoin, all but the `hashes_*` targets, are
+    built with `--cfg=hashes_fuzz` (`fuzz/rustflags.sh`), under which
+    SHA256 is an XOR of its input. So the checksums in the corpora are not
+    SHA256d's, and no frame in them passes the checksum of `Message.parse`.
+    Where the length field fits the input, the checksum is rewritten before
+    parsing, so that the frame passes the checksum and reaches the
+    trailing-octet check and the constructor; the payload stays opaque
+    octets, and no payload parser runs.
     """
     octets = bytesio_from_binarydata(data).getvalue()
     if len(octets) >= _FRAME_HEADER:
