@@ -216,12 +216,10 @@ def _assert_valid_index(index: int, what: str, *, check_validity: bool) -> None:
     Private and unvalidated of `what`, as a private twin is: every caller
     hands it a literal of this module.
 
-    Called with `check_validity` False by `PrefilledTransaction.serialize`
-    when it is unchecked, which asks only that the index be an int: an
-    unchecked index may be a running one past the top (see
+    With `check_validity` False only an int is asked for: an unchecked
+    index may be a running one past the top (see
     `PrefilledTransaction.parse`), and a bool is written as zero or one.
-    `GetBlockTxn.serialize` does the same for each index it writes. The
-    other callers pass True.
+    With it True the index is also in range and not a bool.
     """
     if not isinstance(index, int):
         raise BTClibTypeError(f"invalid {what} type: {type(index).__name__}")
@@ -697,8 +695,6 @@ class CmpctBlock(Payload):
         if check_validity:
             self.assert_valid()
         else:
-            # assert_valid checks the nonce and the short ids when the flag
-            # is set
             _assert_valid_int(self.nonce, "nonce", 0, _MAX_NONCE, check_validity=False)
             for short_id in self.short_ids:
                 _assert_valid_int(

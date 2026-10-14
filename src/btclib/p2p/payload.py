@@ -125,21 +125,11 @@ def _assert_valid_int(
 
     A non-int is a `BTClibTypeError` and an int outside `low` to `high` a
     `BTClibValueError`, where `int.to_bytes` would raise `AttributeError`
-    and `OverflowError`, and where `int(value)`, which writes the
-    announce octet, would turn a float or a numeric str into an int the
-    field never held. Private and unvalidated of `what`, as a private
+    and `OverflowError`. Private and unvalidated of `what`, as a private
     twin is: every caller hands it a literal.
 
-    Called with `check_validity` True by `CmpctBlock.assert_valid` for the
-    nonce and the short ids, by `SendCmpct.assert_valid` for the version,
-    by `Ping` and `Pong` through their base for the nonce, and by
-    `FeeFilter.assert_valid` for the fee rate. Called with it False by
-    `CmpctBlock.short_id_key` and `CmpctBlock.serialize` for the nonce, by
-    `CmpctBlock.serialize` for the short ids, by `SendCmpct.serialize` for
-    the announce octet and the version, by `Ping` and `Pong` through their
-    base for the nonce and by `FeeFilter.serialize` for the fee rate, so
-    each is checked wherever it is written. A bool is refused only under
-    `check_validity`; unchecked, it is written as zero or one.
+    With `check_validity` False a bool is written as zero or one; with it
+    True a bool is refused.
     """
     if not isinstance(value, int):
         raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
