@@ -151,6 +151,48 @@ jobs:
         with:
           language: python
           sanitizer: address
+      # The seeds of fuzz/corpus/ into the stored corpora, ahead of the
+      # download that run_fuzzers makes into the same directories.
+      #
+      # build.sh zips each fuzz/corpus/<target>/ as the target's
+      # `_seed_corpus.zip`, and clusterfuzz's libFuzzer engine unpacks
+      # that zip only into a corpus of at most MAX_FILES_FOR_UNPACK files
+      # (`unpack_seed_corpus_if_needed` in clusterfuzz/_internal/bot/
+      # fuzzers/engine_common.py, read at clusterfuzz 2.5.9, the release
+      # google/oss-fuzz's infra/cifuzz/requirements.txt pins; there that
+      # is five). Once its stored corpus has more files than that, the zip
+      # is never read, and a seed added after that point never reaches the
+      # fuzzer (issue #2614).
+      #
+      # Not `-max_len`: it caps the inputs libFuzzer reads and generates,
+      # and does not make it read the zip. With none given, libFuzzer
+      # takes the largest corpus file, so the cap follows the seed.
+      # Not `force_unpack`: the libFuzzer engine never sets it, and this
+      # action has no input that does.
+      #
+      # The download extracts the stored corpus into an existing
+      # directory without emptying it, and `extractall` overwrites a file
+      # of the same name (`_download_artifact` in google/oss-fuzz's
+      # infra/cifuzz/filestore/github_actions/__init__.py). A seed copied
+      # under its own name would be replaced by its stored copy once it
+      # is edited in place, so each seed is copied under the SHA-1 of its
+      # content, as libFuzzer names corpus files: a stored file of that
+      # name has that content. The copies are uploaded with the corpus
+      # afterwards. The repository is the one build_fuzzers cloned into
+      # storage/, the workspace holding no checkout of its own. Only
+      # `*.bin` is copied, as build.sh zips only those, and a directory
+      # with none copies nothing.
+      - name: Seed the stored corpora
+        run: |
+          for dir in storage/btclib/fuzz/corpus/*/; do
+            target=$(basename "$dir")
+            mkdir -p "cifuzz-corpus/$target"
+            for seed in "$dir"*.bin; do
+              [ -f "$seed" ] || continue
+              cp "$seed" "cifuzz-corpus/$target/$(sha1sum "$seed" | cut -d' ' -f1)"
+            done
+          done
+        working-directory: ${{ github.workspace }}
       - name: Run fuzzers
         # v1
         uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1

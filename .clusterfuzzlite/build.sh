@@ -56,6 +56,10 @@ pip3 install --no-deps --no-build-isolation -e .
 # no configuration -- so a new fuzz_*.py with a corpus directory beside
 # it is picked up here without a second list of names to keep in step
 # with the first.
+#
+# When the zip is read, and how a seed reaches a target with a stored
+# corpus, is the "Seed the stored corpora" step of
+# .github/workflows/fuzz.yml.
 for fuzzer in $(find "$SRC/btclib/fuzz" -maxdepth 1 -name 'fuzz_*.py'); do
   compile_python_fuzzer "$fuzzer" --collect-data=btclib \
     --collect-data=btclib_ecc
