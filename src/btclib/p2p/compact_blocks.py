@@ -223,10 +223,10 @@ def _assert_valid_index(index: int, what: str, *, check_validity: bool) -> None:
     `GetBlockTxn.serialize` does the same for each index it writes. The
     other callers pass True.
     """
-    # a bool is an int and would read as index one or zero, which the
-    # range check below cannot tell from an index whose value that is
     if not isinstance(index, int):
         raise BTClibTypeError(f"invalid {what} type: {type(index).__name__}")
+    # a bool is an int and would read as index one or zero, which the
+    # range check below cannot tell from an index whose value that is
     if check_validity and isinstance(index, bool):
         raise BTClibTypeError(f"invalid {what} type: bool")
     if check_validity and not 0 <= index <= MAX_BLOCK_TX_INDEX:

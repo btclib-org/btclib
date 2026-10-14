@@ -131,14 +131,15 @@ def _assert_valid_int(
     twin is: every caller hands it a literal.
 
     Called with `check_validity` True by `CmpctBlock.assert_valid` for the
-    nonce and the short ids and by `SendCmpct.assert_valid` for the
-    version. Called with it False by `CmpctBlock.short_id_key` and
-    `CmpctBlock.serialize` for the nonce, by `CmpctBlock.serialize` for the
-    short ids, by `SendCmpct.serialize` for the announce octet and the
-    version, by `Ping` and `Pong` through their base for the nonce and by
-    `FeeFilter.serialize` for the fee rate, so each is checked wherever it
-    is written. A bool is refused only under `check_validity`; unchecked,
-    it is written as zero or one.
+    nonce and the short ids, by `SendCmpct.assert_valid` for the version,
+    by `Ping` and `Pong` through their base for the nonce, and by
+    `FeeFilter.assert_valid` for the fee rate. Called with it False by
+    `CmpctBlock.short_id_key` and `CmpctBlock.serialize` for the nonce, by
+    `CmpctBlock.serialize` for the short ids, by `SendCmpct.serialize` for
+    the announce octet and the version, by `Ping` and `Pong` through their
+    base for the nonce and by `FeeFilter.serialize` for the fee rate, so
+    each is checked wherever it is written. A bool is refused only under
+    `check_validity`; unchecked, it is written as zero or one.
     """
     if not isinstance(value, int):
         raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
