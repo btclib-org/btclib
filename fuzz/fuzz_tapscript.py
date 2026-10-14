@@ -33,10 +33,7 @@ the raw octets BIP342 does not require to be a script at all.
 push is accepted in every width that can hold it and written back in the
 shortest, as BIP62 asks, so `serialize(parse(data))` need not be `data`.
 What is asserted instead is that writing settles it: the octets `serialize`
-writes parse and are written back unchanged. The comparison is on octets
-and not on commands: `parse` spells an empty push `OP_PUSHDATA1 0x00` as `""`
-and `OP_0` as `"OP_0"`
-([ISS 2607](https://github.com/btclib-org/btclib/issues/2607)).
+writes parse back to the commands they were written from.
 """
 
 from __future__ import annotations
@@ -66,8 +63,7 @@ def fuzz_target(data: bytes) -> None:
         commands = taproot.parse(data)
     except BTClibException:
         return
-    written = taproot.serialize(commands)
-    assert taproot.serialize(taproot.parse(written)) == written
+    assert taproot.parse(taproot.serialize(commands)) == commands
 
 
 def main() -> None:

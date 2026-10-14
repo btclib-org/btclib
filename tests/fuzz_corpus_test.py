@@ -40,9 +40,10 @@ the reserialization has to reproduce the seed's own bytes. A parser that
 answers with a plain value has its module's `serialize` named in
 `_WRITERS` below: `var_int.parse` and `var_bytes.parse` must reproduce
 the bytes, and `script.parse` and `taproot.parse` the weaker form their
-harnesses assert, since a script has several encodings of one value. An
-Electrum answer is JSON, which has no serialization to compare with, so
-that seed is accepted parse-only and nothing else is asked of it.
+harnesses assert, since a script has several encodings of one value: the
+octets written parse back to the same commands. An Electrum answer is
+JSON, which has no serialization to compare with, so that seed is
+accepted parse-only and nothing else is asked of it.
 
 **Trying every declared entry point rather than picking one by filename
 convention buys the manifest's simplicity at a stated price: where a
@@ -274,8 +275,8 @@ def _reserialize(obj: Any) -> bytes:
 # The entry points whose parse answers with a plain value, so there is no
 # `.serialize` to call: the module's own function writes it back. The flag
 # is True where the format has several encodings of one value, and the
-# harness then asserts that writing settles it rather than that it
-# reproduces the input.
+# harness then asserts that the written octets parse back to the same
+# value rather than that they reproduce the input.
 _WRITERS: dict[str, tuple[Callable[[Any], bytes], bool]] = {
     "btclib.var_int:parse": (var_int.serialize, False),
     "btclib.var_bytes:parse": (var_bytes.serialize, False),
@@ -285,14 +286,13 @@ _WRITERS: dict[str, tuple[Callable[[Any], bytes], bool]] = {
 
 
 def _written_settles(spec: str, obj: Any) -> bool:
-    """Return whether the octets written for `obj` write back unchanged."""
+    """Return whether the octets written for `obj` parse back to `obj`."""
     write, _ = _WRITERS[spec]
     reparse = _resolve(spec)
     if obj[-1:] == [script.ERROR_COMMAND]:
         # a place in the bytes and not an instruction, which serialize refuses
         obj = obj[:-1]
-    written = write(obj)
-    return write(reparse(written)) == written
+    return bool(reparse(write(obj)) == obj)
 
 
 def _round_trip(spec: str, obj: Any, data: bytes) -> bool | None:
@@ -476,6 +476,19 @@ def test_a_script_has_several_encodings_of_one_value() -> None:
     assert script.serialize(commands) != data
     assert _round_trip("btclib.script.script:parse", commands, data) is True
     assert _round_trip("btclib.script.taproot:parse", taproot.parse(data), data)
+
+
+@pytest.mark.parametrize(
+    "data", [b"\x4c\x00", b"\x4d\x00\x00", b"\x4e\x00\x00\x00\x00"]
+)
+def test_an_empty_push_in_any_width_parses_back_to_the_same_commands(
+    data: bytes,
+) -> None:
+    """Every width of an empty push is the same command, as OP_0 is."""
+    assert script.parse(data) == script.parse(b"\x00")
+    assert taproot.parse(data) == taproot.parse(b"\x00")
+    assert _round_trip("btclib.script.script:parse", script.parse(data), data) is True
+    assert _round_trip("btclib.script.taproot:parse", taproot.parse(data), data) is True
 
 
 def test_the_round_trip_sees_a_difference() -> None:
