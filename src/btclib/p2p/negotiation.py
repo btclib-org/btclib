@@ -146,7 +146,7 @@ from btclib.p2p.limits import (
     MAX_FEATUREID_LENGTH,
     MIN_FEATUREID_LENGTH,
 )
-from btclib.p2p.payload import Payload
+from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
     _message_text,
     assert_no_trailing,
@@ -421,6 +421,10 @@ class FeeFilter(Payload):
         """Return the eight octets of the fee rate, little-endian."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(
+                self.feerate, "feerate", _MIN_INT64, _MAX_INT64, check_validity=False
+            )
 
         return self.feerate.to_bytes(_FEERATE_SIZE, byteorder="little", signed=True)
 

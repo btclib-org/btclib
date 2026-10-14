@@ -208,6 +208,40 @@ def test_what_no_signed_eight_octets_hold_is_refused() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "feerate", [1.5, None, "1", b"\x01"], ids=["float", "none", "str", "bytes"]
+)
+def test_an_unchecked_feerate_that_is_no_int_is_refused_where_it_is_written(
+    feerate: object,
+) -> None:
+    """`check_validity=False` lets the rate in, not past `int.to_bytes`."""
+    unchecked = FeeFilter(feerate, check_validity=False)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid feerate type"):
+        unchecked.serialize(check_validity=False)
+
+
+@pytest.mark.parametrize(
+    "feerate",
+    [2**63, -(2**63) - 1, 2**4300],
+    ids=["2**63", "-2**63-1", "2**4300"],
+)
+def test_an_unchecked_feerate_out_of_range_is_refused_where_it_is_written(
+    feerate: int,
+) -> None:
+    """Eight signed octets hold -2**63 to 2**63 - 1, and no more."""
+    unchecked = FeeFilter(feerate, check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid feerate"):
+        unchecked.serialize(check_validity=False)
+
+
+def test_an_unchecked_feerate_the_octets_hold_is_written() -> None:
+    """The edges of the range, and a bool that only `check_validity` refuses."""
+    for feerate in (-(2**63), 2**63 - 1, True):
+        unchecked = FeeFilter(feerate, check_validity=False)
+        written = int(feerate).to_bytes(8, "little", signed=True)
+        assert unchecked.serialize(check_validity=False) == written
+
+
 def test_the_fee_rate_octets_end_where_the_field_does() -> None:
     """A short read is a truncation, and what follows is refused."""
     for size in range(8):

@@ -968,6 +968,26 @@ def test_check_validity_reaches_the_fields_and_can_be_turned_off() -> None:
     unchecked_partial.assert_valid()
 
 
+@pytest.mark.parametrize(
+    "index", [1.5, None, "1", b"\x01"], ids=["float", "none", "str", "bytes"]
+)
+def test_an_unchecked_getblocktxn_index_that_is_no_int_is_refused_where_written(
+    index: object,
+) -> None:
+    """`check_validity=False` lets an index in, not past the subtraction."""
+    unchecked = GetBlockTxn(bytes(32), [0, index], check_validity=False)  # type: ignore[list-item]
+    with pytest.raises(BTClibTypeError, match="invalid index type"):
+        unchecked.serialize(check_validity=False)
+
+
+def test_an_unchecked_getblocktxn_index_the_difference_holds_is_written() -> None:
+    """A bool is written as zero or one, and an index past 65535 as it is."""
+    for index in (0, True, MAX_BLOCK_TX_INDEX + 1):
+        unchecked = GetBlockTxn(bytes(32), [index], check_validity=False)
+        written = bytes(32) + b"\x01" + var_int.serialize(int(index))
+        assert unchecked.serialize(check_validity=False) == written
+
+
 def test_a_getblocktxn_of_no_indexes_is_a_message_and_not_an_error() -> None:
     """Core disconnects the peer that sends one; that is a rule about a peer.
 

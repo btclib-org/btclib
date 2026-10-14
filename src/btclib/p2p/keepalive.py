@@ -38,7 +38,7 @@ from typing_extensions import override
 
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.p2p.payload import Payload
+from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
     _message_text,
     assert_no_trailing,
@@ -94,6 +94,8 @@ class _NoncePayload(Payload):
         """Return the eight octets of the nonce, little-endian."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(self.nonce, "nonce", 0, _MAX_NONCE, check_validity=False)
 
         return self.nonce.to_bytes(_NONCE_SIZE, byteorder="little", signed=False)
 
