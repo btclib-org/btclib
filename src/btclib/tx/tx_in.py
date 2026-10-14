@@ -17,6 +17,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import Witness, script_from_dict, script_to_dict
 from btclib.tx.out_point import OutPoint
 from btclib.utils import (
+    _assert_valid_4_byte_field,
     _message_text,
     assert_no_trailing,
     bytes_from_octets,
@@ -201,6 +202,9 @@ class TxIn:
         """
         if check_validity:
             self.assert_valid()
+        else:
+            # assert_valid checks this field when the flag is set
+            _assert_valid_4_byte_field("sequence", self.sequence)
 
         out = self.prev_out.serialize(check_validity=check_validity)
         out += var_bytes.serialize(self.script_sig)

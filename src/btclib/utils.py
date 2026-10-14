@@ -344,6 +344,32 @@ def _message_text(value: object) -> str:
         return f"a {type(value).__name__} str() cannot write"
 
 
+def _assert_valid_4_byte_field(name: str, value: int) -> None:
+    """Refuse a value that cannot be written as four unsigned bytes.
+
+    What is not an `int` is a `BTClibTypeError` and an int outside
+    0..0xFFFFFFFF a `BTClibValueError`. Left to themselves, the
+    comparison answers a str, bytes or None with a TypeError, and
+    `int.to_bytes` a float with an AttributeError and an int outside the
+    range with an OverflowError (issue #690), past the
+    `BTClibTypeError` and `BTClibValueError` the library's contract promises
+    a caller (CONTRIBUTING.md, *The public surface*).
+
+    A bool is an `int` here and is written as 0 or 1; refusing it is a
+    semantic check, and `check_validity` gates those.
+
+    Called from `Tx.assert_valid`, from `sig_hash`, and from the
+    serializers of `Tx`, `TxIn` and `OutPoint` where `check_validity`
+    is False, so the four-byte fields of those three are checked whatever the
+    flag: `check_validity=False` is what lets a caller copy or walk a
+    transaction without judging it whole.
+    """
+    if not isinstance(value, int):
+        raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+    if not 0 <= value <= 0xFFFFFFFF:
+        raise BTClibValueError(f"invalid {name}: {_message_text(value)}")
+
+
 def _int_description(value: int) -> str:
     """Return an int's sign and bit length, the text standing for its digits."""
     # int's own methods, not the value's: a subclass can override the

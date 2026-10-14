@@ -471,12 +471,12 @@ def test_a_value_that_is_not_an_int_is_a_type_error_wherever_it_is_hashed(
 def test_every_width_the_bip143_preimage_writes_is_checked() -> None:
     """This preimage never reaches `Tx.serialize`, so #724 left it alone.
 
-    It is assembled from its own `int.to_bytes` calls, and each of them
-    answered a field too wide for it with an `OverflowError` -- an
-    `ArithmeticError`, outside the `except BTClibValueError` this library
-    invites. The version and the lock time are the two `Tx.serialize`
-    checks unconditionally for `legacy`; the sequence and the outpoint's
-    vout are written here and nowhere else.
+    It writes the version, the lock time and the sequence with its own
+    calls, and the outpoint through `_serialized_out_point`, which checks
+    the vout before `OutPoint.serialize` writes it. A field too wide for
+    its four bytes is a BTClibValueError in each, where `int.to_bytes`
+    answers an `OverflowError` -- an `ArithmeticError`, outside the
+    `except BTClibValueError` this library invites.
     """
     script_code = bytes.fromhex(_WITNESS_SCRIPT)
 

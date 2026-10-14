@@ -13,6 +13,7 @@ from typing import Any
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
+    _assert_valid_4_byte_field,
     _message_text,
     assert_no_trailing,
     bytes_from_octets,
@@ -140,6 +141,9 @@ class OutPoint:
         """Return the 36 bytes serialization of the OutPoint."""
         if check_validity:
             self.assert_valid()
+        else:
+            # assert_valid checks this field when the flag is set
+            _assert_valid_4_byte_field("vout", self.vout)
 
         out = self.tx_id[::-1]
         out += self.vout.to_bytes(4, byteorder="little", signed=False)

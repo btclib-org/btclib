@@ -27,7 +27,7 @@ from btclib.tx.limits import MAX_TX_IN_COUNT, MAX_TX_OUT_COUNT
 from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS, TxIn
 from btclib.tx.tx_out import TxOut
 from btclib.utils import (
-    _message_text,
+    _assert_valid_4_byte_field,
     assert_no_trailing,
     assert_type,
     bytesio_from_binarydata,
@@ -53,30 +53,6 @@ SEGWIT_MARKER = b"\x00\x01"
 # is BIP431's TRUC, standard since v28.0 (issue #387)
 _TX_MIN_STANDARD_VERSION = 1
 _TX_MAX_STANDARD_VERSION = 3
-
-
-def _assert_valid_4_byte_field(name: str, value: int) -> None:
-    """Refuse a value that cannot be written as four unsigned bytes.
-
-    What is not an `int` is a `BTClibTypeError` and an int outside
-    0..0xFFFFFFFF a `BTClibValueError`. Left to themselves, the
-    comparison answers a str, bytes or None with a TypeError, and
-    `int.to_bytes` a float with an AttributeError and an int outside the
-    range with an OverflowError (issue #690), past the
-    `except BTClibValueError` every caller here is written to catch.
-
-    A bool is an `int` here and is written as 0 or 1; refusing it is a
-    semantic check, and `check_validity` gates those.
-
-    Called from `serialize` as well as from `assert_valid`, and
-    unconditionally there: `check_validity=False` is what lets
-    `legacy` and `merkle_root_and_mutated_from_transactions` copy or
-    walk a transaction without judging it whole.
-    """
-    if not isinstance(value, int):
-        raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
-    if not 0 <= value <= 0xFFFFFFFF:
-        raise BTClibValueError(f"invalid {name}: {_message_text(value)}")
 
 
 def _assert_valid_coinbase(vin: Sequence[TxIn], *, is_coinbase: bool) -> None:
@@ -439,8 +415,7 @@ class Tx:  # noqa: PLW1641
         if check_validity:
             self.assert_valid()
         else:
-            # checked here regardless of the flag, as
-            # `_assert_valid_4_byte_field` says
+            # assert_valid checks these fields when the flag is set
             _assert_valid_4_byte_field("version", self.version)
             _assert_valid_4_byte_field("lock time", self.lock_time)
 
