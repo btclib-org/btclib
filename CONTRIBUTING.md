@@ -619,7 +619,7 @@ a force.
 | `links`, `mutation` | weekly | — |
 | `kernel-differential` | by hand, before a release | the kernel as oracle |
 | `vendored-vectors` | weekly | the pin ledgers |
-| `btcd-oracle` | weekly, a pull request | the corpora, read by btcd |
+| `btcd-oracle` | weekly | the corpora, read by btcd |
 | `pypi-install` | weekly, a release | what PyPI serves |
 | `sdist-rebuild` | weekly | the latest release's sdist, rebuilt |
 | `py-arm-authority` | weekly, push to main | the arm-authority table |
