@@ -37,13 +37,10 @@ from typing import Self
 from typing_extensions import override
 
 from btclib.alias import BinaryData
-from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
-    _message_text,
     assert_no_trailing,
     bytesio_from_binarydata,
-    is_integer,
     read_exactly,
 )
 
@@ -81,13 +78,7 @@ class _NoncePayload(Payload):
 
     def assert_valid(self) -> None:
         """Refuse a nonce no eight octets hold."""
-        # a bool is an int and would read as the nonce one or zero, which
-        # the range check cannot tell from a nonce whose value that is
-        if not is_integer(self.nonce):
-            err_msg = f"invalid nonce type: {type(self.nonce).__name__}"
-            raise BTClibTypeError(err_msg)
-        if not 0 <= self.nonce <= _MAX_NONCE:
-            raise BTClibValueError(f"invalid nonce: {_message_text(self.nonce)}")
+        _assert_valid_int(self.nonce, "nonce", 0, _MAX_NONCE, check_validity=True)
 
     @override
     def serialize(self, *, check_validity: bool = True) -> bytes:

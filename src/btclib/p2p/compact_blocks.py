@@ -420,9 +420,9 @@ class SendCmpct(Payload):
         if check_validity:
             self.assert_valid()
         else:
-            # the announce octet is written through `int`, which wrote one
-            # for `1.5` and `"1"` and raised its own error on `"no"` and
-            # `None`: only an int is written
+            # the announce octet is written through `int`, which would
+            # write one for `1.5` and `"1"` and raise its own error on
+            # `"no"` and `None`: only an int is written
             _assert_valid_int(
                 self.announce, "announce", 0, _MAX_OCTET, check_validity=False
             )
