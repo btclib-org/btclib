@@ -218,12 +218,12 @@ def test_tx_out_round_trip(tx_out: TxOut) -> None:
     assert TxOut.parse(tx_out.serialize()) == tx_out
 
 
-def _tx_with_value(value: Any) -> Tx:
+def _tx_with_value(value: Any, *, check_validity: bool = False) -> Tx:
     out_point = OutPoint(b"\x01" * 32, 0)
     tx_in = TxIn(out_point, b"", 0xFFFFFFFF)
     script_pub_key = ScriptPubKey(b"\x51", check_validity=False)
     tx_out = TxOut(value, script_pub_key, check_validity=False)
-    return Tx(2, 0, [tx_in], [tx_out], check_validity=False)
+    return Tx(2, 0, [tx_in], [tx_out], check_validity=check_validity)
 
 
 _BAD_VALUES = [
@@ -284,9 +284,4 @@ def test_value_that_is_not_an_int_is_refused_by_assert_valid(value: Any) -> None
     with pytest.raises(BTClibTypeError, match=message):
         tx_out.serialize()
     with pytest.raises(BTClibTypeError, match=message):
-        _tx_with_output(tx_out)
-
-
-def _tx_with_output(tx_out: TxOut) -> Tx:
-    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF)
-    return Tx(2, 0, [tx_in], [tx_out])
+        _tx_with_value(value, check_validity=True)

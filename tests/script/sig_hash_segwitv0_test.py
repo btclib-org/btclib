@@ -420,8 +420,8 @@ _NOT_AN_INT = [1.5, 1.0, "1", b"\x01", None, True, False]
 def test_an_amount_that_is_not_an_int_is_a_type_error(amount: object) -> None:
     """The type is refused before the bounds, and does not hang (issue 2627).
 
-    See `_assert_valid_camount`. A bool is an int to Python and not to
-    `is_integer`.
+    See `_assert_valid_8_byte_signed_field`. A bool is an int to Python and
+    not to `is_integer`.
     """
     tx = Tx.parse(_BIP143_TX)
     script_code = bytes.fromhex(_WITNESS_SCRIPT)

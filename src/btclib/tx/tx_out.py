@@ -93,10 +93,9 @@ class TxOut:
     def assert_valid(self) -> None:
         """Refuse a value that is not a valid satoshi amount.
 
-        A value that is not an `int` is a BTClibTypeError, where
-        `valid_sats_amount` takes a str or a Decimal as a number written
-        down: the value is what `serialize` writes in eight bytes, so a
-        str here would build and then fail there. A bool is refused by
+        A value that is not an `int` is a BTClibTypeError:
+        `valid_sats_amount` reads a str or a Decimal as a number, and
+        `serialize` cannot write one. A bool is refused by
         `valid_sats_amount`.
         """
         if not isinstance(self.value, int):
