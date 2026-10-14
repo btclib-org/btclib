@@ -4,8 +4,7 @@
 
 """Tests for `secret_free`.
 
-Section 14 has that helper copied into each tree that owes it, and
-this tree's coverage floor asks it a test. Each read
+Section 14 has that helper copied into each tree that owes it. Each read
 the helper makes has a case that only that read can see, and a clean
 refusal is the control: a helper that reads nothing passes it too, so
 every planted case has to fail.

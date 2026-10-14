@@ -623,7 +623,7 @@ a force.
 | `sdist-rebuild` | weekly | the latest release's sdist, rebuilt |
 | `py-arm-authority` | weekly, push to main | the arm-authority table |
 | `release-diff` | pull request on `src/` | the last release |
-| `api-break` | pull request | the `api-break` label |
+| `api-break` | pull request | the pull request's base |
 | `release` | a tag | the workflows `release.yml` names in a `uses:` |
 
 That last cell is a pointer rather than a list on purpose: which
