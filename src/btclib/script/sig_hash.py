@@ -334,15 +334,15 @@ def _assert_valid_camount(amount: int, name: str) -> None:
 # takes a bool for each. segwit_v0 and taproot assemble their preimage from
 # their own calls and never reach `Tx.serialize`
 def _serialized_4_byte_field(name: str, value: int) -> bytes:
-    _assert_valid_4_byte_field(name, value)
+    _assert_valid_preimage_field(name, value)
     return value.to_bytes(4, byteorder="little", signed=False)
 
 
-def _assert_valid_4_byte_field(name: str, value: int) -> None:
+def _assert_valid_preimage_field(name: str, value: int) -> None:
     """Refuse what `_assert_valid_4_byte_int` refuses, and a bool.
 
     A preimage is a signature's message, so a bool there is a schema
-    mistake and not the number one: `is_integer` does not take it.
+    mistake, not a number: `is_integer` does not take it.
     """
     if not is_integer(value):
         raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
@@ -362,10 +362,10 @@ def _serialized_out_point(out_point: OutPoint) -> bytes:
 
     `check_validity=False` throughout, as everywhere in this module: a
     preimage is computed over transactions the caller has not asked to
-    be judged whole. The vout is checked as `_assert_valid_4_byte_field`
+    be judged whole. The vout is checked as `_assert_valid_preimage_field`
     says.
     """
-    _assert_valid_4_byte_field("vout", out_point.vout)
+    _assert_valid_preimage_field("vout", out_point.vout)
     return out_point.serialize(check_validity=False)
 
 
@@ -575,11 +575,11 @@ def _legacy(
     # `TxIn` and `OutPoint` check the version, the lock time, the sequence
     # and the vout themselves, but take a bool; the output values are what
     # it hands to TxOut, which checks nothing
-    _assert_valid_4_byte_field("version", new_tx.version)
-    _assert_valid_4_byte_field("lock time", new_tx.lock_time)
+    _assert_valid_preimage_field("version", new_tx.version)
+    _assert_valid_preimage_field("lock time", new_tx.lock_time)
     for txin in new_tx.vin:
-        _assert_valid_4_byte_field("sequence", txin.sequence)
-        _assert_valid_4_byte_field("vout", txin.prev_out.vout)
+        _assert_valid_preimage_field("sequence", txin.sequence)
+        _assert_valid_preimage_field("vout", txin.prev_out.vout)
     for txout in new_tx.vout:
         _assert_valid_camount(txout.value, "output value")
 

@@ -349,9 +349,9 @@ def _assert_valid_4_byte_field(name: str, value: int) -> None:
 
     What is not an `int` is a `BTClibTypeError` and an int outside
     0..0xFFFFFFFF a `BTClibValueError`. Left to themselves, the
-    comparison answers a str, bytes or None with a TypeError, and
-    `int.to_bytes` a float with an AttributeError and an int outside the
-    range with an OverflowError (issue #690), past the
+    comparison answers a str, bytes or None with a TypeError, a float
+    has no `to_bytes`, an AttributeError, and `int.to_bytes` answers an
+    int outside the range with an OverflowError (issue #690), past the
     `BTClibTypeError` and `BTClibValueError` the library's contract promises
     a caller (CONTRIBUTING.md, *The public surface*).
 
