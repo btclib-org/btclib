@@ -2,8 +2,8 @@
 name: integration-bitcoind
 
 # The suite's one part that needs a program this repository does not ship:
-# a bitcoind to talk to. `tests/integration/` skips itself without
-# BTCLIB_INTEGRATION, so every other workflow reports those tests skipped
+# a bitcoind to talk to. The node tests of `tests/integration/` skip
+# without BTCLIB_INTEGRATION, so every other workflow reports them skipped
 # and nothing ever asks a real node whether its `gettxoutsetinfo` agrees
 # with what `btclib.coinstats` computes, whether Core still speaks the
 # p2p octets this library emits and parses, or whether its
@@ -17,8 +17,9 @@ name: integration-bitcoind
 # btclib-org/.github's: reusable-integration-bitcoind.yml, called at
 # @main so a fix there reaches this tree in one landing (section 10 of
 # its README.md). What stays here is the trigger, the cron minute, the
-# concurrency group, the pinned release and its sha256, and the two
-# environment-variable names tests/integration/conftest.py reads.
+# concurrency group, the pinned release and its sha256, the two
+# environment-variable names tests/integration/conftest.py reads, and the
+# prefix that exempts qa_assets_test.py's skips.
 #
 # `regtest / Regtest against Bitcoin Core` is a required check on main:
 # what it asks is whether Core accepts what this branch built, and the
@@ -166,3 +167,7 @@ jobs:
       # a file here could write
       integration-env-var: BTCLIB_INTEGRATION
       bitcoind-path-env-var: BTCLIB_BITCOIND
+      # tests/integration/qa_assets_test.py needs a qa-assets checkout,
+      # which this job has not got: qa-assets.yml runs it, and its skip
+      # reason starts with this
+      skip-reason-prefix: "qa-assets:"

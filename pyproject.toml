@@ -584,12 +584,13 @@ addopts = "-ra --cov --durations=8 -n auto --dist worksteal --strict-config --st
 xfail_strict = true
 # --strict-markers is on, so a marker is declared here or it is a typo.
 # `integration` is what needs something this repository does not ship: a
-# bitcoind to talk to. Those tests skip themselves without
-# BTCLIB_INTEGRATION in the environment, so the marker is for selecting
-# them (`-m integration`) and for excluding them from a run that has the
-# variable set for other reasons
+# bitcoind to talk to, or a qa-assets checkout. Each skips itself
+# without its variable in the environment (BTCLIB_INTEGRATION,
+# BTCLIB_QA_ASSETS or BTCLIB_RUST_BITCOIN_QA_ASSETS), so the marker is
+# for selecting them (`-m integration`) and for excluding them from a
+# run that has one set for other reasons
 markers = [
-    "integration: needs an external program, opt-in via BTCLIB_INTEGRATION",
+    "integration: needs an external program or corpus, opt-in via an environment variable",
     "bindings: compares against btclib_secp256k1, so it needs it installed",
 ]
 # a deprecation warning is the early form of a break, emitted years before
@@ -623,7 +624,7 @@ filterwarnings = ["error"]
 #
 #     uv run pytest --durations=0 --durations-min=0
 #
-# tests/integration/conftest.py gives each of its own tests a marker,
+# tests/integration/conftest.py gives each of its node tests a marker,
 # which pytest-timeout reads ahead of this key. A pytest without the
 # plugin does not know the key, which --strict-config makes an error: an
 # environment missing pytest-timeout exits before running a test rather
@@ -850,8 +851,8 @@ extend-ignore-re = ['`[^`]*`']
 # sake of the measurement alone
 source = ["btclib", "tests"]
 # tests/integration is omitted because the ratchet measures what an
-# ordinary run executes, and those tests skip themselves without
-# BTCLIB_INTEGRATION: their bodies would be uncovered lines of tests/ at
+# ordinary run executes, and those tests skip themselves without their
+# variable: their bodies would be uncovered lines of tests/ at
 # every commit, which is the ratchet reporting the switch rather than a
 # defect. What covers them is the opt-in run, and tests/README.md's *The
 # integration tests, and why they are off by default* carries the command

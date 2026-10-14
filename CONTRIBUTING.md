@@ -609,6 +609,7 @@ a force.
 | `claude-review` | pull request, and `@claude` in a comment | — |
 | `codeql` | pull request, push to main, and weekly | 2 languages |
 | `fuzz` | weekly, and by hand before a release | — |
+| `qa-assets` | weekly | Core's and rust-bitcoin's fuzz corpora |
 | `scorecard` | weekly, push to main | — |
 | `os-ubuntu` | weekly, a release | ubuntu images and interpreters |
 | `os-macos` | weekly, a release | macOS images and interpreters |
@@ -631,6 +632,10 @@ stale the next time one is added or dropped.
 ```shell
 grep -n 'uses: \$/\.github/workflows/' .github/workflows/release.yml
 ```
+
+A `when` cell leaves out a `pull_request` trigger that `paths:` filters.
+Such a workflow also runs on a pull request that changes a file its
+`paths:` names.
 
 The `test`, `lint`/`docs` and `integration-bitcoind` rows are what a
 merge waits for, and between them they report the required checks, which

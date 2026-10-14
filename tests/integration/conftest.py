@@ -4,12 +4,12 @@
 
 """What the integration tests need, and what makes them skip.
 
-Two switches, and both have to be on. `BTCLIB_INTEGRATION` in the
-environment is the opt-in: these tests start programs, listen on a
-socket and write to disk, which is not what `uv run pytest` should do to
-somebody who asked for the unit suite. The second is the program itself
--- `bitcoind` here -- because an opt-in that fails for a missing binary
-would report a defect that is not one.
+The tests that talk to a node need two switches, and both have to be on.
+`BTCLIB_INTEGRATION` in the environment is the opt-in: these tests start
+programs, listen on a socket and write to disk, which is not what
+`uv run pytest` should do to somebody who asked for the unit suite. The
+second is the program itself -- `bitcoind` here -- because an opt-in
+that fails for a missing binary would report a defect that is not one.
 
 So the ordinary run reports them skipped and says which switch was off,
 and the whole flow is one command:
@@ -41,7 +41,7 @@ from bitcoin_core_rpc import BitcoinCoreRpcClient
 # the failure case
 _STARTUP_TIMEOUT = 30.0
 
-# what pytest-timeout gives each test here, setup and teardown included,
+# what pytest-timeout gives each node test here, setup and teardown included,
 # so that a bitcoind that stops answering fails the test waiting on it
 # instead of hanging the run until the workflow's timeout-minutes ends
 # the job. The session's first test pays the node's startup and its last
@@ -51,7 +51,7 @@ _STARTUP_TIMEOUT = 30.0
 # DEFAULT_TIMEOUT. This sits above those three together plus the slowest
 # test: the fixture's own deadlines, which say what they were waiting
 # for, fire first. Measured 2026-09-27
-# against bitcoind 31.1: the slowest test, coinstats_test.py's, took
+# against bitcoind 31.1: the slowest node test, coinstats_test.py's, took
 # under 12 s of setup and call on a macOS machine at a one-minute load
 # average between 20 and 45, and under 2 s on ubuntu-latest
 # (integration-bitcoind run 36309935817). `--durations=0
@@ -62,16 +62,18 @@ _HERE = Path(__file__).parent
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """Bound every test of this directory with pytest-timeout.
+    """Bound every node test of this directory with pytest-timeout.
 
     A marker per test, which pytest-timeout reads ahead of the `timeout`
     key of `[tool.pytest.ini_options]`: that key bounds the rest of the
     suite, against a slowest test that waits on no node, and the number
-    above is measured against this directory's own. The hook sees every
-    item of the session, not only this directory's, hence the path test.
+    above is measured against this directory's node tests.
+    `qa_assets_test.py` waits on no node, so the key bounds it. The hook
+    sees every item of the session, not only this directory's, hence the
+    path test.
     """
     for item in items:
-        if _HERE in item.path.parents:
+        if _HERE in item.path.parents and item.path.name != "qa_assets_test.py":
             item.add_marker(pytest.mark.timeout(_TEST_TIMEOUT))
 
 
@@ -91,7 +93,7 @@ def _free_port() -> int:
 def bitcoind_path() -> str:
     """Return the bitcoind to run, skipping the whole module without one."""
     if not os.environ.get("BTCLIB_INTEGRATION"):
-        pytest.skip("set BTCLIB_INTEGRATION=1 to run the integration tests")
+        pytest.skip("set BTCLIB_INTEGRATION=1 to run the node tests")
     path = os.environ.get("BTCLIB_BITCOIND") or shutil.which("bitcoind")
     if path is None:
         pytest.skip("no bitcoind: name one in BTCLIB_BITCOIND or put it on PATH")

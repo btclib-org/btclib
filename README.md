@@ -42,6 +42,7 @@ own with its branch already in its path.
 [![documentation build](https://app.readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io)
 [![vendored-vectors workflow status](https://github.com/btclib-org/btclib/actions/workflows/vendored-vectors.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/vendored-vectors.yml?query=branch%3Amain)
 [![mutation workflow status](https://github.com/btclib-org/btclib/actions/workflows/mutation.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/mutation.yml?query=branch%3Amain)
+[![qa-assets workflow status](https://github.com/btclib-org/btclib/actions/workflows/qa-assets.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/qa-assets.yml?query=branch%3Amain)
 [![fuzz workflow status](https://github.com/btclib-org/btclib/actions/workflows/fuzz.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/fuzz.yml?query=branch%3Amain)
 [![integration-bitcoind workflow status](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml?query=branch%3Amain)
 [![deps-latest workflow status](https://github.com/btclib-org/btclib/actions/workflows/deps-latest.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/deps-latest.yml?query=branch%3Amain)
