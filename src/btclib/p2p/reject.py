@@ -84,8 +84,8 @@ from typing_extensions import override
 from btclib import var_bytes
 from btclib.alias import Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.p2p.payload import Payload
-from btclib.utils import _message_text, bytes_from_octets, is_integer, read_exactly
+from btclib.p2p.payload import Payload, _assert_valid_int
+from btclib.utils import bytes_from_octets, is_integer, read_exactly
 
 __all__ = [
     "Reject",
@@ -193,13 +193,7 @@ class Reject(Payload):
             err_msg = f"invalid reason type: {type(self.reason).__name__}"  # type: ignore[unreachable]
             raise BTClibTypeError(err_msg)
 
-        # a bool is an int and would read as the code one or zero, which
-        # the range check cannot tell from a code whose value that is
-        if not is_integer(self.code):
-            err_msg = f"invalid code type: {type(self.code).__name__}"
-            raise BTClibTypeError(err_msg)
-        if not 0 <= self.code <= _MAX_CODE:
-            raise BTClibValueError(f"invalid code: {_message_text(self.code)}")
+        _assert_valid_int(self.code, "code", 0, _MAX_CODE, check_validity=True)
 
         if len(self.data) not in (0, _HASH_SIZE):
             err_msg = f"invalid data length: {len(self.data)} bytes"
@@ -211,6 +205,8 @@ class Reject(Payload):
         """Return the payload, the hash last, reversed and only if present."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(self.code, "code", 0, _MAX_CODE, check_validity=False)
 
         out = var_bytes.serialize(self.message.encode())
         out += int(self.code).to_bytes(_CODE_SIZE, byteorder="little", signed=False)

@@ -67,9 +67,8 @@ from btclib import var_int
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.limits import MAX_ADDR_TO_SEND
-from btclib.p2p.payload import Payload
+from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
-    _message_text,
     assert_no_trailing,
     bytesio_from_binarydata,
     is_integer,
@@ -206,19 +205,8 @@ def _assert_valid_body(services: int, port: int) -> None:
     the converter's, one call earlier, where a value that is no address
     at all is still reachable.
     """
-    # a bool is an int and would read as the flag NODE_NETWORK or as
-    # NODE_NONE, which the range check below cannot tell from a bitfield
-    if not is_integer(services):
-        err_msg = f"invalid services type: {type(services).__name__}"
-        raise BTClibTypeError(err_msg)
-    if not 0 <= services <= _MAX_SERVICES:
-        raise BTClibValueError(f"invalid services: {_message_text(services)}")
-
-    if not is_integer(port):
-        err_msg = f"invalid port type: {type(port).__name__}"
-        raise BTClibTypeError(err_msg)
-    if not 0 <= port <= _MAX_PORT:
-        raise BTClibValueError(f"invalid port: {_message_text(port)}")
+    _assert_valid_int(services, "services", 0, _MAX_SERVICES, check_validity=True)
+    _assert_valid_int(port, "port", 0, _MAX_PORT, check_validity=True)
 
 
 @dataclass(frozen=True)
@@ -282,6 +270,11 @@ class NetworkAddress:
         """Return the twenty-six octets, the port last and big-endian."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(
+                self.services, "services", 0, _MAX_SERVICES, check_validity=False
+            )
+            _assert_valid_int(self.port, "port", 0, _MAX_PORT, check_validity=False)
 
         out = int(self.services).to_bytes(
             _SERVICES_SIZE, byteorder="little", signed=False
@@ -356,13 +349,9 @@ class TimestampedNetworkAddress:
 
     def assert_valid(self) -> None:
         """Refuse a timestamp no four octets hold, and ask the address."""
-        if not is_integer(self.timestamp):
-            err_msg = f"invalid timestamp type: {type(self.timestamp).__name__}"
-            raise BTClibTypeError(err_msg)
-        if not 0 <= self.timestamp <= _MAX_TIMESTAMP:
-            raise BTClibValueError(
-                f"invalid timestamp: {_message_text(self.timestamp)}"
-            )
+        _assert_valid_int(
+            self.timestamp, "timestamp", 0, _MAX_TIMESTAMP, check_validity=True
+        )
 
         # the annotation says this cannot happen and `check_validity=False`
         # is why it can, as it is everywhere this library asks a built
@@ -376,6 +365,10 @@ class TimestampedNetworkAddress:
         """Return the thirty octets: the timestamp, then the address."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(
+                self.timestamp, "timestamp", 0, _MAX_TIMESTAMP, check_validity=False
+            )
 
         out = self.timestamp.to_bytes(_TIMESTAMP_SIZE, byteorder="little", signed=False)
         out += self.address.serialize(check_validity=check_validity)

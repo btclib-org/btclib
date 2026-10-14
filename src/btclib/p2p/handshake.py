@@ -79,13 +79,11 @@ from btclib.p2p.address import (
     _service_flags_from_int,
 )
 from btclib.p2p.limits import MAX_SUBVERSION_LENGTH, PROTOCOL_VERSION
-from btclib.p2p.payload import Payload
+from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
-    _message_text,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
-    is_integer,
     read_exactly,
 )
 
@@ -103,6 +101,7 @@ _RELAY_SIZE = 1
 
 _MAX_SERVICES = (1 << (8 * _SERVICES_SIZE)) - 1
 _MAX_NONCE = (1 << (8 * _NONCE_SIZE)) - 1
+_MAX_RELAY = (1 << (8 * _RELAY_SIZE)) - 1
 
 # Core declares nVersion and starting_height `int` and nTime `int64_t`,
 # and its test framework reads all three signed; the service flags and
@@ -111,20 +110,6 @@ _MIN_INT32 = -(1 << (8 * _VERSION_SIZE - 1))
 _MAX_INT32 = (1 << (8 * _VERSION_SIZE - 1)) - 1
 _MIN_INT64 = -(1 << (8 * _TIMESTAMP_SIZE - 1))
 _MAX_INT64 = (1 << (8 * _TIMESTAMP_SIZE - 1)) - 1
-
-
-def _assert_int_range(value: int, low: int, high: int, what: str) -> None:
-    """Refuse a value that is no integer, or one outside a field's width.
-
-    Private and unvalidated of its own arguments, as a private twin is:
-    the three that follow the value are literals of this module.
-    """
-    # a bool is an int and would read as the number one or zero, which
-    # the range check cannot tell from a field whose value that is
-    if not is_integer(value):
-        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
-    if not low <= value <= high:
-        raise BTClibValueError(f"invalid {what}: {_message_text(value)}")
 
 
 @dataclass(frozen=True)
@@ -240,11 +225,23 @@ class Version(Payload):
 
     def assert_valid(self) -> None:
         """Refuse a field no wire value of its own width holds."""
-        _assert_int_range(self.version, _MIN_INT32, _MAX_INT32, "version")
-        _assert_int_range(self.services, 0, _MAX_SERVICES, "services")
-        _assert_int_range(self.timestamp, _MIN_INT64, _MAX_INT64, "timestamp")
-        _assert_int_range(self.nonce, 0, _MAX_NONCE, "nonce")
-        _assert_int_range(self.start_height, _MIN_INT32, _MAX_INT32, "start height")
+        _assert_valid_int(
+            self.version, "version", _MIN_INT32, _MAX_INT32, check_validity=True
+        )
+        _assert_valid_int(
+            self.services, "services", 0, _MAX_SERVICES, check_validity=True
+        )
+        _assert_valid_int(
+            self.timestamp, "timestamp", _MIN_INT64, _MAX_INT64, check_validity=True
+        )
+        _assert_valid_int(self.nonce, "nonce", 0, _MAX_NONCE, check_validity=True)
+        _assert_valid_int(
+            self.start_height,
+            "start height",
+            _MIN_INT32,
+            _MAX_INT32,
+            check_validity=True,
+        )
 
         for what, address in (
             ("addr_recv", self.addr_recv),
@@ -272,6 +269,32 @@ class Version(Payload):
         """Return the payload, the relay octet written only if there is one."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(
+                self.version, "version", _MIN_INT32, _MAX_INT32, check_validity=False
+            )
+            _assert_valid_int(
+                self.services, "services", 0, _MAX_SERVICES, check_validity=False
+            )
+            _assert_valid_int(
+                self.timestamp,
+                "timestamp",
+                _MIN_INT64,
+                _MAX_INT64,
+                check_validity=False,
+            )
+            _assert_valid_int(self.nonce, "nonce", 0, _MAX_NONCE, check_validity=False)
+            _assert_valid_int(
+                self.start_height,
+                "start height",
+                _MIN_INT32,
+                _MAX_INT32,
+                check_validity=False,
+            )
+            if self.relay is not None:
+                _assert_valid_int(
+                    self.relay, "relay", 0, _MAX_RELAY, check_validity=False
+                )
 
         out = self.version.to_bytes(_VERSION_SIZE, byteorder="little", signed=True)
         out += int(self.services).to_bytes(

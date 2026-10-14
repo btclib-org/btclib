@@ -109,9 +109,8 @@ from btclib.alias import BinaryData, Octets
 from btclib.block.block_header import BlockHeader
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.limits import MAX_HEADERS_RESULTS, MAX_INV_SZ, MAX_LOCATOR_SZ
-from btclib.p2p.payload import Payload
+from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
-    _message_text,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -313,15 +312,9 @@ class Inventory:
 
     def assert_valid(self) -> None:
         """Refuse a code no four octets hold, or a hash of another size."""
-        # a bool is an int and would read as MSG_TX or UNDEFINED, which
-        # the range check below cannot tell from a code whose value that is
-        if not is_integer(self.type_code):
-            err_msg = f"invalid type_code type: {type(self.type_code).__name__}"
-            raise BTClibTypeError(err_msg)
-        if not 0 <= self.type_code <= _MAX_TYPE:
-            raise BTClibValueError(
-                f"invalid type_code: {_message_text(self.type_code)}"
-            )
+        _assert_valid_int(
+            self.type_code, "type_code", 0, _MAX_TYPE, check_validity=True
+        )
 
         _assert_valid_hash(self.hash, "hash length")
 
@@ -329,6 +322,10 @@ class Inventory:
         """Return the thirty-six octets: the code, then the hash."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(
+                self.type_code, "type_code", 0, _MAX_TYPE, check_validity=False
+            )
 
         out = int(self.type_code).to_bytes(_TYPE_SIZE, byteorder="little", signed=False)
         out += self.hash[::-1]
@@ -512,13 +509,9 @@ class _LocatorPayload(Payload):
 
     def assert_valid(self) -> None:
         """Refuse a version, a locator or a stop hash no message carries."""
-        # a bool is an int and would read as the protocol version one or
-        # zero, which the range check cannot tell from one
-        if not is_integer(self.version):
-            err_msg = f"invalid version type: {type(self.version).__name__}"
-            raise BTClibTypeError(err_msg)
-        if not _MIN_INT32 <= self.version <= _MAX_INT32:
-            raise BTClibValueError(f"invalid version: {_message_text(self.version)}")
+        _assert_valid_int(
+            self.version, "version", _MIN_INT32, _MAX_INT32, check_validity=True
+        )
 
         if len(self.locator) > MAX_LOCATOR_SZ:
             err_msg = f"invalid locator count: {len(self.locator)}"
@@ -534,6 +527,10 @@ class _LocatorPayload(Payload):
         """Return the version, the locator, then the stop hash."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(
+                self.version, "version", _MIN_INT32, _MAX_INT32, check_validity=False
+            )
 
         out = self.version.to_bytes(_VERSION_SIZE, byteorder="little", signed=True)
         out += var_int.serialize(len(self.locator))

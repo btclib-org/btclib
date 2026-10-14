@@ -156,7 +156,7 @@ from btclib.p2p.address import (
     _service_flags_from_int,
 )
 from btclib.p2p.limits import MAX_ADDR_TO_SEND, MAX_ADDRV2_SIZE
-from btclib.p2p.payload import Payload
+from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
     _message_text,
     assert_no_trailing,
@@ -242,28 +242,6 @@ _ADDRESS_SIZE: dict[int, int] = {
 }
 
 
-def _assert_int_range(value: int, high: int, what: str) -> None:
-    """Refuse a value that is no integer, or one outside a field's width.
-
-    No low end, where `handshake._assert_int_range` takes one: every
-    integer field of a BIP155 entry is unsigned, and a `version`
-    message's protocol version and timestamp are not.
-
-    Private and unvalidated of its own arguments, as a private twin is:
-    the width and the name are literals of this module at every call.
-    That twin is written there rather than shared because a validity
-    check is one line per field, and sharing it would put a name in
-    `btclib.utils` that no caller outside `handshake` and this module
-    has.
-    """
-    # a bool is an int and would read as the number one or zero, which
-    # the range check cannot tell from a field whose value that is
-    if not is_integer(value):
-        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
-    if not 0 <= value <= high:
-        raise BTClibValueError(f"invalid {what}: {_message_text(value)}")
-
-
 def _bip155_network_from_int(network_id: int) -> BIP155Network | int:
     """Return the member an id names, leaving an unnamed id alone.
 
@@ -345,10 +323,16 @@ class NetworkAddressV2:
         no member names -- so `MAX_ADDRV2_SIZE` is the whole of what such
         an address is held to.
         """
-        _assert_int_range(self.timestamp, _MAX_TIMESTAMP, "timestamp")
-        _assert_int_range(self.services, _MAX_SERVICES, "services")
-        _assert_int_range(self.network_id, _MAX_NETWORK_ID, "network_id")
-        _assert_int_range(self.port, _MAX_PORT, "port")
+        _assert_valid_int(
+            self.timestamp, "timestamp", 0, _MAX_TIMESTAMP, check_validity=True
+        )
+        _assert_valid_int(
+            self.services, "services", 0, _MAX_SERVICES, check_validity=True
+        )
+        _assert_valid_int(
+            self.network_id, "network_id", 0, _MAX_NETWORK_ID, check_validity=True
+        )
+        _assert_valid_int(self.port, "port", 0, _MAX_PORT, check_validity=True)
 
         if len(self.address) > MAX_ADDRV2_SIZE:
             err_msg = f"invalid address length: {len(self.address)} bytes"
@@ -365,6 +349,17 @@ class NetworkAddressV2:
         """Return the entry's octets, the port last and big-endian."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(
+                self.timestamp, "timestamp", 0, _MAX_TIMESTAMP, check_validity=False
+            )
+            _assert_valid_int(
+                self.services, "services", 0, _MAX_SERVICES, check_validity=False
+            )
+            _assert_valid_int(
+                self.network_id, "network_id", 0, _MAX_NETWORK_ID, check_validity=False
+            )
+            _assert_valid_int(self.port, "port", 0, _MAX_PORT, check_validity=False)
 
         out = self.timestamp.to_bytes(_TIMESTAMP_SIZE, byteorder="little", signed=False)
         out += var_int.serialize(int(self.services))
