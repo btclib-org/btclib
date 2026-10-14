@@ -18,6 +18,7 @@ from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+from hypothesis import given
 
 from btclib import var_int
 from btclib.block import (
@@ -41,6 +42,7 @@ from btclib.script import ScriptPubKey
 from btclib.script.witness import Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests.conftest import JsonGolden
+from tests.strategies import BLOCK_HEADERS, BLOCKS
 
 
 def test_block_1() -> None:
@@ -1641,3 +1643,41 @@ def test_the_size_and_the_serialization_agree(fname: str) -> None:
         block.serialize(include_witness=False, check_validity=False)
     )
     assert block.weight == 3 * block.stripped_size + block.size
+
+
+@given(header=BLOCK_HEADERS)
+def test_block_header_round_trip(header: BlockHeader) -> None:
+    """Parse what serialize writes, and the hash is the same."""
+    parsed = BlockHeader.parse(header.serialize())
+    assert parsed == header
+    assert parsed.hash == header.hash
+    assert parsed.serialize() == header.serialize()
+
+
+@given(block=BLOCKS)
+def test_block_round_trip(block: Block) -> None:
+    """Parse what serialize writes, with the witness and without it.
+
+    The work is regtest's, so nothing here is asked with mainnet's limit:
+    the bytes are written and read with `check_validity=False`, and the
+    parsed block is then asked for the regtest one.
+    """
+    with_witness = block.serialize(check_validity=False)
+    parsed = Block.parse(with_witness, check_validity=False)
+    assert parsed == block
+    assert parsed.header.hash == block.header.hash
+    parsed.assert_valid(REGTEST_POW_LIMIT_BITS)
+
+    without = block.serialize(include_witness=False, check_validity=False)
+    stripped = Block.parse(without, check_validity=False)
+    assert stripped.header == block.header
+    assert stripped.header.hash == block.header.hash
+    assert [tx.id for tx in stripped.transactions] == [
+        tx.id for tx in block.transactions
+    ]
+    assert stripped.serialize(include_witness=False, check_validity=False) == without
+    assert all(
+        not tx_in.script_witness.stack
+        for tx in stripped.transactions
+        for tx_in in tx.vin
+    )
