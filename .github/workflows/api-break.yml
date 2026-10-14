@@ -1,14 +1,14 @@
 ---
 name: api-break
 
-# Labels a pull request `api-break` when it changes the public API against
+# Labels a pull request `api-break` when it breaks the public API against
 # its base, and takes the label off when a later push repairs it. The
 # answer is a label and gates nothing: the job is no required check, and
 # the run stays green where griffe cannot compare.
 #
 # The job is btclib-org/.github's, called at @main so a fix there reaches
 # this tree in one landing (section 10 of its README.md); what stays here
-# is the trigger, the concurrency group and the package
+# is the trigger, the concurrency group, the permissions and the package
 # (btclib-org/.github#1674).
 
 on:
