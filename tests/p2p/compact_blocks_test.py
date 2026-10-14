@@ -48,6 +48,7 @@ from pathlib import Path
 
 import pytest
 
+from btclib import var_int
 from btclib.block import Block, BlockHeader
 from btclib.exceptions import (
     BTClibRuntimeError,
@@ -775,6 +776,79 @@ def test_an_unchecked_nonce_the_octets_hold_is_written() -> None:
         )
     with pytest.raises(BTClibTypeError, match="invalid nonce type"):
         CmpctBlock(_BLOCK_1.header, True)
+
+
+def _unchecked(
+    what: str, value: object
+) -> CmpctBlock | SendCmpct | PrefilledTransaction:
+    """Return a message holding `value` as `what`, built unchecked."""
+    if what == "short id":
+        short_ids: list[int] = [value]  # type: ignore[list-item]
+        return CmpctBlock(_BLOCK_1.header, 0, short_ids, check_validity=False)
+    if what == "version":
+        return SendCmpct(False, value, check_validity=False)  # type: ignore[arg-type]
+    if what == "announce":
+        return SendCmpct(value, 2, check_validity=False)  # type: ignore[arg-type]
+    return PrefilledTransaction(value, _TX, check_validity=False)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("what", ["short id", "version", "announce", "index"])
+@pytest.mark.parametrize(
+    "value", [1.5, None, "1", b""], ids=["float", "none", "str", "bytes"]
+)
+def test_an_unchecked_field_that_is_no_int_is_refused_where_it_is_written(
+    what: str, value: object
+) -> None:
+    """`check_validity=False` lets a field in, not past `int.to_bytes`."""
+    with pytest.raises(BTClibTypeError, match=f"invalid {what} type"):
+        _unchecked(what, value).serialize(check_validity=False)
+
+
+@pytest.mark.parametrize(
+    "what, value",
+    [
+        ("short id", -1),
+        ("short id", 1 << 48),
+        ("short id", 1 << 4300),
+        ("version", -1),
+        ("version", 1 << 64),
+        ("version", 1 << 4300),
+        ("announce", -1),
+        ("announce", 256),
+    ],
+    ids=lambda case: str(case) if len(str(case)) < 30 else "2**4300",
+)
+def test_an_unchecked_field_out_of_range_is_refused_where_it_is_written(
+    what: str, value: int
+) -> None:
+    """The octets of a field hold 0 up to their width's maximum, and no more."""
+    with pytest.raises(BTClibValueError, match=f"invalid {what}"):
+        _unchecked(what, value).serialize(check_validity=False)
+
+
+def test_an_unchecked_field_the_octets_hold_is_written() -> None:
+    """The edges of each range, and a bool only `check_validity` refuses."""
+    for short_id in (0, (1 << 48) - 1, True):
+        unchecked = CmpctBlock(_BLOCK_1.header, 0, [short_id], check_validity=False)
+        assert unchecked.serialize(check_validity=False)[89:95] == int(
+            short_id
+        ).to_bytes(6, "little")
+    for version in (0, (1 << 64) - 1, True):
+        written = SendCmpct(False, version, check_validity=False)
+        assert written.serialize(check_validity=False)[1:] == int(version).to_bytes(
+            8, "little"
+        )
+    for announce in (False, True, 2, 255):
+        sent = SendCmpct(announce, 2, check_validity=False)  # type: ignore[arg-type]
+        assert sent.serialize(check_validity=False)[:1] == bytes([announce])
+    for index in (0, MAX_BLOCK_TX_INDEX + 1, True):
+        prefilled = PrefilledTransaction(index, _TX, check_validity=False)
+        expected = var_int.serialize(int(index))
+        assert prefilled.serialize(check_validity=False).startswith(expected)
+    with pytest.raises(BTClibTypeError, match="invalid short id type"):
+        CmpctBlock(_BLOCK_1.header, 0, [True])
+    with pytest.raises(BTClibTypeError, match="invalid version type"):
+        SendCmpct(False, True)
 
 
 def test_reconstruct_says_what_it_was_handed_rather_than_reading_a_field() -> None:
