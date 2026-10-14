@@ -357,11 +357,10 @@ def test_hash_type_too_wide_for_its_four_bytes(hash_type: int) -> None:
 def test_a_version_too_wide_for_its_four_bytes_is_refused_too() -> None:
     """The copy `legacy` hashes over commits to the caller's own version.
 
-    `_legacy_tx_copy` builds it with check_validity=False, so nothing
-    upstream of the final `serialize` asks whether the version it copied
-    fits the four bytes the wire writes it in -- `int.to_bytes` used to
-    answer that with an OverflowError instead of the BTClibValueError
-    every caller here is written to catch (issue #690).
+    `_legacy_tx_copy` builds it with check_validity=False, so `legacy`
+    checks the version itself, before `Tx.serialize` writes it: the
+    refusal is a BTClibValueError, where `int.to_bytes` answers with an
+    OverflowError (issue #690).
     """
     tx = _two_in_one_out()
     tx.version = 2**32
@@ -373,9 +372,9 @@ def test_the_other_two_widths_of_the_copy_are_refused_as_well() -> None:
     """#724 closed the version and the lock time; these are the rest.
 
     `Tx.serialize` checks its own two fields regardless of
-    `check_validity`, which is what the test above asserts -- and it hands
-    the sequence to `TxIn.serialize` and the value to `TxOut.serialize`,
-    neither of which checks anything when told not to. So the same
+    `check_validity`, and it hands the sequence to `TxIn.serialize` and
+    the value to `TxOut.serialize`, neither of which checks anything when
+    told not to. So the same
     `OverflowError` survived on a different field, and on the vout of the
     outpoint each input names.
 

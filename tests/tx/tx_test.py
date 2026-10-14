@@ -23,7 +23,7 @@ from typing_extensions import override
 
 from btclib import var_int
 from btclib.consensus import MAX_BLOCK_WEIGHT, WITNESS_SCALE_FACTOR
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import ScriptPubKey, Witness, sig_op_count
 from btclib.tx import OutPoint, Tx, TxIn, TxOut, join
 from btclib.tx.limits import (
@@ -1402,3 +1402,23 @@ def test_tx_round_trip(tx: Tx) -> None:
     assert stripped.id == tx.id
     assert stripped.serialize(include_witness=False) == without
     assert all(not tx_in.script_witness.stack for tx_in in stripped.vin)
+
+
+@pytest.mark.parametrize("field", ["version", "lock_time"])
+def test_serialize_without_validity_checks_the_type_of_a_four_byte_field(
+    field: str,
+) -> None:
+    """A float has no `to_bytes`; a bool is the number it stands for."""
+    tx = Tx(check_validity=False)
+    name = field.replace("_", " ")
+
+    setattr(tx, field, 1.5)
+    with pytest.raises(BTClibTypeError, match=f"invalid {name} type: float"):
+        tx.serialize(include_witness=False, check_validity=False)
+
+    expected = Tx(check_validity=False)
+    setattr(expected, field, 1)
+    setattr(tx, field, True)
+    assert tx.serialize(
+        include_witness=False, check_validity=False
+    ) == expected.serialize(include_witness=False, check_validity=False)
