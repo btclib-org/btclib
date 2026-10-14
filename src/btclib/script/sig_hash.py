@@ -42,13 +42,19 @@ from btclib.script.script_pub_key import (
 )
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
-# the four-byte check of btclib.utils, imported rather than written
+# the width checks of btclib.utils, imported rather than written
 # again: a second spelling would be a second place to read before
 # believing the two agree
 from btclib.utils import (
     _assert_valid_4_byte_field as _assert_valid_4_byte_int,
 )
-from btclib.utils import _message_hex, _message_text, bytes_from_octets, is_integer
+from btclib.utils import (
+    _assert_valid_8_byte_signed_field,
+    _message_hex,
+    _message_text,
+    bytes_from_octets,
+    is_integer,
+)
 
 if TYPE_CHECKING:
     from hashlib import _Hash
@@ -309,22 +315,17 @@ def _zero_other_sequences(new_tx: Tx, vin_i: int) -> None:
 # it serializes to, so what those bytes cannot stand for is what this
 # refuses. Not the money range: -1 is a signed CAmount and BIP143 hashes it
 # (issue 388), so `valid_sats_amount` would refuse a preimage Core writes
-_CAMOUNT_MIN = -(2**63)
-_CAMOUNT_MAX = 2**63 - 1
-
-
 def _assert_valid_camount(amount: int, name: str) -> None:
-    """Refuse an amount no eight-byte signed field can hold.
+    """Refuse an amount no eight-byte signed field can hold, and a bool.
 
-    The type before the bounds, which are compared and not looked up in a
-    `range`: its `in` is O(1) for an exact `int` or `bool` only, and walks
-    the range one element at a time for anything else, a float, a str or
-    an int subclass such as an `IntEnum` included.
+    A preimage is a signature's message, so a bool there is a schema
+    mistake, not a number: `is_integer` does not take it. The rest is
+    `_assert_valid_8_byte_signed_field`'s, which `TxOut.serialize` runs
+    too.
     """
     if not is_integer(amount):
         raise BTClibTypeError(f"invalid {name} type: {type(amount).__name__}")
-    if not _CAMOUNT_MIN <= amount <= _CAMOUNT_MAX:
-        raise BTClibValueError(f"invalid {name}: {_message_text(amount)}")
+    _assert_valid_8_byte_signed_field(name, amount)
 
 
 # the four-byte fields every preimage here is made of, each as the write
@@ -573,8 +574,7 @@ def _legacy(
     # is what `Tx.serialize` is about to write, and NONE and SINGLE have
     # already dropped the outputs they do not commit to. The four-byte
     # fields are checked as the comment above `_serialized_4_byte_field`
-    # says, and the output values here, since `TxOut.serialize` checks
-    # nothing when told not to
+    # says, and the output values here, `TxOut.serialize` taking a bool
     _assert_valid_preimage_field("version", new_tx.version)
     _assert_valid_preimage_field("lock time", new_tx.lock_time)
     for txin in new_tx.vin:

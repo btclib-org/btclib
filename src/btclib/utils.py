@@ -369,6 +369,36 @@ def _assert_valid_4_byte_field(name: str, value: int) -> None:
         raise BTClibValueError(f"invalid {name}: {_message_text(value)}")
 
 
+def _assert_valid_8_byte_signed_field(name: str, value: int) -> None:
+    """Refuse a value that cannot be written as eight signed bytes.
+
+    What is not an `int` is a `BTClibTypeError` and an int outside
+    -2**63..2**63 - 1 a `BTClibValueError`. Without this check, a str,
+    bytes, float or None has no `to_bytes` (AttributeError), and
+    `int.to_bytes` raises OverflowError for an int outside the range:
+    none of them the `BTClibTypeError` or `BTClibValueError` the
+    library's contract promises a caller (CONTRIBUTING.md, *The public
+    surface*).
+
+    The type before the bounds, which are compared and not looked up in a
+    `range`: its `in` is O(1) for an exact `int` or `bool` only, and walks
+    the range one element at a time for anything else, a float, a str or
+    an int subclass such as an `IntEnum` included.
+
+    The width of Core's CAmount, an `int64_t`, and not the money range,
+    for the reason `TxOut.serialize` gives. A bool is an `int` here and is
+    written as 0 or 1; refusing it is a semantic check, and
+    `check_validity` gates those.
+
+    Called from `TxOut.serialize` where `check_validity` is False, and
+    from `sig_hash`, which also refuses a bool.
+    """
+    if not isinstance(value, int):
+        raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+    if not -(2**63) <= value <= 2**63 - 1:
+        raise BTClibValueError(f"invalid {name}: {_message_text(value)}")
+
+
 def _int_description(value: int) -> str:
     """Return an int's sign and bit length, the text standing for its digits."""
     # int's own methods, not the value's: a subclass can override the

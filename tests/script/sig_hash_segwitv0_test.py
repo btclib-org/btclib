@@ -437,8 +437,9 @@ class _Sats(enum.IntEnum):
 def test_an_int_subclass_amount_is_hashed_as_the_int() -> None:
     """The bounds are compared, so an `IntEnum` does not walk a `range`.
 
-    `is_integer` accepts it on purpose; see `_assert_valid_camount` for
-    why a `range` membership test would not return.
+    `is_integer` accepts it on purpose; see
+    `_assert_valid_8_byte_signed_field` for why a `range` membership
+    test would not return.
     """
     tx = Tx.parse(_BIP143_TX)
     script_code = bytes.fromhex(_WITNESS_SCRIPT)

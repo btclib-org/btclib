@@ -13,9 +13,10 @@ from typing import Any
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets, String
 from btclib.amount import btc_from_sats, sats_from_btc, valid_sats_amount
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import ScriptPubKey, script_from_dict, script_to_dict
 from btclib.utils import (
+    _assert_valid_8_byte_signed_field,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -90,7 +91,16 @@ class TxOut:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        """Refuse a value that is not a valid satoshi amount."""
+        """Refuse a value that is not a valid satoshi amount.
+
+        A value that is not an `int` is a BTClibTypeError, where
+        `valid_sats_amount` takes a str or a Decimal as a number written
+        down: the value is what `serialize` writes in eight bytes, so a
+        str here would build and then fail there. A bool is refused by
+        `valid_sats_amount`.
+        """
+        if not isinstance(self.value, int):
+            raise BTClibTypeError(f"invalid value type: {type(self.value).__name__}")
         valid_sats_amount(self.value)
         # the amount and not the script's *contents*: a script_pub_key on
         # chain need not parse, and validating that here would refuse
@@ -174,9 +184,15 @@ class TxOut:
         The value is written as CAmount, Core's signed int64_t: a valid
         amount is never negative, but check_validity=False lets one
         through and it must still fit in the eight bytes it came from.
+        With check_validity=False the value is checked as a width alone:
+        a BTClibTypeError for what is not an int, a BTClibValueError for
+        an int that does not fit.
         """
         if check_validity:
             self.assert_valid()
+        else:
+            # assert_valid checks this field when the flag is set
+            _assert_valid_8_byte_signed_field("value", self.value)
 
         out = self.value.to_bytes(8, byteorder="little", signed=True)
         out += var_bytes.serialize(self.script_pub_key.script)
