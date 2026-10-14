@@ -391,7 +391,7 @@ def test_serialize_refuses_a_field_no_four_bytes_hold_without_judging(
 def test_serialize_without_judging_writes_the_edge_of_each_field(
     field: str, value: object, serialized: bytes
 ) -> None:
-    """The last value each field holds still serializes."""
+    """The first and the last value each field holds still serialize."""
     header = _unjudged_header(**{field: value})
     data = header.serialize(check_validity=False)
 
@@ -403,8 +403,7 @@ def test_serialize_without_judging_writes_the_edge_of_each_field(
 @pytest.mark.parametrize(
     "time",
     [
-        # before year 1 in UTC: `fromtimestamp(..., UTC)` raised ValueError
-        # when the message of assert_valid was built from it
+        # before year 1 in UTC, which fromtimestamp(..., UTC) cannot render
         datetime.min.replace(tzinfo=timezone(timedelta(hours=23))),
         datetime.min.replace(tzinfo=timezone(timedelta(hours=1))),
         # timestamp() raises ValueError in every zone

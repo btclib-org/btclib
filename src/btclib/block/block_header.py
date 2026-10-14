@@ -432,11 +432,11 @@ class BlockHeader:
         # the object, so the caller of Block.serialize is told "int too big
         # to convert" about a header it has just been told is valid.
         # self.time, not the instant through fromtimestamp: this branch
-        # catches datetime.max, whose timestamp() is 253402300799.999999
-        # rounded up to 253402300800.0 by the float, i.e. year 10000, and
-        # fromtimestamp answers that with a ValueError -- building the
-        # message would throw the very exception this check exists to
-        # replace
+        # catches an aware datetime.max, whose timestamp() is
+        # 253402300799.999999 rounded up to 253402300800.0 by the float,
+        # i.e. year 10000, and fromtimestamp answers that with a
+        # ValueError -- building the message would throw the very
+        # exception this check exists to replace
         if timestamp > 0xFFFFFFFF:
             err_msg = "invalid timestamp (after the last 4-bytes instant)"
             err_msg += f": {self.time}"

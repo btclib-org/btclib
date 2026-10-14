@@ -357,10 +357,9 @@ def _assert_valid_4_byte_field(name: str, value: int) -> None:
     A bool is an `int` here and is written as 0 or 1; refusing it is a
     semantic check, and `check_validity` gates those.
 
-    The serializers call it where `check_validity` is False, so a
-    four-byte field is checked whatever the flag: `check_validity=False`
-    is what lets a caller copy or walk an object without judging it
-    whole.
+    A serializer that calls it where `check_validity` is False checks
+    that field whatever the flag: `check_validity=False` is what lets a
+    caller copy or walk an object without judging it whole.
     """
     if not isinstance(value, int):
         raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
