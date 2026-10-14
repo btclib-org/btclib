@@ -10,9 +10,9 @@ name: claude-review
 # anything but a pull request, `mention` on anything but a comment
 # carrying @claude. This file keeps only what a calling job may carry:
 # the trigger, the workflow-level permissions and concurrency, and, on
-# the job, `secrets` and `permissions` -- `runs-on`, `steps`, `env` and
-# `timeout-minutes` are the callee's now, and so is the `if:` that used
-# to separate the two jobs here.
+# the job, `secrets`, `permissions` and `cache-mode` -- `runs-on`,
+# `steps`, `env` and `timeout-minutes` are the callee's now, and so is
+# the `if:` that used to separate the two jobs here.
 #
 # Not a required check, and it must not become one -- REPOSITORY.md's
 # rule is that `main`'s required contexts are named outside the
@@ -98,6 +98,10 @@ jobs:
       pull-requests: write # posting the review, and the reply to a mention
       id-token: write # the OIDC token the action mints at its own startup
     uses: btclib-org/.github/.github/workflows/reusable-claude-review.yml@main
+    # the callee has no cache step, and this job runs from an
+    # issue_comment trigger, so it is given no cache access: the linter's
+    # cache-call-unrestricted check asks a call to name its limit
+    cache-mode: none
     # this tree's prompt carries no paragraph of its own between the
     # findings paragraph and the callee's "Do not run the gates", and its
     # `claude_args` names no tool beyond the callee's own list -- so
