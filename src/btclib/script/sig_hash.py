@@ -42,11 +42,12 @@ from btclib.script.script_pub_key import (
 )
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
-# the check `Tx.serialize` runs on its own two fields regardless of
-# check_validity, imported rather than written again: it is the same
-# field, and a second spelling of it would be a second place to read
-# before believing the two agree
-from btclib.tx.tx import _assert_valid_4_byte_field as _assert_valid_4_byte_int
+# the four-byte check of btclib.utils, imported rather than written
+# again: a second spelling would be a second place to read before
+# believing the two agree
+from btclib.utils import (
+    _assert_valid_4_byte_field as _assert_valid_4_byte_int,
+)
 from btclib.utils import _message_hex, _message_text, bytes_from_octets, is_integer
 
 if TYPE_CHECKING:
@@ -328,20 +329,20 @@ def _assert_valid_camount(amount: int, name: str) -> None:
 
 # the four-byte fields every preimage here is made of, each as the write
 # that needs the check rather than as a check a writer has to remember
-# (`_assert_valid_4_byte_field` in `btclib.tx.tx` says why).
-# `legacy` checks its own version and lock time before `Tx.serialize`,
-# which takes a bool. segwit_v0 and taproot assemble their preimage from
+# (`_assert_valid_4_byte_field` in `btclib.utils` says why).
+# `legacy` checks its own four-byte fields before `Tx.serialize`, which
+# takes a bool for each. segwit_v0 and taproot assemble their preimage from
 # their own calls and never reach `Tx.serialize`
 def _serialized_4_byte_field(name: str, value: int) -> bytes:
-    _assert_valid_4_byte_field(name, value)
+    _assert_valid_preimage_field(name, value)
     return value.to_bytes(4, byteorder="little", signed=False)
 
 
-def _assert_valid_4_byte_field(name: str, value: int) -> None:
+def _assert_valid_preimage_field(name: str, value: int) -> None:
     """Refuse what `_assert_valid_4_byte_int` refuses, and a bool.
 
     A preimage is a signature's message, so a bool there is a schema
-    mistake and not the number one: `is_integer` does not take it.
+    mistake, not a number: `is_integer` does not take it.
     """
     if not is_integer(value):
         raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
@@ -361,10 +362,10 @@ def _serialized_out_point(out_point: OutPoint) -> bytes:
 
     `check_validity=False` throughout, as everywhere in this module: a
     preimage is computed over transactions the caller has not asked to
-    be judged whole. The vout is checked as `_assert_valid_4_byte_field`
+    be judged whole. The vout is checked as `_assert_valid_preimage_field`
     says.
     """
-    _assert_valid_4_byte_field("vout", out_point.vout)
+    _assert_valid_preimage_field("vout", out_point.vout)
     return out_point.serialize(check_validity=False)
 
 
@@ -570,15 +571,15 @@ def _legacy(
 
     # the fields of what is left, and only of what is left: the copy above
     # is what `Tx.serialize` is about to write, and NONE and SINGLE have
-    # already dropped the outputs they do not commit to. `Tx.serialize`
-    # checks the version and the lock time itself, unconditionally, but
-    # takes a bool for either; the other fields are those it hands to
-    # TxIn and TxOut, which check nothing
-    _assert_valid_4_byte_field("version", new_tx.version)
-    _assert_valid_4_byte_field("lock time", new_tx.lock_time)
+    # already dropped the outputs they do not commit to. The four-byte
+    # fields are checked as the comment above `_serialized_4_byte_field`
+    # says, and the output values here, since `TxOut.serialize` checks
+    # nothing when told not to
+    _assert_valid_preimage_field("version", new_tx.version)
+    _assert_valid_preimage_field("lock time", new_tx.lock_time)
     for txin in new_tx.vin:
-        _assert_valid_4_byte_field("sequence", txin.sequence)
-        _assert_valid_4_byte_field("vout", txin.prev_out.vout)
+        _assert_valid_preimage_field("sequence", txin.sequence)
+        _assert_valid_preimage_field("vout", txin.prev_out.vout)
     for txout in new_tx.vout:
         _assert_valid_camount(txout.value, "output value")
 

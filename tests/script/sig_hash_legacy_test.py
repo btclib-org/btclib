@@ -368,15 +368,14 @@ def test_a_version_too_wide_for_its_four_bytes_is_refused_too() -> None:
         sig_hash.legacy(_SCRIPT_CODE, tx, 0, sig_hash.ALL)
 
 
-def test_the_other_two_widths_of_the_copy_are_refused_as_well() -> None:
-    """#724 closed the version and the lock time; these are the rest.
+def test_the_sequence_the_vout_and_the_values_of_the_copy_are_refused() -> None:
+    """The sequence, the vout and the output values of the copy are refused.
 
-    `Tx.serialize` checks its own two fields regardless of
-    `check_validity`, and it hands the sequence to `TxIn.serialize` and
-    the value to `TxOut.serialize`, neither of which checks anything when
-    told not to. So the same
-    `OverflowError` survived on a different field, and on the vout of the
-    outpoint each input names.
+    `Tx.serialize`, `TxIn.serialize` and `OutPoint.serialize` check the
+    version, the lock time, the sequence and the vout when told not to
+    check validity, but take a bool, so `legacy` checks the four itself.
+    `TxOut.serialize` checks nothing when told not to, and `legacy`
+    checks the value.
 
     What is left after the branches, and only that: NONE drops every
     output, so a value no CAmount can hold is refused for the hash types

@@ -22,6 +22,7 @@ from hypothesis import given
 from typing_extensions import override
 
 from btclib import var_int
+from btclib.block.block import merkle_root_and_mutated_from_transactions
 from btclib.consensus import MAX_BLOCK_WEIGHT, WITNESS_SCALE_FACTOR
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import ScriptPubKey, Witness, sig_op_count
@@ -1422,3 +1423,47 @@ def test_serialize_without_validity_checks_the_type_of_a_four_byte_field(
     assert tx.serialize(
         include_witness=False, check_validity=False
     ) == expected.serialize(include_witness=False, check_validity=False)
+
+
+def _tx_with_input_field(*, sequence: Any = 0xFFFFFFFF, vout: Any = 0) -> Tx:
+    out_point = OutPoint(b"\x01" * 32, vout, check_validity=False)
+    tx_in = TxIn(out_point, b"", sequence, check_validity=False)
+    tx_out = TxOut(1000, b"\x00\x14" + bytes(20))
+    return Tx(2, 0, [tx_in], [tx_out], check_validity=False)
+
+
+_BAD_INPUT_FIELDS = [
+    (2**32, BTClibValueError, "invalid {name}: "),
+    (-1, BTClibValueError, "invalid {name}: "),
+    (1.5, BTClibTypeError, "invalid {name} type: float"),
+    ("1", BTClibTypeError, "invalid {name} type: str"),
+    (None, BTClibTypeError, "invalid {name} type: NoneType"),
+]
+
+
+@pytest.mark.parametrize("field", ["sequence", "vout"])
+@pytest.mark.parametrize("value, error, message", _BAD_INPUT_FIELDS)
+def test_input_four_byte_field_refused_without_validity_checks(
+    field: str, value: Any, error: type[Exception], message: str
+) -> None:
+    """The input's own serializers refuse it, whoever the caller is."""
+    tx = _tx_with_input_field(**{field: value})
+    match = message.format(name=field)
+
+    with pytest.raises(error, match=match):
+        tx.id  # noqa: B018
+    with pytest.raises(error, match=match):
+        merkle_root_and_mutated_from_transactions([tx])
+    with pytest.raises(error, match=match):
+        tx.serialize(include_witness=False, check_validity=False)
+
+
+@pytest.mark.parametrize("field", ["sequence", "vout"])
+def test_input_four_byte_field_takes_a_bool_without_validity_checks(
+    field: str,
+) -> None:
+    """A bool is the number it stands for there; `check_validity` refuses it."""
+    expected = _tx_with_input_field(**{field: 1})
+    tx = _tx_with_input_field(**{field: True})
+
+    assert tx.id == expected.id
