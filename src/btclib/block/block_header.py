@@ -71,6 +71,24 @@ def _assert_valid_version(value: int) -> None:
         raise BTClibValueError(f"invalid version: {_message_hex(value)}")
 
 
+def _timestamp_of(time: datetime) -> int:
+    """Return the whole seconds of a header's time, or refuse it.
+
+    The value the four bytes hold. `datetime.timestamp()` raises a plain
+    ValueError, OverflowError or OSError for a time it cannot place: a
+    naive `datetime.min` is before year 1 in every time zone, since a
+    naive time is read in the local one, and a naive time before 1970 is
+    an OSError on Windows. None is an exception the library promises, so
+    all three are a `BTClibValueError`; a time of another type is a
+    `BTClibTypeError`.
+    """
+    assert_type(time, datetime, "timestamp")
+    try:
+        return int(time.timestamp())
+    except (OSError, OverflowError, ValueError) as e:
+        raise BTClibValueError(f"invalid timestamp: {time}") from e
+
+
 def _time_from_isoformat(time: Any) -> datetime:
     """Return the time of an ISO 8601 string, which is what to_dict wrote.
 
@@ -337,7 +355,7 @@ class BlockHeader:
         # second is compared as it serializes. The bound keeps the
         # fraction of `now`, which is where Core keeps it too -- its clock
         # is finer than a second and the comparison is in the finer unit
-        if int(self.time.timestamp()) > now.timestamp() + MAX_FUTURE_BLOCK_TIME:
+        if _timestamp_of(self.time) > now.timestamp() + MAX_FUTURE_BLOCK_TIME:
             err_msg = f"invalid timestamp (too far in the future): {self.time}"
             err_msg += f" > {now} + {MAX_FUTURE_BLOCK_TIME} seconds"
             raise BTClibValueError(err_msg)
@@ -397,7 +415,7 @@ class BlockHeader:
         # below the exact one the four bytes have. The genesis bound is
         # unchanged by it -- for a positive x and an integer n, int(x) < n
         # exactly when x < n
-        timestamp = int(self.time.timestamp())
+        timestamp = _timestamp_of(self.time)
 
         if timestamp < 1231006505:
             err_msg = "invalid timestamp (before genesis)"
@@ -438,8 +456,7 @@ class BlockHeader:
         # mined starts at zero. Excluding zero would only be a proxy for
         # truncation -- a short read yields zero -- which parse() checks
         # by length, where it belongs
-        if not 0 <= self.nonce <= 0xFFFFFFFF:
-            raise BTClibValueError(f"invalid nonce: {_message_hex(self.nonce)}")
+        _assert_valid_4_byte_field("nonce", self.nonce)
 
     def _serialized_size(self) -> int:
         """Return what serialize writes, without writing it.
@@ -472,8 +489,7 @@ class BlockHeader:
             self.assert_valid()
         else:
             _assert_valid_version(self.version)
-            assert_type(self.time, datetime, "timestamp")
-            _assert_valid_4_byte_field("timestamp", int(self.time.timestamp()))
+            _assert_valid_4_byte_field("timestamp", _timestamp_of(self.time))
             _assert_valid_4_byte_field("nonce", self.nonce)
 
         return b"".join(
