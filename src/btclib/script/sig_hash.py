@@ -969,8 +969,9 @@ def redeem_script(script_sig: Octets, script_pub_key: Octets) -> bytes:
     commands = parse(script_sig)
     if not commands:
         raise BTClibValueError("empty script_sig for a p2sh input")
-    # parse spells op codes as their OP_/UNKNOWN_OP_CODE_ name and data
-    # pushes as a hex string: only the latter can be a redeem script.
+    # parse spells op codes as their OP_/UNKNOWN_OP_CODE_ name, data pushes
+    # as a hex string and the push of no data as OP_0: the last two can be
+    # a redeem script.
     # ERROR_COMMAND is a str and neither, so it is named here rather than
     # left to bytes.fromhex, which would answer a script_sig ending in a
     # truncated push with a bare ValueError from outside the exception
@@ -979,12 +980,12 @@ def redeem_script(script_sig: Octets, script_pub_key: Octets) -> bytes:
     if (
         not isinstance(command, str)
         or command == ERROR_COMMAND
-        or command.startswith(("OP_", "UNKNOWN_OP_CODE_"))
+        or (command != "OP_0" and command.startswith(("OP_", "UNKNOWN_OP_CODE_")))
     ):
         err_msg = f"missing redeem script in the p2sh script_sig: {command!r}"
         raise BTClibValueError(err_msg)
 
-    script = bytes.fromhex(command)
+    script = b"" if command == "OP_0" else bytes.fromhex(command)
     _, payload = type_and_payload(script_pub_key)
     if hash160(script) != payload:
         err_msg = "invalid redeem script hash: "

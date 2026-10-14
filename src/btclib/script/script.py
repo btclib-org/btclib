@@ -567,6 +567,9 @@ def parse(stream: BinaryData) -> ScriptList:
     them, belongs to the interpreter and is asked there; a script it
     would refuse still decodes, exactly as one that is in a block must
     (issue #123).
+
+    A push of no data is OP_0 whatever its operator, `4c00` included:
+    OP_0 is how `serialize` writes the empty vector.
     """
     s = bytesio_from_binarydata(stream)
     r: ScriptList = []  # initialize the result list
@@ -583,7 +586,8 @@ def parse(stream: BinaryData) -> ScriptList:
                 # and there is nothing after it to decode
                 r.append(ERROR_COMMAND)
                 break
-            command = data
+            # an empty push is OP_0, as serialize writes one
+            command = data or OP_CODE_NAME_FROM_INT[0]
         elif i in OP_CODE_NAME_FROM_INT:  # OP_CODE
             command = OP_CODE_NAME_FROM_INT[i]
             # the operand before an op code is left as bytes, and is not

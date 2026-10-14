@@ -139,8 +139,8 @@ def serialize(script: ScriptList) -> bytes:
 def _read_push_data(s: BytesIO, i: int) -> bytes:
     """Read the data of the push whose first byte is i, 0 < i <= 78.
 
-    The 520-byte element limit is not checked here, unlike in
-    script.parse: an OP_SUCCESS makes a tapscript valid whatever else it
+    The 520-byte element limit is not checked here, and script.parse
+    checks none: an OP_SUCCESS makes a tapscript valid whatever else it
     holds, so only the caller -- which knows whether one has been met --
     can turn an oversized element into a refusal.
     """
@@ -164,8 +164,9 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
     """Parse a tapscript into its commands, per BIP342.
 
     An unknown op code is refused, data pushes come back as hex
-    strings, and an OP_SUCCESSx ends the parse: what follows one is
-    returned as raw bytes, BIP342 not requiring it to be a script --
+    strings and a push of no data as OP_0, as in script.parse, and an
+    OP_SUCCESSx ends the parse: what follows one is returned as raw
+    bytes, BIP342 not requiring it to be a script --
     or, with `exit_on_op_success`, the whole answer is the single
     marker ["OP_SUCCESS"]. An element over 520 bytes is refused only by
     a parse that meets no OP_SUCCESSx, one anywhere making the script
@@ -200,7 +201,8 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
             # of it being executed, so the refusal waits for a parse that
             # ends without meeting one
             invalid_element_size |= len(data) > MAX_SCRIPT_ELEMENT_SIZE
-            r.append(data.hex().upper())
+            # an empty push is OP_0, as script.parse and serialize have it
+            r.append(data.hex().upper() or OP_CODE_NAMES[0])
         elif i in OP_SUCCESS:  # OP_SUCCESSx
             if exit_on_op_success:
                 return ["OP_SUCCESS"]

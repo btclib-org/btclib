@@ -189,7 +189,7 @@ commit it was read at:
     https://github.com/btclib-org/btclib-ecc/blob/2f28aa691d801d6a129216b021f4a589bbcf766d/src/btclib_ecc/ecc/commit_nonce.py#L157
     )) and `taproot._tweaked_prvkey`
     at `int.from_bytes(tweaked, "big")`
-    (`src/btclib/script/taproot.py:563`). A caller-owned buffer can be
+    (`src/btclib/script/taproot.py:565`). A caller-owned buffer can be
     wiped once the call that filled it returns; the `int` it is read
     into cannot be, and outlives the call regardless, so taking the
     buffer at these call sites would cost a public signature and buy

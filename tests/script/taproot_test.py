@@ -26,6 +26,8 @@ from btclib_ecc.curves import (
     set_libsecp256k1_serving,
 )
 from btclib_ecc.number_theory import mod_sqrt_var
+from hypothesis import given
+from hypothesis import strategies as st
 
 from btclib import b32
 from btclib.alias import Octets, ScriptList
@@ -1065,6 +1067,36 @@ def test_parse_unknown_op_code() -> None:
     """0xff is neither an OP_SUCCESS nor a named op code."""
     with pytest.raises(BTClibValueError, match="unknown op code: 0xff"):
         parse(b"\xff")
+
+
+# an empty push in each of its three operators, among valid commands
+_TAPSCRIPT_PIECES = [
+    b"\x4c\x00",
+    b"\x4d\x00\x00",
+    b"\x4e\x00\x00\x00\x00",
+    b"\x00",
+    b"\x51",
+    b"\x76",
+    b"\xac",
+    b"\x02ab",
+    b"\x4c\x01\xff",
+]
+
+
+@pytest.mark.parametrize(
+    "script", _TAPSCRIPT_PIECES[:4], ids=lambda script: script.hex()
+)
+def test_an_empty_push_is_op_0_whatever_its_operator(script: bytes) -> None:
+    """Parse names the push of no data as serialize writes it."""
+    assert parse(script) == ["OP_0"]
+    assert parse(b"\x51" + script + b"\x51") == ["OP_1", "OP_0", "OP_1"]
+
+
+@given(script=st.lists(st.sampled_from(_TAPSCRIPT_PIECES), max_size=10).map(b"".join))
+def test_serialize_writes_back_what_parse_returns(script: bytes) -> None:
+    """The commands of a script, once serialized, parse to themselves."""
+    commands = parse(script)
+    assert parse(serialize(commands)) == commands
 
 
 def test_serialization() -> None:
