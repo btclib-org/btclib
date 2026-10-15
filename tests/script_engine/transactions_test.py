@@ -16,6 +16,7 @@ from typing import Any
 
 import pytest
 
+from btclib.amount import _MAX_SATOSHI
 from btclib.exceptions import BTClibValueError
 from btclib.script import ScriptPubKey
 from btclib.script.engine import (
@@ -347,6 +348,50 @@ def test_invalid_amount() -> None:
     # Output amount greater than sum of inputs
     with pytest.raises(BTClibValueError):
         verify_amounts([prevout], tx)
+
+
+def test_invalid_total_input_amount() -> None:
+    """Refuse inputs summing to more money than there is.
+
+    A prevout is not something the transaction carries: the caller
+    brings it from outside, where Tx.assert_valid has judged the
+    outputs the transaction was built with and nothing has judged this
+    one. The comparison below it is no guard -- two outputs worth
+    MAX_MONEY each fund one worth MAX_MONEY with the fee zero, so only
+    the bound on the inputs themselves refuses it.
+    """
+    prevout = TxOut(_MAX_SATOSHI, ScriptPubKey(""))
+
+    tx = Tx(
+        vin=[TxIn(OutPoint(b"1" * 32, 1)), TxIn(OutPoint(b"1" * 32, 2))],
+        vout=[TxOut(_MAX_SATOSHI, ScriptPubKey(""))],
+    )
+
+    with pytest.raises(BTClibValueError, match="invalid total input amount"):
+        verify_amounts([prevout, prevout], tx)
+
+
+def test_invalid_prevout_amount() -> None:
+    """Refuse a negative prevout value.
+
+    Built with check_validity=False because that is how a value off
+    chain gets here: the prevouts come from the caller, one per input,
+    and a negative one is a caller's bug that nothing before this
+    catches. Worth an input of its own beside a sound one, rather than
+    alone, since a lone negative prevout already spoils the sum in the
+    comparison the check was: the two together have a total an output
+    can be paid out of, so only the bound on each prevout refuses it.
+    """
+    prevout = TxOut(20, ScriptPubKey(""))
+    negative = TxOut(-10, ScriptPubKey(""), check_validity=False)
+
+    tx = Tx(
+        vin=[TxIn(OutPoint(b"1" * 32, 1)), TxIn(OutPoint(b"1" * 32, 2))],
+        vout=[TxOut(10, ScriptPubKey(""))],
+    )
+
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
+        verify_amounts([prevout, negative], tx)
 
 
 def test_a_prevout_per_input() -> None:
