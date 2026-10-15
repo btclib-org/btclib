@@ -14,7 +14,7 @@ This module is what asks. The dispatch is switched off and the same
 vector sets run again, so a disagreement between the two implementations
 about the *verdict* on a transaction is caught. Unit tests cannot do that
 job: neither #129 defect was "this function is lax" -- one was
-`Sig.parse` dropping a byte, the other `point_from_octets` refusing a
+`Sig.parse` dropping a byte, the other `point_from_octets_var` refusing a
 hybrid key -- and both only became visible as a whole engine accepting a
 whole transaction it must refuse.
 
@@ -135,7 +135,7 @@ def test_verify_answers_false_for_what_cannot_be_parsed(*, delegated: bool) -> N
 
     The contract of both adapters, and it is one contract for two arms
     that refuse in two different ways: the bindings raise a ValueError of
-    "invalid DER signature" or "invalid public key", `point_from_octets`
+    "invalid DER signature" or "invalid public key", `point_from_octets_var`
     raises BTClibEccValueError, and `ecc.dsa.verify_` and `ecc.ssa.verify_`
     answer False for what they decline. Whichever it is, the interpreter
     loop must see False.

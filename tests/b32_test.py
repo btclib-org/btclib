@@ -37,7 +37,7 @@ from __future__ import annotations
 import string
 
 import pytest
-from btclib_ecc.curves import bytes_from_point, point_from_octets
+from btclib_ecc.curves import bytes_from_point, point_from_octets_var
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -351,7 +351,7 @@ def test_p2wpkh() -> None:
     _, wit_prg, _ = b32.witness_from_address(addr)
     assert wit_prg == hash160(pub)
 
-    uncompr_pub = bytes_from_point(point_from_octets(pub), compressed=False)
+    uncompr_pub = bytes_from_point(point_from_octets_var(pub), compressed=False)
     with pytest.raises(BTClibValueError, match="not a compressed public key"):
         b32.p2wpkh(PubKeyData(uncompr_pub))
     with pytest.raises(BTClibValueError, match="invalid SEC key size: 34"):

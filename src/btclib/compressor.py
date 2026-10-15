@@ -20,7 +20,7 @@ Core's `VARINT` takes the width of the integer it is given. Here that is
 
 from __future__ import annotations
 
-from btclib_ecc.curves import point_from_octets
+from btclib_ecc.curves import point_from_octets_var
 from btclib_ecc.exceptions import BTClibEccException
 
 from btclib.alias import BinaryData, Octets
@@ -172,7 +172,7 @@ def decompress_amount(compressed: int) -> int:
 def _is_p2pk_key_on_curve(pub_key: bytes) -> bool:
     """Say whether an uncompressed public key is a point of secp256k1."""
     try:
-        point_from_octets(pub_key)
+        point_from_octets_var(pub_key)
     except BTClibEccException:
         return False
     return True
@@ -256,7 +256,7 @@ def decompress_script(kind: int, compressed: Octets) -> bytes:
     if kind < 4:
         return bytes([33, kind]) + compressed + bytes([_OP_CHECKSIG])
     try:
-        x, y = point_from_octets(bytes([kind - 2]) + compressed)
+        x, y = point_from_octets_var(bytes([kind - 2]) + compressed)
     except BTClibEccException as e:
         raise BTClibValueError("x is not on the curve") from e
     uncompressed = b"\x04" + x.to_bytes(32, "big") + y.to_bytes(32, "big")

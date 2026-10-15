@@ -23,7 +23,7 @@ object that knows which half it is.
 **Why the SEC octets are the field and the point is derived.** The two
 conversions do not cost the same. Serializing a point is a byte
 concatenation; parsing a compressed one is a modular square root, whose
-cost `btclib_ecc.curves.sec_point.point_from_octets` records beside the
+cost `btclib_ecc.curves.sec_point.point_from_octets_var` records beside the
 two arms that pay it. A write is cheaper than a lift and a lift than a
 derivation. The first of those two gaps is widest exactly where it
 matters, at the compressed form that bitcoin uses.
@@ -69,7 +69,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import cached_property
 
-from btclib_ecc.curves import Curve, bytes_from_prv_key_int, point_from_octets
+from btclib_ecc.curves import Curve, bytes_from_prv_key_int, point_from_octets_var
 from typing_extensions import override
 
 from btclib.alias import Octets, Point
@@ -85,7 +85,7 @@ __all__ = [
 # the two SEC forms, and the prefix each one takes. 0x04 is the
 # uncompressed marker; 0x02 and 0x03 name the parity of y. A hybrid key --
 # 0x06 or 0x07, both coordinates *and* a parity byte -- is SEC1 and is not
-# among them: `sec_point.point_from_octets` does parse one when its
+# among them: `sec_point.point_from_octets_var` does parse one when its
 # `hybrid` argument asks for it, the script engine being the caller that
 # has to accept what was mined, and it defaults to `hybrid=False` because
 # nothing in bitcoin produces one. This type takes that default, so a
@@ -170,7 +170,7 @@ class PubKeyData:
         the callers that hand the octets straight to a call which parses
         them anyway.
         """
-        return point_from_octets(self.sec, self.curve)
+        return point_from_octets_var(self.sec, self.curve)
 
     def assert_valid(self) -> None:
         """Refuse octets no SEC public key has, and an unknown network.

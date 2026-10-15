@@ -9,7 +9,7 @@ from __future__ import annotations
 import string
 
 import pytest
-from btclib_ecc.curves import bytes_from_point, point_from_octets, secp256k1
+from btclib_ecc.curves import bytes_from_point, point_from_octets_var, secp256k1
 from btclib_ecc.exceptions import BTClibEccValueError
 from hypothesis import given
 from hypothesis import strategies as st
@@ -218,7 +218,7 @@ def test_p2pkh_from_pub_key() -> None:
     assert address == b58.p2pkh(PubKeyData(f"{pub_key} "))
     assert h160 == hash160(f"{pub_key} ")
 
-    uncompr_pub_key = bytes_from_point(point_from_octets(pub_key), compressed=False)
+    uncompr_pub_key = bytes_from_point(point_from_octets_var(pub_key), compressed=False)
     uncompr_address = "16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM"
     assert uncompr_address == b58.p2pkh(PubKeyData(uncompr_pub_key))
     assert not PubKeyData(uncompr_pub_key).is_compressed

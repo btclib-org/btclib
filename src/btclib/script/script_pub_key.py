@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from btclib_ecc.curves import point_from_octets
+from btclib_ecc.curves import point_from_octets_var
 from btclib_ecc.exceptions import BTClibEccValueError
 from typing_extensions import override
 
@@ -172,7 +172,7 @@ def p2ms_m_and_keys(script_pub_key: Octets) -> tuple[int, list[bytes]]:
         raise BTClibValueError("invalid p2ms script_pub_key size")
 
     for pub_key in pub_keys:
-        point_from_octets(pub_key)
+        point_from_octets_var(pub_key)
 
     return m, pub_keys
 
@@ -234,7 +234,7 @@ def assert_p2pk(script_pub_key: Octets) -> None:
         raise BTClibValueError(err_msg)
 
     pub_key = script_pub_key[1:-1]
-    point_from_octets(pub_key)
+    point_from_octets_var(pub_key)
 
 
 def is_p2pk(script_pub_key: Octets) -> bool:

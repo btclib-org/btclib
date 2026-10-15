@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
-from btclib_ecc.curves import is_libsecp256k1_serving, point_from_octets
+from btclib_ecc.curves import is_libsecp256k1_serving, point_from_octets_var
 from btclib_ecc.ecc import dsa
 from btclib_ecc.ecc.dsa import Sig
 from btclib_ecc.exceptions import BTClibEccRuntimeError, BTClibEccValueError
@@ -106,7 +106,7 @@ def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
 
     `hybrid=True` is what the Python arm needs and the bindings do not:
     `ec_pubkey_parse` takes the 0x06/0x07 prefixes always (eckey_impl.h)
-    while `point_from_octets` takes them only when asked, and consensus
+    while `point_from_octets_var` takes them only when asked, and consensus
     wants CHECKSIG to succeed for a hybrid key wherever STRICTENC is off.
     Both defects of issue #129 were in that arm and neither was a lax
     function -- one was `Sig.parse` dropping a byte, the other this very
@@ -116,7 +116,7 @@ def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     One try around both arms, because the contract is one: a signature or
     a public key that cannot be parsed is a failed verification, not an
     exception the interpreter loop sees. The bindings raise ValueError
-    for it, `point_from_octets` raises BTClibEccValueError, which is one,
+    for it, `point_from_octets_var` raises BTClibEccValueError, which is one,
     and `dsa.verify_` catches its own. DER strictness is enforced
     upstream either way, by fix_signature under the STRICT_DER_FLAGS
     below -- and so is the lower-s form, which is what keeps the two arms
@@ -137,7 +137,7 @@ def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     try:
         if is_libsecp256k1_serving():
             return bool(_libsecp256k1_dsa_verify(msg_hash, pub_key, sig))
-        return dsa.verify_(msg_hash, point_from_octets(pub_key, hybrid=True), sig)
+        return dsa.verify_(msg_hash, point_from_octets_var(pub_key, hybrid=True), sig)
     except ValueError:
         return False
 
