@@ -5,14 +5,16 @@
 """Tests for the `btclib.tx_out` module."""
 
 from dataclasses import FrozenInstanceError
+from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 import pytest
 from hypothesis import given
 
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import ScriptPubKey
-from btclib.tx import Tx, TxOut
+from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests.conftest import JsonGolden
 from tests.strategies import TX_OUTS
 
@@ -214,3 +216,72 @@ def test_a_pre_built_script_pub_key_is_validated_as_octets_are() -> None:
 def test_tx_out_round_trip(tx_out: TxOut) -> None:
     """Parse what serialize writes, whatever the output."""
     assert TxOut.parse(tx_out.serialize()) == tx_out
+
+
+def _tx_with_value(value: Any, *, check_validity: bool = False) -> Tx:
+    out_point = OutPoint(b"\x01" * 32, 0)
+    tx_in = TxIn(out_point, b"", 0xFFFFFFFF)
+    script_pub_key = ScriptPubKey(b"\x51", check_validity=False)
+    tx_out = TxOut(value, script_pub_key, check_validity=False)
+    return Tx(2, 0, [tx_in], [tx_out], check_validity=check_validity)
+
+
+_BAD_VALUES = [
+    (2**63, BTClibValueError, "invalid value: "),
+    (-(2**63) - 1, BTClibValueError, "invalid value: "),
+    (1.5, BTClibTypeError, "invalid value type: float"),
+    ("1", BTClibTypeError, "invalid value type: str"),
+    (None, BTClibTypeError, "invalid value type: NoneType"),
+]
+
+
+@pytest.mark.parametrize("value, error, message", _BAD_VALUES)
+def test_value_refused_without_validity_checks(
+    value: Any, error: type[Exception], message: str
+) -> None:
+    """The output's own serializer refuses it, whoever the caller is."""
+    tx_out = TxOut(
+        value, ScriptPubKey(b"\x51", check_validity=False), check_validity=False
+    )
+    tx = _tx_with_value(value)
+
+    with pytest.raises(error, match=message):
+        tx_out.serialize(check_validity=False)
+    with pytest.raises(error, match=message):
+        tx.id  # noqa: B018
+    with pytest.raises(error, match=message):
+        tx.hash  # noqa: B018
+
+
+@pytest.mark.parametrize("value", [2**63 - 1, -(2**63), -1])
+def test_value_of_the_signed_eight_bytes_is_written(value: int) -> None:
+    """What the eight bytes can hold is written, valid amount or not."""
+    tx_out = TxOut(value, b"\x51", check_validity=False)
+
+    wire = tx_out.serialize(check_validity=False)
+
+    assert wire == value.to_bytes(8, "little", signed=True) + b"\x01\x51"
+
+
+def test_value_that_is_a_bool_is_the_number_it_stands_for() -> None:
+    """A bool is an int there; `check_validity` is what refuses it."""
+    tx_out = TxOut(True, b"\x51", check_validity=False)
+
+    assert tx_out.serialize(check_validity=False) == TxOut(1, b"\x51").serialize()
+    assert _tx_with_value(True).id == _tx_with_value(1).id
+
+
+@pytest.mark.parametrize("value", [1.0, Decimal(1), "1", None])
+def test_value_that_is_not_an_int_is_refused_by_assert_valid(value: Any) -> None:
+    """`valid_sats_amount` reads a str as a number; the eight bytes cannot."""
+    script_pub_key = ScriptPubKey(b"\x51", check_validity=False)
+    message = f"invalid value type: {type(value).__name__}"
+
+    with pytest.raises(BTClibTypeError, match=message):
+        TxOut(value, script_pub_key)
+
+    tx_out = TxOut(value, script_pub_key, check_validity=False)
+    with pytest.raises(BTClibTypeError, match=message):
+        tx_out.serialize()
+    with pytest.raises(BTClibTypeError, match=message):
+        _tx_with_value(value, check_validity=True)

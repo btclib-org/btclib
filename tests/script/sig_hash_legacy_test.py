@@ -371,11 +371,10 @@ def test_a_version_too_wide_for_its_four_bytes_is_refused_too() -> None:
 def test_the_sequence_the_vout_and_the_values_of_the_copy_are_refused() -> None:
     """The sequence, the vout and the output values of the copy are refused.
 
-    `Tx.serialize`, `TxIn.serialize` and `OutPoint.serialize` check the
-    version, the lock time, the sequence and the vout when told not to
-    check validity, but take a bool, so `legacy` checks the four itself.
-    `TxOut.serialize` checks nothing when told not to, and `legacy`
-    checks the value.
+    `Tx.serialize`, `TxIn.serialize`, `OutPoint.serialize` and
+    `TxOut.serialize` check the version, the lock time, the sequence, the
+    vout and the value when told not to check validity, but take a bool,
+    so `legacy` checks the five itself.
 
     What is left after the branches, and only that: NONE drops every
     output, so a value no CAmount can hold is refused for the hash types

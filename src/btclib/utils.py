@@ -367,6 +367,30 @@ def _assert_valid_4_byte_field(name: str, value: int) -> None:
         raise BTClibValueError(f"invalid {name}: {_message_text(value)}")
 
 
+def _assert_valid_8_byte_signed_field(name: str, value: int) -> None:
+    """Refuse a value that cannot be written as eight signed bytes.
+
+    What is not an `int` is a `BTClibTypeError` and an int outside
+    -2**63..2**63 - 1 a `BTClibValueError`, for the reasons
+    `_assert_valid_4_byte_field` gives; a bool passes, as it does there.
+
+    The type before the bounds, which are compared and not looked up in a
+    `range`: its `in` is O(1) for an exact `int` or `bool` only, and walks
+    the range one element at a time for anything else, a float, a str or
+    an int subclass such as an `IntEnum` included.
+
+    The width of Core's CAmount, an `int64_t`, and not the money range,
+    for the reason `TxOut.serialize` gives.
+
+    Called from `TxOut.serialize` where `check_validity` is False, and
+    from `sig_hash`, which also refuses a bool.
+    """
+    if not isinstance(value, int):
+        raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+    if not -(2**63) <= value <= 2**63 - 1:
+        raise BTClibValueError(f"invalid {name}: {_message_text(value)}")
+
+
 def _int_description(value: int) -> str:
     """Return an int's sign and bit length, the text standing for its digits."""
     # int's own methods, not the value's: a subclass can override the

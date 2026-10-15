@@ -420,8 +420,8 @@ _NOT_AN_INT = [1.5, 1.0, "1", b"\x01", None, True, False]
 def test_an_amount_that_is_not_an_int_is_a_type_error(amount: object) -> None:
     """The type is refused before the bounds, and does not hang (issue 2627).
 
-    See `_assert_valid_camount`. A bool is an int to Python and not to
-    `is_integer`.
+    See `_assert_valid_8_byte_signed_field`. A bool is an int to Python and
+    not to `is_integer`.
     """
     tx = Tx.parse(_BIP143_TX)
     script_code = bytes.fromhex(_WITNESS_SCRIPT)
@@ -437,8 +437,9 @@ class _Sats(enum.IntEnum):
 def test_an_int_subclass_amount_is_hashed_as_the_int() -> None:
     """The bounds are compared, so an `IntEnum` does not walk a `range`.
 
-    `is_integer` accepts it on purpose; see `_assert_valid_camount` for
-    why a `range` membership test would not return.
+    `is_integer` accepts it on purpose; see
+    `_assert_valid_8_byte_signed_field` for why a `range` membership
+    test would not return.
     """
     tx = Tx.parse(_BIP143_TX)
     script_code = bytes.fromhex(_WITNESS_SCRIPT)
