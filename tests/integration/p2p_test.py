@@ -41,7 +41,6 @@ from collections.abc import Iterator
 from io import BytesIO
 
 import pytest
-from bitcoin_core_rpc import BitcoinCoreRpcClient
 
 from btclib.exceptions import IncompleteMessageError
 from btclib.p2p import (
@@ -68,14 +67,12 @@ _HANDSHAKE_TIMEOUT = 30.0
 
 
 @pytest.fixture
-def handshake(node: BitcoinCoreRpcClient, p2p_port: int) -> Iterator[list[Message]]:
+def handshake(p2p_port: int) -> Iterator[list[Message]]:
     """Dial the node, send a `version`, and return what it answers with.
 
-    `node` is requested for the side effect of it existing -- the process
-    `p2p_port` is bound to -- and never called on: this is the one test
-    in the suite that never goes through `BitcoinCoreRpcClient`, on
-    purpose, an rpc client being no evidence about the wire format an
-    rpc-only test cannot reach.
+    This is the one test in the suite that never goes through
+    `BitcoinCoreRpcClient`, on purpose, an rpc client being no evidence
+    about the wire format an rpc-only test cannot reach.
 
     Every message up to and including `verack` is read here, and
     `Message.parse` is what reads each of them: a message this library

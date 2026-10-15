@@ -66,8 +66,8 @@ uv run pytest --no-cov
 ## The integration tests, and why they are off by default
 
 `tests/integration/` needs something this repository does not ship: a
-`bitcoind` to talk to, or a qa-assets checkout. Each test skips itself
-without the switch that asks for it, so an ordinary run reports them
+`bitcoind` to talk to, or a qa-assets checkout. Each of those tests skips
+itself without the switch that asks for it, so an ordinary run reports them
 skipped and says which switch was off:
 
 ```shell
@@ -88,10 +88,15 @@ Each of these tests is bounded by pytest-timeout, so a node that stops
 answering fails the test waiting on it instead of hanging the run. The
 bound and the measurement behind it are in `tests/integration/conftest.py`.
 
+A port that another process takes between the pick and the bind makes the
+node exit, and it is started again on fresh ports. `node_start_test.py`
+covers that with a stand-in for `bitcoind`, so it runs without the opt-in.
+
 These tests are outside the coverage ratchet, which `pyproject.toml`
 says where it omits them: the ratchet measures what an ordinary run
 executes, and a body that skips itself would be an uncovered line at
-every commit rather than a defect.
+every commit rather than a defect. `node_start_test.py` skips nothing and
+is outside it only because it shares the directory.
 
 The node tests run unattended in `integration-bitcoind.yml`, which fails
 the job if they skipped rather than ran, and downloads a pinned Core

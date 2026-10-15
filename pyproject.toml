@@ -857,7 +857,9 @@ source = ["btclib", "tests"]
 # variable: their bodies would be uncovered lines of tests/ at
 # every commit, which is the ratchet reporting the switch rather than a
 # defect. What covers them is the opt-in run, and tests/README.md's *The
-# integration tests, and why they are off by default* carries the command
+# integration tests, and why they are off by default* carries the command.
+# That section also says why node_start_test.py, which skips nothing, is
+# omitted too
 omit = [
     "*/site-packages/*",
     "tests/integration/*",
