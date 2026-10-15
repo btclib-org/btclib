@@ -9,7 +9,7 @@ character, must reach neither the message of the exception nor any
 exception it chains.
 """
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -21,31 +21,10 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.key import PrvKeyData
 from btclib.network import NETWORKS, validated_network_name
 from btclib.utils import str_from_string
+from tests.secret_free import assert_secret_free
 
 KEY = 0x1D2F3E4D5C6B7A8998A7B6C5D4E3F20112233445566778899AABBCCDDEEFF0A1
 WIF = wif_from_prv_key(KEY)
-
-
-def _chain(exc: BaseException) -> Iterator[BaseException]:
-    seen: set[int] = set()
-    todo: list[BaseException | None] = [exc]
-    while todo:
-        e = todo.pop()
-        if e is None or id(e) in seen:
-            continue
-        seen.add(id(e))
-        yield e
-        todo += [e.__cause__, e.__context__]
-
-
-def _assert_secret_free(exc: BaseException, secrets: list[str]) -> None:
-    for e in _chain(exc):
-        # `vars(e)` does not show the `object` of a UnicodeError
-        held = [str(vars(e)), str(getattr(e, "object", None))]
-        text = " ".join([str(e), repr(e), repr(e.args), *held]).lower()
-        for secret in secrets:
-            assert secret.lower() not in text
-            assert secret.lower()[:12] not in text
 
 
 SWAPPED: list[tuple[Callable[[], Any], list[str]]] = [
@@ -63,7 +42,7 @@ def test_swapped_arguments_do_not_quote_the_key(
     """A key in the network position is not repeated by the refusal."""
     with pytest.raises((BTClibTypeError, BTClibValueError)) as refusal:
         call()
-    _assert_secret_free(refusal.value, secrets)
+    assert_secret_free(refusal.value, secrets)
 
 
 def test_refused_network_name() -> None:
@@ -109,8 +88,8 @@ def test_non_ascii_wif_chain_holds_no_key() -> None:
     assert str(refusal.value) == (
         f"not a WIF (non-ascii character in base58 string at position {where})"
     )
-    _assert_secret_free(refusal.value, [WIF, bad])
-    _assert_secret_free(refusal.value, [WIF[:20]])
+    assert_secret_free(refusal.value, [WIF, bad])
+    assert_secret_free(refusal.value, [WIF[:20]])
 
 
 def test_non_ascii_bytes_chain_nothing() -> None:
@@ -120,7 +99,7 @@ def test_non_ascii_bytes_chain_nothing() -> None:
         str_from_string(bad, "WIF")
     assert refusal.value.__cause__ is None
     assert refusal.value.__context__ is None
-    _assert_secret_free(refusal.value, [WIF])
+    assert_secret_free(refusal.value, [WIF])
 
 
 def test_unchecked_prv_key_data_repr_hides_a_swapped_key() -> None:
