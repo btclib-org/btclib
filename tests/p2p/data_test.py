@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from hypothesis import given
 
 import btclib.p2p
 from btclib.block import Block, BlockHeader
@@ -50,6 +51,7 @@ from btclib.p2p import BlockPayload, Message, NetworkAddress, TxPayload
 from btclib.p2p.limits import MAX_PROTOCOL_MESSAGE_LENGTH
 from btclib.script import Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
+from tests.strategies import TXS
 
 _BLOCK_DATA = Path(__file__).parent.parent / "block" / "_data"
 _TX_DATA = Path(__file__).parent.parent / "tx" / "_data"
@@ -367,3 +369,13 @@ def test_the_package_publishes_neither_tx_nor_block() -> None:
     # wrapper is a type error and never a silently different message
     with pytest.raises(BTClibTypeError, match="invalid tx type"):
         TxPayload(NetworkAddress(), include_witness=True)  # type: ignore[arg-type]
+
+
+@given(tx=TXS)
+def test_a_tx_payload_without_the_witness_parses_to_the_stripped_tx(tx: Tx) -> None:
+    """`include_witness=False` writes what `Tx.parse_without_witness` reads."""
+    octets = TxPayload(tx, include_witness=False).serialize()
+    parsed = TxPayload.parse(octets)
+    assert parsed.tx.id == tx.id
+    assert not parsed.include_witness
+    assert parsed.tx == Tx.parse_without_witness(octets)

@@ -47,6 +47,8 @@ import hashlib
 from pathlib import Path
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from btclib.block import Block, BlockHeader
 from btclib.exceptions import (
@@ -68,6 +70,7 @@ from btclib.p2p import (
 )
 from btclib.p2p.limits import MAX_BLOCK_TX_INDEX
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
+from tests.strategies import TXS
 
 _DATA = Path(__file__).parent.parent / "block" / "_data"
 
@@ -869,3 +872,25 @@ def test_the_header_a_cmpctblock_carries_is_the_blocks_own() -> None:
     assert compact_block.serialize()[:80] == _BLOCK_481824[:80]
     assert compact_block.header.hash == block.header.hash
     assert BlockHeader.parse(compact_block.serialize()[:80]) == block.header
+
+
+@given(
+    positions=st.integers(-1, MAX_BLOCK_TX_INDEX - 1).flatmap(
+        lambda previous: st.tuples(
+            st.just(previous), st.integers(previous + 1, MAX_BLOCK_TX_INDEX)
+        )
+    ),
+    tx=TXS,
+)
+def test_a_prefilled_transaction_round_trips_after_its_predecessor(
+    positions: tuple[int, int], tx: Tx
+) -> None:
+    """The index is written as the gap past the previous one, and read back."""
+    previous_index, index = positions
+    prefilled = PrefilledTransaction(index, tx)
+    octets = prefilled.serialize(previous_index)
+    assert PrefilledTransaction.parse(octets, previous_index) == prefilled
+    assert (
+        PrefilledTransaction.parse(octets, previous_index).serialize(previous_index)
+        == octets
+    )

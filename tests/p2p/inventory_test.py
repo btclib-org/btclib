@@ -54,6 +54,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from hypothesis import given
 
 from btclib import var_int
 from btclib.block import BlockHeader
@@ -72,6 +73,7 @@ from btclib.p2p import (
 )
 from btclib.p2p.inventory import MSG_WITNESS_FLAG
 from btclib.p2p.limits import MAX_HEADERS_RESULTS, MAX_INV_SZ, MAX_LOCATOR_SZ
+from tests.strategies.p2p import INVENTORIES
 
 # the vendored mainnet blocks, whose heights and hashes tests/_data/
 # README.md records and whose first eighty octets are the header.
@@ -597,3 +599,11 @@ def test_the_sequence_fields_are_tuples() -> None:
     assert Headers([BlockHeader.parse(_HEADER_1)]).headers == (
         BlockHeader.parse(_HEADER_1),
     )
+
+
+@given(item=INVENTORIES)
+def test_an_inventory_entry_round_trips(item: Inventory) -> None:
+    """Parse what serialize writes, a type code no member names included."""
+    octets = item.serialize()
+    assert Inventory.parse(octets) == item
+    assert Inventory.parse(octets).serialize() == octets

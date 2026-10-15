@@ -47,6 +47,7 @@ from io import BytesIO
 
 import pytest
 from bitcoin_core_rpc import magic_from_chain
+from hypothesis import given
 
 from btclib.exceptions import (
     BTClibException,
@@ -57,6 +58,7 @@ from btclib.exceptions import (
 )
 from btclib.p2p import Message
 from btclib.p2p.limits import MAX_PROTOCOL_MESSAGE_LENGTH
+from tests.strategies.p2p import MESSAGES
 
 # The Bitcoin Wiki's Protocol documentation, "version" section: a message
 # a Satoshi:0.7.2 node sent on mainnet, hex dumped there with the fields
@@ -423,3 +425,13 @@ def test_the_flag_still_switches_the_check_off() -> None:
     )
     with pytest.raises(BTClibValueError, match="invalid magic: 1 instead of 4 bytes"):
         invalid.serialize()
+
+
+@given(message=MESSAGES)
+def test_a_message_round_trips(message: Message) -> None:
+    """Parse what serialize writes, and the checksum is the payload's."""
+    octets = message.serialize()
+    parsed = Message.parse(octets)
+    assert parsed == message
+    assert parsed.checksum == message.checksum
+    assert parsed.serialize() == octets

@@ -24,6 +24,9 @@ without loss. `BLOCKS` draws blocks that `assert_valid` accepts with
 `REGTEST_POW_LIMIT_BITS` as the limit, mainnet's work being out of reach
 of a test; each has a coinbase, up to `MAX_BLOCK_TRANSACTIONS` - 1 other
 transactions and, where any carries a witness, the BIP141 commitment.
+
+The p2p payload types and the envelope are in `tests.strategies.p2p`, which
+builds on these.
 """
 
 from datetime import UTC, datetime, timedelta, timezone

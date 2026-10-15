@@ -58,6 +58,7 @@ from io import BytesIO
 from ipaddress import IPv4Address, IPv6Address
 
 import pytest
+from hypothesis import given
 
 from btclib import var_bytes, var_int
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -77,6 +78,7 @@ from btclib.p2p import (
     peer_from_addr_entry,
 )
 from btclib.p2p.limits import MAX_ADDR_TO_SEND, MAX_ADDRV2_SIZE
+from tests.strategies.p2p import NETWORK_ADDRESSES_V2, TIMESTAMPED_NETWORK_ADDRESSES
 
 _MAINNET = bytes.fromhex("f9beb4d9")
 
@@ -900,3 +902,25 @@ def test_is_embedded_ipv6_names_the_onioncat_range() -> None:
 def test_is_embedded_ipv6_is_false_for_an_ordinary_ipv6_address() -> None:
     """Outside both reserved ranges, an `IPV6` record is an ordinary peer."""
     assert not is_embedded_ipv6(_v6(address=IPv6Address("2001:db8::1").packed))
+
+
+@given(entry=NETWORK_ADDRESSES_V2)
+def test_a_network_address_v2_round_trips(entry: NetworkAddressV2) -> None:
+    """Parse what serialize writes, whatever network id the entry names."""
+    octets = entry.serialize()
+    assert NetworkAddressV2.parse(octets) == entry
+    assert NetworkAddressV2.parse(octets).serialize() == octets
+
+
+@given(entry=TIMESTAMPED_NETWORK_ADDRESSES)
+def test_an_addr_entry_survives_the_addrv2_translation(
+    entry: TimestampedNetworkAddress,
+) -> None:
+    """An `addr` entry is a peer `addrv2` holds, and `addr_entry` gives it back.
+
+    The other way is not asked: an `IPV6` entry in the IPv4-mapped range
+    comes back as `IPV4`, being the same peer.
+    """
+    peer = peer_from_addr_entry(entry)
+    assert can_addrv1(peer)
+    assert addr_entry(peer) == entry

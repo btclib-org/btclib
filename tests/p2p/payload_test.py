@@ -23,8 +23,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from btclib.block import Block, PartialMerkleTree
+from btclib.block.proof_of_work import REGTEST_POW_LIMIT_BITS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p import (
     Addr,
@@ -72,6 +75,7 @@ from btclib.p2p import (
 from btclib.p2p.message import Message as MessageClass
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests.p2p import payload_types
+from tests.strategies.p2p import PAYLOAD_STRATEGIES, PAYLOADS
 
 _MAINNET = bytes.fromhex("f9beb4d9")
 
@@ -228,3 +232,50 @@ def test_a_payload_type_cannot_be_instantiated_without_a_serialization() -> None
 
     with pytest.raises(TypeError, match="abstract"):
         Incomplete()  # type: ignore[abstract]
+
+
+def test_every_payload_type_has_a_strategy() -> None:
+    """A payload type without a strategy fails here, not in the search."""
+    assert set(PAYLOAD_STRATEGIES) == payload_types()
+
+
+def _round_trip(payload: Payload) -> None:
+    """Assert `parse(serialize(x)) == x`, bare and in an envelope.
+
+    A `BlockPayload` is checked as `tests/block/block_test.py` checks a
+    block: its work is regtest's, which mainnet's limit refuses, so the
+    bytes are written and read unchecked and the parsed block is then
+    asked for regtest's limit.
+    """
+    cls: Any = type(payload)
+    check = not isinstance(payload, BlockPayload)
+
+    octets = payload.serialize(check_validity=check)
+    parsed = cls.parse(octets, check_validity=check)
+    assert parsed == payload
+    assert parsed.serialize(check_validity=check) == octets
+
+    message = Message.parse(
+        payload.to_message(_MAINNET, check_validity=check).serialize()
+    )
+    assert message.command == cls.command
+    assert message.payload == octets
+    assert cls.parse(message.payload, check_validity=check) == payload
+
+    if isinstance(parsed, BlockPayload):
+        parsed.block.assert_valid(REGTEST_POW_LIMIT_BITS)
+
+
+@pytest.mark.parametrize("cls", sorted(PAYLOAD_STRATEGIES, key=str))
+@given(data=st.data())
+def test_a_payload_round_trips_whatever_its_fields_hold(
+    cls: type[Payload], data: st.DataObject
+) -> None:
+    """Each payload type parses what it serializes, over its strategy."""
+    _round_trip(data.draw(PAYLOAD_STRATEGIES[cls]))
+
+
+@given(payload=PAYLOADS)
+def test_any_payload_round_trips(payload: Payload) -> None:
+    """The union of the strategies draws no value that fails to."""
+    _round_trip(payload)

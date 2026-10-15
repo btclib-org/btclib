@@ -42,6 +42,7 @@ from io import BytesIO
 from ipaddress import IPv4Address, IPv6Address
 
 import pytest
+from hypothesis import given
 
 from btclib import var_int
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -54,6 +55,7 @@ from btclib.p2p import (
     TimestampedNetworkAddress,
 )
 from btclib.p2p.limits import MAX_ADDR_TO_SEND
+from tests.strategies.p2p import NETWORK_ADDRESSES, TIMESTAMPED_NETWORK_ADDRESSES
 
 # The Bitcoin Wiki's Protocol documentation, "addr" section: one address,
 # split at the field boundaries the page annotates.
@@ -500,3 +502,21 @@ def test_only_ascii_whitespace_is_stripped_from_an_ip(pad: str) -> None:
     assert NetworkAddress(ip=f"{ws}{ip}{ws}") == NetworkAddress(ip=ip)
     with pytest.raises(BTClibValueError, match="invalid ip: "):
         NetworkAddress(ip=f"{pad}{ip}{pad}")
+
+
+@given(address=NETWORK_ADDRESSES)
+def test_a_network_address_round_trips(address: NetworkAddress) -> None:
+    """Parse what serialize writes, an IPv4 peer held as it is mapped."""
+    octets = address.serialize()
+    assert NetworkAddress.parse(octets) == address
+    assert NetworkAddress.parse(octets).serialize() == octets
+
+
+@given(entry=TIMESTAMPED_NETWORK_ADDRESSES)
+def test_a_timestamped_network_address_round_trips(
+    entry: TimestampedNetworkAddress,
+) -> None:
+    """Parse what serialize writes, the timestamp first."""
+    octets = entry.serialize()
+    assert TimestampedNetworkAddress.parse(octets) == entry
+    assert TimestampedNetworkAddress.parse(octets).serialize() == octets
