@@ -119,6 +119,11 @@ def test_int_from_integer() -> None:
         assert i == int_from_integer(hex_string(i))
         assert i == int_from_integer(i.to_bytes(32, byteorder="big", signed=False))
 
+def test_int_from_integer_rejects_empty_input() -> None:
+    """Empty integer representations are invalid, not zero."""
+    for value in ("", "   ", b""):
+        with pytest.raises(BTClibValueError):
+            int_from_integer(value)
 
 def test_int_from_integer_reads_a_str_as_hex() -> None:
     """Check "1234" reads as 0x1234, and an odd digit count is refused."""
