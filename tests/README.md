@@ -239,6 +239,16 @@ calls `_raw_upload_directory` and does not — so the two names are not
 the same shape, and a download asking for the wrong one answers
 `no artifact matches any of the names or patterns provided`.
 
+`btcd-oracle.yml` reads those artifacts, and the seeds, with btcd's `wire`
+package as well as btclib, and lists each input the two read differently
+that no rule in `fuzz/btcd_oracle.py` explains. To run it by hand, with a Go
+toolchain on `PATH` and `gh run download <run> --dir <dir>` having left the
+artifacts in `<dir>`:
+
+```shell
+uv run --locked python fuzz/btcd_oracle.py fuzz/corpus <dir>
+```
+
 ## There is no `slow` marker, and that is a measurement
 
 `addopts` in pyproject.toml passes `--strict-markers`, so a marker has to
