@@ -146,7 +146,7 @@ from btclib.p2p.limits import (
     MAX_FEATUREID_LENGTH,
     MIN_FEATUREID_LENGTH,
 )
-from btclib.p2p.payload import Payload
+from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
     _message_text,
     assert_no_trailing,
@@ -408,19 +408,19 @@ class FeeFilter(Payload):
 
     def assert_valid(self) -> None:
         """Refuse a fee rate no signed eight octets hold."""
-        # a bool is an int and would read as the fee rate one or zero,
-        # which the range check cannot tell from one whose value that is
-        if not is_integer(self.feerate):
-            err_msg = f"invalid feerate type: {type(self.feerate).__name__}"
-            raise BTClibTypeError(err_msg)
-        if not _MIN_INT64 <= self.feerate <= _MAX_INT64:
-            raise BTClibValueError(f"invalid feerate: {_message_text(self.feerate)}")
+        _assert_valid_int(
+            self.feerate, "feerate", _MIN_INT64, _MAX_INT64, check_validity=True
+        )
 
     @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the eight octets of the fee rate, little-endian."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(
+                self.feerate, "feerate", _MIN_INT64, _MAX_INT64, check_validity=False
+            )
 
         return self.feerate.to_bytes(_FEERATE_SIZE, byteorder="little", signed=True)
 

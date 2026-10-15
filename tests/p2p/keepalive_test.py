@@ -132,6 +132,38 @@ def test_what_no_eight_octets_hold_is_refused() -> None:
         unchecked.serialize()
 
 
+@pytest.mark.parametrize("cls", [Ping, Pong])
+@pytest.mark.parametrize(
+    "nonce", [1.5, None, "1", b"\x01"], ids=["float", "none", "str", "bytes"]
+)
+def test_an_unchecked_nonce_that_is_no_int_is_refused_where_it_is_written(
+    cls: type[Ping | Pong], nonce: object
+) -> None:
+    """`check_validity=False` lets the nonce in, not past `int.to_bytes`."""
+    unchecked = cls(nonce, check_validity=False)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid nonce type"):
+        unchecked.serialize(check_validity=False)
+
+
+@pytest.mark.parametrize("cls", [Ping, Pong])
+@pytest.mark.parametrize("nonce", [-1, 2**64, 2**4300], ids=["-1", "2**64", "2**4300"])
+def test_an_unchecked_nonce_out_of_range_is_refused_where_it_is_written(
+    cls: type[Ping | Pong], nonce: int
+) -> None:
+    """Eight unsigned octets hold 0 to 2**64 - 1, and no more."""
+    unchecked = cls(nonce, check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid nonce"):
+        unchecked.serialize(check_validity=False)
+
+
+def test_an_unchecked_nonce_the_octets_hold_is_written() -> None:
+    """The edges of the range, and a bool that only `check_validity` refuses."""
+    for nonce in (0, 2**64 - 1, True):
+        unchecked = Ping(nonce, check_validity=False)
+        written = int(nonce).to_bytes(8, "little")
+        assert unchecked.serialize(check_validity=False) == written
+
+
 def test_the_octets_end_where_the_nonce_does() -> None:
     """A short read is a truncation and what follows is refused."""
     for size in range(8):

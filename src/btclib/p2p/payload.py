@@ -55,7 +55,9 @@ from abc import ABC, abstractmethod
 from typing import ClassVar
 
 from btclib.alias import Octets
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.message import Message
+from btclib.utils import _message_text
 
 __all__ = [
     "Payload",
@@ -114,3 +116,26 @@ class Payload(ABC):
             self.serialize(check_validity=check_validity),
             check_validity=check_validity,
         )
+
+
+def _assert_valid_int(
+    value: int, what: str, low: int, high: int, *, check_validity: bool
+) -> None:
+    """Refuse a field the octets of its width do not hold.
+
+    A non-int is a `BTClibTypeError` and an int outside `low` to `high` a
+    `BTClibValueError`, where `int.to_bytes` would raise `AttributeError`
+    and `OverflowError`. Private and unvalidated of `what`, as a private
+    twin is: every caller hands it a literal.
+
+    With `check_validity` False a bool is written as zero or one; with it
+    True a bool is refused.
+    """
+    if not isinstance(value, int):
+        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+    # a bool is an int and would read as one or zero, which the range
+    # check below cannot tell from a field whose value that is
+    if check_validity and isinstance(value, bool):
+        raise BTClibTypeError(f"invalid {what} type: bool")
+    if not low <= value <= high:
+        raise BTClibValueError(f"invalid {what}: {_message_text(value)}")

@@ -160,7 +160,7 @@ from btclib.hashes import siphash
 # it put them, as `btclib.p2p.block_filters` imports the same three
 from btclib.p2p.inventory import _HASH_SIZE, _assert_valid_hash, _sequence_of
 from btclib.p2p.limits import MAX_BLOCK_TX_INDEX
-from btclib.p2p.payload import Payload
+from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.tx.tx import Tx
 from btclib.utils import (
     _message_text,
@@ -201,6 +201,7 @@ _VERSION_SIZE = 8
 _MAX_NONCE = (1 << (8 * _NONCE_SIZE)) - 1
 _MAX_SHORT_ID = (1 << (8 * _SHORT_ID_SIZE)) - 1
 _MAX_VERSION = (1 << (8 * _VERSION_SIZE)) - 1
+_MAX_OCTET = 0xFF
 
 # what a first index is measured from: BIP152's differential encoding is
 # "the difference between the current index and the previous index, minus
@@ -209,17 +210,24 @@ _MAX_VERSION = (1 << (8 * _VERSION_SIZE)) - 1
 _NO_PREVIOUS_INDEX = -1
 
 
-def _assert_valid_index(index: int, what: str) -> None:
+def _assert_valid_index(index: int, what: str, *, check_validity: bool) -> None:
     """Refuse an index sixteen bits do not hold.
 
     Private and unvalidated of `what`, as a private twin is: every caller
     hands it a literal of this module.
+
+    With `check_validity` False only an int is asked for: an unchecked
+    index may be a running one past the top (see
+    `PrefilledTransaction.parse`), and a bool is written as zero or one.
+    With it True the index is also in range and not a bool.
     """
+    if not isinstance(index, int):
+        raise BTClibTypeError(f"invalid {what} type: {type(index).__name__}")
     # a bool is an int and would read as index one or zero, which the
     # range check below cannot tell from an index whose value that is
-    if not is_integer(index):
-        raise BTClibTypeError(f"invalid {what} type: {type(index).__name__}")
-    if not 0 <= index <= MAX_BLOCK_TX_INDEX:
+    if check_validity and isinstance(index, bool):
+        raise BTClibTypeError(f"invalid {what} type: bool")
+    if check_validity and not 0 <= index <= MAX_BLOCK_TX_INDEX:
         raise BTClibValueError(f"invalid {what}: {_message_text(index)}")
 
 
@@ -402,19 +410,23 @@ class SendCmpct(Payload):
         # push every new block
         assert_type(self.announce, bool, "announce")
 
-        # a bool is an int and would read as version one or zero, which
-        # the range check cannot tell from a version whose value that is
-        if not is_integer(self.version):
-            err_msg = f"invalid version type: {type(self.version).__name__}"
-            raise BTClibTypeError(err_msg)
-        if not 0 <= self.version <= _MAX_VERSION:
-            raise BTClibValueError(f"invalid version: {_message_text(self.version)}")
+        _assert_valid_int(self.version, "version", 0, _MAX_VERSION, check_validity=True)
 
     @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the announce octet, then the eight of the version."""
         if check_validity:
             self.assert_valid()
+        else:
+            # the announce octet is written through `int`, which would
+            # write one for `1.5` and `"1"` and raise its own error on
+            # `"no"` and `None`: only an int is written
+            _assert_valid_int(
+                self.announce, "announce", 0, _MAX_OCTET, check_validity=False
+            )
+            _assert_valid_int(
+                self.version, "version", 0, _MAX_VERSION, check_validity=False
+            )
 
         out = int(self.announce).to_bytes(1, byteorder="little")
         out += self.version.to_bytes(_VERSION_SIZE, byteorder="little", signed=False)
@@ -486,7 +498,7 @@ class PrefilledTransaction:
 
     def assert_valid(self) -> None:
         """Refuse an index sixteen bits do not hold, and what is no valid tx."""
-        _assert_valid_index(self.index, "index")
+        _assert_valid_index(self.index, "index", check_validity=True)
         _assert_valid_transaction(self.tx, "tx")
 
     def serialize(
@@ -505,6 +517,8 @@ class PrefilledTransaction:
         """
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_index(self.index, "index", check_validity=False)
 
         _assert_previous_index(previous_index, check_validity=check_validity)
         difference = self.index - previous_index - 1
@@ -623,7 +637,12 @@ class CmpctBlock(Payload):
         short ids, which is what BIP152 asks for -- "Nodes SHOULD NOT use
         the same nonce across multiple different blocks" -- so that a
         collision is one peer's and not the network's.
+
+        A nonce that is not an int is a `BTClibTypeError` and one outside
+        eight unsigned octets a `BTClibValueError`, whatever
+        `check_validity` the message was built with.
         """
+        _assert_valid_int(self.nonce, "nonce", 0, _MAX_NONCE, check_validity=False)
         preimage = self.header.serialize(check_validity=False)
         preimage += self.nonce.to_bytes(_NONCE_SIZE, byteorder="little", signed=False)
         digest = hashlib.sha256(preimage).digest()
@@ -651,19 +670,12 @@ class CmpctBlock(Payload):
         """Refuse a header, a nonce, a short id or an index the fields lack."""
         _assert_valid_header(self.header)
 
-        # a bool is an int and would read as the nonce one or zero, which
-        # the range check cannot tell from a nonce whose value that is
-        if not is_integer(self.nonce):
-            raise BTClibTypeError(f"invalid nonce type: {type(self.nonce).__name__}")
-        if not 0 <= self.nonce <= _MAX_NONCE:
-            raise BTClibValueError(f"invalid nonce: {_message_text(self.nonce)}")
+        _assert_valid_int(self.nonce, "nonce", 0, _MAX_NONCE, check_validity=True)
 
         for short_id in self.short_ids:
-            if not is_integer(short_id):
-                err_msg = f"invalid short id type: {type(short_id).__name__}"
-                raise BTClibTypeError(err_msg)
-            if not 0 <= short_id <= _MAX_SHORT_ID:
-                raise BTClibValueError(f"invalid short id: {_message_text(short_id)}")
+            _assert_valid_int(
+                short_id, "short id", 0, _MAX_SHORT_ID, check_validity=True
+            )
 
         for prefilled_tx in self.prefilled_txns:
             if not isinstance(prefilled_tx, PrefilledTransaction):
@@ -682,6 +694,12 @@ class CmpctBlock(Payload):
         """Return the header, the nonce, then the two vectors."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(self.nonce, "nonce", 0, _MAX_NONCE, check_validity=False)
+            for short_id in self.short_ids:
+                _assert_valid_int(
+                    short_id, "short id", 0, _MAX_SHORT_ID, check_validity=False
+                )
 
         out = self.header.serialize(check_validity=check_validity)
         out += self.nonce.to_bytes(_NONCE_SIZE, byteorder="little", signed=False)
@@ -788,7 +806,7 @@ class GetBlockTxn(Payload):
 
         _assert_valid_count(len(self.indexes), "indexes")
         for index in self.indexes:
-            _assert_valid_index(index, "index")
+            _assert_valid_index(index, "index", check_validity=True)
         _assert_increasing(self.indexes, "indexes")
 
     @override
@@ -796,6 +814,9 @@ class GetBlockTxn(Payload):
         """Return the block hash, the count, then the differences."""
         if check_validity:
             self.assert_valid()
+        else:
+            for index in self.indexes:
+                _assert_valid_index(index, "index", check_validity=False)
 
         out = self.block_hash[::-1]
         out += var_int.serialize(len(self.indexes))
@@ -818,7 +839,7 @@ class GetBlockTxn(Payload):
         previous_index = _NO_PREVIOUS_INDEX
         for _ in range(count):
             index = previous_index + 1 + var_int.parse(stream, MAX_BLOCK_TX_INDEX)
-            _assert_valid_index(index, "index")
+            _assert_valid_index(index, "index", check_validity=True)
             indexes.append(index)
             previous_index = index
         assert_no_trailing(data, stream, "getblocktxn payload")
