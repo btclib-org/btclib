@@ -665,8 +665,9 @@ def int_from_integer(i: Integer) -> int:
     # both being bytes_from_octets's to give
     octets = bytes_from_octets(i)
     if not octets:
-        raise BTClibValueError("invalid hex integer: empty input")
+        raise BTClibValueError("invalid integer: empty input")
     return int.from_bytes(octets, "big", signed=False)
+
 
 def hex_string(i: Integer) -> str:
     """Return a hex-string from many positive integer representations.
