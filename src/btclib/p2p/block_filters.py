@@ -124,7 +124,7 @@ from typing_extensions import override
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
 from btclib.block.block_filter import BasicBlockFilter, filter_header
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibValueError
 
 # the thirty-two octets of a hash256 and the two checks over them, which
 # is one fact for this package and lives where the first module needing
@@ -136,7 +136,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 # after it, as `inventory._LocatorPayload` composes the two
 from btclib.p2p.inventory import _HASH_SIZE, _assert_valid_hash, _sequence_of
 from btclib.p2p.limits import CFCHECKPT_INTERVAL, MAX_GETCFHEADERS_SIZE
-from btclib.p2p.payload import Payload
+from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
     _message_text,
     assert_no_trailing,
@@ -211,13 +211,7 @@ def _block_filter_type_from_int(filter_type: int) -> BlockFilterType | int:
 
 def _assert_valid_type(filter_type: BlockFilterType | int) -> None:
     """Refuse a filter type no octet holds."""
-    # a bool is an int and would read as BASIC, which the range check
-    # below cannot tell from the code whose value that is
-    if not is_integer(filter_type):
-        err_msg = f"invalid filter_type type: {type(filter_type).__name__}"
-        raise BTClibTypeError(err_msg)
-    if not 0 <= filter_type <= _MAX_TYPE:
-        raise BTClibValueError(f"invalid filter_type: {_message_text(filter_type)}")
+    _assert_valid_int(filter_type, "filter_type", 0, _MAX_TYPE, check_validity=True)
 
 
 @dataclass(frozen=True)
@@ -261,14 +255,9 @@ class _FilterRangeRequest(Payload):
         """Refuse a type, a height or a stop hash the fields cannot hold."""
         _assert_valid_type(self.filter_type)
 
-        # a bool is an int and would read as height one or zero, which
-        # the range check cannot tell from a height whose value that is
-        if not is_integer(self.start_height):
-            err_msg = f"invalid start_height type: {type(self.start_height).__name__}"
-            raise BTClibTypeError(err_msg)
-        if not 0 <= self.start_height <= _MAX_HEIGHT:
-            err_msg = f"invalid start_height: {_message_text(self.start_height)}"
-            raise BTClibValueError(err_msg)
+        _assert_valid_int(
+            self.start_height, "start_height", 0, _MAX_HEIGHT, check_validity=True
+        )
 
         _assert_valid_hash(self.stop_hash, "stop_hash length")
 
@@ -277,6 +266,17 @@ class _FilterRangeRequest(Payload):
         """Return the type, the height, then the stop hash."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(
+                self.filter_type, "filter_type", 0, _MAX_TYPE, check_validity=False
+            )
+            _assert_valid_int(
+                self.start_height,
+                "start_height",
+                0,
+                _MAX_HEIGHT,
+                check_validity=False,
+            )
 
         out = int(self.filter_type).to_bytes(_TYPE_SIZE, byteorder="little")
         out += self.start_height.to_bytes(_HEIGHT_SIZE, byteorder="little")
@@ -421,6 +421,10 @@ class CFilter(Payload):
         """Return the type, the block hash, then the filter behind a length."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(
+                self.filter_type, "filter_type", 0, _MAX_TYPE, check_validity=False
+            )
 
         out = int(self.filter_type).to_bytes(_TYPE_SIZE, byteorder="little")
         out += self.block_hash[::-1]
@@ -553,6 +557,10 @@ class CFHeaders(Payload):
         """Return the type, the two hashes, then the count and the vector."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(
+                self.filter_type, "filter_type", 0, _MAX_TYPE, check_validity=False
+            )
 
         out = int(self.filter_type).to_bytes(_TYPE_SIZE, byteorder="little")
         out += self.stop_hash[::-1]
@@ -644,6 +652,10 @@ class GetCFCheckpt(Payload):
         """Return the type code, then the stop hash."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(
+                self.filter_type, "filter_type", 0, _MAX_TYPE, check_validity=False
+            )
 
         out = int(self.filter_type).to_bytes(_TYPE_SIZE, byteorder="little")
         out += self.stop_hash[::-1]
@@ -746,6 +758,10 @@ class CFCheckpt(Payload):
         """Return the type, the stop hash, then the count and the vector."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(
+                self.filter_type, "filter_type", 0, _MAX_TYPE, check_validity=False
+            )
 
         out = int(self.filter_type).to_bytes(_TYPE_SIZE, byteorder="little")
         out += self.stop_hash[::-1]

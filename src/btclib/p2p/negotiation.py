@@ -140,7 +140,7 @@ from typing_extensions import override
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibValueError
 from btclib.p2p.limits import (
     MAX_FEATUREDATA_LENGTH,
     MAX_FEATUREID_LENGTH,
@@ -148,11 +148,9 @@ from btclib.p2p.limits import (
 )
 from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
-    _message_text,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
-    is_integer,
     read_exactly,
 )
 
@@ -479,25 +477,21 @@ class SendTxRcncl(Payload):
 
     def assert_valid(self) -> None:
         """Refuse a field no unsigned wire value of its own width holds."""
-        # a bool is an int and would read as the field one or zero, which
-        # the range check cannot tell from a value that is one or zero
-        if not is_integer(self.version):
-            err_msg = f"invalid version type: {type(self.version).__name__}"
-            raise BTClibTypeError(err_msg)
-        if not 0 <= self.version <= _MAX_RECON_VERSION:
-            raise BTClibValueError(f"invalid version: {_message_text(self.version)}")
-
-        if not is_integer(self.salt):
-            err_msg = f"invalid salt type: {type(self.salt).__name__}"
-            raise BTClibTypeError(err_msg)
-        if not 0 <= self.salt <= _MAX_SALT:
-            raise BTClibValueError(f"invalid salt: {_message_text(self.salt)}")
+        _assert_valid_int(
+            self.version, "version", 0, _MAX_RECON_VERSION, check_validity=True
+        )
+        _assert_valid_int(self.salt, "salt", 0, _MAX_SALT, check_validity=True)
 
     @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the version and the salt, both little-endian."""
         if check_validity:
             self.assert_valid()
+        else:
+            _assert_valid_int(
+                self.version, "version", 0, _MAX_RECON_VERSION, check_validity=False
+            )
+            _assert_valid_int(self.salt, "salt", 0, _MAX_SALT, check_validity=False)
 
         out = self.version.to_bytes(
             _RECON_VERSION_SIZE, byteorder="little", signed=False
