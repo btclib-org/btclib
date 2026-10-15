@@ -16,6 +16,7 @@ from typing import Any
 
 import pytest
 
+from btclib.amount import _MAX_SATOSHI
 from btclib.exceptions import BTClibValueError
 from btclib.script import ScriptPubKey
 from btclib.script.engine import (
@@ -347,6 +348,56 @@ def test_invalid_amount() -> None:
     # Output amount greater than sum of inputs
     with pytest.raises(BTClibValueError):
         verify_amounts([prevout], tx)
+
+
+def test_invalid_total_input_amount() -> None:
+    """Refuse prevouts whose total exceeds MAX_MONEY.
+
+    Each prevout is in range and the output does not exceed their total,
+    so only the bound on the total refuses them.
+    """
+    prevout = TxOut(_MAX_SATOSHI, ScriptPubKey(""))
+
+    tx = Tx(
+        vin=[TxIn(OutPoint(b"1" * 32, 1)), TxIn(OutPoint(b"1" * 32, 2))],
+        vout=[TxOut(_MAX_SATOSHI, ScriptPubKey(""))],
+    )
+
+    with pytest.raises(BTClibValueError, match="invalid total input amount"):
+        verify_amounts([prevout, prevout], tx)
+
+
+def test_total_input_amount_at_max_money() -> None:
+    """Accept prevouts whose total is exactly MAX_MONEY."""
+    prevouts = [
+        TxOut(_MAX_SATOSHI - 1, ScriptPubKey("")),
+        TxOut(1, ScriptPubKey("")),
+    ]
+
+    tx = Tx(
+        vin=[TxIn(OutPoint(b"1" * 32, 1)), TxIn(OutPoint(b"1" * 32, 2))],
+        vout=[TxOut(_MAX_SATOSHI, ScriptPubKey(""))],
+    )
+
+    verify_amounts(prevouts, tx)
+
+
+def test_invalid_prevout_amount() -> None:
+    """Refuse a negative prevout value.
+
+    The two prevouts together cover the output, so only the bound on
+    each prevout refuses it.
+    """
+    prevout = TxOut(20, ScriptPubKey(""))
+    negative = TxOut(-10, ScriptPubKey(""), check_validity=False)
+
+    tx = Tx(
+        vin=[TxIn(OutPoint(b"1" * 32, 1)), TxIn(OutPoint(b"1" * 32, 2))],
+        vout=[TxOut(10, ScriptPubKey(""))],
+    )
+
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
+        verify_amounts([prevout, negative], tx)
 
 
 def test_a_prevout_per_input() -> None:

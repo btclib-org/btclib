@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from btclib.alias import ScriptType
+from btclib.amount import _MAX_SATOSHI, valid_sats_amount
 from btclib.consensus import WITNESS_SCALE_FACTOR
 from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
 from btclib.hashes import sha256
@@ -549,8 +550,20 @@ def verify_amounts(prevouts: list[TxOut], tx: Tx) -> None:
     The difference is the fee, and a negative fee is money printed;
     script validation never reads the amounts except through the
     sig_hash, so this is a check of its own rather than a flag.
+
+    Each prevout value and their running total must also be in
+    0..MAX_MONEY, as Core's `Consensus::CheckTxInputs` requires
+    (`bad-txns-inputvalues-outofrange`): the prevouts come from the
+    caller, and nothing else bounds them.
     """
-    if sum(x.value for x in tx.vout) > sum(x.value for x in prevouts):
+    total = 0
+    for prevout in prevouts:
+        valid_sats_amount(prevout.value)
+        total += prevout.value
+        if total > _MAX_SATOSHI:
+            raise BTClibValueError(f"invalid total input amount: {total}")
+
+    if sum(x.value for x in tx.vout) > total:
         raise BTClibValueError("Invalid transaction amounts")
 
 
