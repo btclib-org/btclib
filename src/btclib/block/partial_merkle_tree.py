@@ -68,6 +68,7 @@ from btclib.block.limits import MAX_BLOCK_WEIGHT, MIN_SERIALIZABLE_TRANSACTION_W
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.utils import (
+    _assert_valid_4_byte_field,
     _message_text,
     assert_no_trailing,
     assert_type,
@@ -422,9 +423,16 @@ class PartialMerkleTree:
         return self._walk()[1]
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
-        """Return the count, then the hash vector, then the flag octets."""
+        """Return the count, then the hash vector, then the flag octets.
+
+        With `check_validity` False the walk is skipped and the count is
+        still checked, by `btclib.utils._assert_valid_4_byte_field`.
+        """
         if check_validity:
             self.assert_valid()
+        else:
+            # assert_valid checks this field when the flag is set
+            _assert_valid_4_byte_field("n_transactions", self.n_transactions)
 
         out = self.n_transactions.to_bytes(_TRANSACTIONS_SIZE, byteorder="little")
         out += var_int.serialize(len(self.hashes))
