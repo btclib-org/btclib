@@ -47,6 +47,9 @@ What belongs here is everything btclib does around the arithmetic:
 - the Python arm of each operation btclib delegates itself, which is what
     runs whenever the conditions below are not met
 - the distributions published to PyPI and their provenance
+- a refusal that prints more of a value that may be secret than
+    [*A refusal carries no secret*](https://github.com/btclib-org/.github/blob/main/README.md#a-refusal-carries-no-secret)
+    allows
 
 Report it wherever you found it, though: routing a report is the
 maintainers' job, not the reporter's, and a doubt about which project
