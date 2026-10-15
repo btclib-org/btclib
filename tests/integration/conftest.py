@@ -25,12 +25,15 @@ the reason none of the defaults -- port 18443, ~/.bitcoin -- is used.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import socket
 import subprocess
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Sequence
+from dataclasses import dataclass
 from pathlib import Path
+from typing import TypeVar
 
 import pytest
 from bitcoin_core_rpc import BitcoinCoreRpcClient
@@ -45,8 +48,8 @@ _STARTUP_TIMEOUT = 30.0
 # so that a bitcoind that stops answering fails the test waiting on it
 # instead of hanging the run until the workflow's timeout-minutes ends
 # the job. The session's first test pays the node's startup and its last
-# the node's shutdown. The shutdown waits at most _STARTUP_TIMEOUT; the
-# startup's deadline is _STARTUP_TIMEOUT too, but it is read between
+# the node's shutdown. The shutdown waits at most _STOP_TIMEOUT; the
+# startup's deadline is _STARTUP_TIMEOUT, but it is read between
 # calls, and the call in flight can outlast it by bitcoin_core_rpc's own
 # DEFAULT_TIMEOUT. This sits above those three together plus the slowest
 # test: the fixture's own deadlines, which say what they were waiting
@@ -57,6 +60,30 @@ _STARTUP_TIMEOUT = 30.0
 # (integration-bitcoind run 36309935817). `--durations=0
 # --durations-min=0` on the run the module docstring gives re-derives it
 _TEST_TIMEOUT = 120.0
+
+# how many times the node is started, each on ports of its own, while a
+# port it was given is taken
+_BIND_ATTEMPTS = 5
+
+# what Core writes to debug.log of a port that is taken, read at Bitcoin
+# Core commit cce32b16874e and at v31.1, the release the workflow pins.
+# The p2p listener says so (src/net.cpp). The rpc server has one
+# endpoint (`-rpcallowip` below) and, where it cannot bind it, exits with
+# "Unable to bind any endpoint for RPC server" and does not say why in
+# v31.1 (src/httpserver.cpp); on a port picked a moment before, a taken
+# port is the cause. The rpc line reaches only the log, stderr saying only
+# "Unable to start HTTP server", so the log is what is read for both.
+# Other bind errors in net.cpp say "(bind returned error ...)" instead and
+# are not retried
+_PORT_TAKEN = re.compile(
+    r"Unable to bind to \S+ on this computer\. .+ is probably already running"
+    r"|Unable to bind any endpoint for RPC server"
+)
+
+# how long a terminated node is given to exit
+_STOP_TIMEOUT = 30.0
+
+_T = TypeVar("_T")
 
 _HERE = Path(__file__).parent
 
@@ -100,24 +127,48 @@ def bitcoind_path() -> str:
     return path
 
 
-@pytest.fixture(scope="session")
-def p2p_port() -> int:
-    """Return the port `node` below binds its p2p listener to.
+class PortTaken(Exception):  # noqa: N818
+    """The node exited because a port it was given is held by another."""
 
-    A fixture of its own rather than a value read off `node` after the
-    fact: a p2p test needs the number before the node exists, to build
-    the `addr_recv` its own `Version` names, and a session-scoped
-    fixture is what lets both `node` and a p2p test request the same
-    port without either constructing it.
+
+def port_was_taken(log: str) -> bool:
+    """Return whether the node's log says a port it was given is taken."""
+    return _PORT_TAKEN.search(log) is not None
+
+
+def start_on_free_ports(start: Callable[[], _T], attempts: int = _BIND_ATTEMPTS) -> _T:
+    """Return what `start` returns, calling it again while a port is taken.
+
+    `_free_port` closes the port it picked, so another process can bind
+    it before the node does, and the node then exits. `start` picks its
+    ports itself, so each call is a fresh try; the last attempt's
+    `PortTaken` is not caught.
     """
-    return _free_port()
+    for _ in range(attempts - 1):
+        try:
+            return start()
+        except PortTaken:
+            continue
+    return start()
 
 
-@pytest.fixture(scope="session")
-def node(
-    bitcoind_path: str, p2p_port: int, tmp_path_factory: pytest.TempPathFactory
-) -> Iterator[BitcoinCoreRpcClient]:
-    """Yield an rpc client of a regtest node started for this session.
+@dataclass(frozen=True)
+class RunningNode:
+    """A started node: its rpc client, its p2p port and its process."""
+
+    client: BitcoinCoreRpcClient
+    p2p_port: int
+    process: subprocess.Popen[bytes]
+
+
+def _stop(process: subprocess.Popen[bytes]) -> None:
+    """Terminate the process and wait for it."""
+    process.terminate()
+    process.wait(timeout=_STOP_TIMEOUT)
+
+
+def _start_node(bitcoind: Sequence[str], datadir: Path) -> RunningNode:
+    """Return a node on rpc and p2p ports of its own, once it answers.
 
     `-fallbackfee` because a regtest chain has no fee history to estimate
     from, and Core refuses to fund a transaction without one; the wallet
@@ -136,16 +187,22 @@ def node(
     asked of the gateway, a public address looked up, a Tor control port
     dialled -- which is not what a throwaway regtest node wants of a
     developer's own network.
+
+    A node that does not answer is stopped, so a failed try leaves no
+    process behind.
     """
-    datadir = tmp_path_factory.mktemp("regtest")
-    port = _free_port()
+    port, p2p_port = _free_port(), _free_port()
     process = subprocess.Popen(  # noqa: S603
         [
-            bitcoind_path,
+            *bitcoind,
             "-regtest",
             f"-datadir={datadir}",
             f"-rpcport={port}",
             "-rpcbind=127.0.0.1",
+            # Core ignores `-rpcbind` without it and binds ::1 as well as
+            # 127.0.0.1. A taken 127.0.0.1 port then leaves the node up on
+            # ::1, which the client does not dial, instead of exiting
+            "-rpcallowip=127.0.0.1",
             f"-bind=127.0.0.1:{p2p_port}",
             "-natpmp=0",
             "-discover=0",
@@ -164,18 +221,63 @@ def node(
         f"http://127.0.0.1:{port}", cookie_path=datadir / "regtest" / ".cookie"
     )
     try:
-        _wait_for(client, process)
-        yield client
+        _wait_for(client, process, datadir / "regtest" / "debug.log")
+    except BaseException:
+        _stop(process)
+        raise
+    return RunningNode(client, p2p_port, process)
+
+
+@pytest.fixture(scope="session")
+def running_node(
+    bitcoind_path: str, tmp_path_factory: pytest.TempPathFactory
+) -> Iterator[RunningNode]:
+    """Yield a regtest node started for this session.
+
+    Each try has a data directory of its own, so that a node that exited
+    on a taken port leaves nothing the next one reads.
+    """
+    started = start_on_free_ports(
+        lambda: _start_node([bitcoind_path], tmp_path_factory.mktemp("regtest"))
+    )
+    try:
+        yield started
     finally:
-        process.terminate()
-        process.wait(timeout=_STARTUP_TIMEOUT)
+        _stop(started.process)
 
 
-def _wait_for(client: BitcoinCoreRpcClient, process: subprocess.Popen[bytes]) -> None:
-    """Poll until the node answers, or fail with what it did instead."""
+@pytest.fixture(scope="session")
+def p2p_port(running_node: RunningNode) -> int:
+    """Return the port the node's p2p listener is bound to.
+
+    A fixture of its own so that a p2p test asks for the port alone.
+    """
+    return running_node.p2p_port
+
+
+@pytest.fixture(scope="session")
+def node(running_node: RunningNode) -> BitcoinCoreRpcClient:
+    """Return an rpc client of the regtest node started for this session."""
+    return running_node.client
+
+
+def _wait_for(
+    client: BitcoinCoreRpcClient, process: subprocess.Popen[bytes], log: Path
+) -> None:
+    """Poll until the node answers, or fail with what it did instead.
+
+    A node that exits with a taken port in its `log` raises `PortTaken`.
+    """
     deadline = time.monotonic() + _STARTUP_TIMEOUT
     while time.monotonic() < deadline:
         if process.poll() is not None:
+            text = (
+                log.read_text(encoding="utf-8", errors="replace")
+                if log.exists()
+                else ""
+            )
+            if port_was_taken(text):
+                raise PortTaken(text)
             pytest.fail(f"bitcoind exited with {process.returncode}")
         try:
             client.call("getblockchaininfo")
