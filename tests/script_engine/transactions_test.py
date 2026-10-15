@@ -351,14 +351,10 @@ def test_invalid_amount() -> None:
 
 
 def test_invalid_total_input_amount() -> None:
-    """Refuse inputs summing to more money than there is.
+    """Refuse prevouts whose total exceeds MAX_MONEY.
 
-    A prevout is not something the transaction carries: the caller
-    brings it from outside, where Tx.assert_valid has judged the
-    outputs the transaction was built with and nothing has judged this
-    one. The comparison below it is no guard -- two outputs worth
-    MAX_MONEY each fund one worth MAX_MONEY with the fee zero, so only
-    the bound on the inputs themselves refuses it.
+    Each prevout is in range and the output does not exceed their total,
+    so only the bound on the total refuses them.
     """
     prevout = TxOut(_MAX_SATOSHI, ScriptPubKey(""))
 
@@ -371,16 +367,26 @@ def test_invalid_total_input_amount() -> None:
         verify_amounts([prevout, prevout], tx)
 
 
+def test_total_input_amount_at_max_money() -> None:
+    """Accept prevouts whose total is exactly MAX_MONEY."""
+    prevouts = [
+        TxOut(_MAX_SATOSHI - 1, ScriptPubKey("")),
+        TxOut(1, ScriptPubKey("")),
+    ]
+
+    tx = Tx(
+        vin=[TxIn(OutPoint(b"1" * 32, 1)), TxIn(OutPoint(b"1" * 32, 2))],
+        vout=[TxOut(_MAX_SATOSHI, ScriptPubKey(""))],
+    )
+
+    verify_amounts(prevouts, tx)
+
+
 def test_invalid_prevout_amount() -> None:
     """Refuse a negative prevout value.
 
-    Built with check_validity=False because that is how a value off
-    chain gets here: the prevouts come from the caller, one per input,
-    and a negative one is a caller's bug that nothing before this
-    catches. Worth an input of its own beside a sound one, rather than
-    alone, since a lone negative prevout already spoils the sum in the
-    comparison the check was: the two together have a total an output
-    can be paid out of, so only the bound on each prevout refuses it.
+    The two prevouts together cover the output, so only the bound on
+    each prevout refuses it.
     """
     prevout = TxOut(20, ScriptPubKey(""))
     negative = TxOut(-10, ScriptPubKey(""), check_validity=False)

@@ -551,13 +551,10 @@ def verify_amounts(prevouts: list[TxOut], tx: Tx) -> None:
     script validation never reads the amounts except through the
     sig_hash, so this is a check of its own rather than a flag.
 
-    The inputs are bounded as well, one by one and as a running total:
-    a prevout is what the caller brings from outside the transaction,
-    where `Tx.assert_valid` judged the outputs it was built with, so
-    nothing has judged it -- and a negative or oversized one spoils the
-    comparison below on its own rather than through the fee. Each is
-    also cumulative: two prevouts worth MAX_MONEY each have a total
-    past the cap, which the per-prevout check above them lets through.
+    Each prevout value and their running total must also be in
+    0..MAX_MONEY, as Core's `Consensus::CheckTxInputs` requires
+    (`bad-txns-inputvalues-outofrange`): the prevouts come from the
+    caller, and nothing else bounds them.
     """
     total = 0
     for prevout in prevouts:
