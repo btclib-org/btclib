@@ -928,9 +928,11 @@ repos:
   # is on PATH for every hook here, the lint gate itself being `uv run
   # pre-commit run --all-files`. `--only-group check` adds that group to
   # the environment the gate runs from and takes nothing out of it, and
-  # installs no project, so nothing is compiled. `-d --min=10 .`,
-  # `pass_filenames` and `always_run` are the upstream hook's own
-  # definition, written out because a local hook cannot inherit one.
+  # installs no project; `--no-build` makes a dependency with no wheel
+  # fail rather than compile, as section 4 of the organization standard
+  # says. `-d --min=10 .`, `pass_filenames` and `always_run` are the
+  # upstream hook's own definition, written out because a local hook
+  # cannot inherit one.
   #
   # The backend is pyproject.toml's `uv_build`, in the same group: pyroma
   # builds this project to read its metadata and its command line has no
@@ -952,7 +954,7 @@ repos:
       - id: pyroma
         name: pyroma (the packaging rating of the source tree)
         language: system
-        entry: uv run --locked --only-group check pyroma
+        entry: uv run --locked --no-build --only-group check pyroma
         args: [-d, --min=10, .]
         pass_filenames: false
         always_run: true
