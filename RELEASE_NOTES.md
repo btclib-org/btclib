@@ -19,6 +19,61 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.10.16
+
+- **btclib 2026.9.29 to 2026.10.9 fail at import beside btclib-ecc
+  2026.10.16** (issue btclib-org/.github#1742). Importing `btclib.key` or
+  `btclib.script` raises `ImportError`: btclib-ecc 2026.10.16 renames
+  `point_from_octets` and `ssa.point_from_bip340pub_key` to
+  `point_from_octets_var` and `point_from_bip340pub_key_var`, with no alias.
+  Upgrade to this release, or keep btclib-ecc below 2026.10.16.
+
+### Breaking changes
+
+- **btclib requires btclib-ecc 2026.10.16** (issue btclib-org/.github#1742).
+  Act on it if you pin btclib-ecc lower, or import either renamed function
+  from it: use the `_var` name.
+- **`hex_string`, `str_from_string` and `base58.decode` refuse in other
+  words** (issue #2625). `hex_string` does not quote a negative integer.
+  The other two name the position of a non-ASCII character, not the
+  character, and so do their callers, `b58.prv_key_data_from_wif` included.
+  Act on it if you match the message.
+- **`int_from_integer` refuses an empty string or empty bytes** (closes
+  #2671). It returned 0. Act on it if you pass an empty value: pass 0.
+- **`script.parse` and `taproot.parse` return `OP_0` for the empty pushes
+  `4c00`, `4d0000` and `4e00000000`** (closes #2607). They returned `""`, and
+  so did `Script.asm` and the asm of `script_to_dict`. `script_from_dict`
+  refuses a dict an older btclib wrote with `"asm": ""` beside such a hex.
+  Act on it if you test a command against `""`, or read stored dicts: test
+  against `"OP_0"`, and drop the asm, the hex alone being read.
+- **Serializers with `check_validity=False` refuse an int field, or a
+  header's time, of the wrong type or range with `BTClibTypeError` or
+  `BTClibValueError`** (issues #2640, #2644, #2654, #2655, #2656, #2658, #2663,
+  #2664, #2665, #2666). They raised `AttributeError`, `OverflowError`,
+  `TypeError` or `ValueError`, and some p2p fields wrote a float or a str that
+  `int` reads. This holds for `Tx`, `TxIn`, `OutPoint`, `TxOut`, `BlockHeader`
+  and the p2p payloads. Act on it if you catch `AttributeError` or
+  `OverflowError` there: catch the btclib errors, which are a `TypeError` and
+  a `ValueError`.
+- **`TxOut` refuses a value that is not an int** (issue #2654). It built the
+  output from a str, `None`, or a float or `Decimal` of whole value; it raises
+  `BTClibTypeError`. Act on it if you pass one: pass an int of satoshis.
+- **The signature hashes refuse a bool or a float in the sequence, vout,
+  version, lock time and amount** (closes #2627, closes #2640). `legacy`,
+  `segwit_v0` and the taproot `from_tx` raise `BTClibTypeError`, where a bool
+  was hashed as 0 or 1. Act on it if you pass a bool: pass an int.
+- **`verify_amounts` refuses a prevout value outside 0..MAX_MONEY, or a total
+  past MAX_MONEY** (closes #2670), as Core's `Consensus::CheckTxInputs` does.
+  It passed them. Act on it if you relied on that: Core refuses such a
+  transaction.
+- **`encode_request` takes only a list or a tuple as `params`, and the
+  Electrum request builders refuse a malformed argument** (closes #2629). A
+  string, a set or a generator as `params` raises `BTClibTypeError`; it was
+  read as a list of its items. `block_header_request` refuses a negative
+  height, every builder refuses a bool as an integer, and a `tx_id` must be
+  64 hex characters. Act
+  on it if you pass another iterable as `params`: pass a list.
+
 ## v2026.10.9
 
 ### Breaking changes
