@@ -437,16 +437,17 @@ to `deps-latest`'s own result.
    `verified-signatures.yml` asks for a verified commit and not for a
    particular signer.
 
-   Where nobody else approves, the maintainer lands it through the
-   bypass. btclib-org/.github's `GOVERNANCE.md`, *How a decision is
-   made*, says when. The bypass needs `enforce_admins`
-   `false` together with holding `admin`, the pair REPOSITORY.md's
-   "Branch protection" names. Name the release commit's title and body
-   explicitly when using it, rather than leave them to the two
-   `squash_merge_commit_*` repository defaults recorded in
-   REPOSITORY.md's *Merge methods*:
-   `gh pr merge <n> --squash --admin --match-head-commit <head>`, with
-   `--body-file <path> --subject <title>` added.
+   It needs an approval from somebody other than its author:
+   btclib-org/.github's `GOVERNANCE.md`, *How a decision is made*, has
+   the exception.
+
+   Name the release commit's title and body explicitly, rather than
+   leave them to the two `squash_merge_commit_*` repository defaults
+   recorded in REPOSITORY.md's *Merge methods*:
+   `gh pr merge <n> --squash --match-head-commit <head>`, with
+   `--body-file <path> --subject <title>` added. The emergency bypass
+   adds `--admin`, and needs `enforce_admins` `false` together with
+   holding `admin`, the pair REPOSITORY.md's "Branch protection" names.
 
    `gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f
    merge_method=squash -f sha=<head>` is the fallback for when

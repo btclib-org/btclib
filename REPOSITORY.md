@@ -66,8 +66,8 @@ repos/btclib-org/btclib/branches/main/protection --jq
 | `lint / Dependency review` | `lint.yml`, calling `reusable-lint.yml` |
 | `lint / Sign-off` | `lint.yml`, calling `reusable-lint.yml` |
 
-A merge through the maintainer's bypass waits for none of these
-checks, as `CONTRIBUTING.md`'s *Landing it* says.
+A merge waits for all of these checks unless an administrator lands it
+with `--admin`: `enforce_admins` is off (*Branch protection*).
 
 A workflow needs an aggregate when every one of its jobs has to gate:
 `test.yml` is the one with several, and a context naming any one of them
@@ -346,13 +346,15 @@ gh api repos/btclib-org/btclib --jq '.default_branch'
 Everything reaches it through a pull request: the checks above, one
 approving review, `dismiss_stale_reviews`, linear history,
 no force pushes, no deletions, `required_conversation_resolution`, and
-`enforce_admins` *off* — an administrator can bypass all of it.
+`enforce_admins` *off* — an administrator is exempt from this classic
+rule, though not from the rulesets below.
 
-That last one is what lets the maintainer land without the review.
-btclib-org/.github's
+`main-self-merge` has no bypass actor, so every merge needs an approval
+from somebody other than its author. In an emergency the maintainer adds
+the bypass back and removes it after the merge: btclib-org/.github's
 [`GOVERNANCE.md`](https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md#how-a-decision-is-made),
-*How a decision is made*, says when the maintainer does.
-CONTRIBUTING.md's *Landing it* has the commands.
+*How a decision is made*, says when. CONTRIBUTING.md's *Landing it* has
+the commands.
 
 `strict` is off: a pull request need not be up to date with `main` to
 merge. [Section 11 of the
@@ -404,8 +406,8 @@ unrelated reason: `release.yml` publishes to PyPI on `push: tags:
   deletions. No bypass actor, for anyone, ever.
 - `main-self-merge`: require a pull request — one approving review,
   dismiss stale reviews, conversation resolution — and `squash` as the
-  only merge method it will accept. Bypass: the maintainer, in
-  **`pull_request` mode**.
+  only merge method it will accept. No bypass actor; the one the
+  maintainer adds in an emergency is in **`pull_request` mode**.
 - `tag-integrity`, `target: tag`, `refs/tags/v*`: required signatures,
   and nothing else. No `deletion` or `non_fast_forward` rule, on
   purpose — RELEASING.md's own recovery path deletes and re-tags a
@@ -418,7 +420,7 @@ unrelated reason: `release.yml` publishes to PyPI on `push: tags:
 its holder from the rule *while merging a pull request* and at no other
 time, so it excuses the approving review and nothing further.
 btclib-org/.github's `GOVERNANCE.md`, *How a decision is made*, says
-when the maintainer uses it. A direct push to `main` is
+when the maintainer adds it. A direct push to `main` is
 refused for everyone, the holder included: outside a pull request there
 is no bypass to apply, and the rule says changes must come through one.
 
@@ -441,10 +443,12 @@ gh api repos/btclib-org/btclib/rulesets --jq '.[].id' \
            bypass: [.bypass_actors[] | .bypass_mode]}'
 ```
 
-`main-integrity` and `tag-integrity` both answer with an empty bypass
-list, and it is what makes a rewritten history, or an unsigned commit
-brought by a `v*` tag push, unlandable, by anyone, admin or not, through
-a pull request or otherwise.
+All three answer with an empty bypass list. For `main-integrity` and
+`tag-integrity` it is what makes a rewritten history, or an unsigned
+commit brought by a `v*` tag push, unlandable, by anyone, admin or not,
+through a pull request or otherwise; for `main-self-merge` it is what
+makes a merge without an approval impossible until the maintainer adds
+the bypass back.
 
 No ruleset over `main` carries `required_signatures`, so nothing refuses an
 unsigned commit at the push. `verified-signatures.yml` checks after the
@@ -464,8 +468,9 @@ gh api repos/<owner>/<repo>/git/tags/<sha> --jq .verification
 
 **Two settings hold the door, not one.** The classic protection still
 carries `required_pull_request_reviews`, and what clears it for the
-maintainer is `enforce_admins` being `false` together with holding
-`admin` — the ruleset bypass alone would not be enough. Turning
+maintainer, once the emergency bypass is added to the ruleset, is
+`enforce_admins` being `false` together with holding `admin` — the
+ruleset bypass alone would not be enough. Turning
 `enforce_admins` on would therefore leave the maintainer no landing
 without the review, the classic review requirement having no bypass list
 to be named in.
