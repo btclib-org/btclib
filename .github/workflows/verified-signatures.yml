@@ -3,7 +3,7 @@ name: verified-signatures
 
 # Every commit pushed to main is verified on the forge, which is what
 # replaces the required_signatures rule the ruleset no longer carries
-# (btclib-org/.github#1738). The job, its range and its pins are
+# (btclib-org/.github#1738). The job, its range and its checks are
 # btclib-org/.github's reusable-verified-signatures.yml; what is this
 # tree's is the trigger.
 #
