@@ -231,12 +231,13 @@ def str_from_string(s: String, what: str) -> str:
     _assert_byte_shaped(s)
 
     # raised outside the `except`: the Unicode error holds the whole
-    # value, and must not be left as the new error's context
+    # value, and must not be left as the new error's context; only the
+    # position of the refused byte is kept
     try:
         return bytes(s).decode("ascii")
     except UnicodeDecodeError as e:
-        err_msg = f"non-ascii character in {what}: {e}"
-    raise BTClibValueError(err_msg)
+        position = e.start
+    raise BTClibValueError(f"non-ascii character in {what} at position {position}")
 
 
 def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:
@@ -701,7 +702,7 @@ def hex_string(i: Integer) -> str:
     """
     int_ = int_from_integer(i)
     if int_ < 0:
-        raise BTClibValueError(f"negative integer: {_message_text(int_)}")
+        raise BTClibValueError("negative integer")
     a_str = f"{int_:x}"
     if len(a_str) % 2 != 0:
         a_str = f"0{a_str}"
