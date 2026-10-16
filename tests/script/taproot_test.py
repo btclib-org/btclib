@@ -219,7 +219,7 @@ def test_the_python_output_key_lifts_the_internal_x_once(
     and adding tG to it. Taken separately those are two modular square
     roots of the same x -- issue 896, which was roughly a quarter of what
     an output key cost on this arm. `PubKeyData` is what makes them one:
-    `point` is a `cached_property`, so the lift is the proof and the
+    `point_var` is a `cached_property`, so the lift is the proof and the
     proof is the lift (issue #1188).
 
     Counting `mod_sqrt_var` rather than forbidding it, which is what
@@ -243,7 +243,7 @@ def test_the_python_output_key_lifts_the_internal_x_once(
     asserting zero, as that one does, does not.
 
     A key of its own per measured call, and that is the measurement
-    rather than bookkeeping: `PubKeyData.point` memoizes, so one key
+    rather than bookkeeping: `PubKeyData.point_var` memoizes, so one key
     handed to several calls is lifted by the first of them and by none
     of the rest -- which would count zero here and say nothing about
     what one call costs.
@@ -487,7 +487,7 @@ def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
     and naming it would be false.
 
     The two arms agree on the class here rather than on the sentence.
-    With no bindings the refusal is the lift `PubKeyData.point` performs,
+    With no bindings the refusal is the lift `PubKeyData.point_var` performs,
     in the curve's own words: the tweak is computed either way, and what
     never happens is the addition it was computed for.
     """
@@ -535,7 +535,7 @@ def test_an_unchecked_internal_key_is_asked_above_the_arm_split(
 
     The network is the case that decided it (issue #2342): the bindings
     arm reads `sec` alone and took a key on a network no name has, which
-    the Python arm refused from `PubKeyData.point` through `curve`. The
+    the Python arm refused from `PubKeyData.point_var` through `curve`. The
     prefix and the length were refused on both arms already, each in
     its own parse's words.
     """

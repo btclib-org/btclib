@@ -183,8 +183,8 @@ _A_BOOL_ANSWERS_FALSE = (
 _ANSWERS_FALSE: dict[str, str] = {
     "btclib.b32.is_segwit_prefixed": _A_BOOL_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_nulldata": _A_BOOL_ANSWERS_FALSE,
-    "btclib.script.script_pub_key.is_p2ms": _A_BOOL_ANSWERS_FALSE,
-    "btclib.script.script_pub_key.is_p2pk": _A_BOOL_ANSWERS_FALSE,
+    "btclib.script.script_pub_key.is_p2ms_var": _A_BOOL_ANSWERS_FALSE,
+    "btclib.script.script_pub_key.is_p2pk_var": _A_BOOL_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_p2pkh": _A_BOOL_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_p2sh": _A_BOOL_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_p2tr": _A_BOOL_ANSWERS_FALSE,

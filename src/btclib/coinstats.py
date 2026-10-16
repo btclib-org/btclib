@@ -32,11 +32,11 @@ before it.
 
 ## Reading a digest against a node
 
-`gettxoutsetinfo`'s own `muhash` field is `digest` below with its bytes
+`gettxoutsetinfo`'s own `muhash` field is `digest_var` below with its bytes
 reversed. `FinalizeHash` (`kernel/coinstats.cpp`) writes what
 `MuHash3072::Finalize` gives into a `uint256`, and the rpc prints that
 through `uint256::GetHex`, which is `uint256`'s display order and the
-reverse of its serialization; `digest` is the serialization.
+reverse of its serialization; `digest_var` is the serialization.
 
 ## What is committed to, and what is not
 
@@ -189,12 +189,12 @@ class CoinStats:
         self.bogo_size -= _bogo_size(script)
 
     @property
-    def digest(self) -> bytes:
-        """Return the 32-byte commitment, `MuHash3072.digest`'s own bytes.
+    def digest_var(self) -> bytes:
+        """Return the 32-byte commitment, `MuHash3072.digest_var`'s own bytes.
 
         A property and not a call, as on the accumulator it reads, and
         in its byte order: the module docstring's "Reading a digest
         against a node" is what a `gettxoutsetinfo` reply has to be
         reversed against.
         """
-        return self.muhash.digest
+        return self.muhash.digest_var

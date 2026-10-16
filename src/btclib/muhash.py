@@ -16,13 +16,13 @@ output, which is what makes MuHash incremental in a way a plain hash of
 the sorted set is not: adding or removing one output is one
 multiplication or division, never a walk of what else the set holds.
 
-`insert`/`remove`/`digest` here are Core's `Insert`/`Remove`/`Finalize`,
+`insert`/`remove`/`digest_var` here are Core's `Insert`/`Remove`/`Finalize`,
 lower-cased, matched against `src/test/crypto_tests.cpp`'s own
 `muhash_tests` case (`tests/_data/muhash_vectors.json`,
 `tests/_data/README.md` pins the revision).
 
 The arithmetic is native Python `int`: `pow`, `%` and `pow(x, -1, m)` for
-the modular inverse `digest` needs, in place of Core's own limb-by-limb
+the modular inverse `digest_var` needs, in place of Core's own limb-by-limb
 `Num3072` -- a fixed-width C++ integer split into 32- or 64-bit limbs for
 a CPU register that has no 3072-bit width, which Python's own
 arbitrary-precision `int` already is without that machinery. What is
@@ -251,14 +251,14 @@ class MuHash3072:
         and regardless of anything else inserted or removed meanwhile:
         `insert`/`remove` only ever multiply the numerator and the
         denominator independently, and a factor common to both cancels
-        out at `digest`'s own division whatever else multiplied either
+        out at `digest_var`'s own division whatever else multiplied either
         one in between.
         """
         element = _num3072(bytes_from_octets(data))
         self._denominator = (self._denominator * element) % _MODULUS
 
     @property
-    def digest(self) -> bytes:
+    def digest_var(self) -> bytes:
         """The 32-byte commitment -- `MuHash3072::Finalize`.
 
         Core's own `Finalize` divides the numerator by the denominator in
@@ -268,7 +268,7 @@ class MuHash3072:
         without mutating `self`: an accumulator keeps accumulating after
         a caller reads its digest, unlike Core's own single-use
         `MuHash3072 acc` locals in `crypto_tests.cpp`. A `@property` and
-        not a call, this class offering nothing else `digest()` would be
+        not a call, this class offering nothing else `digest_var()` would be
         read against: `MuHash3072` mirrors no library whose own API fixes
         the shape, the way `btclib.alias.HashObject` mirrors `hashlib`'s.
         """
