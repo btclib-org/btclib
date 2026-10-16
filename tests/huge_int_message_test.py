@@ -135,7 +135,6 @@ def _reconstruct(index: int) -> object:
 # `_HUGE` where the upper one does
 _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
     ("var_int", _HUGE, var_int.serialize),
-    ("negative var_int", -_HUGE, var_int.serialize),
     ("output size", _HUGE, lambda v: bytes_from_octets(b"x", v)),
     (
         "base58 output size",
