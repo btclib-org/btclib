@@ -433,8 +433,9 @@ to `deps-latest`'s own result.
    GitHub.
    There is no other way in: `main` takes a pull request and nothing
    else. That the commit under the tag carries GitHub's web-flow
-   signature rather than the maintainer's costs nothing: the branch rule
-   asks for a valid signature and not for a particular signer.
+   signature rather than the maintainer's costs nothing:
+   `verified-signatures.yml` asks for a verified commit and not for a
+   particular signer.
 
    Where nobody else approves, the maintainer lands it through the
    bypass. btclib-org/.github's `GOVERNANCE.md`, *How a decision is

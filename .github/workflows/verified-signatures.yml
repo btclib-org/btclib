@@ -1,0 +1,49 @@
+---
+name: verified-signatures
+
+# Every commit pushed to main is verified on the forge, which is what
+# replaces the required_signatures rule the ruleset no longer carries
+# (btclib-org/.github#1738). The job, its range and its pins are
+# btclib-org/.github's reusable-verified-signatures.yml; what is this
+# tree's is the trigger.
+#
+# Not a required check, and it cannot be one: it runs after a push, and
+# a context a pull request never reports would wait for ever. A red run
+# is read in the Actions tab.
+
+on:
+  push:
+    branches: [main]
+  # the rehearsal: a range of commits to check, named by hand. A dispatch
+  # carries no push event, so without these the head of the branch alone
+  # is checked
+  workflow_dispatch:
+    inputs:
+      before:
+        description: The sha the range starts after
+        type: string
+        default: ""
+      after:
+        description: The sha the range ends at
+        type: string
+        default: ""
+
+# least privilege for the GITHUB_TOKEN, which a called workflow cannot
+# widen: the job reads commits and writes nothing
+permissions:
+  contents: read
+
+concurrency:
+  # named literally rather than through github.workflow, as everywhere
+  # else here. Keyed on the commit pushed, and not cancelling: two
+  # pushes in a row each have a range to check, and the later run does
+  # not cover the earlier one's
+  group: verified-signatures-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  verified-signatures:
+    uses: btclib-org/.github/.github/workflows/reusable-verified-signatures.yml@main
+    with:
+      before: ${{ inputs.before }}
+      after: ${{ inputs.after }}

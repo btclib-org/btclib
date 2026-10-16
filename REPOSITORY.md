@@ -371,17 +371,15 @@ gh api repos/btclib-org/btclib/branches/main/protection \
 # false
 ```
 
-Classic protection's own copy of the signature rule is off, the
-`main-integrity` ruleset below being what requires signatures on `main`:
-[the standard states that value for every
+Classic protection's own copy of the signature rule is off, as is the rule
+in every ruleset over `main`: `verified-signatures.yml` checks what lands
+instead, as *The rulesets beside the classic rule* says.
+[The standard states that value for every
 repository](https://github.com/btclib-org/.github/blob/main/README.md#branch-protection-and-rulesets).
 
-Required signatures cost the maintainer nothing when a pull request is
-what lands on `main`: the only thing writing to it is a merge GitHub
-performs itself, and GitHub signs those with its web-flow key — true of
-a merge commit and a squash, and worse for a rebase, which GitHub
-disables on a branch requiring signed commits because it has no access
-to the original signer's key to re-sign what it recreates.
+Signatures cost the maintainer nothing when a pull request is what lands
+on `main`: the only thing writing to it is a merge GitHub performs
+itself, and GitHub signs those with its web-flow key.
 
 Dependabot, its security updates and pre-commit.ci all open pull requests
 here, none of them naming a target branch: what they get is the default
@@ -394,7 +392,7 @@ no protection at all — and one branch is what closed it.
 `enforce_admins` off is one switch that exempts an administrator from
 every rule above at once — there is no way, inside the classic rule
 alone, to relax the review requirement for the maintainer while keeping
-signatures and linear history unconditional. `main-integrity` and
+linear history unconditional. `main-integrity` and
 `main-self-merge` carry that split, additive to the classic rule rather
 than replacing it: rules aggregate across rulesets and classic
 protection, taking the most restrictive combination wherever they
@@ -402,8 +400,8 @@ overlap. `tag-integrity` targets tags rather than `main`, for an
 unrelated reason: `release.yml` publishes to PyPI on `push: tags:
 ["v*"]`, so a tag push is what releases (issue #1022).
 
-- `main-integrity`: required signatures, required linear history, no
-  force pushes, no deletions. No bypass actor, for anyone, ever.
+- `main-integrity`: required linear history, no force pushes, no
+  deletions. No bypass actor, for anyone, ever.
 - `main-self-merge`: require a pull request — one approving review,
   dismiss stale reviews, conversation resolution — and `squash` as the
   only merge method it will accept. Bypass: the maintainer, in
@@ -427,8 +425,8 @@ is no bypass to apply, and the rule says changes must come through one.
 The other mode, `always`, permits a direct push as well, and it is not
 used here. What it would buy is a landing that keeps the maintainer's
 own signature on the commit; what it costs is a `main` any local mistake
-can reach. The first half is worth nothing once the branch rule is read
-as asking for a valid signature rather than for a particular signer,
+can reach. The first half is worth nothing once the signature check
+asks for a verified commit rather than for a particular signer,
 which makes GitHub's web-flow key as good as the maintainer's — and the
 second half is not hypothetical: a `git merge` run in the wrong working
 tree is enough to advance `main` locally, and under `always` the push
@@ -444,9 +442,15 @@ gh api repos/btclib-org/btclib/rulesets --jq '.[].id' \
 ```
 
 `main-integrity` and `tag-integrity` both answer with an empty bypass
-list, and it is what makes an unsigned commit or a rewritten history
-unlandable, by anyone, admin or not, through a pull request or
-otherwise.
+list, and it is what makes a rewritten history, or an unsigned commit
+brought by a `v*` tag push, unlandable, by anyone, admin or not, through
+a pull request or otherwise.
+
+No ruleset over `main` carries `required_signatures`, so nothing refuses an
+unsigned commit at the push. `verified-signatures.yml` checks after the
+push: for each commit pushed it reads `.commit.verification.verified` from
+the API and fails naming any commit where it is not `true`. A red run is
+read in the Actions tab; the check is not a required one.
 
 A `v*` tag push that brings an unsigned commit is refused. A tag on a
 commit already on `main` is accepted whether it is signed, unsigned or
@@ -478,9 +482,10 @@ case where a commit lands that no pull request knows about.
 
 **Squash is the only *button* enabled, and it is how a pull request
 lands here**, as CONTRIBUTING.md's *Landing it* says. GitHub performs
-the squash and signs it with its web-flow key. That signature satisfies
-`main-integrity` exactly as the maintainer's own would: what the rule
-requires is a valid signature, not a particular signer.
+the squash and signs it with its web-flow key. That signature is
+`verified` exactly as the maintainer's own would be: what
+`verified-signatures.yml` asks for is a verified commit, not a particular
+signer.
 
 ```shell
 gh api repos/btclib-org/btclib \

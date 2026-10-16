@@ -611,6 +611,7 @@ a force.
 | `fuzz` | weekly, and by hand before a release | — |
 | `qa-assets` | weekly | Core's and rust-bitcoin's fuzz corpora |
 | `scorecard` | weekly, push to main | — |
+| `verified-signatures` | push to main | — |
 | `os-ubuntu` | weekly, a release | ubuntu images and interpreters |
 | `os-macos` | weekly, a release | macOS images and interpreters |
 | `os-windows` | weekly, a release | Windows images and interpreters |
@@ -643,6 +644,10 @@ The `test`, `lint`/`docs` and `integration-bitcoind` rows are what a
 merge waits for, and between them they report the required checks, which
 `REPOSITORY.md` names. They run one image on one interpreter: `ubuntu-latest`,
 and the version `.python-version` names.
+
+`verified-signatures` reports after each push to `main` whether every
+commit pushed is `verified`; [the standard's *Signatures*][s-sigs] has the
+rule.
 
 Which day each of the rest runs is section 10 of the organization
 standard, in `btclib-org/.github`, and not this file's to restate — one

@@ -199,8 +199,9 @@ The author may apply one directly through the interface, which is why a
 suggestion is offered where a description would do.
 
 What makes this the right shape here and not merely a convenience is the
-signature: the commit GitHub writes carries its web-flow key, and `main`
-requires a valid signature rather than one particular signer.
+signature: the commit GitHub writes carries its web-flow key, and the
+signature check on `main` asks for a valid signature, not one particular
+signer.
 
 Two properties decide when not to:
 
