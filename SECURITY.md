@@ -19,6 +19,10 @@ equally welcome.
 A report is acknowledged within 7 days, and a fix or a published advisory
 follows within 90 days.
 
+A report triaged as easy to rediscover is fixed as soon as possible, since
+anyone can find it in the meantime, and its advisory is published with the
+fix.
+
 ## What belongs here, and what belongs upstream
 
 The elliptic curve arithmetic and the schemes built on it, `ecc.bms` and
