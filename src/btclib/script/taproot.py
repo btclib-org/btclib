@@ -23,7 +23,7 @@ from btclib_ecc.curves import (
     scalar_from_prv_key,
     secp256k1,
 )
-from btclib_ecc.ecc.ssa import point_from_bip340pub_key
+from btclib_ecc.ecc.ssa import point_from_bip340pub_key_var
 from btclib_ecc.exceptions import BTClibEccValueError
 from btclib_ecc.hashes import tagged_hash
 
@@ -458,7 +458,7 @@ def _tweaked_pubkey(pub_key: PubKeyData, h: bytes) -> tuple[bytes, int]:
             # compressed key names its y by its prefix, so its x is all
             # that is left for tweak_add to object to, and the wording is
             # the lift's below, so that the two arms say one sentence for
-            # one input: `point_from_octets` is that lift, and this
+            # one input: `point_from_octets_var` is that lift, and this
             # repeats its two sentences: one for an x out of range, one
             # for an x that is no coordinate.
             #
@@ -696,7 +696,7 @@ def check_output_pubkey(q: Octets, script: Octets, control: Octets) -> bool:
     # btclib_ecc's class, and read into btclib's, the one the arm
     # above raises for the same control block
     try:
-        P = point_from_bip340pub_key(p)
+        P = point_from_bip340pub_key_var(p)
     except BTClibEccValueError as e:
         raise BTClibValueError(str(e)) from e
     Q = secp256k1.add_var(P, mult(t))

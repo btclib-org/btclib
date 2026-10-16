@@ -161,7 +161,7 @@ def test_hex_string() -> None:
         hex_string(a_str)
 
     int_ = -1
-    with pytest.raises(BTClibValueError, match="negative integer: "):
+    with pytest.raises(BTClibValueError, match="^negative integer$"):
         hex_string(int_)
 
     # zero is not negative: `< 0` weakened to `<= 0` would refuse it

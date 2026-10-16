@@ -1613,11 +1613,9 @@ the chain, and both are facts about the caller rather than about the
 callee. Blinding is one: `mult` calls
 `aff_from_jac_var` and is 0.99x in its scalar, because `_blinded_jac`
 randomized the `Z` that inverse is timed on. A public operand is the
-other: `point_from_octets` measures 1.05x, its `y_even_var` being one
-fixed exponent on secp256k1 and its `_is_x_coordinate_var` reaching the
-bindings. So the question to ask of a new name is not what it calls, but
-what its own clock does with what it was handed — and the answer is a
-measurement.
+other. So the
+question to ask of a new name is not what it calls, but what its own
+clock does with what it was handed — and the answer is a measurement.
 
 **The census is at a measured zero, and these are the exceptions it
 leaves.** Every function that spends one of these primitives has been
@@ -1627,8 +1625,7 @@ floor keeps its plain name, and each is here so that the next reader does
 not have to re-derive it: `dsa._assert_as_valid_` 1.07x and
 `dsa._recover_pub_key_` 1.05x, `ssa._assert_as_valid_` 1.07x and
 `ssa._recover_pub_key_` 1.06x, `ellswift._try_sqrt` 1.05x,
-`sec_point.point_from_octets` 1.01x, `ssa.point_from_bip340pub_key`
-1.03x, `Sig.assert_valid` 1.03x and `ellswift.xdh` 1.01x. The inverse
+`Sig.assert_valid` 1.03x and `ellswift.xdh` 1.01x. The inverse
 or the root inside each of them is real, and it is diluted: an inverse
 varying by 1.32x is 10 us of a 40 us verification, and `xdh` is
 dominated by a `mult` that is blinded. `ellswift._constants` is

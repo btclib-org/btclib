@@ -209,8 +209,8 @@ commit it was read at:
     the bullet above already gives: no Python object holding a secret
     is zeroized, on either path, and this one is no exception to it.
     `dsa.Signer.__init__` at `self._q.to_bytes(32, "big")`
-    ([`src/btclib_ecc/ecc/dsa.py:1473`](
-    https://github.com/btclib-org/btclib-ecc/blob/478d2c6498c85fcb366df6bec207d5ef41204cdb/src/btclib_ecc/ecc/dsa.py#L1473
+    ([`src/btclib_ecc/ecc/dsa.py:1472`](
+    https://github.com/btclib-org/btclib-ecc/blob/e0a511c5ed28dfee5325e014a61f9a67063d80e9/src/btclib_ecc/ecc/dsa.py#L1472
     )) crosses the same boundary the other
     way, once, at construction: the plain `int` `scalar_from_prv_key`
     already produced becomes a transient `bytes` on the way into the
@@ -240,17 +240,20 @@ commit it was read at:
 - not every operation crosses that boundary, and one predicate decides
     whether it can: btclib_ecc's `curve._libsecp256k1_serves` asks for
     the switch above, then for secp256k1 as the curve, then for a hash
-    function that is sha256 or absent — `hf is None or hf is sha256`
-    ([`src/btclib_ecc/curves/curve.py:659`](
-    https://github.com/btclib-org/btclib-ecc/blob/478d2c6498c85fcb366df6bec207d5ef41204cdb/src/btclib_ecc/curves/curve.py#L659
+    function that is sha256 or absent, declining any other —
+    `hf is not None and hf is not sha256`
+    ([`src/btclib_ecc/curves/curve.py:697`](
+    https://github.com/btclib-org/btclib-ecc/blob/e0a511c5ed28dfee5325e014a61f9a67063d80e9/src/btclib_ecc/curves/curve.py#L697
     )) — with whatever further
     conditions the call site ands onto it. The hash function is matched
     by identity rather than by what it computes, so
     `functools.partial(sha256)`, or any other wrapper a caller writes to
     fit an interface, is one the predicate declines, and the call it is
     passed to runs the Python arithmetic — conservative for the
-    arithmetic, silent for the caller. The condition each operation below
-    states as sha256 is that identity.
+    arithmetic, silent for the caller, unless
+    `set_libsecp256k1_serving(serving=True, required=True)` made it
+    raise `BTClibEccRuntimeError` instead. The condition each operation
+    below states as sha256 is that identity.
     `mult`, `double_mult_var` and
     `multi_mult_var` reach the bindings for secp256k1 and any point of it,
     the point at infinity excepted — libsecp256k1 has no public key for
@@ -365,8 +368,8 @@ commit it was read at:
     that arm and infinity is not delegated at all —
     `curve._libsecp256k1_mult` at
     `libsecp256k1_shared_point(_sec_from_point(Q), m, False)`
-    ([`src/btclib_ecc/curves/curve.py:922`](
-    https://github.com/btclib-org/btclib-ecc/blob/478d2c6498c85fcb366df6bec207d5ef41204cdb/src/btclib_ecc/curves/curve.py#L922
+    ([`src/btclib_ecc/curves/curve.py:969`](
+    https://github.com/btclib-org/btclib-ecc/blob/e0a511c5ed28dfee5325e014a61f9a67063d80e9/src/btclib_ecc/curves/curve.py#L969
     )). `dh.diffie_hellman` at
     `sec = libsecp256k1_shared_point(`
     ([`src/btclib_ecc/ecc/dh.py:119`](
@@ -389,13 +392,13 @@ commit it was read at:
     scalars are secrets, is a `mult` of each and their sum instead —
     `pedersen._commit` at
     `return _add(mult(r, ec.G, ec), mult(v, gen, ec), ec)`
-    ([`src/btclib_ecc/ecc/pedersen.py:379`](
-    https://github.com/btclib-org/btclib-ecc/blob/6d5b8c6cbc2660faa686a47a9b3559ade3fc9723/src/btclib_ecc/ecc/pedersen.py#L379
+    ([`src/btclib_ecc/ecc/pedersen.py:382`](
+    https://github.com/btclib-org/btclib-ecc/blob/e0a511c5ed28dfee5325e014a61f9a67063d80e9/src/btclib_ecc/ecc/pedersen.py#L382
     )), under `pedersen.commit`,
     `rangeproof.sign` and `rangeproof.rewind`. The sum is
     `curve._add` at `return _libsecp256k1_sum((P, Q))`
-    ([`src/btclib_ecc/curves/curve.py:1383`](
-    https://github.com/btclib-org/btclib-ecc/blob/6d5b8c6cbc2660faa686a47a9b3559ade3fc9723/src/btclib_ecc/curves/curve.py#L1383
+    ([`src/btclib_ecc/curves/curve.py:1430`](
+    https://github.com/btclib-org/btclib-ecc/blob/e0a511c5ed28dfee5325e014a61f9a67063d80e9/src/btclib_ecc/curves/curve.py#L1430
     )): `secp256k1_ec_pubkey_combine`,
     whose group law `secp256k1_gej_add_ge` and whose inversion
     `secp256k1_fe_inv` are constant time. A commitment to a zero value

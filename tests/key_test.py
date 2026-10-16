@@ -104,7 +104,7 @@ def test_the_lift_is_the_proof() -> None:
 def test_hybrid_sec_prefixes_are_refused() -> None:
     """0x06 and 0x07 carry both coordinates, and are not a canonical form.
 
-    `sec_point.point_from_octets` parses one when asked; this type takes
+    `sec_point.point_from_octets_var` parses one when asked; this type takes
     that function's default and does not ask, so a hybrid key never
     becomes a `PubKeyData`.
     """

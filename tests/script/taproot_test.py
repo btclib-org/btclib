@@ -237,7 +237,7 @@ def test_the_python_output_key_lifts_the_internal_x_once(
 
     The dispatch goes off at `curves.set_libsecp256k1_serving` and not at
     this module's own guard, which is what the test below patches: the
-    lift is `point_from_octets`', and that call delegates on its own, so
+    lift is `point_from_octets_var`', and that call delegates on its own, so
     silencing taproot alone leaves the square root being taken in C where
     `mod_sqrt_var` never sees it. A count needs every arm Python; a test
     asserting zero, as that one does, does not.
@@ -451,7 +451,7 @@ def test_the_tweak_refuses_an_internal_key_that_is_no_point_alike(
     `BTClibValueError` is not meant to have to know (issue 1214).
 
     On the x-only path the sentence agrees too: the lift is
-    `point_from_octets`, which gives `curve_group.y_var`'s two complaints,
+    `point_from_octets_var`, which gives `curve_group.y_var`'s two complaints,
     an x that is no coordinate and an x that is no field element, in their
     own words, and this arm repeats them rather than what the lift's own
     caller would have said. The sentence quotes no x, which may
@@ -564,13 +564,13 @@ def test_a_hybrid_internal_key_is_refused_on_both_arms(
     of each pair against.
 
     libsecp256k1's `ec_pubkey_parse` takes 0x06 and 0x07 as it takes
-    0x04, and `sec_point.point_from_octets`'s own lift defaults
+    0x04, and `sec_point.point_from_octets_var`'s own lift defaults
     `hybrid=False` -- unrefused, that asymmetry is issue #1227: which
     internal keys `output_pubkey` and `input_script_sig` take would be
     `pip install`'s decision rather than btclib's. The refusal in
     `_output_pubkey_and_internal_key` runs above the arm split, so this
     is one message on both arms rather than a silent accept on one and
-    `point_from_octets`'s own "not a point: prefix 0x0…" on the other.
+    `point_from_octets_var`'s own "not a point: prefix 0x0…" on the other.
 
     Both prefixes, because `hybrid=True` reads them asymmetrically once
     a caller does ask for them -- 0x06 names an even y and 0x07 an odd

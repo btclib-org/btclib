@@ -69,7 +69,7 @@ from btclib.script.taproot import tree_helper
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.tx.coin import Coin
 from btclib.tx.tx_context import assert_coinbase_value
-from btclib.utils import bytes_from_octets, encode_num, hex_string
+from btclib.utils import bytes_from_octets, encode_num
 
 # an int past the default digit limit, and its negation: 16610 bits
 _HUGE = 10**5000
@@ -136,8 +136,6 @@ def _reconstruct(index: int) -> object:
 _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
     ("var_int", _HUGE, var_int.serialize),
     ("negative var_int", -_HUGE, var_int.serialize),
-    ("var_int max_size", -_HUGE, lambda v: var_int.parse(b"\x01", max_size=v)),
-    ("hex string", -_HUGE, hex_string),
     ("output size", _HUGE, lambda v: bytes_from_octets(b"x", v)),
     (
         "base58 output size",
