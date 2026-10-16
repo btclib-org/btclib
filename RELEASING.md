@@ -204,8 +204,8 @@ project whose new release this release should depend on: v2026.8.7 was
 cut the day `bitcoin-core-rpc` renamed two exported functions with no
 alias, and shipping against the pinned older one would have published a
 btclib that could not be installed beside its own sibling. The paragraph
-above says exactly this about the bindings; it is true of both, word for
-word, and step 1 asks it of both.
+above says exactly this about the bindings; it is true of every
+btclib-org dependency, word for word, and step 1 asks it of all of them.
 
 Whether to act on a stranger's drift now, or leave it for Dependabot's
 own pull requests to catch up, is a decision worth stating rather than
@@ -215,18 +215,20 @@ chose to leave it". State the choice in the release pull request, next
 to `deps-latest`'s own result.
 
 1. Make sure the newest release of **each btclib-org dependency** —
-   btclib-secp256k1 and bitcoin-core-rpc — is the one this release
-   should depend on, and that `pyproject.toml`'s pin says so. Two
-   questions, not one: whether the pin *resolves*, which the wheel smoke
-   test of the `dist` job already answers on every pull request by
-   failing when only an unreleased version satisfies it, and whether the
-   floor should *move*, which nothing automates because only a person
-   knows what the sibling's release was for. Both projects are pinned
-   without a ceiling and both can publish on the morning of a release.
+   every `btclib-*` and `bitcoin-core-rpc` requirement that
+   `pyproject.toml` declares, in `dependencies` and in the extras — is
+   the one this release should depend on, and that `pyproject.toml`'s pin
+   says so. Two questions, not one: whether the pin *resolves*, which the
+   wheel smoke test of the `dist` job already answers on every pull
+   request by failing when only an unreleased version satisfies it, and
+   whether the floor should *move*, which nothing automates because only
+   a person knows what the sibling's release was for. They are pinned
+   without a ceiling and any of them can publish on the morning of a
+   release.
 
-   **A direct reference is not a pin this release may carry.** Either
-   line can be `<name> @ git+…@main` while a branch here calls what has
-   just landed there and no release of it carries that yet; PyPI refuses
+   **A direct reference is not a pin this release may carry.** Any
+   such line can be `<name> @ git+…@main` while a branch here calls what
+   has just landed there and no release of it carries that yet; PyPI refuses
    a direct reference in metadata, and nothing before `publish-pypi`
    does — the whole matrix builds, the artifacts upload, and the upload
    fails at the end. So a floor is written back over the reference, `>=`
