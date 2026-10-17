@@ -148,9 +148,7 @@ instead of into a third round.
 
 **The ack of record is not the approval *Landing it* asks for**: it is
 a bot's review of type COMMENT ([the standard's *Review*][s-rev] says
-whose). The maintainer's bypass is everyday practice until the review
-bot posts under an identity other than the author's, such as a GitHub
-App ([ISS 1362][i1362]).
+whose).
 
 ### Landing it
 
@@ -180,7 +178,9 @@ gh pr merge <n> --squash --match-head-commit <the head the checks ran on>
 With `--auto` added, GitHub runs the same merge once the approval and
 the checks are in.
 
-**The maintainer lands without that approval, through the bypass.**
+**Where the repository has a bypass, the maintainer may land without
+that approval, through it**: [`GOVERNANCE.md`][governance]'s *How a
+decision is made* says which repositories.
 `--admin` turns off `gh`'s own refusal, and GitHub applies
 the bypass to the merge. `enforce_admins` is off, so it waits for no
 required check either:
@@ -232,7 +232,6 @@ settings and why they are what they are.
 [s-rev]: https://github.com/btclib-org/.github#review
 [s-sigs]: https://github.com/btclib-org/.github#signatures
 [s-branch]: https://github.com/btclib-org/.github#branch-protection-and-rulesets
-[i1362]: https://github.com/btclib-org/.github/issues/1362#issuecomment-6110475722
 [dco]: https://developercertificate.org/
 [governance]: https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md
 [roadmap]: https://github.com/btclib-org/.github/blob/main/ROADMAP.md
