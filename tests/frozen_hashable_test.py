@@ -49,7 +49,12 @@ from typing import Any
 import pytest
 
 from btclib.block import Block, BlockHeader, PartialMerkleTree
-from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams
+from btclib.consensus import (
+    CONSENSUS_PARAMS,
+    HEADERS_SYNC_PARAMS,
+    ConsensusParams,
+    HeadersSyncParams,
+)
 from btclib.p2p import (
     BlockPayload,
     BlockTxn,
@@ -196,6 +201,10 @@ _INSTANCES: dict[str, tuple[type, Callable[[], Any]]] = {
     "btclib.consensus.ConsensusParams": (
         ConsensusParams,
         lambda: CONSENSUS_PARAMS["mainnet"],
+    ),
+    "btclib.consensus.HeadersSyncParams": (
+        HeadersSyncParams,
+        lambda: HEADERS_SYNC_PARAMS["mainnet"],
     ),
     "btclib.p2p.address.NetworkAddress": (
         NetworkAddress,

@@ -33,7 +33,13 @@ from typing import Any
 import pytest
 
 from btclib.block.proof_of_work import bits_from_target
-from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams, subsidy
+from btclib.consensus import (
+    CONSENSUS_PARAMS,
+    HEADERS_SYNC_PARAMS,
+    ConsensusParams,
+    HeadersSyncParams,
+    subsidy,
+)
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS
 from btclib.script.engine.flags import NO_FLAGS, ScriptFlag
@@ -489,3 +495,42 @@ def test_subsidy_refuses_a_negative_height_or_a_non_positive_interval() -> None:
         subsidy(1, 0)
     with pytest.raises(BTClibValueError, match="invalid halving_interval: -1"):
         subsidy(1, -1)
+
+
+# src/kernel/chainparams.cpp, at the tag above: each network's
+# `m_headers_sync_params`, the commitment period and then the redownload
+# buffer size, assigned at the line beside it
+_HEADERS_SYNC_PARAMS = {
+    "mainnet": (641, 15218),  # line 201
+    "testnet": (673, 14460),  # line 310
+    "testnet4": (606, 16092),  # line 423
+    "signet": (620, 15724),  # line 548
+    "regtest": (275, 7017),  # line 684
+}
+
+
+@pytest.mark.parametrize("network", sorted(_HEADERS_SYNC_PARAMS))
+def test_the_headers_sync_row_is_the_one_core_carries(network: str) -> None:
+    """Each pair is Core's own, field by field."""
+    row = HEADERS_SYNC_PARAMS[network]
+    period, buffer_size = _HEADERS_SYNC_PARAMS[network]
+    assert row == HeadersSyncParams(
+        commitment_period=period, redownload_buffer_size=buffer_size
+    )
+
+
+def test_the_headers_sync_table_answers_for_the_same_networks() -> None:
+    """Every network with a consensus row has a headers sync row, in order."""
+    assert list(HEADERS_SYNC_PARAMS) == list(CONSENSUS_PARAMS)
+    assert set(_HEADERS_SYNC_PARAMS) == set(NETWORKS)
+
+
+def test_the_headers_sync_table_is_read_only_and_its_rows_frozen() -> None:
+    """Refuse a row assigned into the table, or a field into a row."""
+    mutable: Any = HEADERS_SYNC_PARAMS
+    with pytest.raises(TypeError, match="does not support item assignment"):
+        mutable["mainnet"] = HEADERS_SYNC_PARAMS["regtest"]
+    row: Any = HEADERS_SYNC_PARAMS["mainnet"]
+    with pytest.raises(AttributeError):
+        row.commitment_period = 1
+    assert len(set(HEADERS_SYNC_PARAMS.values())) == len(HEADERS_SYNC_PARAMS)

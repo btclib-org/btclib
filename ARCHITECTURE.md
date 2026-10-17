@@ -70,7 +70,7 @@ message signature names.
 
 `alias` holds the types the public API accepts, much of it taking anything
 convertible rather than one type, and `exceptions` the errors it raises.
-`consensus` holds the consensus constants and the per-network table, and
+`consensus` holds the consensus constants and the per-network tables, and
 importing it imports nothing else of btclib, which `tests/imports_test.py`
 asserts.
 
@@ -128,7 +128,8 @@ Each spelling of a key is read by the module that defines it:
 the message start of each network, and the payloads. `electrum` is the
 Electrum server protocol. Both turn octets into objects and objects into
 octets, and neither opens a socket: a caller reading from a connection
-hands them what it read.
+hands them what it read. `p2p` also holds Bitcoin Core's low-work headers
+sync, which decides what to ask a peer for and sends nothing itself.
 
 ## What sits outside the package
 
