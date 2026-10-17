@@ -88,6 +88,7 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
@@ -99,11 +100,15 @@ from btclib_ecc.ecc import dsa, ellswift
 
 from btclib import b32, b58, var_bytes
 from btclib.block.block import Block
+from btclib.block.block_header import BlockHeader
+from btclib.block.genesis import genesis_block
+from btclib.consensus import CONSENSUS_PARAMS, HEADERS_SYNC_PARAMS
 from btclib.ecc import bms
 from btclib.exceptions import BTClibTypeError
 from btclib.fee import FeeRate
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.p2p import BlockPayload, SendCmpct, TxPayload, Version
+from btclib.p2p.headers_sync import ChainStart, HeadersSyncState, ProcessingResult
 from btclib.policy import assert_standard_tx
 from btclib.script.engine import script as engine
 from btclib.script.engine import script_op_codes, verify_transaction
@@ -163,6 +168,28 @@ def _cipher(*, initiator: Any = True, self_decrypt: Any = False) -> Any:
     return bip324.Cipher(
         _PRV_KEY, ell, ell, initiator, bytes(4), self_decrypt=self_decrypt
     )
+
+
+def _process_next_headers(*, full_headers_message: Any) -> ProcessingResult:
+    """Hand a fresh regtest sync the genesis block's first child."""
+    genesis = genesis_block("regtest").header
+    sync = HeadersSyncState(
+        CONSENSUS_PARAMS["regtest"],
+        HEADERS_SYNC_PARAMS["regtest"],
+        ChainStart(genesis, 0, 2, 0, (genesis.hash,)),
+        100,
+        now=datetime.fromtimestamp(10**9, UTC),
+    )
+    child = BlockHeader(
+        version=1,
+        previous_block_hash=genesis.hash,
+        merkle_root=bytes(32),
+        time=genesis.time,
+        bits=genesis.bits,
+        nonce=0,
+        check_validity=False,
+    )
+    return sync.process_next_headers([child], full_headers_message=full_headers_message)
 
 
 def _encrypt(*, ignore: Any) -> bytes:
@@ -451,6 +478,15 @@ _KINDS = (
         " `int(announce)`: a non-bool writes the one that asks a peer to"
         " push every new block unasked, where the message it was given"
         " said not to",
+    ),
+    _Case(
+        "btclib.p2p.headers_sync.HeadersSyncState.process_next_headers",
+        "full_headers_message",
+        _process_next_headers,
+        {},
+        reason="whether the peer may have more, which decides whether the"
+        " sync asks for it or ends: a non-bool would keep a sync asking a"
+        " peer whose chain has ended",
     ),
     _Case(
         "btclib.p2p.handshake.Version.__init__",

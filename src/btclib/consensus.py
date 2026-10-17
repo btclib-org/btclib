@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""The consensus constants and the per-network table, below every package.
+"""The consensus constants and the per-network tables, below every package.
 
 Bitcoin Core keeps a consensus rule's numbers in two shapes and so does
 this module: the bounds that are the same on every chain, which are
@@ -87,13 +87,28 @@ reader looking for one knows it was decided rather than missed:
   challenge, so a caller given the one without the other could not act
   on it; whoever holds the challenge holds this with it
 
-A row validates nothing it is built with, alone among this library's
-dataclasses: validating means raising a `BTClibTypeError`, which means
-importing `btclib.exceptions`, which is the import this module does not
-take. Nothing parses a row -- the rows below are constants of this
-module -- and the boundary that does read json is `Network.from_dict`,
-which asks `Network.assert_valid` whether its `consensus` field is one
-of these.
+A row validates nothing it is built with, and neither does
+`HeadersSyncParams` below: validating means raising a `BTClibTypeError`,
+which means importing `btclib.exceptions`, which is the import this
+module does not take. Nothing parses a row -- the rows below are
+constants of this module -- and the boundary that does read json is
+`Network.from_dict`, which asks `Network.assert_valid` whether its
+`consensus` field is one of these.
+
+## The headers sync table
+
+`HEADERS_SYNC_PARAMS` is Core's `HeadersSyncParams` for each network:
+how far apart the low-work headers sync keeps a commitment, and how many
+redownloaded headers it holds back. Core keeps it in `CChainParams` and
+not in `Consensus::Params`, so it is a table of its own here and not a
+field of `ConsensusParams`. It answers for the same networks.
+`btclib.p2p.headers_sync` reads it, and `HeadersSyncState` validates the
+row it is handed.
+
+Each pair is transcribed from `src/kernel/chainparams.cpp` at the same
+tag, with the line it was read at beside it. Core derives them with
+`contrib/devtools/headerssync-params.py`, and regtest's is a copy of
+testnet4's from an earlier run of it.
 """
 
 from __future__ import annotations
@@ -114,12 +129,14 @@ if TYPE_CHECKING:
 
 __all__ = [
     "CONSENSUS_PARAMS",
+    "HEADERS_SYNC_PARAMS",
     "MAX_BLOCK_WEIGHT",
     "MAX_SCRIPT_ELEMENT_SIZE",
     "MAX_SCRIPT_SIZE",
     "MAX_WITNESS_STACK_ITEMS",
     "WITNESS_SCALE_FACTOR",
     "ConsensusParams",
+    "HeadersSyncParams",
     "subsidy",
 ]
 
@@ -352,6 +369,27 @@ class ConsensusParams:
         return to_script_flags(names)
 
 
+@dataclass(frozen=True)
+class HeadersSyncParams:
+    """How much memory the low-work headers sync spends on one peer.
+
+    Bitcoin Core's `HeadersSyncParams` (`src/kernel/chainparams.h`, at
+    bitcoin/bitcoin@9be056a8a7). The module docstring says why this is
+    not a field of `ConsensusParams`.
+
+    Frozen and hashable, as `ConsensusParams` is: a row is a value, read
+    by every sync at once.
+    """
+
+    # how many headers apart the presync keeps a one-bit commitment
+    commitment_period: int
+
+    # how many redownloaded headers are held back before the oldest is
+    # released: a header is released once this many more have been
+    # checked behind it
+    redownload_buffer_size: int
+
+
 # Core's mainnet and testnet3 powLimit, 00000000ffff...ffff, and
 # regtest's 7fff...ffff and signet's 00000377ae00...00, each as the
 # compact form `bits_from_target` answers for it
@@ -542,3 +580,19 @@ _consensus_params: dict[str, ConsensusParams] = {
 # instances are built from these rows at import, so a row added
 # afterwards would answer here and nowhere else
 CONSENSUS_PARAMS: Mapping[str, ConsensusParams] = MappingProxyType(_consensus_params)
+
+# every network of CONSENSUS_PARAMS, in its order, assigned in
+# src/kernel/chainparams.cpp at the tag the module docstring names
+_headers_sync_params: dict[str, HeadersSyncParams] = {
+    "mainnet": HeadersSyncParams(641, 15218),  # line 201
+    "testnet": HeadersSyncParams(673, 14460),  # line 310
+    "regtest": HeadersSyncParams(275, 7017),  # line 684
+    "signet": HeadersSyncParams(620, 15724),  # line 548
+    "testnet4": HeadersSyncParams(606, 16092),  # line 423
+}
+
+# a mapping and not a dict, so that no caller replaces a row every
+# other caller reads
+HEADERS_SYNC_PARAMS: Mapping[str, HeadersSyncParams] = MappingProxyType(
+    _headers_sync_params
+)

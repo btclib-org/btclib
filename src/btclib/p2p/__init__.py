@@ -13,6 +13,13 @@ package, and nothing there imports this one -- a fetcher asks a server a
 question, a peer is a party to a protocol, and the only thing the two
 would share is the socket this package refuses to hold.
 
+**Protocol logic, and still no socket.**
+`btclib.p2p.headers_sync` is Bitcoin Core's low-work headers sync: it is
+handed headers and the time, and hands back headers and a locator. Its
+names are not published here. `State` and `ProcessingResult` are names
+Core nests in `HeadersSyncState`, and they say nothing outside their
+module, so a caller names the module.
+
 **The envelope, with the payload as opaque bytes.** `Message` is the
 header Bitcoin Core's `CMessageHeader` describes together with the
 payload it announces, and it reads a command it knows nothing about

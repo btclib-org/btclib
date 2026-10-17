@@ -147,6 +147,7 @@ CHILD_MODULES = {
             "compact_blocks",
             "data",
             "handshake",
+            "headers_sync",
             "inventory",
             "keepalive",
             "limits",

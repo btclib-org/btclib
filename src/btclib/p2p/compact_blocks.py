@@ -12,8 +12,8 @@ src/blockencodings.h and .cpp are the implementation, and its
 test/functional/test_framework/messages.py's `msg_sendcmpct`,
 `msg_cmpctblock`, `msg_getblocktxn` and `msg_blocktxn` the layout.
 
-**This is the one module of the package that carries an algorithm**, and
-the algorithm rather than the layout is where a compact block goes wrong:
+**This module carries an algorithm as well as a layout**, and the
+algorithm rather than the layout is where a compact block goes wrong:
 an encoder and a decoder that agree with each other and disagree with
 every peer is what a format built out of a keyed hash and a differential
 encoding invites, and no round-trip test can see it. So each of the three
