@@ -22,16 +22,16 @@ from btclib.script import (
     Script,
     ScriptPubKey,
     address,
-    assert_p2ms,
-    assert_p2pk,
+    assert_p2ms_var,
+    assert_p2pk_var,
     assert_p2pkh,
     assert_p2sh,
     assert_p2tr,
     assert_p2wpkh,
     assert_p2wsh,
     is_nulldata,
-    is_p2ms,
-    is_p2pk,
+    is_p2ms_var,
+    is_p2pk_var,
     is_p2pkh,
     is_p2sh,
     is_p2tr,
@@ -50,7 +50,7 @@ from btclib.script.script_pub_key import (
     assert_nulldata,
     assert_segwit,
     is_segwit,
-    p2ms_m_and_keys,
+    p2ms_m_and_keys_var,
     script_from_script_pub_key,
 )
 from tests import load, vector_id
@@ -283,7 +283,7 @@ def test_p2pk() -> None:
     # self-consistency
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     script_pub_key = serialize([pub_key, "OP_CHECKSIG"])
-    assert_p2pk(script_pub_key)
+    assert_p2pk_var(script_pub_key)
     assert script_pub_key == ScriptPubKey.p2pk(PubKeyData(pub_key)).script
     assert ("p2pk", bytes.fromhex(pub_key)) == type_and_payload(script_pub_key)
 
@@ -291,7 +291,7 @@ def test_p2pk() -> None:
 
     err_msg = "invalid pub_key length marker: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        assert_p2pk(b"\x31" + script_pub_key[1:])
+        assert_p2pk_var(b"\x31" + script_pub_key[1:])
 
     # documented test case: https://learnmeabitcoin.com/guide/p2pk
     pub_key = (
@@ -300,16 +300,16 @@ def test_p2pk() -> None:
         "e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c"
     )
     script_pub_key = bytes.fromhex(f"41{pub_key}ac")
-    assert_p2pk(script_pub_key)
+    assert_p2pk_var(script_pub_key)
     assert script_pub_key == ScriptPubKey.p2pk(PubKeyData(pub_key)).script
 
     err_msg = "missing final OP_CHECKSIG"
     with pytest.raises(BTClibValueError, match=err_msg):
-        assert_p2pk(script_pub_key[:-1] + b"\x00")
+        assert_p2pk_var(script_pub_key[:-1] + b"\x00")
 
     err_msg = "invalid pub_key length marker: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        assert_p2pk(b"\x31" + script_pub_key[1:])
+        assert_p2pk_var(b"\x31" + script_pub_key[1:])
 
     # invalid size: 34 bytes instead of (33, 65)
     pub_key = "03 ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414 14"
@@ -591,7 +591,7 @@ def test_p2ms_1() -> None:
         "52"  # OP_2
         "ae"  # OP_CHECKMULTISIG
     )
-    assert is_p2ms(script_pub_key)
+    assert is_p2ms_var(script_pub_key)
     assert not address(script_pub_key)
     script_type, payload = type_and_payload(script_pub_key)
     assert script_type == "p2ms"
@@ -632,44 +632,44 @@ def test_p2ms_1() -> None:
     ]
 
     script_pub_key = serialize(script_)
-    assert not is_p2ms(script_pub_key)
+    assert not is_p2ms_var(script_pub_key)
 
     err_msg = "invalid key in p2ms"
     script_pub_key = serialize(["OP_1", pub_key0, "0A", "OP_2", "OP_CHECKMULTISIG"])
-    assert not is_p2ms(script_pub_key)
+    assert not is_p2ms_var(script_pub_key)
 
     script_pub_key = serialize(["OP_1", pub_key0, pub_key1, "OP_2", "OP_CHECKMULTISIG"])
-    assert is_p2ms(script_pub_key)
+    assert is_p2ms_var(script_pub_key)
 
     script_pub_key = serialize(["OP_2", pub_key0, pub_key1, "OP_2", "OP_CHECKMULTISIG"])
-    assert is_p2ms(script_pub_key)
+    assert is_p2ms_var(script_pub_key)
 
     script_pub_key = serialize(["OP_0", pub_key0, pub_key1, "OP_2", "OP_CHECKMULTISIG"])
-    assert not is_p2ms(script_pub_key)
+    assert not is_p2ms_var(script_pub_key)
 
     script_pub_key = serialize(["OP_3", pub_key0, pub_key1, "OP_2", "OP_CHECKMULTISIG"])
-    assert not is_p2ms(script_pub_key)
+    assert not is_p2ms_var(script_pub_key)
 
     script_pub_key = serialize(["OP_1", "OP_2", "OP_CHECKMULTISIG"])
-    assert not is_p2ms(script_pub_key)
+    assert not is_p2ms_var(script_pub_key)
 
     script_pub_key = serialize(["OP_1", pub_key0, "OP_2", "OP_CHECKMULTISIG"])
-    assert not is_p2ms(script_pub_key)
+    assert not is_p2ms_var(script_pub_key)
 
     script_pub_key = serialize(["OP_1", pub_key0, pub_key1, "OP_3", "OP_CHECKMULTISIG"])
-    assert not is_p2ms(script_pub_key)
+    assert not is_p2ms_var(script_pub_key)
 
     pub_key2 = "04 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798 483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8"
     script_pub_key = serialize(
         ["OP_1", pub_key0, pub_key1, pub_key2, "OP_3", "OP_CHECKMULTISIG"]
     )
-    assert_p2ms(script_pub_key)
+    assert_p2ms_var(script_pub_key)
 
     err_msg = "invalid p2ms script_pub_key size"
     with pytest.raises(BTClibValueError, match=err_msg):
-        assert_p2ms(script_pub_key[:133] + b"\x40" + script_pub_key[134:])
+        assert_p2ms_var(script_pub_key[:133] + b"\x40" + script_pub_key[134:])
     with pytest.raises(BTClibValueError, match=err_msg):
-        assert_p2ms(script_pub_key[:-2] + b"\x00" + script_pub_key[-2:])
+        assert_p2ms_var(script_pub_key[:-2] + b"\x00" + script_pub_key[-2:])
 
 
 def test_p2ms_2() -> None:
@@ -692,7 +692,7 @@ def test_p2ms_2() -> None:
             script_pub_key = ScriptPubKey.p2ms(
                 m, pub_keys, lexicographic_sorting=lexicographic_sorting
             ).script
-            assert is_p2ms(script_pub_key)
+            assert is_p2ms_var(script_pub_key)
             assert not address(script_pub_key)
             script_type, payload = type_and_payload(script_pub_key)
             assert script_type == "p2ms"
@@ -755,7 +755,7 @@ def test_bip67(keys: list[str], addr: str) -> None:
     m = 2
     pub_keys = [PubKeyData(key) for key in keys]
     script_pub_key = ScriptPubKey.p2ms(m, pub_keys, lexicographic_sorting=True).script
-    assert is_p2ms(script_pub_key)
+    assert is_p2ms_var(script_pub_key)
     assert not address(script_pub_key)
     script_type, payload = type_and_payload(script_pub_key)
     assert script_type == "p2ms"
@@ -934,8 +934,8 @@ def test_is_p2_functions_answer_about_bytes_not_about_types() -> None:
     """
     is_functions = [
         is_nulldata,
-        is_p2ms,
-        is_p2pk,
+        is_p2ms_var,
+        is_p2pk_var,
         is_p2pkh,
         is_p2sh,
         is_p2tr,
@@ -1170,7 +1170,7 @@ def test_p2ms_at_the_sixteen_key_maximum() -> None:
     script_pub_key = ScriptPubKey.p2ms(16, keys, lexicographic_sorting=False).script
     assert script_pub_key[0] == 0x60
     assert script_pub_key[-2] == 0x60
-    assert is_p2ms(script_pub_key)
+    assert is_p2ms_var(script_pub_key)
     script_type, payload = type_and_payload(script_pub_key)
     assert script_type == "p2ms"
     assert payload == script_pub_key[:-1]
@@ -1188,25 +1188,25 @@ def test_p2ms_refuses_what_its_markers_cannot_mean() -> None:
     key = bytes_from_point(mult(1))
     shortest = bytes([0x51, 33, *key, 0x51, 0xAE])
     assert len(shortest) == 37
-    assert is_p2ms(shortest)
+    assert is_p2ms_var(shortest)
 
     err_msg = "invalid p2ms length 36"
     with pytest.raises(BTClibValueError, match=err_msg):
-        assert_p2ms(bytes([0x51, 32, *key[:32], 0x51, 0xAE]))
+        assert_p2ms_var(bytes([0x51, 32, *key[:32], 0x51, 0xAE]))
 
     # 0xB1 is OP_CHECKLOCKTIMEVERIFY, 177: as a quorum marker it is 97,
     # which is what the message has to say to tell the subtraction from
     # a modulo that agrees with it for every marker a wallet writes
     err_msg = "invalid m-of-n: 1-of-97"
     with pytest.raises(BTClibValueError, match=err_msg):
-        assert_p2ms(bytes([0x51, 33, *key, 0xB1, 0xAE]))
+        assert_p2ms_var(bytes([0x51, 33, *key, 0xB1, 0xAE]))
 
     # OP_18 does not exist, and 0x62 -- OP_VER -- is where it would be:
     # 18 is written as a push, so an op code count has an upper end at 16
     # and not only an ordering against m
     err_msg = "invalid m-of-n: 1-of-18"
     with pytest.raises(BTClibValueError, match=err_msg):
-        assert_p2ms(bytes([0x51, 33, *key, 0x62, 0xAE]))
+        assert_p2ms_var(bytes([0x51, 33, *key, 0x62, 0xAE]))
 
 
 def test_p2ms_counts_are_written_as_core_writes_them() -> None:
@@ -1226,7 +1226,7 @@ def test_p2ms_counts_are_written_as_core_writes_them() -> None:
         script_pub_key = ScriptPubKey.p2ms(n, keys, lexicographic_sorting=False)
         assert script_pub_key.script == expected
         assert script_pub_key.type == "p2ms"
-        assert p2ms_m_and_keys(expected) == (n, [key] * n)
+        assert p2ms_m_and_keys_var(expected) == (n, [key] * n)
 
 
 def test_p2ms_16_of_20_is_the_address_core_creates() -> None:
@@ -1245,7 +1245,7 @@ def test_p2ms_16_of_20_is_the_address_core_creates() -> None:
     assert redeem_script[-3:] == b"\x01\x14\xae"
     addr = "bcrt1qluzr8trg8f0eptz2j30pd2ff562udd22wm6nfdjxstlvesd44s2s9uahgz"
     assert ScriptPubKey.p2wsh(redeem_script, "regtest").address == addr
-    m, pub_keys = p2ms_m_and_keys(redeem_script)
+    m, pub_keys = p2ms_m_and_keys_var(redeem_script)
     assert m == 16
     assert pub_keys == [key.sec for key in keys]
 
@@ -1254,7 +1254,7 @@ def test_p2ms_16_of_20_is_the_address_core_creates() -> None:
         ScriptPubKey.p2ms(16, [*keys, extra])
     twenty_one = redeem_script[:-3] + bytes([33, *extra.sec, 0x01, 21, 0xAE])
     with pytest.raises(BTClibValueError, match="invalid m-of-n: 16-of-21"):
-        assert_p2ms(twenty_one)
+        assert_p2ms_var(twenty_one)
 
 
 def test_p2ms_count_is_read_in_its_minimal_form_only() -> None:
@@ -1269,20 +1269,20 @@ def test_p2ms_count_is_read_in_its_minimal_form_only() -> None:
 
     err_msg = "invalid m-of-n: 1-of-16"
     with pytest.raises(BTClibValueError, match=err_msg):
-        assert_p2ms(b"\x51" + key * 16 + b"\x01\x10\xae")
+        assert_p2ms_var(b"\x51" + key * 16 + b"\x01\x10\xae")
     err_msg = "invalid m in m-of-n: 16"
     with pytest.raises(BTClibValueError, match=err_msg):
-        assert_p2ms(b"\x01\x10" + key * 16 + b"\x60\xae")
+        assert_p2ms_var(b"\x01\x10" + key * 16 + b"\x60\xae")
     # 0x61 is OP_NOP, one past OP_16
     err_msg = "invalid m in m-of-n: 17"
     with pytest.raises(BTClibValueError, match=err_msg):
-        assert_p2ms(b"\x61" + key * 17 + b"\x01\x11\xae")
+        assert_p2ms_var(b"\x61" + key * 17 + b"\x01\x11\xae")
 
     seventeen = b"\x01\x11" + key * 17 + b"\x01\x11\xae"
-    assert p2ms_m_and_keys(seventeen)[0] == 17
+    assert p2ms_m_and_keys_var(seventeen)[0] == 17
     err_msg = "invalid m-of-n: 17-of-16"
     with pytest.raises(BTClibValueError, match=err_msg):
-        assert_p2ms(b"\x01\x11" + key * 16 + b"\x60\xae")
+        assert_p2ms_var(b"\x01\x11" + key * 16 + b"\x60\xae")
 
     # a key whose last byte is 0x01 ahead of an OP_n count: the 0x01 is
     # read as the pushed form's only where the count is no OP_1..OP_16
@@ -1292,7 +1292,7 @@ def test_p2ms_count_is_read_in_its_minimal_form_only() -> None:
         if sec[-1] == 0x01
     )
     script_pub_key = serialize(["OP_1", one_last, "OP_1", "OP_CHECKMULTISIG"])
-    assert p2ms_m_and_keys(script_pub_key) == (1, [one_last])
+    assert p2ms_m_and_keys_var(script_pub_key) == (1, [one_last])
 
 
 def test_a_leading_op_code_is_compared_for_equality() -> None:

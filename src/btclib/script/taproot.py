@@ -340,7 +340,7 @@ def _output_pubkey_and_internal_key(
 
     The key arrives as a `PubKeyData`, so that neither arm has to say how
     much of it is worth building (issue #1188): the octets are the field
-    and `point` is a `cached_property`. The bindings arm wants the octets
+    and `point_var` is a `cached_property`. The bindings arm wants the octets
     unproven, the tweak's own parse being the proof and a second lift
     issue 887; the Python arm wants the point it would otherwise lift
     twice, which is issue 896. The arm that reads the point pays for it
@@ -375,7 +375,7 @@ def _output_pubkey_and_internal_key(
         # arm split: a length, a prefix and a network name, no point
         # lifted, so the bindings arm still hands `tweak_add` octets
         # nothing has proved (issue 887). The network is the field only
-        # the Python arm reads, `point` going through `curve`, and asked
+        # the Python arm reads, `point_var` going through `curve`, and asked
         # here it is refused on both arms rather than on that one alone
         internal_pubkey.assert_valid()
         key_data = internal_pubkey
@@ -417,7 +417,7 @@ def _tweaked_pubkey(pub_key: PubKeyData, h: bytes) -> tuple[bytes, int]:
     uses (issue #1188). `sec` is what `xonly.tweak_add` prefers whole,
     `04 || x || y` carrying the y it would otherwise lift, and `02 || x`,
     `03 || x` and `04 || x || y` all name the same x-only key to it.
-    `point` is the square root, taken once
+    `point_var` is the square root, taken once
     however many readers ask, which is issue 896.
     """
     t = _tap_tweak(pub_key.sec[1:33], h)
@@ -488,7 +488,7 @@ def _tweaked_pubkey(pub_key: PubKeyData, h: bytes) -> tuple[bytes, int]:
     # is the class of its refusal: read into btclib's, the one the arm
     # above raises, so that a caller need not know which arm answered
     try:
-        P_x, y_P = pub_key.point
+        P_x, y_P = pub_key.point_var
     except BTClibEccValueError as e:
         raise BTClibValueError(str(e)) from e
     P_y = y_P if y_P % 2 == 0 else secp256k1.p - y_P

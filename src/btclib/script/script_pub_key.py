@@ -10,7 +10,7 @@ answering the same test as a bool: False means "not this shape", while
 a caller error -- None, a list, anything no bytes can be read from --
 raises through both, a TypeError not being an answer to "is this a
 p2sh". The assert functions test shape, not spendability: any 20 bytes
-are a pub_key hash to assert_p2pkh, and only assert_p2pk parses its
+are a pub_key hash to assert_p2pkh, and only assert_p2pk_var parses its
 key, the script being the one place the key itself sits.
 """
 
@@ -52,8 +52,8 @@ __all__ = [
     "address",
     "addresses",
     "assert_nulldata",
-    "assert_p2ms",
-    "assert_p2pk",
+    "assert_p2ms_var",
+    "assert_p2pk_var",
     "assert_p2pkh",
     "assert_p2sh",
     "assert_p2tr",
@@ -61,15 +61,15 @@ __all__ = [
     "assert_p2wsh",
     "assert_segwit",
     "is_nulldata",
-    "is_p2ms",
-    "is_p2pk",
+    "is_p2ms_var",
+    "is_p2pk_var",
     "is_p2pkh",
     "is_p2sh",
     "is_p2tr",
     "is_p2wpkh",
     "is_p2wsh",
     "is_segwit",
-    "p2ms_m_and_keys",
+    "p2ms_m_and_keys_var",
     "script_from_script_pub_key",
     "type_and_payload",
 ]
@@ -122,14 +122,14 @@ _OP_N_COUNTS = range(1, 17)
 _PUSHED_COUNTS = range(17, MAX_PUBKEYS_PER_MULTISIG + 1)
 
 
-def p2ms_m_and_keys(script_pub_key: Octets) -> tuple[int, list[bytes]]:
+def p2ms_m_and_keys_var(script_pub_key: Octets) -> tuple[int, list[bytes]]:
     """Return the threshold and the pub keys of a p2ms script_pub_key.
 
     The bounds are checked -- 0 < m <= n <= MAX_PUBKEYS_PER_MULTISIG,
     each count written as `push_int` writes it -- and each key is read as
     a push of the declared length and then parsed as a public key: a
     push that is not one is what makes the bytes not a p2ms, which is the
-    answer `is_p2ms` gives.
+    answer `is_p2ms_var` gives.
 
     The keys come back as the script holds them, uncompressed ones
     included, and not as the parse normalized them: BIP174 keys a partial
@@ -137,7 +137,7 @@ def p2ms_m_and_keys(script_pub_key: Octets) -> tuple[int, list[bytes]]:
     redeemScript", so the Finalizer below matches these bytes.
 
     Three callers ask this one question, which is why it is asked in one
-    place: `addresses` wants a p2pkh address per key, `assert_p2ms` the
+    place: `addresses` wants a p2pkh address per key, `assert_p2ms_var` the
     exception alone, and the psbt Finalizer both halves of the answer --
     OP_CHECKMULTISIG takes m signatures, in the order the script lists
     the keys they belong to.
@@ -179,8 +179,8 @@ def p2ms_m_and_keys(script_pub_key: Octets) -> tuple[int, list[bytes]]:
 
 def addresses(script_pub_key: Octets, network: str = "mainnet") -> list[str]:
     """Return the p2pkh addresses of the pub_keys in a p2ms script_pub_key."""
-    _, pub_keys = p2ms_m_and_keys(script_pub_key)
-    # check_validity=False: `p2ms_m_and_keys` has just parsed each of
+    _, pub_keys = p2ms_m_and_keys_var(script_pub_key)
+    # check_validity=False: `p2ms_m_and_keys_var` has just parsed each of
     # these as a curve point, which settles the size and the prefix
     # `assert_valid` reads, and the network name is resolved by
     # `b58.address_from_h160` one call down
@@ -207,7 +207,7 @@ def _is_funct(assert_funct: Callable[[Octets], None], script_pub_key: Octets) ->
     return True
 
 
-def assert_p2pk(script_pub_key: Octets) -> None:
+def assert_p2pk_var(script_pub_key: Octets) -> None:
     """Refuse bytes that are not p2pk: a pushed pub_key, OP_CHECKSIG.
 
     The key must parse as a curve point, so a well-shaped script
@@ -237,9 +237,9 @@ def assert_p2pk(script_pub_key: Octets) -> None:
     point_from_octets_var(pub_key)
 
 
-def is_p2pk(script_pub_key: Octets) -> bool:
+def is_p2pk_var(script_pub_key: Octets) -> bool:
     """Answer whether the bytes are a p2pk script_pub_key."""
-    return _is_funct(assert_p2pk, script_pub_key)
+    return _is_funct(assert_p2pk_var, script_pub_key)
 
 
 def assert_p2pkh(script_pub_key: Octets) -> None:
@@ -290,17 +290,17 @@ def is_p2sh(script_pub_key: Octets) -> bool:
     return _is_funct(assert_p2sh, script_pub_key)
 
 
-def assert_p2ms(script_pub_key: Octets) -> None:
+def assert_p2ms_var(script_pub_key: Octets) -> None:
     """Refuse bytes that are not p2ms: m, the pushed keys, n, OP_CHECKMULTISIG.
 
-    `p2ms_m_and_keys` is the whole of the check, and says what it is.
+    `p2ms_m_and_keys_var` is the whole of the check, and says what it is.
     """
-    p2ms_m_and_keys(script_pub_key)
+    p2ms_m_and_keys_var(script_pub_key)
 
 
-def is_p2ms(script_pub_key: Octets) -> bool:
+def is_p2ms_var(script_pub_key: Octets) -> bool:
     """Answer whether the bytes are a p2ms script_pub_key."""
-    return _is_funct(assert_p2ms, script_pub_key)
+    return _is_funct(assert_p2ms_var, script_pub_key)
 
 
 def assert_nulldata(script_pub_key: Octets) -> None:
@@ -508,12 +508,12 @@ def type_and_payload(script_pub_key: Octets) -> tuple[ScriptType, bytes]:  # noq
     """
     script_pub_key = bytes_from_octets(script_pub_key)
 
-    if is_p2pk(script_pub_key):
+    if is_p2pk_var(script_pub_key):
         # p2pk: pub_key OP_CHECKSIG
         # 0x41{65-byte pub_key}AC or 0x21{33-byte pub_key}AC
         return "p2pk", script_pub_key[1:-1]
 
-    if is_p2ms(script_pub_key):
+    if is_p2ms_var(script_pub_key):
         # p2ms: m pub_keys n OP_CHECKMULTISIG
         return "p2ms", script_pub_key[:-1]
 

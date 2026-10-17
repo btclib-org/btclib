@@ -183,11 +183,10 @@ describes beside them.
   `BTClibValueError` and btclib_ecc's `BTClibEccValueError` both
   derive from `ValueError`, so `except ValueError` catches a value refused
   by either package.
-- **Fail-safe defaults.** A function whose duration follows its operand
-  ends in `_var`, and the plain name beside it is the one a secret may be
-  handed, so a caller who does not choose gets the safer call:
-  CONTRIBUTING.md's *A `_var` suffix means the operand decides the work*
-  states it with the measurement behind each name. `check_validity`
+- **Fail-safe defaults.** The plain name beside a `_var` one is the one a
+  secret may be handed, so a caller who does not choose gets the safer
+  call: CONTRIBUTING.md's *A `_var` suffix means the operand decides the
+  work* says when a name takes the suffix. `check_validity`
   defaults to `True`, so a caller who passes nothing gets the check;
   `tests/check_validity_test.py` asserts that default for the wire-format
   classes it walks. A hash function that is

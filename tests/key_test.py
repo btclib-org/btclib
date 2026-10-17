@@ -34,7 +34,7 @@ def test_pub_key_data() -> None:
         assert key.network == "mainnet"
         assert key.is_compressed is compressed
         assert key.curve == secp256k1
-        assert key.point == Q_POINT
+        assert key.point_var == Q_POINT
 
     # a hex string is octets, as it is everywhere else in the library
     assert PubKeyData(SEC_COMPRESSED.hex()) == PubKeyData(SEC_COMPRESSED)
@@ -70,13 +70,13 @@ def test_the_sec_field_is_bytes_however_the_octets_were_spelled(sec: Octets) -> 
 def test_pub_key_data_point_is_computed_once() -> None:
     """The lift is memoized: the same tuple comes back, not an equal one."""
     key = PubKeyData(SEC_COMPRESSED)
-    assert key.point is key.point
+    assert key.point_var is key.point_var
 
 
 def test_pub_key_data_equality_ignores_what_was_asked_for() -> None:
     """Equality and hashing read the declared fields: a lift changes neither."""
     lifted, untouched = PubKeyData(SEC_COMPRESSED), PubKeyData(SEC_COMPRESSED)
-    assert lifted.point == Q_POINT
+    assert lifted.point_var == Q_POINT
     assert lifted == untouched
     assert hash(lifted) == hash(untouched)
     assert len({lifted, untouched}) == 1
@@ -88,7 +88,7 @@ def test_pub_key_data_sec_forms_are_not_equal() -> None:
 
 
 def test_the_lift_is_the_proof() -> None:
-    """Octets of the right shape that are no point are refused by `point`.
+    """Octets of the right shape that are no point are refused by `point_var`.
 
     The whole of what makes this design lazy rather than eager: the
     constructor reads a length and a prefix, and the curve is asked only
@@ -98,7 +98,7 @@ def test_the_lift_is_the_proof() -> None:
     not_a_point = PubKeyData(b"\x02" + b"\x11" * 32)
     assert not_a_point.is_compressed
     with pytest.raises(BTClibEccValueError, match="invalid x-coordinate"):
-        _ = not_a_point.point
+        _ = not_a_point.point_var
 
 
 def test_hybrid_sec_prefixes_are_refused() -> None:

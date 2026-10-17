@@ -169,7 +169,7 @@ def decompress_amount(compressed: int) -> int:
     return (number * scale) & _UINT64_MAX
 
 
-def _is_p2pk_key_on_curve(pub_key: bytes) -> bool:
+def _is_p2pk_key_on_curve_var(pub_key: bytes) -> bool:
     """Say whether an uncompressed public key is a point of secp256k1."""
     try:
         point_from_octets_var(pub_key)
@@ -217,7 +217,7 @@ def compress_script(script: Octets) -> bytes | None:
         and script[0] == 65
         and script[66] == _OP_CHECKSIG
         and script[1] == 0x04
-        and _is_p2pk_key_on_curve(script[1:66])
+        and _is_p2pk_key_on_curve_var(script[1:66])
     ):
         return bytes([0x04 | (script[65] & 1)]) + script[2:34]
     return None
