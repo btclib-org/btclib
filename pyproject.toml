@@ -35,7 +35,7 @@ name = "btclib"
 # file. Not a literal in src/btclib/__init__.py for setuptools to import
 # and conf.py to repeat: two declarations are two things a release
 # workflow has to compare before trusting either
-version = "2026.11"
+version = "2026.10.17"
 description = "A library for 'bitcoin cryptography'"
 readme = "README.md"
 # PEP 639: a SPDX expression and the files it refers to, replacing the
@@ -55,20 +55,20 @@ requires-python = ">=3.11"
 # of the number being the one that goes stale.
 dependencies = [
     # `btclib.p2p.magic` calls `chain_from_network` and `magic_from_chain`,
-    # both there since 2026.8.29. The floor is the release btclib
-    # v2026.9.29 was cut against (issue #2407)
-    "bitcoin-core-rpc>=2026.9.29",
+    # both there since 2026.8.29. The floor is the release this btclib
+    # is cut against, as RELEASING.md's step 1 of *Release to PyPI* asks
+    "bitcoin-core-rpc>=2026.10.17",
     # the curve arithmetic and the schemes built on it, which btclib
     # imports from `btclib_ecc` where it uses them and does not
     # re-export. 2026.10.16 is the first release with the names btclib
-    # imports, `point_from_octets_var` and `point_from_bip340pub_key_var`,
-    # and the one whose lines SECURITY.md cites, which
-    # tests/security_citations_test.py reads from the installed
-    # package. It carries the fixes of GHSA-r5pw-9wrg-m3mj and
+    # imports, `point_from_octets_var` and `point_from_bip340pub_key_var`.
+    # 2026.10.17 is the floor: it is the release whose lines SECURITY.md
+    # cites, which tests/security_citations_test.py reads from the
+    # installed package. It carries the fixes of GHSA-r5pw-9wrg-m3mj and
     # GHSA-m38m-987v-j55h, and its lift words an invalid x as `invalid
     # x-coordinate` or `x-coordinate not in 0..p-1`, which the taproot
     # tests rely on
-    "btclib-ecc>=2026.10.16",
+    "btclib-ecc>=2026.10.17",
     # `typing.override` is 3.12's, `typing.TypeIs` is 3.13's, and the
     # floor is 3.11, so both come from the backport; 4.4 is the release
     # that adds `override`, 4.10 the one that adds `TypeIs`, and the
@@ -144,14 +144,15 @@ secp256k1 = [
     # `xonly.tweak_add_` (btclib-org/btclib-secp256k1#158), which
     # `script.taproot` calls to tweak the parsed internal key, where
     # `xonly.tweak_add` parses the x again and that parse is a field
-    # square root. 0.8.0.10 is the floor because it fixes
-    # GHSA-8h6f-34jj-7p6c, an invalid-curve oracle in the bindings'
-    # `silentpayments.scan_outputs`, which btclib does not call
-    "btclib-secp256k1>=0.8.0.10",
+    # square root. 0.8.0.10 fixes GHSA-8h6f-34jj-7p6c, an invalid-curve
+    # oracle in the bindings' `silentpayments.scan_outputs`, which btclib
+    # does not call. 0.8.0.12 is the floor: it is the release this btclib
+    # is cut against, as RELEASING.md's step 1 of *Release to PyPI* asks
+    "btclib-secp256k1>=0.8.0.12",
     # what the rest of the delegation is: btclib_ecc imports the
     # bindings for the curve arithmetic and the schemes, and its extra is
     # what states which release that takes
-    "btclib-ecc[secp256k1]>=2026.10.16",
+    "btclib-ecc[secp256k1]>=2026.10.17",
 ]
 # `btclib.p2p.bip324`, BIP324's v2 transport cipher, `pip install
 # "btclib[bip324]"`. Issue #1066 keeps a hand-written cipher out of
@@ -219,7 +220,7 @@ pull_requests = "https://github.com/btclib-org/btclib/pulls"
 # refuses the day the two stop agreeing. What the group buys is that no
 # documented command had to grow an `--extra`, and that the job of issue
 # #991 is those same commands with this group left out
-bindings = ["btclib-secp256k1>=0.8.0.10", "btclib-ecc[secp256k1]>=2026.10.16"]
+bindings = ["btclib-secp256k1>=0.8.0.12", "btclib-ecc[secp256k1]>=2026.10.17"]
 # the `bip324` extra again, for the reason `bindings` is a group: the
 # suite, the type check and the docs build import `btclib.p2p.bip324`,
 # and `tests/build_system_test.py` holds the two declarations equal.

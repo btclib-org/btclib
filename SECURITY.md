@@ -213,8 +213,8 @@ commit it was read at:
     the bullet above already gives: no Python object holding a secret
     is zeroized, on either path, and this one is no exception to it.
     `dsa.Signer.__init__` at `self._q.to_bytes(32, "big")`
-    ([`src/btclib_ecc/ecc/dsa.py:1472`](
-    https://github.com/btclib-org/btclib-ecc/blob/e0a511c5ed28dfee5325e014a61f9a67063d80e9/src/btclib_ecc/ecc/dsa.py#L1472
+    ([`src/btclib_ecc/ecc/dsa.py:1482`](
+    https://github.com/btclib-org/btclib-ecc/blob/091006c7aca9621545e59db47cd670c047ed8f41/src/btclib_ecc/ecc/dsa.py#L1482
     )) crosses the same boundary the other
     way, once, at construction: the plain `int` `scalar_from_prv_key`
     already produced becomes a transient `bytes` on the way into the
