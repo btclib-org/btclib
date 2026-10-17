@@ -53,6 +53,7 @@ _BOUND = 60
 _REPEATS = 15
 _FACTOR = 16
 _LIMIT = 4
+_CHECKS = 1_000
 _T = TypeVar("_T")
 
 
@@ -74,19 +75,20 @@ def _seconds(leaf: bytes) -> float:
 
 
 def _ratio(small: _T, large: _T, seconds: Callable[[_T], float]) -> float:
-    """Return the best time of `large` over the best of `_FACTOR` `small` runs.
+    """Return the best time of `large` over that of `_FACTOR` runs of `small`.
 
-    The `_FACTOR` runs of `small` are timed as one. `large` is `_FACTOR`
-    times `small`, so the ratio is about 1 if the work is linear and about
-    `_FACTOR` if it is quadratic, and the tests bound it at `_LIMIT`, as far
-    in proportion from either. Each side lasts about as long as the other,
+    The `_FACTOR` runs of `small` follow one another, and their times are
+    summed. `large` is `_FACTOR` times `small`, so the ratio is about 1 if
+    the work is linear and about `_FACTOR` if it is quadratic, and the
+    tests bound it at `_LIMIT`. Each side lasts about as long as the other,
     so what slows a run under load is as likely to reach either side; a
     short run against a long one leaves the long one the likelier to be
     slowed. The sides alternate, so that a change of load reaches both, and
     the best of each is taken, so that a slow run cannot hide the growth.
 
     A slowdown that reaches every large run and no small one reaches
-    `_LIMIT` only once it adds three times what a large run takes alone.
+    `_LIMIT` only once it adds `_LIMIT - 1` times what a large run takes
+    alone.
     """
     small_times: list[float] = []
     large_times: list[float] = []
@@ -177,23 +179,23 @@ def test_the_signature_checks_take_time_in_proportion_to_their_count(
 ) -> None:
     """The annex and the output a check commits to cost their size once."""
     monkeypatch.setattr(tapscript, "ssa_verify", lambda *_: True)
-    small, large = make(1_000), make(1_000 * _FACTOR)
+    small, large = make(_CHECKS), make(_CHECKS * _FACTOR)
     ratio = _ratio(small, large, lambda case: _seconds_of(*case))
     assert ratio < _LIMIT, (
         f"{ratio:.1f} times as long as {_FACTOR} runs of 1/{_FACTOR} of the checks"
     )
 
 
-# the failures of issue #2613, 12.0 and 17.45 on 8,000 checks against
-# 2,000, read as every large run slowed and the best small run not: 2 and
-# 3.36 times the large run's own time added to it. The large run here is
-# 16,000 checks, so that is 1 and 1.68 times its time
-@pytest.mark.parametrize("extra", [1, 1.68])
+# the ratios of issue #2613 time 2,000 checks against 8,000, about 4 when
+# linear. A slowdown that grows with the run reaches the small runs too,
+# which last as long as the large one
+@pytest.mark.parametrize("issue_ratio", [12.0, 17.45])
 def test_a_slowdown_of_every_large_run_alone_stays_under_the_limit(
-    extra: float,
+    issue_ratio: float,
 ) -> None:
-    """The issue's slowdowns, on every large run and no small one, pass."""
-    times = {"small": 1 / _FACTOR, "large": 1 + extra}
+    """The issue's slowdowns, added to every large run alone, pass."""
+    added = (issue_ratio - 4) * 2_000 / (_CHECKS * _FACTOR)
+    times = {"small": 1 / _FACTOR, "large": 1 + added}
     assert _ratio("small", "large", times.__getitem__) < _LIMIT
 
 
