@@ -19,6 +19,22 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.10.17
+
+- **btclib requires btclib-ecc 2026.10.17 and bitcoin-core-rpc 2026.10.17, and
+  its `secp256k1` extra btclib-secp256k1 0.8.0.12** (closes #2702). Act on it
+  if you pin any of them lower. btclib-ecc's own breaking changes, in
+  `rangeproof` and in the low-R grind of `dsa`, are in its release notes.
+
+### Breaking changes
+
+- **`PartialMerkleTree.serialize` with `check_validity=False` refuses a
+  transaction count that is not an int, or that four octets do not hold**
+  (closes #2668). It raises `BTClibTypeError` or `BTClibValueError`, where it
+  raised `AttributeError` or `OverflowError`; `MerkleBlock.serialize` does the
+  same. Act on it if you catch `AttributeError` or `OverflowError` there: catch
+  the btclib errors, which are a `TypeError` and a `ValueError`.
+
 ## v2026.10.16
 
 - **btclib 2026.9.29 to 2026.10.9 fail at import beside btclib-ecc
