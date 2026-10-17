@@ -51,7 +51,8 @@ _OP_2DROP = b"\x6d"
 _DEEP = 100_000
 _BOUND = 60
 _REPEATS = 15
-_LIMIT = 2
+_FACTOR = 16
+_LIMIT = 4
 _T = TypeVar("_T")
 
 
@@ -73,21 +74,24 @@ def _seconds(leaf: bytes) -> float:
 
 
 def _ratio(small: _T, large: _T, seconds: Callable[[_T], float]) -> float:
-    """Return the best time of `large` over the best of four runs of `small`.
+    """Return the best time of `large` over the best of `_FACTOR` `small` runs.
 
-    `large` is four times `small`, so the ratio is about 1 if the work is
-    linear and about 4 if it is quadratic, and the tests bound it at
-    `_LIMIT`, as far in proportion from either. Each side lasts about as
-    long as the other, so what slows a run under load is as likely to
-    reach either side; a short run against a long one leaves the long one
-    the likelier to be slowed. The sides alternate, so that a change of
-    load reaches both, and the best of each is taken, so that a slow run
-    cannot hide the growth.
+    The `_FACTOR` runs of `small` are timed as one. `large` is `_FACTOR`
+    times `small`, so the ratio is about 1 if the work is linear and about
+    `_FACTOR` if it is quadratic, and the tests bound it at `_LIMIT`, as far
+    in proportion from either. Each side lasts about as long as the other,
+    so what slows a run under load is as likely to reach either side; a
+    short run against a long one leaves the long one the likelier to be
+    slowed. The sides alternate, so that a change of load reaches both, and
+    the best of each is taken, so that a slow run cannot hide the growth.
+
+    A slowdown that reaches every large run and no small one reaches
+    `_LIMIT` only once it adds three times what a large run takes alone.
     """
     small_times: list[float] = []
     large_times: list[float] = []
     for _ in range(_REPEATS):
-        small_times.append(sum(seconds(small) for _ in range(4)))
+        small_times.append(sum(seconds(small) for _ in range(_FACTOR)))
         large_times.append(seconds(large))
     return min(large_times) / min(small_times)
 
@@ -154,13 +158,13 @@ def _seconds_of(prevout: TxOut, tx: Tx) -> float:
 
 @pytest.mark.timeout(_BOUND * 5)
 @pytest.mark.parametrize("make", [_nested_if, _equalverifies])
-def test_four_times_the_script_takes_about_four_times_as_long(
+def test_the_script_takes_time_in_proportion_to_its_size(
     make: Callable[[int], bytes],
 ) -> None:
-    """Four times the script: 16 times as long if quadratic, 4 if linear."""
-    ratio = _ratio(make(_DEEP // 4), make(_DEEP), _seconds)
+    """`_FACTOR` times the script takes about `_FACTOR` times as long."""
+    ratio = _ratio(make(_DEEP // _FACTOR), make(_DEEP), _seconds)
     assert ratio < _LIMIT, (
-        f"{ratio:.1f} times as long as four runs of a quarter of the script"
+        f"{ratio:.1f} times as long as {_FACTOR} runs of 1/{_FACTOR} of the script"
     )
 
 
@@ -168,16 +172,29 @@ def test_four_times_the_script_takes_about_four_times_as_long(
 @pytest.mark.parametrize(
     "make", [_checks_alone, _checks_with_annex, _checks_with_output]
 )
-def test_four_times_the_signature_checks_take_about_four_times_as_long(
+def test_the_signature_checks_take_time_in_proportion_to_their_count(
     make: Callable[[int], tuple[TxOut, Tx]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The annex and the output a check commits to cost their size once."""
     monkeypatch.setattr(tapscript, "ssa_verify", lambda *_: True)
-    small, large = make(2_000), make(8_000)
+    small, large = make(1_000), make(1_000 * _FACTOR)
     ratio = _ratio(small, large, lambda case: _seconds_of(*case))
     assert ratio < _LIMIT, (
-        f"{ratio:.1f} times as long as four runs of a quarter of the checks"
+        f"{ratio:.1f} times as long as {_FACTOR} runs of 1/{_FACTOR} of the checks"
     )
+
+
+# the failures of issue #2613, 12.0 and 17.45 on 8,000 checks against
+# 2,000, read as every large run slowed and the best small run not: 2 and
+# 3.36 times the large run's own time added to it. The large run here is
+# 16,000 checks, so that is 1 and 1.68 times its time
+@pytest.mark.parametrize("extra", [1, 1.68])
+def test_a_slowdown_of_every_large_run_alone_stays_under_the_limit(
+    extra: float,
+) -> None:
+    """The issue's slowdowns, on every large run and no small one, pass."""
+    times = {"small": 1 / _FACTOR, "large": 1 + extra}
+    assert _ratio("small", "large", times.__getitem__) < _LIMIT
 
 
 @pytest.mark.timeout(_BOUND)
