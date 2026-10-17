@@ -161,6 +161,16 @@ def test_check_validity_reaches_both_fields_and_can_be_turned_off() -> None:
     )
 
 
+@pytest.mark.parametrize("n_transactions", [1.5, None, "1", 2**32, -1], ids=repr)
+def test_an_unchecked_serialize_checks_the_tree_count(n_transactions: object) -> None:
+    """The tree's count is checked where `MerkleBlock` writes it."""
+    block = _load("block_200000.bin")
+    tree = PartialMerkleTree(n_transactions, check_validity=False)  # type: ignore[arg-type]
+    unchecked = MerkleBlock(block.header, tree, check_validity=False)
+    with pytest.raises((BTClibTypeError, BTClibValueError)):
+        unchecked.serialize(check_validity=False)
+
+
 def test_the_message_is_frozen_and_not_hashable() -> None:
     """`dataclasses.replace` is what changes a vector, then."""
     block = _load("block_1.bin")

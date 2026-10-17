@@ -238,6 +238,38 @@ def test_n_transactions_type_is_refused() -> None:
         PartialMerkleTree(n_transactions=True)
 
 
+@pytest.mark.parametrize("n_transactions", [1.5, None, "1"], ids=repr)
+def test_unchecked_serialize_refuses_a_count_that_is_no_int(
+    n_transactions: object,
+) -> None:
+    """Without the check, a value with no `to_bytes` raises `AttributeError`."""
+    tree = PartialMerkleTree(n_transactions, check_validity=False)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid n_transactions type"):
+        tree.serialize(check_validity=False)
+
+
+@pytest.mark.parametrize(
+    "n_transactions", [2**32, -1, 2**4300], ids=["2**32", "minus-one", "2**4300"]
+)
+def test_unchecked_serialize_refuses_a_count_four_octets_do_not_hold(
+    n_transactions: int,
+) -> None:
+    """Without the check `int.to_bytes` raises an `OverflowError`."""
+    tree = PartialMerkleTree(n_transactions, check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid n_transactions: "):
+        tree.serialize(check_validity=False)
+
+
+@pytest.mark.parametrize("n_transactions", [True, False])
+def test_unchecked_serialize_writes_a_bool_count_as_zero_or_one(
+    n_transactions: bool,
+) -> None:
+    """A bool is an int: it is written as one or zero, not refused."""
+    tree = PartialMerkleTree(n_transactions, check_validity=False)
+    expected = int(n_transactions).to_bytes(4, byteorder="little") + b"\x00\x00"
+    assert tree.serialize(check_validity=False) == expected
+
+
 def test_hashes_must_be_a_sequence_and_not_octets() -> None:
     """An `Octets` is a `Sequence` too: zipped, not read as a list of hashes."""
     with pytest.raises(BTClibTypeError, match="invalid hashes type"):
