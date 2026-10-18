@@ -1586,8 +1586,8 @@ count is the number of operands, not their value, does not count.
 The rule is about arithmetic on a key, a scalar, a nonce, a point or a
 field element, a recoding of a scalar into digits included. Hashing octets
 follows their length, and converting octets to text or back follows their
-length past any leading zeros; neither takes a suffix, nor does a function
-of other data, such as a height or a script.
+length past any leading zeros; neither takes a suffix, nor does work
+that follows other data, such as a height or a script's length.
 
 The plain name beside a `_var` one means a regular or blinded algorithm
 was chosen on purpose, and is the one a secret may be handed; it promises

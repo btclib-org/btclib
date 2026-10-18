@@ -99,7 +99,7 @@ def test_core_reports_what_coinstats_computes(
     that either is Core's.
 
     The digest is compared reversed: `gettxoutsetinfo` prints it through
-    `uint256::GetHex`, which is display order, where `digest` is
+    `uint256::GetHex`, which is display order, where `digest_var` is
     `MuHash3072::Finalize`'s own serialization.
     """
     miner, _ = wallets
