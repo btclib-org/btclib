@@ -152,10 +152,10 @@ def encode_request(request_id: int, method: str, params: Any = ()) -> bytes:
 def _raise_rpc_error(error: object) -> NoReturn:
     """Raise a JSON-RPC `error` member as `RpcError`.
 
-    Shared by the two sites `decode_response` reads one from: the
-    ordinary case, an id matching the request, and the JSON-RPC 2.0 one,
-    a reply whose `id` is `null` because the server could not parse the
-    request enough to answer it at all.
+    Shared by the sites that read one: an ordinary reply whose id matches
+    the request, the JSON-RPC 2.0 reply whose `id` is `null` because the
+    server could not parse the request enough to answer it at all, and a
+    batch refused whole.
     """
     if isinstance(error, dict):
         message = str(error.get("message", error))

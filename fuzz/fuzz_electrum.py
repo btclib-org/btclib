@@ -12,7 +12,8 @@ which of them gets past the first.
 
 The line is bytes, and `REQUEST_ID` is the id every seed under
 `fuzz/corpus/fuzz_electrum/` answers. `HEADERS_ASKED` is the number of
-headers the request behind `block_headers.bin` asked for.
+headers the request behind `block_headers.bin` asked for, and `BATCH_IDS`
+the ids a balance batch asked for.
 
 `BTClibException` is `decode_response`'s own refusal of a line that is
 no valid answer, and `RpcError` is a server's own error object, which is
@@ -36,6 +37,7 @@ from btclib.exceptions import BTClibException
 
 REQUEST_ID = 1
 HEADERS_ASKED = 2
+BATCH_IDS = (1,)
 
 # what each entry point takes after the line. tests/fuzz_corpus_test.py
 # reads this with ast and checks it against fuzz_target's calls.
@@ -49,6 +51,8 @@ ENTRY_POINTS = {
     "btclib.electrum:block_headers_response": (REQUEST_ID, HEADERS_ASKED),
     "btclib.electrum:transaction_get_merkle_response": (REQUEST_ID,),
     "btclib.electrum:estimate_fee_response": (REQUEST_ID,),
+    "btclib.electrum:scripthash_get_balance_response": (REQUEST_ID,),
+    "btclib.electrum:scripthash_get_balance_batch_response": (BATCH_IDS,),
 }
 
 
@@ -68,6 +72,10 @@ def fuzz_target(data: bytes) -> None:
         electrum.transaction_get_merkle_response(data, REQUEST_ID)
     with contextlib.suppress(BTClibException):
         electrum.estimate_fee_response(data, REQUEST_ID)
+    with contextlib.suppress(BTClibException):
+        electrum.scripthash_get_balance_response(data, REQUEST_ID)
+    with contextlib.suppress(BTClibException):
+        electrum.scripthash_get_balance_batch_response(data, BATCH_IDS)
 
 
 def main() -> None:
