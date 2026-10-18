@@ -133,6 +133,8 @@ def assert_secret_free(
     secret fed is a fixed random value, not a run such as all zeros, and
     a mnemonic's words are not words of the refusal's own text.
 
+    Whitespace a refusal puts between a piece's characters does not hide it.
+
     :param exc: the exception raised.
     :param secrets: the secret fed, as bytes, as a bytearray, or in each
         spelling a refusal could print: the decimal of a scalar, its
@@ -146,5 +148,8 @@ def assert_secret_free(
     }
     for e in chained(exc):
         text = text_of(e)
+        compact_text = "".join(text.split())
         for piece in pieces:
             assert piece not in text
+            if piece.split() == [piece]:
+                assert piece not in compact_text
