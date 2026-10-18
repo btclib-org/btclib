@@ -196,11 +196,13 @@ def siphash(k0: int, k1: int, octets: Octets) -> int:
     integer, `v0 ^ v1 ^ v2 ^ v3` of the finalized state, never negative
     and never wider than 8 bytes.
 
-    A hash keyed on a peer- or block-derived secret and not a
+    A hash keyed on data an attacker cannot know in advance and not a
     general-purpose digest: BIP158's filter and BIP152's short
-    transaction IDs both build their key from data no counterparty
-    chooses, which is what keeps this fast, non-cryptographic
-    construction from being a hash-flooding target.
+    transaction IDs derive their key from the block header, which does
+    not exist until the transactions it covers are chosen, and
+    `btclib.p2p.headers_sync` draws its key from `secrets`. That is what
+    keeps this fast, non-cryptographic construction from being a
+    hash-flooding target.
 
     Bitcoin Core's Python test framework offers a second entry point,
     `siphash256(k0, k1, num)`, for hashing a 256-bit integer -- `num`

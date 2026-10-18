@@ -2,7 +2,9 @@
 # inventory, compact blocks, block filters and merkle blocks. Every one
 # is parsed from a peer's octets before anything is validated, which is
 # issue #2443's question: a bound or a count moved by one, in code the
-# suite already runs at 100% statement coverage.
+# suite already runs at 100% statement coverage. The low-work headers
+# sync is here too: it takes the headers a peer sends, and a threshold
+# or a height moved by one is what its mistakes look like.
 #
 # p2p_connection.toml and bip324.toml hold the rest of `src/btclib/p2p`,
 # and p2p_connection.toml carries the reasoning the two share.
@@ -13,6 +15,7 @@ module-path = [
     "src/btclib/p2p/compact_blocks.py",
     "src/btclib/p2p/block_filters.py",
     "src/btclib/p2p/merkleblock.py",
+    "src/btclib/p2p/headers_sync.py",
 ]
 
 test-command = """python -m pytest -x -q -n0 -p no:randomly \

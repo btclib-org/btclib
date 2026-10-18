@@ -4,14 +4,21 @@
 
 """Module btclib.p2p.
 
-**The p2p wire format, and nothing that speaks it.** This package turns a
-message into bytes and bytes back into a message; it is handed the octets
-and hands octets back, and no line of it opens a socket, resolves a name
-or waits on one. `btclib_wallet.fetch` is the one place that goes and asks, and
-its `transport` is where a socket already is: nothing here imports that
-package, and nothing there imports this one -- a fetcher asks a server a
+**The p2p wire format and protocol logic, and no socket.** This package
+turns a message into bytes and bytes back into a message; it is handed the
+octets and hands octets back, and no line of it opens a socket, resolves a
+name or waits on one. `btclib_wallet.fetch` is the one place that goes and
+asks, and its `transport` is where a socket already is: nothing here imports
+that package, and nothing there imports this one -- a fetcher asks a server a
 question, a peer is a party to a protocol, and the only thing the two
 would share is the socket this package refuses to hold.
+
+**Protocol logic: the low-work headers sync.**
+`btclib.p2p.headers_sync` is Bitcoin Core's low-work headers sync: it is
+handed headers and the time, and hands back headers and a locator. Its
+names are not published here. `State` and `ProcessingResult` are names
+Core nests in `HeadersSyncState`, and they say nothing outside their
+module, so a caller names the module.
 
 **The envelope, with the payload as opaque bytes.** `Message` is the
 header Bitcoin Core's `CMessageHeader` describes together with the

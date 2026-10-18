@@ -106,6 +106,11 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.network:Network.to_dict": ["check_validity"],
     "btclib.p2p.bip324:Cipher.__init__": ["self_decrypt"],
     "btclib.p2p.bip324:Cipher.encrypt": ["ignore"],
+    "btclib.p2p.headers_sync:ChainStart.__init__": ["check_validity"],
+    "btclib.p2p.headers_sync:HeadersSyncState.__init__": ["now"],
+    "btclib.p2p.headers_sync:HeadersSyncState.process_next_headers": [
+        "full_headers_message"
+    ],
     "btclib.p2p:Addr.__init__": ["check_validity"],
     "btclib.p2p:Addr.parse": ["check_validity"],
     "btclib.p2p:Addr.serialize": ["check_validity"],

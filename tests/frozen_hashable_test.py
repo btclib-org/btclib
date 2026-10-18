@@ -49,7 +49,12 @@ from typing import Any
 import pytest
 
 from btclib.block import Block, BlockHeader, PartialMerkleTree
-from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams
+from btclib.consensus import (
+    CONSENSUS_PARAMS,
+    HEADERS_SYNC_PARAMS,
+    ConsensusParams,
+    HeadersSyncParams,
+)
 from btclib.p2p import (
     BlockPayload,
     BlockTxn,
@@ -73,6 +78,7 @@ from btclib.p2p import (
     SendTxRcncl,
     TxPayload,
 )
+from btclib.p2p.headers_sync import ChainStart, ProcessingResult
 from btclib.script import ScriptPubKey
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import module_names
@@ -197,6 +203,10 @@ _INSTANCES: dict[str, tuple[type, Callable[[], Any]]] = {
         ConsensusParams,
         lambda: CONSENSUS_PARAMS["mainnet"],
     ),
+    "btclib.consensus.HeadersSyncParams": (
+        HeadersSyncParams,
+        lambda: HEADERS_SYNC_PARAMS["mainnet"],
+    ),
     "btclib.p2p.address.NetworkAddress": (
         NetworkAddress,
         lambda: NetworkAddress(1, "10.0.0.1", 8333),
@@ -228,6 +238,14 @@ _INSTANCES: dict[str, tuple[type, Callable[[], Any]]] = {
     "btclib.p2p.data.BlockPayload": (
         BlockPayload,
         lambda: BlockPayload(Block.parse(_block_1()), True),
+    ),
+    "btclib.p2p.headers_sync.ChainStart": (
+        ChainStart,
+        lambda: ChainStart(_header(), 1, 2, 3, []),
+    ),
+    "btclib.p2p.headers_sync.ProcessingResult": (
+        ProcessingResult,
+        lambda: ProcessingResult([_header()], True, False),
     ),
     "btclib.p2p.inventory.Inventory": (Inventory, Inventory),
     "btclib.p2p.inventory.Headers": (Headers, lambda: Headers([_header()])),

@@ -53,6 +53,13 @@ btclib.p2p.handshake module
    :members:
    :show-inheritance:
 
+btclib.p2p.headers\_sync module
+-------------------------------
+
+.. automodule:: btclib.p2p.headers_sync
+   :members:
+   :show-inheritance:
+
 btclib.p2p.inventory module
 ---------------------------
 
