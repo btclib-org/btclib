@@ -78,6 +78,7 @@ from btclib.p2p import (
     SendTxRcncl,
     TxPayload,
 )
+from btclib.p2p.headers_sync import ChainStart, ProcessingResult
 from btclib.script import ScriptPubKey
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import module_names
@@ -237,6 +238,14 @@ _INSTANCES: dict[str, tuple[type, Callable[[], Any]]] = {
     "btclib.p2p.data.BlockPayload": (
         BlockPayload,
         lambda: BlockPayload(Block.parse(_block_1()), True),
+    ),
+    "btclib.p2p.headers_sync.ChainStart": (
+        ChainStart,
+        lambda: ChainStart(_header(), 1, 2, 3, []),
+    ),
+    "btclib.p2p.headers_sync.ProcessingResult": (
+        ProcessingResult,
+        lambda: ProcessingResult([_header()], True, False),
     ),
     "btclib.p2p.inventory.Inventory": (Inventory, Inventory),
     "btclib.p2p.inventory.Headers": (Headers, lambda: Headers([_header()])),

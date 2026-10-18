@@ -169,6 +169,9 @@ class ChainStart:
     work and median time past, and its own locator, which Core rebuilds
     from it on every request and which is the same list each time. The
     header is copied, so that the caller changing it changes no sync.
+
+    Frozen, and not hashable: `BlockHeader` is a mutable dataclass, so the
+    field holding it cannot be hashed.
     """
 
     header: BlockHeader
@@ -225,6 +228,8 @@ class ProcessingResult:
     chain order. `success` is false where the batch was not taken.
     `request_more` is whether to send a `getheaders` with
     `next_headers_request_locator`.
+
+    Frozen, and not hashable: `pow_validated_headers` is a list.
     """
 
     pow_validated_headers: list[BlockHeader]
