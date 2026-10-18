@@ -34,12 +34,13 @@ convention.
 `blockchain.block.header` for the header at a height,
 `blockchain.block.headers` for a chunk of consecutive headers,
 `blockchain.transaction.get_merkle` for the branch and position that
-proves a transaction confirmed, and `blockchain.estimatefee` for a fee
-rate quoted for a confirmation target. Each is a pair of functions, one
+proves a transaction confirmed, `blockchain.estimatefee` for a fee
+rate quoted for a confirmation target, and `blockchain.scripthash.get_balance`
+for confirmed satoshis and a signed mempool delta. Each has a function
 to build the request and one to read the matching response -- shapes,
-not a client: nothing here keeps a connection, retries, or knows which
-request line answers which of several outstanding ones, since a codec
-with no socket cannot have more than one line outstanding.
+not a client: nothing here keeps a connection or retries. The balance
+batch helpers put several requests on one line and match their answers
+by id, refusing a batch with a missing, repeated or unasked answer.
 
 **The merkle proof.** `assert_merkle_proof` and `verify_merkle_proof`
 check what `transaction_get_merkle_response` returns against a
@@ -57,6 +58,7 @@ from __future__ import annotations
 import json
 import math
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, NoReturn, cast
 
@@ -70,6 +72,7 @@ from btclib.utils import _message_text, bytes_from_octets, is_integer
 __all__ = [
     "HeaderTip",
     "MerkleProof",
+    "ScriptBalance",
     "assert_merkle_proof",
     "block_header_request",
     "block_header_response",
@@ -81,6 +84,10 @@ __all__ = [
     "estimate_fee_response",
     "headers_subscribe_request",
     "headers_subscribe_response",
+    "scripthash_get_balance_batch_request",
+    "scripthash_get_balance_batch_response",
+    "scripthash_get_balance_request",
+    "scripthash_get_balance_response",
     "transaction_get_merkle_request",
     "transaction_get_merkle_response",
     "transaction_get_request",
@@ -145,10 +152,10 @@ def encode_request(request_id: int, method: str, params: Any = ()) -> bytes:
 def _raise_rpc_error(error: object) -> NoReturn:
     """Raise a JSON-RPC `error` member as `RpcError`.
 
-    Shared by the two sites `decode_response` reads one from: the
-    ordinary case, an id matching the request, and the JSON-RPC 2.0 one,
-    a reply whose `id` is `null` because the server could not parse the
-    request enough to answer it at all.
+    Shared by the sites that read one: an ordinary reply whose id matches
+    the request, the JSON-RPC 2.0 reply whose `id` is `null` because the
+    server could not parse the request enough to answer it at all, and a
+    batch refused whole.
     """
     if isinstance(error, dict):
         message = str(error.get("message", error))
@@ -224,6 +231,11 @@ def decode_response(line: bytes, request_id: int) -> Any:
     compare equal to the integers they neighbour, and this module
     already refuses a bool as a number of any other kind (`is_integer`).
     """
+    return _response_result(_decode_line(line), request_id)
+
+
+def _decode_line(line: bytes) -> Any:
+    """Read one bounded-depth JSON value, shared by single and batch replies."""
     if not isinstance(line, (bytes, bytearray)):
         raise BTClibValueError(f"not a JSON-RPC line: {line!r}")
     try:
@@ -233,9 +245,13 @@ def decode_response(line: bytes, request_id: int) -> Any:
     if _too_deep(text):
         raise BTClibValueError(f"not a JSON-RPC line: nested beyond {_MAX_NESTING}")
     try:
-        reply: Any = json.loads(text, parse_constant=_refuse_constant)
+        return json.loads(text, parse_constant=_refuse_constant)
     except (TypeError, ValueError, RecursionError) as e:
         raise BTClibValueError(f"not a JSON-RPC line: {line!r}") from e
+
+
+def _response_result(reply: object, request_id: int) -> Any:
+    """Read one response object, preserving single or batch reply errors."""
     if not isinstance(reply, dict):
         raise BTClibTypeError(f"not a JSON-RPC response object: {reply!r}")
     reply_id = reply.get("id")
@@ -251,6 +267,118 @@ def decode_response(line: bytes, request_id: int) -> Any:
     if "result" not in reply:
         raise BTClibValueError(f"neither a result nor an error: {reply!r}")
     return reply["result"]
+
+
+@dataclass(frozen=True)
+class ScriptBalance:
+    """Confirmed satoshis and the signed mempool delta for a script hash.
+
+    `unconfirmed` can be negative when a transaction in the mempool spends
+    confirmed outputs. It is a change to `confirmed`, not another total.
+    """
+
+    confirmed: int
+    unconfirmed: int
+
+
+def scripthash_get_balance_request(request_id: int, scripthash: str) -> bytes:
+    """Return a `blockchain.scripthash.get_balance` request.
+
+    `scripthash` is the script's SHA256 hash in Electrum's reversed-byte
+    hexadecimal spelling. Whitespace is refused rather than sent on the wire.
+    """
+    if not isinstance(scripthash, str):
+        raise BTClibTypeError(f"invalid scripthash type: {type(scripthash).__name__}")
+    if not _TX_ID.fullmatch(scripthash):
+        raise BTClibValueError("invalid scripthash: expected 64 hex characters")
+    return encode_request(request_id, "blockchain.scripthash.get_balance", [scripthash])
+
+
+def _script_balance(result: object) -> ScriptBalance:
+    """Read the balance fields without coercing a bool or a rounded amount."""
+    if not isinstance(result, dict):
+        raise BTClibTypeError("scripthash.get_balance: not an object")
+    confirmed = result.get("confirmed")
+    unconfirmed = result.get("unconfirmed")
+    _assert_integer(confirmed, "confirmed balance", non_negative=False)
+    _assert_integer(unconfirmed, "unconfirmed balance", non_negative=False)
+    if cast(int, confirmed) < 0:
+        raise BTClibValueError("scripthash.get_balance: negative confirmed balance")
+    return ScriptBalance(cast(int, confirmed), cast(int, unconfirmed))
+
+
+def scripthash_get_balance_response(line: bytes, request_id: int) -> ScriptBalance:
+    """Return the balances a matching `scripthash.get_balance` reply carries."""
+    _assert_integer(request_id, "request_id", non_negative=False)
+    return _script_balance(decode_response(line, request_id))
+
+
+def scripthash_get_balance_batch_request(requests: Mapping[int, str]) -> bytes:
+    """Return one request line asking for several script hashes.
+
+    The mapping keys are distinct request ids. A batch is nonempty; the
+    caller bounds its size to what its server accepts, and uses the single
+    request helper for servers that do not support batching.
+    """
+    if not isinstance(requests, Mapping):
+        raise BTClibTypeError("balance batch: requests is not a mapping")
+    if not requests:
+        raise BTClibValueError("balance batch: no requests")
+    lines = (
+        scripthash_get_balance_request(request_id, script_hash).rstrip(b"\n")
+        for request_id, script_hash in requests.items()
+    )
+    return b"[" + b",".join(lines) + b"]\n"
+
+
+def _balance_request_ids(request_ids: object) -> set[int]:
+    """Validate the nonempty, distinct integer ids a batch must answer."""
+    if not isinstance(request_ids, Sequence) or isinstance(request_ids, (str, bytes)):
+        raise BTClibTypeError("balance batch: request_ids is not a sequence")
+    expected: set[int] = set()
+    for request_id in request_ids:
+        _assert_integer(request_id, "request_id", non_negative=False)
+        if request_id in expected:
+            raise BTClibValueError("balance batch: repeated request id")
+        expected.add(request_id)
+    if not expected:
+        raise BTClibValueError("balance batch: no requests")
+    return expected
+
+
+def scripthash_get_balance_batch_response(
+    line: bytes, request_ids: Sequence[int]
+) -> tuple[ScriptBalance, ...]:
+    """Return a complete batch's balances in the order of `request_ids`.
+
+    Replies may arrive in any order. Missing, repeated or unasked ids are
+    refused; an error for any request raises `RpcError`, so a partial batch
+    never looks like a complete balance snapshot. The server's answers do
+    not promise an atomic chain or mempool snapshot.
+    """
+    expected = _balance_request_ids(request_ids)
+    replies = _decode_line(line)
+    # A server may reject the whole batch with one JSON-RPC error object.
+    if isinstance(replies, dict) and replies.get("id") is None:
+        error = replies.get("error")
+        if error is not None:
+            _raise_rpc_error(error)
+    if not isinstance(replies, list):
+        raise BTClibTypeError("balance batch: not a response array")
+    balances: dict[int, ScriptBalance] = {}
+    for reply in replies:
+        if not isinstance(reply, dict):
+            raise BTClibTypeError("balance batch: not a response object")
+        request_id = reply.get("id")
+        _assert_integer(request_id, "response id", non_negative=False)
+        if request_id not in expected:
+            raise BTClibValueError("balance batch: unasked response id")
+        if request_id in balances:
+            raise BTClibValueError("balance batch: repeated response id")
+        balances[request_id] = _script_balance(_response_result(reply, request_id))
+    if balances.keys() != expected:
+        raise BTClibValueError("balance batch: missing response id")
+    return tuple(balances[request_id] for request_id in request_ids)
 
 
 def transaction_get_request(request_id: int, tx_id: str) -> bytes:

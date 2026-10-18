@@ -231,13 +231,17 @@ _MODULE_DECODER_NAMES = ("parse", "decode")
 # and each `*_response` function the `result` it returns, so a decoder
 # is driven by the lines its own result shape accepts as well as by
 # bytes that are no JSON at all. `block_headers_response` also takes the
-# number of headers asked for
+# number of headers asked for; a balance batch takes the ids of every request
 ELECTRUM_REQUEST_ID = 1
 ELECTRUM_HEADERS_ASKED = 2
 ELECTRUM_RESPONSES: dict[str, Callable[[bytes], Any]] = {
     name: partial(
         getattr(electrum, name),
-        request_id=ELECTRUM_REQUEST_ID,
+        **(
+            {"request_ids": [ELECTRUM_REQUEST_ID]}
+            if name == "scripthash_get_balance_batch_response"
+            else {"request_id": ELECTRUM_REQUEST_ID}
+        ),
         **(
             {"count": ELECTRUM_HEADERS_ASKED}
             if name == "block_headers_response"
