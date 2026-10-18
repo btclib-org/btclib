@@ -5,18 +5,19 @@
 """An atheris harness fuzzing the response decoders of `btclib.electrum`.
 
 An Electrum server answers with one line of JSON, and a hostile server
-chooses every byte of it. `decode_response` reads the line and each
-`*_response` function reads the `result` it returns, so this harness
-hands the same bytes to all of them: what the line says is what decides
-which of them gets past the first.
+chooses every byte of it. `decode_response` reads the line and most
+`*_response` functions read the `result` it returns;
+`scripthash_get_balance_batch_response` reads its array itself. This
+harness hands the same bytes to all of them: what the line says decides
+which of them accepts it.
 
 The line is bytes, and `REQUEST_ID` is the id every seed under
 `fuzz/corpus/fuzz_electrum/` answers. `HEADERS_ASKED` is the number of
 headers the request behind `block_headers.bin` asked for, and `BATCH_IDS`
 the ids a balance batch asked for.
 
-`BTClibException` is `decode_response`'s own refusal of a line that is
-no valid answer, and `RpcError` is a server's own error object, which is
+`BTClibException` is the decoders' own refusal of a line that is no
+valid answer, and `RpcError` is a server's own error object, which is
 one too. Any other exception is a defect in the decoder and propagates
 to atheris as the finding it is.
 
