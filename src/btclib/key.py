@@ -33,9 +33,9 @@ and kept, and `PrvKeyData.pub` is where laziness buys most. The CHANGELOG
 entry for this module carries the measurements and the command that took
 them: one fact in one place, and this is not the place.
 
-That is not only a cache. **`point` is also the proof**: a length and a
+That is not only a cache. **`point_var` is also the proof**: a length and a
 prefix are what the constructor checks, and whether those octets are a
-point of the curve is the question `point` answers. It is the contract
+point of the curve is the question `point_var` answers. It is the contract
 `btclib_ecc.curves.sec_point._sec_from_pub_key` already states -- "the
 guarantee is the caller's to complete" -- made explicit and paid once,
 rather than left to each caller and paid again at every one.
@@ -105,7 +105,7 @@ class PubKeyData:
     """A public key as its SEC octets, on a named network.
 
     The octets are the field because serializing a point is cheap and
-    parsing one is not; `point` is the lift, paid on first use and kept.
+    parsing one is not; `point_var` is the lift, paid on first use and kept.
     The module docstring carries the reasoning and the CHANGELOG entry
     the measurements.
     """
@@ -159,7 +159,7 @@ class PubKeyData:
         return network_from_name(self.network).curve
 
     @cached_property
-    def point(self) -> Point:
+    def point_var(self) -> Point:
         """Return the curve point the octets encode, lifting it once.
 
         The lift is the proof: `assert_valid` reads a length and a
@@ -175,7 +175,7 @@ class PubKeyData:
     def assert_valid(self) -> None:
         """Refuse octets no SEC public key has, and an unknown network.
 
-        A length and a prefix, and not a point: see `point`, which is
+        A length and a prefix, and not a point: see `point_var`, which is
         where the curve is asked. That `sec` is bytes at all is not asked
         here, `bytes_from_octets` having refused anything else in the
         constructor whatever `check_validity` said; `network` is asked,

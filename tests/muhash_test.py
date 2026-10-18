@@ -78,7 +78,7 @@ def test_muhash_insert_then_remove_matches_core_vector() -> None:
     for element in vector["remove"]:
         accumulator.remove(bytes.fromhex(element))
     expected = bytes.fromhex(vector["digest_uint256_hex"])[::-1]
-    assert accumulator.digest == expected
+    assert accumulator.digest_var == expected
 
 
 def test_muhash_serialize_matches_core_vector() -> None:
@@ -101,7 +101,7 @@ def test_muhash_overflow_vector() -> None:
     """
     vector = _MUHASH_VECTORS["overflow"]
     accumulator = MuHash3072.deserialize(bytes.fromhex(vector["serialized_hex"]))
-    assert accumulator.digest == bytes.fromhex(vector["digest_hex_direct"])
+    assert accumulator.digest_var == bytes.fromhex(vector["digest_hex_direct"])
 
 
 def test_muhash_deserialize_round_trips_through_serialize() -> None:
@@ -110,7 +110,7 @@ def test_muhash_deserialize_round_trips_through_serialize() -> None:
     accumulator.insert(b"one element")
     accumulator.remove(b"a second, different element")
     restored = MuHash3072.deserialize(accumulator.serialize)
-    assert restored.digest == accumulator.digest
+    assert restored.digest_var == accumulator.digest_var
 
 
 def test_muhash_singleton_matches_insert_into_the_empty_set() -> None:
@@ -119,7 +119,7 @@ def test_muhash_singleton_matches_insert_into_the_empty_set() -> None:
     singleton = MuHash3072.singleton(element)
     inserted = MuHash3072()
     inserted.insert(element)
-    assert singleton.digest == inserted.digest
+    assert singleton.digest_var == inserted.digest_var
 
 
 def test_muhash_insert_is_order_independent() -> None:
@@ -132,7 +132,7 @@ def test_muhash_insert_is_order_independent() -> None:
     second.insert(b"beta")
     second.insert(b"alpha")
 
-    assert first.digest == second.digest
+    assert first.digest_var == second.digest_var
 
 
 def test_muhash_remove_cancels_the_matching_insert() -> None:
@@ -144,7 +144,7 @@ def test_muhash_remove_cancels_the_matching_insert() -> None:
     accumulator = MuHash3072()
     accumulator.insert(b"an element")
     accumulator.remove(b"an element")
-    assert accumulator.digest == MuHash3072().digest
+    assert accumulator.digest_var == MuHash3072().digest_var
 
 
 def test_muhash_removes_cancel_regardless_of_insert_order() -> None:
@@ -160,7 +160,7 @@ def test_muhash_removes_cancel_regardless_of_insert_order() -> None:
     z.insert(b"Y")
     z.remove(b"Y")
     z.remove(b"X")
-    assert z.digest == MuHash3072().digest
+    assert z.digest_var == MuHash3072().digest_var
 
 
 def test_mutating_the_per_element_hash_breaks_the_core_vector() -> None:
@@ -185,7 +185,7 @@ def test_mutating_the_per_element_hash_breaks_the_core_vector() -> None:
         accumulator.remove(bytes.fromhex(element))
 
     expected = bytes.fromhex(vector["digest_uint256_hex"])[::-1]
-    assert accumulator.digest != expected
+    assert accumulator.digest_var != expected
 
 
 def test_insert_refuses_a_value_of_the_wrong_type() -> None:

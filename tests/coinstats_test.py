@@ -73,7 +73,7 @@ def test_the_recorded_chain_reproduces_what_the_node_reported() -> None:
         stats.insert(out_point_bytes, coin)
 
     reported = _RECORDED["gettxoutsetinfo"]
-    assert stats.digest[::-1].hex() == reported["muhash"]
+    assert stats.digest_var[::-1].hex() == reported["muhash"]
     assert stats.transaction_output_count == reported["txouts"]
     assert stats.bogo_size == reported["bogosize"]
     assert stats.total_amount == sats_from_btc(Decimal(reported["total_amount"]))
@@ -110,7 +110,7 @@ def test_remove_undoes_insert_whatever_the_order() -> None:
     for out_point_bytes, coin in reversed(outputs):
         stats.remove(out_point_bytes, coin)
 
-    assert stats.digest == empty.digest
+    assert stats.digest_var == empty.digest_var
     assert stats.transaction_output_count == 0
     assert stats.total_amount == 0
     assert stats.bogo_size == 0
@@ -136,10 +136,10 @@ def test_an_unspendable_output_moves_nothing() -> None:
     # MuHash3072 of the same multiset being different objects
     stats.insert(out_point_bytes, coin)
     assert _counters(stats) == _counters(empty)
-    assert stats.digest == empty.digest
+    assert stats.digest_var == empty.digest_var
     stats.remove(out_point_bytes, coin)
     assert _counters(stats) == _counters(empty)
-    assert stats.digest == empty.digest
+    assert stats.digest_var == empty.digest_var
 
 
 def test_the_packed_height_is_four_bytes_wide_and_not_a_var_int() -> None:
@@ -238,7 +238,7 @@ def test_the_accumulator_is_the_module_it_comes_from() -> None:
 
     expected = MuHash3072()
     expected.insert(tx_out_ser(out_point_bytes, coin))
-    assert stats.digest == expected.digest
-    assert CoinStats(MuHash3072.deserialize(stats.muhash.serialize)).digest == (
-        stats.digest
+    assert stats.digest_var == expected.digest_var
+    assert CoinStats(MuHash3072.deserialize(stats.muhash.serialize)).digest_var == (
+        stats.digest_var
     )

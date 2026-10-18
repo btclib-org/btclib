@@ -209,18 +209,18 @@ guarantee on the delegated path either. `SECURITY.md` has the
 accounting, and which call a multiplication takes is part of it.
 
 What that path does about it is in the names, and it is worth knowing
-before calling one. **A function whose duration follows the value it is
-given ends in `_var`, and the plain name beside it is the one a secret may
-be handed**: `mod_inv` draws a random blinding factor where `mod_inv_var`
-is the bare extended Euclid, and `mult` makes the same additions for every
-scalar where `double_mult_var` does not. It is libsecp256k1's own
-convention, and forgetting to choose gives the safer call rather than the
-faster one.
+before calling one. **The plain name beside a `_var` one is the one a
+secret may be handed**: `mod_inv` draws a random blinding factor where
+`mod_inv_var` is the bare extended Euclid, and `mult` makes the same
+additions for every scalar where `double_mult_var` does not. It is
+libsecp256k1's own convention, and forgetting to choose gives the safer
+call rather than the faster one.
 
 The suffix is not a safety label, and no name here promises constant time.
-It says which of two spellings to reach for, and each one was measured
-rather than assumed — including the ones that kept a plain name, which
-CONTRIBUTING lists with the figure that earned it.
+It says which of two spellings to reach for, not how much the faster one
+saves. CONTRIBUTING.md's *A `_var` suffix means the operand decides the
+work* says when a name takes the suffix and lists the names that kept a
+plain name, each with its reason.
 
 <!-- The link is to the file and not to its section: the documentation
 build renders this README with myst, which mints no heading ids, so a

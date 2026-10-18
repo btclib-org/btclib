@@ -99,7 +99,7 @@ def test_core_reports_what_coinstats_computes(
     that either is Core's.
 
     The digest is compared reversed: `gettxoutsetinfo` prints it through
-    `uint256::GetHex`, which is display order, where `digest` is
+    `uint256::GetHex`, which is display order, where `digest_var` is
     `MuHash3072::Finalize`'s own serialization.
     """
     miner, _ = wallets
@@ -130,7 +130,7 @@ def test_core_reports_what_coinstats_computes(
     # the walk fed the accumulator what Core's own set refuses, so the
     # gate is what the agreement below rests on and not an empty branch
     assert unspendable
-    assert stats.digest[::-1].hex() == reported["muhash"]
+    assert stats.digest_var[::-1].hex() == reported["muhash"]
     assert stats.transaction_output_count == reported["txouts"]
     assert stats.bogo_size == reported["bogosize"]
     assert stats.total_amount == sats_from_btc(Decimal(str(reported["total_amount"])))

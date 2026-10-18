@@ -1569,116 +1569,120 @@ the classes it holds for.
 
 ### A `_var` suffix means the operand decides the work
 
-A function whose duration follows the value it is given ends in `_var`,
-and the plain name beside it is the one a secret may be handed. It is
-libsecp256k1's convention and it is used there for the same two halves:
+A function ends in `_var` when the value of a valid operand decides its
+work: through a loop of its own whose count follows it, through an early
+exit taken on it, or through a `_var` function it applies to that operand
+and that is the bulk of its work. A branch that only refuses an invalid
+operand, or answers a degenerate or special case outright, such as the
+group law's doubling, does not count. The curve, and a format parameter
+the output states, are not operands.
+
+Some loops do not count either. A loop whose extra rounds only discard a
+candidate, such as a nonce function's rejection loop, tells nothing about
+the value it keeps. A loop that does one round per member of a collection
+it returns takes its duration from the size of the answer. A loop whose
+count is the number of operands, not their value, does not count.
+
+The rule is about arithmetic on a key, a scalar, a nonce, a point or a
+field element, a recoding of a scalar into digits included. Hashing octets
+follows their length, and converting octets to text or back follows their
+length past any leading zeros; neither takes a suffix, nor does work
+that follows other data, such as a height or a script's length.
+
+The plain name beside a `_var` one means a regular or blinded algorithm
+was chosen on purpose, and is the one a secret may be handed; it promises
+nothing about constant time. The pair is libsecp256k1's convention, used
+there for the same two halves:
 `secp256k1_scalar_inverse_var` sits beside `secp256k1_scalar_inverse`,
 `secp256k1_gej_add_var` beside `secp256k1_gej_add_ge`. The point of it is
 that the question is answered at the call site rather than in the
 docstring of the thing being called. A leading underscore changes none of
-this: the suffix states the implementation's timing, for a private
+this: the suffix states the implementation's algorithm, for a private
 function as for a public one.
 
-What "the work" is depends on the function, and each of these was
-measured rather than assumed — on secp256k1's order or its `p`, over
-random operands of 256 bits down to 64, the ratio between the two ends:
+The suffix follows from the algorithm, not from a measurement: a timing
+on one machine and one interpreter does not hold on the next, and a
+reader cannot check that someone once took it. It says whether the time
+depends on the value, not how much it costs. A small measured ratio keeps
+the suffix, and a slow function whose algorithm does not follow the value
+does not take it. A ratio illustrates the dependence; it is not a
+threshold.
 
-- the count of point operations, for a scalar multiplication:
-    `curve_group._mult_jac_var` and `curve_group_2._double_mult_w_NAF_var`
-    against `_mult_regular_window`, `_mult_fixed_base` and
-    `_double_mult_regular_window`, which make the same number for every
-    scalar of the curve. `btclib_ecc.curves.double_mult_var` and
-    `btclib_ecc.curves.multi_mult_var` carry it for that reason and
-    `btclib_ecc.curves.mult` does not
-- the iteration count of an extended Euclid: `mod_inv_var` at 4.21x,
-    `xgcd_var` at 4.84x, `mod_inv_batch_var` at 2.01x
-- the length of a loop over the operand: `legendre_symbol_var` at 4.26x,
-    and `tonelli_var`, whose 1.54x is spread within one operand size
-    rather than across sizes — Tonelli-Shanks iterates on the value, not
-    on its length. `mod_sqrt_var` reaches that loop only for a `p` of 1
-    mod 4: on a 3 mod 4 one it is a single exponentiation with a fixed
-    exponent and measures 1.01x, and the catalogue holds both kinds —
-    `secp224k1`, `secp224r1` and `nistp224` are 1 mod 4 — so the caller
-    picks which it gets and the suffix states the worse case
-- one modular inverse, in the layer above: `aff_from_jac_var` at 2.96x,
-    `x_aff_from_jac_var` at 1.93x, `aff_from_jac_batch_var` at 1.67x and
-    `y_aff_from_jac_var` at 1.42x follow the `Z` they are handed;
-    `double_aff_var` at 1.32x, `add_aff_var` at 1.23x and the `add_var`
-    over them at 1.22x follow the coordinates. `y_var` and its three
-    tiebreakers follow their `x` on the 1 mod 4 curves above, 1.84x on
-    `secp224k1`, where on secp256k1 they are flat
+**Carrying the suffix up a call is a judgement.** A function whose work is
+a `_var` function on its operand takes the suffix with it. A function
+where the `_var` call is one step among other work, or one path of a type
+dispatch, keeps the plain name. So does a verification of a signature, a
+proof, a commitment or key material, even when its whole work is `_var`
+calls, as libsecp256k1's `secp256k1_ecdsa_verify` and
+`secp256k1_schnorrsig_verify` do over their variable-time multiplication.
+A check that a value parses or lies on the curve is not one, and takes the
+suffix. Otherwise most of
+a tree's call graph would carry it, public functions included, a suffix on
+the tree saying nothing. Blinding is the other boundary: a function that
+replaces the operand with a random one before the `_var` call no longer
+lets the operand decide. So the question to ask of a new name is whether
+the value of a valid operand decides how many times the function, or the
+`_var` function that is its work, loops or leaves early.
 
-**The suffix is measured, never inherited, and that is what stops it.**
-Every function that *reaches* one of these through some chain of calls
-would otherwise take it: most of the library's own call graph, public
-functions included, right down to `hex_string`, `ripemd160` and
-`p2pkh` — a suffix on the library, saying nothing. Two things break
-the chain, and both are facts about the caller rather than about the
-callee. Blinding is one: `mult` calls
-`aff_from_jac_var` and is 0.99x in its scalar, because `_blinded_jac`
-randomized the `Z` that inverse is timed on. A public operand is the
-other. So the
-question to ask of a new name is not what it calls, but what its own
-clock does with what it was handed — and the answer is a measurement.
+btclib defines no `_var` primitive of its own. The multiplications, the
+inverses and the square roots are btclib-ecc's, but for MuHash's
+`pow(x, -1, m)`. btclib-ecc's `CONTRIBUTING.md` gives the ratios that
+illustrate them.
+What the rule decides here is which of btclib's functions that reach them
+take the suffix.
 
-**The census is at a measured zero, and these are the exceptions it
-leaves.** Every function that spends one of these primitives has been
-timed over random inputs of one class, against `add_jac` as the floor —
-1.05x, the group law having nothing to branch on. What measures at that
-floor keeps its plain name, and each is here so that the next reader does
-not have to re-derive it: `dsa._assert_as_valid_` 1.07x and
-`dsa._recover_pub_key_` 1.05x, `ssa._assert_as_valid_` 1.07x and
-`ssa._recover_pub_key_` 1.06x, `ellswift._try_sqrt` 1.05x,
-`Sig.assert_valid` 1.03x and `ellswift.xdh` 1.01x. The inverse
-or the root inside each of them is real, and it is diluted: an inverse
-varying by 1.32x is 10 us of a 40 us verification, and `xdh` is
-dominated by a `mult` that is blinded. `ellswift._constants` is
-memoized on the curve and receives no value at all.
+`compressor._is_p2pk_key_on_curve_var`, `key.PubKeyData.point_var`,
+`script.script_pub_key.assert_p2pk_var`, `is_p2pk_var`, `assert_p2ms_var`,
+`is_p2ms_var` and `p2ms_m_and_keys_var` take it: their work is
+`point_from_octets_var` on public keys. So do
+`muhash.MuHash3072.digest_var` and `coinstats.CoinStats.digest_var`: their
+work is `pow(x, -1, m)`, an extended Euclid on a 3072-bit field element.
+`compressor.decompress_script` keeps the plain name, that parse being one
+path of a dispatch on the script type, as do `script.engine.script.dsa_verify`
+and `script.taproot.check_output_pubkey`, which are verifications,
+`script.script_pub_key.addresses`, where the parse is one step among the
+hashing and encoding of each address,
+`script.taproot._tweaked_pubkey`, which runs the bindings' `tweak_add` where
+they serve and the lift and `add_var` where they do not, as
+`curve.TweakChain.point` does in btclib-ecc, and `ecc.ellswift.xdh`, whose
+`decode_var` is on the other party's public encoding and whose `mult` is
+blinded. A named exception stops the carry, so its callers are not reached.
 
-The one number worth keeping in view is `ellswift._xswiftec_inv_var`, at
-**29.62x** — 28 calls of 50 returning under 10 us and 22 over. That is an
-early return and not a slower sum, which is what a data-dependent branch
-looks like on a clock, and it is why the SwiftEC map carries the suffix
-where the ECDH built on it does not.
+Outside the rule: `compressor.compress_amount` loops on the trailing zeros
+of an amount, an amount being none of the rule's operands, and `base58`'s
+conversions of octets to digits and back follow the length of the octets
+past their leading zeros.
 
 Three tiers of duration follow, of which only the first is constant-time:
 
-- **constant-time is libsecp256k1's alone.** Every claim of it in this
-    library is a claim about the C behind the bindings, which is why
-    `SECURITY.md` states argument by argument when a call crosses that
-    boundary. Nothing written in Python is constant-time, and no name
-    here should be read as promising it.
+- **constant-time is libsecp256k1's alone.** Every claim of it is a claim
+    about the C behind the bindings, which is why `SECURITY.md` states
+    argument by argument when a call crosses that boundary. Nothing
+    written in Python is constant-time, and no name should be read as
+    promising it.
 - **regular, or blinded: the operand does not decide the duration, and
-    something else does.** `_mult_regular_window`, `_mult_fixed_base` and
-    `_double_mult_regular_window` make the same operations for every
-    scalar of the curve; `_blinded_jac` leaves the intermediate values a
-    function of a random factor rather than of the scalar alone; and
-    `mod_inv` leaves an extended Euclid's iteration count following a
-    random factor rather than the caller's operand, at 1.02x where
-    `mod_inv_var` is 2.06x over the same range. This is decorrelation and
-    not uniformity — the duration still varies, and what changes is what
-    it varies with.
-- **variable: the operand decides.** Everything suffixed above, and every
+    something else does.** A regular algorithm makes the same operations
+    for every scalar of the curve; a blinded one leaves the intermediate
+    values a function of a random factor rather than of the operand
+    alone. This is decorrelation and not uniformity — the duration still
+    varies, and what changes is what it varies with.
+- **variable: the operand decides.** Every `_var` name, and every
     reduction whose cost is the size of what it reduces.
 
 So **a secret takes the plain name and a public value takes the `_var`
 one**, which is the opposite of an optimization default and is meant to
 be: the fail-safe direction is that forgetting to choose gives the slower
-and safer call. `dsa`'s signing inverts the nonce with `mod_inv` while
-its `r`, its `s` and a verification's `Z` take `mod_inv_var`, and those
-four sit within twenty lines of each other; a reviewer should be able to
-tell which is which without tracing where each value came from.
+and safer call. A reviewer should be able to tell which is which without
+tracing where each value came from.
 
-Add the suffix when adding such a function, having measured that it earns
-one, and do not add it to the recodings, the tables or the group law:
-those take no operand whose size varies, and a suffix on everything says
-nothing about anything.
+Add the suffix when adding a function whose work follows the operand, and
+not where it does not: a suffix on everything says nothing about anything.
 
 What none of this does is make the Python path safe, and `SECURITY.md`'s
 limitations section is what says so at length: a table is still indexed
-by a secret digit, and that is out of reach from bytecode. A name in the
-second tier closes one measured channel, and the honest form of the claim
-is that one — which channel, measured how, and what is left.
+by a secret digit, and that is out of reach from bytecode. A second-tier
+algorithm closes one channel, and the honest claim names it: which one,
+measured how, and what is left.
 
 ### Prose in this tree
 
