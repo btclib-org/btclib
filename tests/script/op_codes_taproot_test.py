@@ -70,8 +70,8 @@ def test_op_success_is_what_the_tables_leave_over() -> None:
     would be BIP342's numbers checked against BIP342's numbers.
 
     0xFF is the one byte in neither set, and it is why the range above
-    stops at 254: Core reads it as OP_INVALIDOPCODE, a value no script
-    can carry rather than one a tapscript spends.
+    stops at 254: Core reads it as OP_INVALIDOPCODE, which fails only
+    where it executes, so a tapscript may carry it.
     """
     named = {byte for (byte,) in OP_CODES.values()}
     assert set(OP_SUCCESS) == set(range(0xFF)) - _DATA_PUSHES - named

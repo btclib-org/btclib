@@ -256,6 +256,12 @@ OP_SUCCESS = [
     *range(187, 255),
 ]
 
+# 0xff, Core's OP_INVALIDOPCODE: the one byte neither named above nor an
+# OP_SUCCESSx. A script may hold it, and only executing it fails, so
+# taproot.parse names it as script.parse names a byte no table names
+_INVALID_OP_CODE = 0xFF
+_INVALID_OP_CODE_NAME = f"UNKNOWN_OP_CODE_{_INVALID_OP_CODE}"
+
 
 def _serialize_str_command(command: str) -> bytes:
     # an op code name matches as script._serialize_str_command matches one
@@ -263,6 +269,8 @@ def _serialize_str_command(command: str) -> bytes:
     command = command.strip(string.whitespace)
     if command in OP_CODES:
         return OP_CODES[command]
+    if command == _INVALID_OP_CODE_NAME:
+        return _INVALID_OP_CODE.to_bytes(1, "little")
     if command.startswith("OP_SUCCESS"):
         digits = command[10:]
         # the number as parse writes it: `int` also takes a sign, an

@@ -8,18 +8,17 @@ A tapscript is the leaf a spender reveals, so it arrives inside a witness
 somebody else wrote and is decoded before the leaf hash it commits to has
 been recomputed. `btclib.script.script.parse` is the same walk over the
 other script language and is fuzzed in `fuzz/fuzz_script.py`; BIP342 puts
-different rules on this one -- an unknown op code is refused where
-`script.parse` names it, and an `OP_SUCCESSx` ends the walk with whatever
-follows returned unparsed -- so the two decoders answer the same octets
-differently and neither reaches the other.
+a different rule on this one -- an `OP_SUCCESSx` ends the walk with
+whatever follows returned unparsed -- so the two decoders answer the same
+octets differently and neither reaches the other.
 
 A crash here on hostile bytes is a defect in `parse` or `serialize` itself,
 never in this harness: `data` is unconstrained bytes handed straight to
 `parse`, with nothing decoding or validating in between. `BTClibException`
-is what `parse` answers an unknown op code, a truncated push and an
-oversized element with, so that family is caught below as the expected
-outcome. An `IndexError`, a `RecursionError` or an uncaught assertion is
-not, and propagates to atheris as the finding it is.
+is what `parse` answers a truncated push and an oversized element with,
+so that family is caught below as the expected outcome. An `IndexError`,
+a `RecursionError` or an uncaught assertion is not, and propagates to
+atheris as the finding it is.
 
 `exit_on_op_success` is left at its default: it decides which of two
 answers `parse` computes rather than what the octets are, so the default

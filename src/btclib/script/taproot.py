@@ -45,6 +45,7 @@ from btclib.exceptions import (
 from btclib.key import _HYBRID_PREFIXES, PubKeyData
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.op_codes_tapscript import (
+    _INVALID_OP_CODE_NAME,
     OP_CODE_NAMES,
     OP_SUCCESS,
     _serialize_str_command,
@@ -163,19 +164,19 @@ def _read_push_data(s: BytesIO, i: int) -> bytes:
 def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
     """Parse a tapscript into its commands, per BIP342.
 
-    An unknown op code is refused, data pushes come back as hex
-    strings and a push of no data as OP_0, as in script.parse, and an
-    OP_SUCCESSx ends the parse: what follows one is returned as raw
-    bytes, BIP342 not requiring it to be a script --
-    or, with `exit_on_op_success`, the whole answer is the single
-    marker ["OP_SUCCESS"]. An element over 520 bytes is refused only by
-    a parse that meets no OP_SUCCESSx, one anywhere making the script
-    valid.
+    Data pushes come back as hex strings and a push of no data as OP_0,
+    as in script.parse. 0xff, the one byte neither named nor an
+    OP_SUCCESSx, comes back as UNKNOWN_OP_CODE_255, as script.parse
+    writes it: Core refuses it only where it executes. An OP_SUCCESSx
+    ends the parse: what follows one is returned as raw bytes, BIP342
+    not requiring it to be a script -- or, with `exit_on_op_success`,
+    the whole answer is the single marker ["OP_SUCCESS"]. An element
+    over 520 bytes is refused only by a parse that meets no OP_SUCCESSx,
+    one anywhere making the script valid.
 
     Each refusal is a ScriptError with the code Core's interpreter gives
-    the same fault: a push running past the end and an
-    unknown op code are BAD_OPCODE, an oversized element PUSH_SIZE. The
-    engine runs a tapscript without this parse.
+    the same fault: a push running past the end is BAD_OPCODE, an
+    oversized element PUSH_SIZE. The engine runs a tapscript without this parse.
 
     A `bool` and nothing else, which is the line
     `tests/built_object_contract_test.py` draws: this flag decides *what
@@ -213,9 +214,8 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
             return r
         elif i in OP_CODE_NAMES:  # OP_CODE
             r.append(OP_CODE_NAMES[i])
-        else:
-            err_msg = f"unknown op code: {hex(i)}"
-            raise ScriptError(err_msg, ScriptErrorCode.BAD_OPCODE)
+        else:  # 0xff, refused only where it executes
+            r.append(_INVALID_OP_CODE_NAME)
     if invalid_element_size:
         raise ScriptError("Invalid pushdata length", ScriptErrorCode.PUSH_SIZE)
     return r
