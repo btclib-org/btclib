@@ -340,8 +340,8 @@ def _output_pubkey_and_internal_key(
             )
         # `check_validity=False` is "do not check now" and not an
         # exemption (CONTRIBUTING.md), so the key is asked here: a length,
-        # a prefix and a network name, no point lifted, the tweak's own
-        # parse being the proof (issue 887)
+        # a prefix and a network, no point lifted, the tweak's own parse
+        # being the proof (issue 887)
         internal_pubkey.assert_valid()
         key_data = internal_pubkey
     else:

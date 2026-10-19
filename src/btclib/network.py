@@ -51,7 +51,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, fields
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any
+from typing import Any, overload
 
 from ecc.curves import CURVES, Curve
 
@@ -590,6 +590,11 @@ def normalized_network_name(network: Any) -> Any:
     unnormalized name -- an uncoerced field leaves `to_invoice` a bare
     `KeyError` rather than an encoded string.
 
+    `key.PubKeyData`, `key.PrvKeyData` and `script.ScriptPubKey` reach it
+    through `_normalized_network`, which also replaces a Network equal to a
+    NETWORKS entry by that entry's name, their field being a name or a
+    Network.
+
     Public for a class built on btclib that keeps a `network` field on
     the same terms. It is total over `Any`, so there is no argument for
     it to refuse: the refusal belongs to `validated_network_name`, and a
@@ -694,7 +699,62 @@ def networks_from_xkeyversion(xkeyversion: bytes) -> list[str]:
     return list(_NETWORKS_FROM_XKEYVERSION.get(xkeyversion, ()))
 
 
-def network_from_xkeyversion(xkeyversion: bytes) -> str:
+def _assert_network(network: Network) -> None:
+    """Refuse what is not a valid Network.
+
+    The check the decoders run on a `network` argument, which may be a
+    Network of another chain, built by the caller.
+    """
+    assert_type(network, Network, "network")
+    network.assert_valid()
+
+
+def _entry_name(network: Network) -> str | None:
+    """Return the name of the NETWORKS entry equal to a Network, if any."""
+    for name, net in NETWORKS.items():
+        if net == network:
+            return name
+    return None
+
+
+def _network_from(network: str | Network) -> Network:
+    """Return the Network a name names, or the valid Network given.
+
+    What the encoders and the key classes run a `network` field through:
+    that field is a name, or a Network NETWORKS does not hold. A name is
+    resolved as `network_from_name` does.
+    """
+    if isinstance(network, Network):
+        network.assert_valid()
+        return network
+    return network_from_name(network)
+
+
+def _normalized_network(network: Any) -> Any:
+    """Return what a class with a `network` field keeps of its argument.
+
+    A name is normalized as `normalized_network_name` does. A Network
+    equal to a NETWORKS entry is replaced by that entry's name, so that a
+    field holds a Network only where the name cannot spell it, and two
+    spellings of one network build objects that are equal and hash alike.
+    It refuses nothing, as `normalized_network_name` refuses nothing.
+    """
+    if isinstance(network, Network):
+        return _entry_name(network) or network
+    return normalized_network_name(network)
+
+
+@overload
+def network_from_xkeyversion(xkeyversion: bytes, network: None = None) -> str: ...
+
+
+@overload
+def network_from_xkeyversion(xkeyversion: bytes, network: Network) -> Network: ...
+
+
+def network_from_xkeyversion(
+    xkeyversion: bytes, network: Network | None = None
+) -> str | Network:
     """Return the oldest network with the xkey version prefix.
 
     'testnet' for a testnet, regtest, signet or testnet4 version, which
@@ -702,7 +762,31 @@ def network_from_xkeyversion(xkeyversion: bytes) -> str:
     they agree on every version prefix. It is not an answer to "which
     chain is this" -- network_type_from_xkeyversion is what a prefix can
     answer, networks_from_xkeyversion the candidates.
+
+    Given a `network`, NETWORKS is not read: the version has to be one of
+    that network's BIP32 and SLIP132 versions, and the network itself is
+    returned. This is how a caller decodes another chain's xkey versions
+    with a Network it built.
     """
+    if network is not None:
+        _assert_network(network)
+        versions = (
+            network.bip32_prv,
+            network.bip32_pub,
+            network.slip132_p2wpkh_prv,
+            network.slip132_p2wpkh_pub,
+            network.slip132_p2wpkh_p2sh_prv,
+            network.slip132_p2wpkh_p2sh_pub,
+            network.slip132_p2wsh_prv,
+            network.slip132_p2wsh_pub,
+            network.slip132_p2wsh_p2sh_prv,
+            network.slip132_p2wsh_p2sh_pub,
+        )
+        if xkeyversion not in versions:
+            err_msg = f"not a version of the network: 0x{xkeyversion.hex()}"
+            raise BTClibValueError(err_msg)
+        return network
+
     networks = networks_from_xkeyversion(xkeyversion)
     if not networks:
         # BTClibValueError subclasses ValueError, so an `except
