@@ -5,14 +5,18 @@
 """Taproot keys, script trees and control blocks, per BIP341.
 
 The output side and the spend side of taproot, tapscript execution
-excepted: output_pubkey and output_prvkey build the tweaked keys,
-tree_helper and input_script_sig walk a script tree into leaves,
-merkle paths and control blocks, check_output_pubkey verifies one,
-and serialize/parse are the tapscript codec the engine reads.
+excepted: tree_from_weights builds a script tree, output_pubkey and
+output_prvkey build the tweaked keys, tree_helper and input_script_sig
+walk a script tree into leaves, merkle paths and control blocks,
+check_output_pubkey verifies one, and serialize/parse are the tapscript
+codec the engine reads. tap_tweak is BIP341's tweak alone, for a
+MuSig2 or FROST signer, and merkle_root_from_control_block the root a
+control block proves, for a psbt reader.
 """
 
 from __future__ import annotations
 
+import heapq
 from io import BytesIO
 from typing import cast
 
@@ -33,6 +37,7 @@ from btclib.alias import (
     Integer,
     Octets,
     ScriptList,
+    TaprootLeaf,
     TaprootLeafPaths,
     TaprootScriptTree,
 )
@@ -75,12 +80,15 @@ __all__ = [
     "check_output_pubkey",
     "input_script_sig",
     "leaf_hash",
+    "merkle_root_from_control_block",
     "output_prvkey",
     "output_prvkey_from_merkle_root",
     "output_pubkey",
     "output_pubkey_from_merkle_root",
     "parse",
     "serialize",
+    "tap_tweak",
+    "tree_from_weights",
     "tree_helper",
 ]
 
@@ -307,18 +315,89 @@ def _tree_helper(leaf: object) -> tuple[TaprootLeafPaths, bytes]:
     return ([((leaf_version, script), b"")], h)
 
 
+def tree_from_weights(
+    weighted_leaves: list[tuple[int, TaprootLeaf]],
+) -> TaprootScriptTree:
+    """Return the Huffman tree of leaves weighted by how often each is spent.
+
+    Each pair is a positive integer weight and a leaf, the leaf being
+    tree_helper's `(leaf_version, script)`. A heavier leaf sits no deeper
+    than a lighter one, and its control block is no longer: the tree has
+    the smallest expected control-block size for those weights. The
+    algorithm is that of rust-bitcoin's
+    `TaprootBuilder::with_huffman_tree`, which breaks ties its own way.
+
+    The two lightest nodes are joined first. Equal weights are settled by
+    index, lowest first: the leaves are numbered in list order, and each
+    new branch takes the next number. So one list gives one tree and one
+    output key. tree_helper and input_script_sig number the leaves in
+    tree order, which need not be the order of the list.
+
+    An empty list, a weight that is not a positive integer and a tree
+    deeper than MAX_TREE_DEPTH are refused, and each leaf is checked as
+    tree_helper checks it.
+    """
+    assert_type(weighted_leaves, list, "weighted leaves")
+    if not weighted_leaves:
+        raise BTClibValueError("no leaves to build a script tree from")
+    # (weight, index, depth, node): the index is unique, so a tie on the
+    # weight is settled by it and two nodes are never compared
+    heap: list[tuple[int, int, int, TaprootScriptTree]] = []
+    for index, pair in enumerate(weighted_leaves):
+        if not isinstance(pair, tuple):
+            raise BTClibTypeError(f"invalid weighted leaf type: {type(pair).__name__}")
+        if len(pair) != 2:
+            raise BTClibTypeError(f"invalid weighted leaf: {len(pair)}-tuple")
+        weight, leaf = pair
+        if not is_integer(weight):
+            raise BTClibTypeError(f"invalid leaf weight type: {type(weight).__name__}")
+        if weight <= 0:
+            raise BTClibValueError(f"invalid leaf weight: {_message_text(weight)}")
+        _tree_helper(leaf)
+        heap.append((weight, index, 0, [leaf]))
+    heapq.heapify(heap)
+    index = len(heap)
+    while len(heap) > 1:
+        left_weight, _, left_depth, left = heapq.heappop(heap)
+        right_weight, _, right_depth, right = heapq.heappop(heap)
+        depth = max(left_depth, right_depth) + 1
+        if depth > MAX_TREE_DEPTH:
+            raise BTClibValueError(f"script tree deeper than {MAX_TREE_DEPTH}")
+        node: TaprootScriptTree = [left, right]
+        heapq.heappush(heap, (left_weight + right_weight, index, depth, node))
+        index += 1
+    return heap[0][3]
+
+
 def _tap_tweak(pub_key: bytes, h: bytes) -> int:
     """Return the BIP341 tweak an x-only key and a tree hash commit to.
 
-    One function for the three tweaks, the two that build an output and
-    the one that checks a control block against it, so that the rule
-    below cannot hold in one of them and not in another.
+    One function for every tweak, those that build an output, the one
+    that checks a control block against it and the one tap_tweak
+    publishes, so that the rule below cannot hold in one of them and not
+    in another.
     """
     t = int.from_bytes(tagged_hash(b"TapTweak", pub_key + h), "big")
     # BIP341: fail if t is not smaller than the group order
     if t >= secp256k1.n:
         raise BTClibValueError("Invalid script tree hash")
     return t
+
+
+def tap_tweak(internal_pubkey: Octets, merkle_root: Octets = b"") -> bytes:
+    """Return the BIP341 tweak of an x-only internal key, as 32 bytes.
+
+    The scalar output_prvkey_from_merkle_root adds to the even-y internal
+    private key, for a caller that adds it itself: a MuSig2 or FROST
+    signer, whose list of tweaks takes it. The arguments are those of
+    output_pubkey_from_merkle_root, an empty root being key path only.
+    The key is hashed and not lifted, so an x that is no point is not
+    refused here. A hash not below the group order is refused, as BIP341
+    refuses it.
+    """
+    internal_pubkey = bytes_from_octets(internal_pubkey, 32)
+    t = _tap_tweak(internal_pubkey, bytes_from_octets(merkle_root))
+    return t.to_bytes(32, "big")
 
 
 def _output_pubkey_and_internal_key(
@@ -627,6 +706,47 @@ def input_script_sig(
     return script, control
 
 
+def _assert_control_block_size(control: bytes) -> None:
+    """Refuse a control block of a size no depth up to MAX_TREE_DEPTH gives."""
+    if len(control) > 33 + 32 * MAX_TREE_DEPTH:
+        raise BTClibValueError("control block too long")
+    m = (len(control) - 33) // 32
+    # a single byte is 33 + 32 * -1: a negative path length is refused too
+    if m < 0 or len(control) != 33 + 32 * m:
+        raise BTClibValueError("invalid control block length")
+
+
+def _merkle_root(k: bytes, control: bytes) -> bytes:
+    """Fold a leaf hash up the merkle path of a control block of valid size."""
+    for j in range(33, len(control), 32):
+        e = control[j : j + 32]
+        if k < e:
+            k = tagged_hash(b"TapBranch", k + e)
+        else:
+            k = tagged_hash(b"TapBranch", e + k)
+    return k
+
+
+def merkle_root_from_control_block(
+    tap_leaf_hash: Octets, control_block: Octets
+) -> bytes:
+    """Return the merkle root a control block proves a leaf under.
+
+    BIP341's fold, the first half of check_output_pubkey: the leaf hash
+    is hashed with each node of the merkle path in turn, the smaller of
+    the two first. `tap_leaf_hash` is the leaf_hash of the leaf script,
+    under the leaf version the control block's first byte carries; the
+    leaf hash is taken as given and the internal key is not read.
+
+    A leaf hash that is not 32 bytes, and a control block whose size no
+    depth up to MAX_TREE_DEPTH gives, are refused.
+    """
+    k = bytes_from_octets(tap_leaf_hash, 32)
+    control = bytes_from_octets(control_block)
+    _assert_control_block_size(control)
+    return _merkle_root(k, control)
+
+
 def check_output_pubkey(q: Octets, script: Octets, control: Octets) -> bool:
     """Answer whether the control block proves the script against the key.
 
@@ -644,18 +764,8 @@ def check_output_pubkey(q: Octets, script: Octets, control: Octets) -> bool:
     # the `bytes` `bytes_from_octets` answers with, so no line under it
     # has to know which spelling arrived (issue 1220)
     control = bytes_from_octets(control)
-    if len(control) > 33 + 32 * MAX_TREE_DEPTH:
-        raise BTClibValueError("control block too long")
-    m = (len(control) - 33) // 32
-    if len(control) != 33 + 32 * m:
-        raise BTClibValueError("invalid control block length")
-    k = leaf_hash(control[0] & 0xFE, script)
-    for j in range(m):
-        e = control[33 + 32 * j : 65 + 32 * j]
-        if k < e:
-            k = tagged_hash(b"TapBranch", k + e)
-        else:
-            k = tagged_hash(b"TapBranch", e + k)
+    _assert_control_block_size(control)
+    k = _merkle_root(leaf_hash(control[0] & 0xFE, script), control)
     p_bytes = control[1:33]
     p = int.from_bytes(p_bytes, "big")
     t = _tap_tweak(p_bytes, k)
