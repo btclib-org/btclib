@@ -15,8 +15,9 @@ of `ecc.ellswift`. btclib imports each name it uses from
 `ecc` and publishes none of them: `ecc.curves.mult` is spelt
 that way and no other, and `tests/all_test.py`'s
 `test_no_module_exports_another_distributions_name` holds every `__all__`
-of btclib to it. What those names raise is ecc's exception
-classes, which derive from the built-in classes and not from
+of btclib to it. The exception is the type aliases `btclib.alias` imports
+from `ecc.alias`, `Octets` among them. What those names raise is ecc's
+exception classes, which derive from the built-in classes and not from
 `BTClibException`, and a caller names them from `ecc.exceptions`.
 
 ecc delegates secp256k1 to

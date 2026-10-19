@@ -1338,8 +1338,9 @@ For a package the list is what the `__init__` re-exports, submodules
 included: a module named there is a module a caller — and the command line
 of btclib-org/.github#1235, which reads the command tree off `__all__` —
 can descend into. For a module it is what the module itself defines: a
-name it imported belongs to the module that defines it, and
-`btclib.alias.Octets` is the spelling of `Octets`.
+name it imported belongs to the module that defines it, except what
+`REEXPORTED` in `tests/all_test.py` records: `btclib.alias.Octets` is
+`ecc.alias.Octets` under the spelling btclib's callers use.
 
 `btclib.__all__` is the root of that tree: every top-level module and
 package, imported on demand by the module `__getattr__` in
@@ -1503,11 +1504,7 @@ What is *not* a read is exempt by shape rather than by a list of names:
 `assert_*` refuses, and a property that refuses is a trap, since reading
 `obj.assert_valid` evaluates the method and throws it away; `get_*` talks
 to a node or an explorer, so the prefix is the warning a property would
-hide; `to_*` hands back a new object; and `close` is an action. The one
-exemption named individually is `alias.HashObject`'s `digest`,
-`hexdigest` and `copy`, because hashlib calls them that way — and hashlib
-draws the same line itself, `block_size` and `digest_size` being
-attributes there as they are properties here.
+hide; `to_*` hands back a new object; and `close` is an action.
 
 The bool half of the same rule: Thirty were properties and six were methods,
 which made the six the exception; they are properties now. It also makes
