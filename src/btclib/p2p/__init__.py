@@ -35,26 +35,16 @@ mapping a command to a type -- reading a message back into a typed
 payload is `Version.parse(message.payload)` under the caller's own
 `if`, which is the shape `net_processing.cpp` has too.
 
-**The message start is published without being imported.**
-`magic_from_network` is `btclib.p2p.magic`'s, and that module reaches
-the `bitcoin-core-rpc` package's `chains` vocabulary, which depends on
-nothing beyond the standard library -- `urllib.request`, and `ssl` and
-`socket` under it, live in that package's `client` and `transport`
-instead, which a message-start lookup never reaches. ARCHITECTURE.md
-states the property this keeps: "no module loads `urllib.request` on its
-way to anything else".
-`__getattr__` below still answers it lazily, the same pattern
-`btclib/script/__init__.py` uses for `sig_hash` and `engine`: `import
-btclib.p2p` stays what a parser needs and nothing else, whether or not
-the module behind a lazy name would itself have been free.
+**The message start is btclib's.** `btclib.p2p.magic` holds Bitcoin
+Core's `pchMessageStart` per network and derives a custom signet's from
+its challenge; `magic_from_network` and `magic_from_signet_challenge`
+are published here.
 
 `btclib.p2p.limits` is not published at all, as `btclib.block.limits` is
 not published from `btclib.block`: a caller reading a protocol constant
 names the module it comes from, which is what says the number is Core's
 and not this library's.
 """
-
-from collections.abc import Callable
 
 from btclib.p2p.address import (
     Addr,
@@ -105,6 +95,7 @@ from btclib.p2p.inventory import (
     NotFound,
 )
 from btclib.p2p.keepalive import Ping, Pong
+from btclib.p2p.magic import magic_from_network, magic_from_signet_challenge
 from btclib.p2p.merkleblock import MerkleBlock
 from btclib.p2p.message import Message
 from btclib.p2p.negotiation import (
@@ -172,41 +163,8 @@ __all__ = [
     "can_addrv1",
     "is_embedded_ipv6",
     "magic_from_network",
+    "magic_from_signet_challenge",
     "network_address",
     "peer_from_addr_entry",
     "reconstruct",
 ]
-
-
-def __getattr__(published: str) -> Callable[..., bytes]:
-    """Return `magic_from_network`, importing its module the first time.
-
-    PEP 562, as `btclib/__init__.py` and `btclib/script/__init__.py` do
-    it, and for a name rather than a submodule: this answers
-    `btclib.p2p.magic_from_network` on a package that imported neither the
-    module nor `bitcoin_core_rpc` behind it, which is how a walker
-    reading `__all__` descends and how `from btclib.p2p import *` binds.
-    `from btclib.p2p.magic import magic_from_network` never reaches here,
-    importing the module itself.
-
-    `Callable[..., bytes]` and not the signature: what that costs is one
-    attribute lookup's worth of strictness on this package, which
-    `btclib/__init__.py` weighs the same way. A caller who wants mypy to
-    hold it to the signature names the module.
-    """
-    if published == "magic_from_network":
-        from btclib.p2p import magic  # noqa: PLC0415
-
-        return magic.magic_from_network
-    raise AttributeError(f"module {__name__!r} has no attribute {published!r}")
-
-
-def __dir__() -> list[str]:
-    """Answer with the published names beside what is already here.
-
-    The PEP 562 asymmetry `btclib/__init__.py` answers the same way:
-    `dir()` reads the namespace, so a name `__getattr__` has not been
-    asked for yet is missing from it, and interactive completion would
-    hide a supported spelling.
-    """
-    return sorted({*__all__, *globals()})

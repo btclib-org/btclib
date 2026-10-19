@@ -351,7 +351,6 @@ name = "btclib"
 version = "2026.11"
 source = { editable = "." }
 dependencies = [
-    { name = "bitcoin-core-rpc" },
     { name = "btclib-ecc" },
     { name = "typing-extensions" },
 ]
@@ -381,6 +380,7 @@ check = [
     { name = "uv-build" },
 ]
 dev = [
+    { name = "bitcoin-core-rpc" },
     { name = "btclib-ecc", extra = ["secp256k1"] },
     { name = "btclib-secp256k1" },
     { name = "check-sdist" },
@@ -416,6 +416,7 @@ fuzz = [
     { name = "uv-build" },
 ]
 harness = [
+    { name = "bitcoin-core-rpc" },
     { name = "coverage" },
     { name = "hypothesis" },
     { name = "pytest" },
@@ -436,6 +437,7 @@ mutation = [
     { name = "cosmic-ray" },
 ]
 test = [
+    { name = "bitcoin-core-rpc" },
     { name = "btclib-ecc", extra = ["secp256k1"] },
     { name = "btclib-secp256k1" },
     { name = "coverage" },
@@ -450,7 +452,6 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bitcoin-core-rpc", specifier = ">=2026.10.17" },
     { name = "btclib-ecc", specifier = ">=2026.10.17" },
     { name = "btclib-ecc", extras = ["secp256k1"], marker = "extra == 'secp256k1'", specifier = ">=2026.10.17" },
     { name = "btclib-secp256k1", marker = "extra == 'secp256k1'", specifier = ">=0.8.0.12" },
@@ -473,6 +474,7 @@ check = [
     { name = "uv-build", specifier = ">=0.12.0,<0.13" },
 ]
 dev = [
+    { name = "bitcoin-core-rpc", specifier = ">=2026.10.17" },
     { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.17" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0.12" },
     { name = "check-sdist", specifier = ">=1.6.0" },
@@ -506,6 +508,7 @@ docs = [
 ]
 fuzz = [{ name = "uv-build", specifier = ">=0.12.0,<0.13" }]
 harness = [
+    { name = "bitcoin-core-rpc", specifier = ">=2026.10.17" },
     { name = "coverage", specifier = ">=7.16.0" },
     { name = "hypothesis", specifier = ">=6.168.0" },
     { name = "pytest", specifier = ">=9.1.1" },
@@ -524,6 +527,7 @@ lint = [
 ]
 mutation = [{ name = "cosmic-ray", specifier = ">=8.7.0" }]
 test = [
+    { name = "bitcoin-core-rpc", specifier = ">=2026.10.17" },
     { name = "btclib-ecc", extras = ["secp256k1"], specifier = ">=2026.10.17" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0.12" },
     { name = "coverage", specifier = ">=7.16.0" },

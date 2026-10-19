@@ -4,134 +4,105 @@
 
 """Tests for the `btclib.p2p.magic` module.
 
-The table is not btclib's, so what is tested here is not the table: the
-`bitcoin-core-rpc` package holds `pchMessageStart` per chain and tests it
-against Core. What is btclib's is the vocabulary and the exceptions --
-`NETWORKS` is keyed by BIP network names where the package takes Core's
-chain names -- and that is the whole of what `magic_from_network` adds.
-
-The function is imported from `btclib.p2p.magic` and not from the package,
-which publishes it through `__getattr__`: that spelling is `Callable[...,
-bytes]` to mypy, so a call with a wrong type would be a call nothing
-checks. The package spelling is asserted to be the same object instead.
-`magic_from_chain` and `magic_from_signet_challenge` are the `bitcoin-core-rpc`
-package's, imported from it.
-
-The walk over `NETWORKS` below is the other half: nothing at run time
-re-checks that every btclib network is a chain Core has, so this is where
-that stops being true visibly rather than at a caller.
+`_CORE` is `pchMessageStart` as `src/kernel/chainparams.cpp` writes it at
+Bitcoin Core v31.1, the tag the module cites. The `bitcoin-core-rpc`
+package keeps a copy of the same table and the same derivation, and the
+tests below compare btclib's answers with that copy as well.
 """
 
 from __future__ import annotations
 
 import bitcoin_core_rpc
 import pytest
-from bitcoin_core_rpc import magic_from_chain, magic_from_signet_challenge
 
 import btclib.p2p
-import btclib.p2p.magic
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS
-from btclib.p2p.magic import magic_from_network
+from btclib.p2p.magic import (
+    DEFAULT_SIGNET_CHALLENGE,
+    magic_from_network,
+    magic_from_signet_challenge,
+)
+
+_CORE = {
+    "mainnet": bytes([0xF9, 0xBE, 0xB4, 0xD9]),
+    "testnet": bytes([0x0B, 0x11, 0x09, 0x07]),
+    "testnet4": bytes([0x1C, 0x16, 0x3F, 0x28]),
+    "regtest": bytes([0xFA, 0xBF, 0xB5, 0xDA]),
+}
 
 
-def test_the_module_publishes_the_one_function_it_defines() -> None:
-    """The two Core-vocabulary functions are not btclib's to publish.
-
-    `bitcoin_core_rpc.magic_from_chain` is what a caller with a chain name
-    imports, and a second spelling of it here would be a surface btclib does
-    not own.
-    """
-    assert btclib.p2p.magic.__all__ == ["magic_from_network"]
-    assert not hasattr(btclib.p2p, "magic_from_chain")
-
-
-def test_every_network_of_the_catalogue_has_a_message_start() -> None:
-    """`NETWORKS`' keys are btclib's vocabulary, and each answers."""
+def test_every_network_has_core_s_message_start() -> None:
+    """Each network answers Core's value, and the rpc package's copy."""
+    assert set(NETWORKS) == {*_CORE, "signet"}
+    for network, magic in _CORE.items():
+        assert magic_from_network(network) == magic
     for network in NETWORKS:
-        magic = magic_from_network(network)
-        assert len(magic) == 4
-        assert magic == magic_from_chain(bitcoin_core_rpc.chain_from_network(network))
-
-    assert magic_from_network("mainnet") == bytes.fromhex("f9beb4d9")
+        chain = bitcoin_core_rpc.chain_from_network(network)
+        assert magic_from_network(network) == bitcoin_core_rpc.magic_from_chain(chain)
 
 
-def test_a_network_name_is_not_a_chain_name() -> None:
-    """The bridge is what this function is, and the reason it exists.
+def test_the_default_signet_challenge_derives_the_signet_entry() -> None:
+    """The table's signet entry is the derivation of the default challenge."""
+    default = magic_from_signet_challenge(DEFAULT_SIGNET_CHALLENGE)
+    assert default == magic_from_network("signet")
+    assert DEFAULT_SIGNET_CHALLENGE.hex() == bitcoin_core_rpc.DEFAULT_SIGNET_CHALLENGE
 
-    Core says "main" where btclib says "mainnet", so a caller passing a
-    `NETWORKS` key straight to `magic_from_chain` is told its network is
-    unknown -- and one passing a chain name to `magic_from_network` is
-    told the same, in the other direction. Both are refused rather than
-    guessed at.
+
+@pytest.mark.parametrize(
+    "challenge",
+    [
+        # OP_1: anyone may mine
+        "51",
+        DEFAULT_SIGNET_CHALLENGE.hex(),
+        # 253 octets, the first length CompactSize writes in three octets
+        "6a" * 253,
+    ],
+)
+def test_a_custom_signet_s_message_start(challenge: str) -> None:
+    """Hex and octets answer alike, and as the rpc package's derivation."""
+    magic = magic_from_signet_challenge(challenge)
+    assert len(magic) == 4
+    assert magic == magic_from_signet_challenge(bytes.fromhex(challenge))
+    assert magic == bitcoin_core_rpc.magic_from_signet_challenge(challenge)
+    if challenge != DEFAULT_SIGNET_CHALLENGE.hex():
+        assert magic != magic_from_network("signet")
+
+
+def test_the_empty_challenge_is_derived_as_core_derives_it() -> None:
+    """Core parses an empty `-signetchallenge` as an empty script.
+
+    The serialization is then the single CompactSize octet `00`.
     """
-    with pytest.raises(BTClibValueError, match="unknown network"):
-        magic_from_network("main")
-    with pytest.raises(bitcoin_core_rpc.BtcRpcValueError):
-        magic_from_chain("mainnet")
+    assert magic_from_signet_challenge("") == bytes.fromhex("1406e058")
+
+
+def test_a_challenge_that_is_no_octets_is_refused() -> None:
+    """Refused by `bytes_from_octets`, with btclib's exceptions."""
+    with pytest.raises(BTClibValueError):
+        magic_from_signet_challenge("5")
+    with pytest.raises(BTClibTypeError):
+        magic_from_signet_challenge(81)  # type: ignore[arg-type]
 
 
 def test_a_network_name_is_taken_as_every_other_one_is() -> None:
-    """The whitespace-and-case tolerance issue #216 decided to keep.
-
-    `network.validated_network_name` is the one converter, so a name
-    that works anywhere else in the library works here; the default is
-    mainnet, as it is for `network_from_name`.
-    """
+    """The whitespace-and-case tolerance issue #216 decided to keep."""
     assert magic_from_network("  MainNet ") == magic_from_network("mainnet")
     assert magic_from_network() == magic_from_network("mainnet")
 
 
-def test_what_leaves_a_btclib_name_is_a_btclib_exception() -> None:
-    """The one line of translation this module is, and its limit.
+def test_a_core_chain_name_is_not_a_network_name() -> None:
+    """Core says "main" where btclib says "mainnet", and "main" is refused.
 
-    `magic_from_network` is btclib's function, so its refusal is
-    `btclib.exceptions`'. The two aliases beside it are the package's own
-    functions under btclib's name, so theirs stay the package's -- the
-    same split `btclib_wallet.fetch.transport` documents for the transport it
-    re-exports.
+    A value that is no name at all is refused too, as a `BTClibTypeError`.
     """
-    with pytest.raises(BTClibValueError, match="unknown network") as refusal:
-        magic_from_network("nosuchnet")
-
-    # not the package's class, which an `except BTClibException` would
-    # not catch, and it names what was passed
-    assert not isinstance(refusal.value, bitcoin_core_rpc.BtcRpcValueError)
-    assert "nosuchnet" in str(refusal.value)
-
-    # and the type rule beside the value one, which is the converter's
+    with pytest.raises(BTClibValueError, match="unknown network"):
+        magic_from_network("main")
     with pytest.raises(BTClibTypeError, match="not a network name"):
         magic_from_network(1.5)  # type: ignore[arg-type]
 
 
-def test_the_default_signet_challenge_derives_the_tabulated_magic() -> None:
-    """A signet is named by its challenge, which is why no field holds it.
-
-    The one property that makes the `Network` field impossible rather
-    than merely inconvenient: two signets report the same chain and are
-    different networks, so the message start of one of them is not a
-    fact any table keyed by name can carry.
-    """
-    default = magic_from_signet_challenge(bitcoin_core_rpc.DEFAULT_SIGNET_CHALLENGE)
-    assert default == magic_from_network("signet")
-
-    other = magic_from_signet_challenge("51")  # OP_1: anyone may mine
-    assert len(other) == 4
-    assert other != default
-
-
-def test_the_package_publishes_the_function_without_importing_it() -> None:
-    """PEP 562 here, as in `src/btclib/script/__init__.py`, and why.
-
-    Reaching `bitcoin_core_rpc` brings `urllib.request`, `ssl` and
-    `socket` with it, and a codec has no use for any of them --
-    `tests/imports_test.py` is where that cost is measured. What is left
-    to check is the publication itself: the name reachable off the
-    package, offered to a prompt, and nothing else answered.
-    """
-    assert "magic_from_network" in btclib.p2p.__all__
-    assert btclib.p2p.magic_from_network is btclib.p2p.magic.magic_from_network
-
-    assert set(btclib.p2p.__all__) <= set(dir(btclib.p2p))
-    with pytest.raises(AttributeError, match="has no attribute 'magic_from_networks'"):
-        _ = btclib.p2p.magic_from_networks
+def test_the_package_publishes_both_functions() -> None:
+    """`btclib.p2p` re-exports the module's two functions."""
+    assert btclib.p2p.magic_from_network is magic_from_network
+    assert btclib.p2p.magic_from_signet_challenge is magic_from_signet_challenge
