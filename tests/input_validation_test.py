@@ -320,7 +320,17 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
         }
         declared |= names
         if path.name == "alias.py":
+            # the names imported from btclib_ecc.alias are btclib.alias's
+            # too, and a parameter annotated with one is in the walk
+            names |= {
+                alias.asname or alias.name
+                for node in tree.body
+                if isinstance(node, ast.ImportFrom)
+                and node.module == "btclib_ecc.alias"
+                for alias in node.names
+            }
             in_alias_py = names
+            declared |= names
         for node in ast.walk(tree):
             if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
                 continue
@@ -349,19 +359,12 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
         "NetworkField",
         "ScriptType",
         "TxoutType",
-        # the two hash-function types are always behind a default -- `hf`
-        # is the last parameter of everything that takes one -- so the
-        # walk cannot reach them for the reason the module docstring
-        # gives. btclib_ecc's `hashes` holds the check, and that
+        # always behind a default -- `hf` is the last parameter of
+        # everything that takes one -- so the walk cannot reach it for
+        # the reason the module docstring gives. btclib_ecc's `hashes`
+        # holds the check for its own hash-function type, and that
         # package's suite is where it is held to it
         "HashDigestF",
-        "HashF",
-        # a callable, and the same again: its wrong values are the
-        # non-callables, and it is never a required parameter
-        "CipherF",
-        # the internal coordinates: no public parameter takes them from a
-        # caller, `curves` converting to them and back
-        "JacPoint",
         # a nested structure, whose wrong values are a node of no tree's
         # shape and a leaf's own: `built_object_contract_test.py` and
         # `script/taproot_test.py` build them by hand

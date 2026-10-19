@@ -137,6 +137,11 @@ intersphinx_mapping = {
 #   name, and btclib-ecc.readthedocs.io serves no objects.inv for a
 #   mapping to read (issue #2282). An inventory there is what retires
 #   them
+# - `Octets` as autodoc renders it in a signature it cannot evaluate,
+#   `ConsensusParams.script_flags_at`'s `block_hash: Octets | None`, where
+#   `consensus.py` imports it under TYPE_CHECKING: `btclib.alias` imports it
+#   from btclib_ecc, autodoc documents no imported name, and the bare name
+#   has no page to link to
 nitpick_ignore = [
     ("py:class", "collections.abc.Callable[[]"),
     ("py:class", "tuple[int"),
@@ -152,6 +157,7 @@ nitpick_ignore = [
     ("py:class", "btclib.script.sig_hash._SigHashCache"),
     ("py:class", "btclib_ecc.curves.curve.Curve"),
     ("py:class", "btclib_ecc.ecc.dsa.Sig"),
+    ("py:class", "Octets"),
 ]
 
 # no suppress_warnings, and myst.xref_missing least of all: the transform
