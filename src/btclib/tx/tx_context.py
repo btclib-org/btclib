@@ -104,9 +104,9 @@ def is_final(tx: Tx, height: int, block_time: int) -> bool:
     GetMedianTimePast()` once BIP113 (the CSV deployment) is active on
     the chain being validated against, the block's own timestamp before
     that -- Core's `ContextualCheckBlock` decides it from the chain's own
-    activation height, which this function does not carry. A caller
-    checking a block reports `False` here as Core's own
-    `bad-txns-nonfinal`.
+    activation height, which this function does not carry. `False` here
+    is Core's `bad-txns-nonfinal`, which `Block.assert_valid_contextual`
+    raises as `non-final transaction`.
     """
     for name, value in (("height", height), ("block_time", block_time)):
         if not is_integer(value):

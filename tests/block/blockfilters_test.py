@@ -37,6 +37,7 @@ from typing import Any, cast
 import pytest
 
 from btclib.block import BasicBlockFilter, Block, BlockContext
+from btclib.consensus import CONSENSUS_PARAMS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from tests import load, vector_id
 
@@ -158,6 +159,9 @@ def test_blockfilters_coinbase_height(
 ) -> None:
     """Core's bad-cb-height over ten real testnet blocks.
 
+    The whole of `assert_valid_contextual` is asked, on testnet3's own
+    parameters, so the other height-dependent rules pass on them too.
+
     Six of the rows are at or above testnet3's activation height and
     commit their own height in the bytes Core builds; the four below it
     are version 1 blocks that commit nothing, and they are what says the
@@ -170,7 +174,7 @@ def test_blockfilters_coinbase_height(
     context = BlockContext(
         height=height,
         now=block.header.time,
-        bip34_height=_TESTNET_BIP34_HEIGHT,
+        consensus=CONSENSUS_PARAMS["testnet"],
     )
     assert context.is_bip34_active == (height >= _TESTNET_BIP34_HEIGHT)
     block.assert_valid_contextual(context)
