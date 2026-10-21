@@ -720,12 +720,9 @@ repos:
   # restored into the job that builds what gets published, an expression
   # interpolated into a shell script, a trigger that runs a fork's code
   # with write access. --persona=auditor runs on every commit rather than
-  # by hand, because this tree measures zero under it: every permission
-  # grant carries its own reason on the grant's line, the one `${{ }}`
-  # expression that interpolates a closed set of GitHub-written values is
-  # declined inline, and the two that took a matrix value now read it
-  # through an environment variable instead. A finding it raises from
-  # here on is this tree's own regression, not advice to weigh
+  # by hand, because this tree measures zero under it. A finding fails
+  # it, and is answered by a fix, a narrower grant, a reason on the
+  # grant's own line, or an inline decline with its reason beside it
   # (btclib-org/.github#1164)
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
     # self-repository flags a reusable-workflow or composite-action
