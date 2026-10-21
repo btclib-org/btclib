@@ -364,6 +364,9 @@ secp256k1 = [
     { name = "btclib-ecc", extra = ["secp256k1"] },
     { name = "btclib-secp256k1" },
 ]
+testing = [
+    { name = "hypothesis" },
+]
 
 [package.dev-dependencies]
 bindings = [
@@ -409,6 +412,7 @@ docs = [
     { name = "btclib-secp256k1" },
     { name = "cryptography" },
     { name = "furo", marker = "python_full_version >= '3.12'" },
+    { name = "hypothesis" },
     { name = "myst-parser", marker = "python_full_version >= '3.12'" },
     { name = "sphinx", marker = "python_full_version >= '3.12'" },
 ]
@@ -447,6 +451,9 @@ test = [
     { name = "pytest-timeout" },
     { name = "pytest-xdist" },
 ]
+testing = [
+    { name = "hypothesis" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -455,9 +462,10 @@ requires-dist = [
     { name = "btclib-ecc", extras = ["secp256k1"], marker = "extra == 'secp256k1'", specifier = ">=2026.10.17" },
     { name = "btclib-secp256k1", marker = "extra == 'secp256k1'", specifier = ">=0.8.0.12" },
     { name = "cryptography", marker = "extra == 'bip324'", specifier = ">=42.0.0" },
+    { name = "hypothesis", marker = "extra == 'testing'", specifier = ">=6.168.0" },
     { name = "typing-extensions", specifier = ">=4.10" },
 ]
-provides-extras = ["secp256k1", "bip324"]
+provides-extras = ["secp256k1", "bip324", "testing"]
 
 [package.metadata.requires-dev]
 bindings = [
@@ -501,6 +509,7 @@ docs = [
     { name = "btclib-secp256k1", specifier = ">=0.8.0.12" },
     { name = "cryptography", specifier = ">=42.0.0" },
     { name = "furo", marker = "python_full_version >= '3.12'", specifier = ">=2025.12.19" },
+    { name = "hypothesis", specifier = ">=6.168.0" },
     { name = "myst-parser", marker = "python_full_version >= '3.12'", specifier = ">=5.1.0" },
     { name = "sphinx", marker = "python_full_version >= '3.12'", specifier = ">=9.1.0" },
 ]
@@ -535,6 +544,7 @@ test = [
     { name = "pytest-timeout", specifier = ">=2.4.0" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
 ]
+testing = [{ name = "hypothesis", specifier = ">=6.168.0" }]
 
 [[package]]
 name = "btclib-ecc"

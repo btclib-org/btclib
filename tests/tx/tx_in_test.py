@@ -15,9 +15,9 @@ from btclib import var_int
 from btclib.consensus import WITNESS_SCALE_FACTOR
 from btclib.exceptions import BTClibValueError
 from btclib.script import Witness
+from btclib.testing.strategies import TX_INS
 from btclib.tx import OutPoint, Tx, TxIn, TxOut, input_weight
 from tests.conftest import JsonGolden
-from tests.strategies import TX_INS
 
 
 def test_tx_in() -> None:

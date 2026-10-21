@@ -14,22 +14,20 @@ of each other, not the walk.
 
 from dataclasses import FrozenInstanceError, replace
 from datetime import UTC, datetime
-from pathlib import Path
 
 import pytest
 
 from btclib.block import Block, BlockHeader, PartialMerkleTree
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p import MerkleBlock
+from tests import vendored_block
 
 _MAINNET = bytes.fromhex("f9beb4d9")
 
 
 def _load(fname: str) -> Block:
-    """Return a vendored block, parsed from tests/block/_data."""
-    filename = Path(__file__).parents[1] / "block" / "_data" / fname
-    with filename.open("rb") as file_:
-        return Block.parse(file_.read())
+    """Return a vendored block, parsed."""
+    return Block.parse(vendored_block(fname))
 
 
 def _tree_of(block: Block, *matched_indexes: int) -> PartialMerkleTree:

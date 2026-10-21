@@ -17,7 +17,7 @@ name: pypi-install
 # tree in one landing (issue btclib-org/.github#35).
 #
 # `import btclib` runs __init__.py alone, and the data files under
-# btclib/ -- `git ls-files | grep '^src/btclib/.*_data/'` is which -- are
+# btclib/ -- `git ls-files | grep '^src/btclib/_data/'` is which -- are
 # read when `btclib.network` is first imported, so a wheel missing one of
 # them installs cleanly, answers `import btclib` cleanly, and fails at the
 # first import of it. The signature check below imports it, through

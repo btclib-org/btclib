@@ -8,7 +8,8 @@ No transport anywhere here -- there is none in this module to test, by
 design -- so every case is a line built or read by hand. The transaction
 vector is block 170's first payment and the header is block 481824's;
 the merkle branch is a second vector from that block,
-`tests/block/_data/block_481824_complete.bin`'s transaction at index 1,
+`src/btclib/testing/_data/block_481824_complete.bin`'s transaction at
+index 1,
 computed with the sibling-walk `tests/block/merkle_proof_test.py`
 already uses and checked here against
 `btclib.block.merkle_proof.assert_as_valid` directly rather than
@@ -51,7 +52,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError, RpcError
 # transaction 1 of block 170: the first bitcoin payment between two people
 TX_ID = "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16"
 # block 481824 -- the first block with a segwit transaction in it, and the
-# one vendored whole under tests/block/_data
+# one `btclib.testing.blocks` ships whole
 TIP_HEIGHT = 481824
 TIP_ID = "0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893"
 # the first eighty bytes of tests/block/_data/block_481824.bin, i.e. the
@@ -66,8 +67,8 @@ TIP_HEADER_RAW = (
 # block 481824's transaction at index 1: 225 bytes, no witness, so its
 # hash and its id are the same value. The branch is the eleven siblings
 # met climbing to the header's merkle_root, deepest first -- computed
-# once from tests/block/_data/block_481824_complete.bin with the same
-# construction tests/block/merkle_proof_test.py's `_branch` performs, and
+# once from src/btclib/testing/_data/block_481824_complete.bin with the
+# same construction tests/block/merkle_proof_test.py's `_branch` performs, and
 # checked below against the real header rather than trusted on arrival
 MERKLE_TX_ID = "c2bfb6f1bf791308c6b8f73f5d4181be9aa490da6e73c188f9ebd0723e8531b6"
 MERKLE_TX_RAW = bytes.fromhex(

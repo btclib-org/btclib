@@ -4,7 +4,8 @@
 
 """Tests for the `btclib.block` module.
 
-The `_data/block_*.bin` files are consensus bytes, so there is no upstream
+The vendored blocks, under `_data/` and in `btclib.testing.blocks`, are
+consensus bytes, so there is no upstream
 repository to cite: `bitcoin-cli getblock <hash> 0` returns each of them,
 except `block_481824.bin`, which is that block serialized *without*
 witness data as a pre-segwit node sees it and which no RPC hands over --
@@ -40,9 +41,10 @@ from btclib.hashes import hash256, merkle_root_and_mutated_from_hashes
 from btclib.network import NETWORKS
 from btclib.script import ScriptPubKey
 from btclib.script.witness import Witness
+from btclib.testing.strategies import BLOCK_HEADERS, BLOCKS
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
+from tests import vendored_block
 from tests.conftest import JsonGolden
-from tests.strategies import BLOCK_HEADERS, BLOCKS
 
 
 def test_block_1() -> None:
@@ -568,9 +570,7 @@ def test_merkle_root_still_refuses_a_version_no_four_bytes_hold() -> None:
 def test_block_170() -> None:
     """Test first block with a transaction."""
     fname = "block_170.bin"
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        block_bytes = file_.read()
+    block_bytes = vendored_block(fname)
 
     block = Block.parse(block_bytes)
     assert len(block.transactions) == 2
@@ -612,9 +612,7 @@ def test_block_170() -> None:
 def test_block_200000() -> None:
     """Verify block 200,000: 388 transactions and a BIP34 height."""
     fname = "block_200000.bin"
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        block_bytes = file_.read()
+    block_bytes = vendored_block(fname)
 
     block = Block.parse(block_bytes)
     assert len(block.transactions) == 388
@@ -681,9 +679,7 @@ def test_block_merkle_mutation() -> None:
     commits to this one. Core rejects it as bad-txns-duplicate.
     """
     fname = "block_200000.bin"
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        block_bytes = file_.read()
+    block_bytes = vendored_block(fname)
 
     block = Block.parse(block_bytes)
     block.transactions += block.transactions[-4:]
@@ -700,9 +696,7 @@ def test_block_481824() -> None:
     merkle_root = "6438250cad442b982801ae6994edb8a9ec63c0a0ba117779fbe7ef7f07cad140"
     hash_ = "0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893"
     for i, fname in enumerate(["block_481824.bin", "block_481824_complete.bin"]):
-        filename = Path(__file__).parent / "_data" / fname
-        with filename.open("rb") as file_:
-            block_bytes = file_.read()
+        block_bytes = vendored_block(fname)
 
         block = Block.parse(block_bytes)
         assert len(block.transactions) == 1866
@@ -750,9 +744,7 @@ def test_vsize_rounds_up_a_weight_that_is_not_a_multiple_of_four() -> None:
     stripped size at all, which is what a witness byte costs.
     """
     fname = "block_481824_complete.bin"
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        block_bytes = file_.read()
+    block_bytes = vendored_block(fname)
 
     block = Block.parse(block_bytes)
     stack = block.transactions[1].vin[0].script_witness.stack
@@ -771,9 +763,7 @@ def test_block_witness_commitment() -> None:
     bad-witness-merkle-match.
     """
     fname = "block_481824_complete.bin"
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        block_bytes = file_.read()
+    block_bytes = vendored_block(fname)
 
     block = Block.parse(block_bytes)
     commitment = "6c3c4dff76b5760d58694147264d208689ee07823e5694c4872f856eacf5a5d8"
@@ -849,9 +839,7 @@ def test_block_witness_nonce() -> None:
     them as bad-witness-nonce-size.
     """
     fname = "block_481824_complete.bin"
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        block_bytes = file_.read()
+    block_bytes = vendored_block(fname)
 
     for stack in ([], [b"\x00" * 31], [b"\x00" * 32] * 2):
         block = Block.parse(block_bytes)
@@ -869,9 +857,7 @@ def test_block_unexpected_witness() -> None:
     rejects the block as unexpected-witness.
     """
     fname = "block_170.bin"
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        block_bytes = file_.read()
+    block_bytes = vendored_block(fname)
 
     block = Block.parse(block_bytes)
     assert block.witness_commitment is None
@@ -1073,9 +1059,7 @@ def test_assert_valid_coinbase_height_reads_the_first_transaction() -> None:
     started with the height commitment to begin with.
     """
     fname = "block_200000.bin"
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        block = Block.parse(file_.read())
+    block = Block.parse(vendored_block(fname))
 
     block.assert_valid_coinbase_height(200_000)
 
@@ -1097,9 +1081,7 @@ def test_a_block_carries_one_coinbase() -> None:
     to isolate.
     """
     fname = "block_200000.bin"
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        block_bytes = file_.read()
+    block_bytes = vendored_block(fname)
 
     block = Block.parse(block_bytes)
     coinbase = block.transactions[0]
@@ -1161,9 +1143,7 @@ def test_assert_valid_checks_the_first_transaction_and_not_the_last() -> None:
     real, mainnet-grade difficulty.
     """
     fname = "block_200000.bin"
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        block = Block.parse(file_.read())
+    block = Block.parse(vendored_block(fname))
 
     assert len(block.transactions) > 1
     block.transactions[0].vin[0].script_sig = b"\x00" * 101
@@ -1295,9 +1275,7 @@ def test_the_weight_is_the_block_and_not_its_transactions(
     four times the stripped size plus the witness bytes, and three times
     the stripped size plus the size.
     """
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        block_bytes = file_.read()
+    block_bytes = vendored_block(fname)
 
     block = Block.parse(block_bytes)
     witness_size = block.size - block.stripped_size
@@ -1541,9 +1519,7 @@ def test_a_block_cannot_weigh_more_than_the_cap() -> None:
     this is where that claim is measured.
     """
     fname = "block_481824_complete.bin"
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        block_bytes = file_.read()
+    block_bytes = vendored_block(fname)
 
     stuffing = Witness([b"\x00" * 46_000])
 
@@ -1755,9 +1731,7 @@ def test_the_size_and_the_serialization_agree(fname: str) -> None:
     here is what `assert_valid_length` and `assert_valid_weight` bound,
     so a byte of disagreement is a block accepted or refused wrongly.
     """
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        block = Block.parse(file_.read())
+    block = Block.parse(vendored_block(fname))
 
     for include_witness in (True, False):
         assert block._serialized_size(include_witness) == len(

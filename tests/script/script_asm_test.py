@@ -18,7 +18,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from btclib.script import parse, script_to_asm
-from tests.strategies import SCRIPTS
+from btclib.testing.strategies import SCRIPTS
 
 # the signature and the key of Core's own `script_GetScriptAsm` test
 # (src/test/script_tests.cpp); a hash type byte follows the signature

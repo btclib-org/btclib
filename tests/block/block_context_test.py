@@ -22,7 +22,6 @@ height, so its coinbase commitment is one the whole network agreed on.
 """
 
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import pytest
 
@@ -32,15 +31,14 @@ from btclib.block.limits import MAX_FUTURE_BLOCK_TIME
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import serialize
 from btclib.tx import TxIn
+from tests import vendored_block
 
 _MAINNET_BIP34_HEIGHT = 227_931
 
 
 def block_of(fname: str) -> Block:
-    """Parse a vendored block from this directory's `_data`."""
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        return Block.parse(file_.read())
+    """Parse a vendored block."""
+    return Block.parse(vendored_block(fname))
 
 
 def test_the_activation_height_is_cores() -> None:

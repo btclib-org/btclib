@@ -162,9 +162,12 @@ independent of the script around it, and
 reply is json, and `electrum.decode_response` refuses a line that is not
 a well-formed answer to the request it is matched to.
 
-**Files.** btclib opens no file a caller names. What it reads is its own
-package data, the network tables under `src/btclib/_data/`, once, at
-import, in `src/btclib/network.py`. A caller
+**Files.** btclib opens no file a caller names, but for the block names
+`btclib.testing.blocks.NAMES` lists. What it reads is its own package
+data: the network tables under `src/btclib/_data/`, once, at import, in
+`src/btclib/network.py`, and the blocks under
+`src/btclib/testing/_data/`, at each call of
+`btclib.testing.blocks.read_bytes`. A caller
 reading a file hands btclib its contents, and `from_dict` is the
 boundary a json document crosses: `tests/serialization_boundary_test.py`
 holds it to the same refusals as any other input.

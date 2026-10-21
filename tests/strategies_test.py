@@ -38,8 +38,7 @@ from btclib.p2p.limits import (
 )
 from btclib.script import ScriptPubKey, Witness, parse
 from btclib.script.script import ERROR_COMMAND
-from btclib.tx import OutPoint, Tx, TxIn, TxOut
-from tests.strategies import (
+from btclib.testing.strategies import (
     BLOCK_HEADERS,
     BLOCKS,
     OUT_POINTS,
@@ -50,6 +49,7 @@ from tests.strategies import (
     TXS,
     WITNESSES,
 )
+from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests.strategies.p2p import (
     CMPCT_BLOCKS,
     INVENTORIES,

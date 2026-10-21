@@ -26,6 +26,7 @@ from btclib.block.block import merkle_root_and_mutated_from_transactions
 from btclib.consensus import MAX_BLOCK_WEIGHT, WITNESS_SCALE_FACTOR
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import ScriptPubKey, Witness, sig_op_count
+from btclib.testing.strategies import TXS
 from btclib.tx import OutPoint, Tx, TxIn, TxOut, join
 from btclib.tx.limits import (
     MAX_TX_IN_COUNT,
@@ -35,7 +36,6 @@ from btclib.tx.limits import (
 )
 from btclib.tx.tx import _assert_valid_coinbase
 from tests.conftest import JsonGolden
-from tests.strategies import TXS
 
 
 def test_tx() -> None:
