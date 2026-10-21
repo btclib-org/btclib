@@ -104,7 +104,7 @@ class TxIn:
         script_pub_key, which is not here.
         """
         # self.prev_out has no segwit information
-        return bool(self.script_witness.stack)
+        return len(self.script_witness) > 0
 
     @property
     def is_coinbase(self) -> bool:
