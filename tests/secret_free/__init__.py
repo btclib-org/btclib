@@ -133,7 +133,12 @@ def assert_secret_free(
     secret fed is a fixed random value, not a run such as all zeros, and
     a mnemonic's words are not words of the refusal's own text.
 
-    Whitespace a refusal puts between a piece's characters does not hide it.
+    Whitespace a refusal puts inside a piece that has none of its own does
+    not hide it where the text holds that whitespace as itself. `repr` writes
+    a tab or a newline as an escape, so one that a refusal shows only through
+    `repr`, as a `KeyError` shows its key, does hide it. A piece with
+    whitespace of its own is looked for as given, so a refusal that changes
+    that whitespace does not match it.
 
     :param exc: the exception raised.
     :param secrets: the secret fed, as bytes, as a bytearray, or in each
@@ -151,5 +156,4 @@ def assert_secret_free(
         compact_text = "".join(text.split())
         for piece in pieces:
             assert piece not in text
-            if piece.split() == [piece]:
-                assert piece not in compact_text
+            assert piece not in compact_text

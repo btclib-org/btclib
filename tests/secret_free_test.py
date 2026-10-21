@@ -237,7 +237,7 @@ def test_a_passphrase_with_spaces_is_still_found(
 def test_a_whitespace_passphrase_is_compared_as_given(
     secret: str | bytes | bytearray,
 ) -> None:
-    """Compacting a secret to nothing cannot reject a clean refusal.
+    """A whitespace-only secret is found only where a refusal quotes it.
 
     :param secret: the whitespace-only passphrase.
     """
