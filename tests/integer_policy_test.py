@@ -20,7 +20,7 @@ from enum import IntEnum
 from typing import Any
 
 import pytest
-from btclib_ecc.exceptions import BTClibEccTypeError
+from ecc.exceptions import EccTypeError
 
 from btclib import base58, bech32, var_int
 from btclib.alias import TaprootScriptTree
@@ -125,7 +125,7 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("hash rate block count", lambda v: hash_rate(1.0, 600.0, v)),
     # the key path, which this census did not reach until issue #1206.
     # One line stands behind all of it, `int_from_integer`: `wif_from_prv_key`
-    # reaches it through btclib_ecc's copy, which is that package's to
+    # reaches it through ecc's copy, which is that package's to
     # test. These cases are here for the reach of the policy and not as a
     # test apiece. The address builders are not among
     # them: they take a `PubKeyData` and refuse a bool through
@@ -153,10 +153,10 @@ def test_a_bool_is_not_an_integer_field(
     zero, and `int(True) == True` is what let the satoshi amount through a
     conversion-and-equality check on top of that.
 
-    btclib_ecc's class where that package reads the field -- the WIF's
+    ecc's class where that package reads the field -- the WIF's
     key, through its `scalar_from_prv_key` -- and btclib's elsewhere.
     """
-    with pytest.raises((BTClibTypeError, BTClibEccTypeError)):
+    with pytest.raises((BTClibTypeError, EccTypeError)):
         call(value)
 
 
@@ -188,7 +188,7 @@ def test_which_check_refuses_the_bool_decides_the_sentence(
     call: Callable[[Any], object], message: str
 ) -> None:
     """The wordings the release notes promise, held to what is raised."""
-    with pytest.raises((BTClibTypeError, BTClibEccTypeError), match=message):
+    with pytest.raises((BTClibTypeError, EccTypeError), match=message):
         call(True)
 
 

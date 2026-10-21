@@ -14,7 +14,7 @@ counts are of calls, not of seconds, which depend on the load.
 from collections.abc import Callable
 
 import pytest
-from btclib_ecc.ecc import dsa
+from ecc.ecc import dsa
 
 from btclib.hashes import hash160
 from btclib.key import PrvKeyData

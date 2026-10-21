@@ -4,9 +4,8 @@
 
 """btclib with btclib_secp256k1 not installed, which is a subprocess.
 
-btclib_ecc asks for the bindings once, at import, and btclib's own
-modules calling them directly each try their import once too; so the
-question this file asks -- does the library import and answer without
+ecc asks for the bindings once, at import, so the question this file
+asks -- does the library import and answer without
 them -- can only be asked of an interpreter that has not imported btclib
 yet. A
 monkeypatch cannot: by the time a test runs, the import has happened and
@@ -29,8 +28,8 @@ the bindings in reach: agreement between the two implementations is the
 property, and a child that merely fails to crash proves nothing about it.
 
 `test_the_two_arms_refuse_the_same_inputs` asks the same question of a
-refusal: `tests/py_arm_authority_test.py` counts which vectors reach
-each arm and never compares them, and the test above compares only what
+refusal: `tests/py_arm_authority_test.py` only counts the arms btclib
+holds and compares no answers, and the test above compares only what
 both arms compute successfully, so neither would have caught issue
 #1227 -- a hybrid taproot internal key answered on one arm and raised
 on the other, one input and two answers decided by `pip install`
@@ -50,9 +49,9 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
-from btclib_ecc.curves import bytes_from_point, is_libsecp256k1_serving, mult
-from btclib_ecc.ecc import dsa, ssa
-from btclib_ecc.exceptions import BTClibEccException
+from ecc.curves import bytes_from_point, is_libsecp256k1_serving, mult
+from ecc.ecc import dsa, ssa
+from ecc.exceptions import EccException
 
 from btclib.exceptions import BTClibException
 from btclib.key import PubKeyData
@@ -60,8 +59,8 @@ from btclib.script.taproot import output_pubkey
 from tests import needs_bindings
 
 # the environment variable that refuses the bindings without uninstalling
-# them: btclib_ecc's own, read once, when its dispatch is first imported
-_NO_LIBSECP256K1 = "BTCLIB_ECC_NO_LIBSECP256K1"
+# them: ecc's own, read once, when its dispatch is first imported
+_NO_LIBSECP256K1 = "ECC_NO_LIBSECP256K1"
 
 # the key and message the child works from: constants, because the two
 # processes have to be asked the same question
@@ -93,9 +92,9 @@ class RefuseTheBindings:
 sys.meta_path.insert(0, RefuseTheBindings())
 
 import btclib
-from btclib_ecc.curves import is_libsecp256k1_serving, mult
+from ecc.curves import is_libsecp256k1_serving, mult
 from btclib.ecc import ellswift
-from btclib_ecc.ecc import dh, dsa, ssa
+from ecc.ecc import dh, dsa, ssa
 from btclib.script import taproot
 from btclib.script.engine import script as engine_script
 from btclib.script.engine import tapscript as engine_tapscript
@@ -150,12 +149,12 @@ def test_btclib_answers_with_the_bindings_out_of_reach() -> None:
     for them, a python interpreter costing more to start than any of them
     costs to run.
 
-    The child imports guarded modules beyond the ones it then calls:
+    The child imports modules beyond the ones it then calls:
     `src/btclib/__init__.py` imports nothing eagerly, so `import btclib` is
-    the metadata lookup and no module at all, and a guard nothing imports
-    is a guard nothing checks. `ecc.dh`, `ecc.ellswift`, `script.taproot`
-    and `script.engine.tapscript` are the ones the calls below would not
-    reach on their own.
+    the metadata lookup and no module at all. `ecc.ecc.dh`,
+    `btclib.ecc.ellswift`, `script.taproot` and `script.engine.tapscript`
+    are the ones the calls below would not reach on their own, and each
+    has to import without the bindings.
     """
     # the same question this process answers with the bindings serving
     assert importlib.util.find_spec("btclib_secp256k1") is not None
@@ -177,13 +176,12 @@ def test_btclib_answers_with_the_bindings_out_of_reach() -> None:
 def test_the_environment_variable_refuses_the_installed_bindings() -> None:
     """The environment variable is the way in that settles before import.
 
-    It is btclib_ecc's, and what this asks is that btclib answers to
-    it: `is_libsecp256k1_serving` is what every dispatch of btclib's own
-    reads too, so installed and refused is the Python arithmetic
-    throughout. An empty value is not set, and leaves the bindings serving.
+    It is ecc's, and btclib has no dispatch of its own: installed and
+    refused is ecc's Python arithmetic throughout. An empty value is not
+    set, and leaves the bindings serving.
     """
     probe = (
-        "from btclib_ecc.curves import is_libsecp256k1_serving;"
+        "from ecc.curves import is_libsecp256k1_serving;"
         "print(is_libsecp256k1_serving())"
     )
     for value, serving in (("1", "False"), ("", "True")):
@@ -219,10 +217,9 @@ _Y = _Q[1].to_bytes(32, "big")
 # so the two arms never see the input until after the one btclib
 # sentence has already fired. `tests/script/taproot_test.py`'s
 # `test_the_tweak_names_no_half_of_a_sec_it_cannot_blame` holds the
-# class alone for the input that does reach the arms, a y that is not
-# its x's, which `assert_valid` does not lift a point to see (issues
-# #1214, #1218); `dsa.py`'s own rule is that the discrimination is the
-# bindings' but the hierarchy has to be btclib's.
+# class and the wording for the input that does reach the tweak, a y
+# that is not its x's, which `assert_valid` does not lift a point to see
+# (issues #1214, #1218).
 _REFUSALS: dict[str, Callable[[], object]] = {
     "bool private key": lambda: dsa.sign(_MSG_HASH, True),
     "hybrid internal key": lambda: output_pubkey(
@@ -258,9 +255,9 @@ class RefuseTheBindings:
 sys.meta_path.insert(0, RefuseTheBindings())
 
 import btclib
-from btclib_ecc.curves import is_libsecp256k1_serving
-from btclib_ecc.ecc import dsa
-from btclib_ecc.exceptions import BTClibEccException
+from ecc.curves import is_libsecp256k1_serving
+from ecc.ecc import dsa
+from ecc.exceptions import EccException
 from btclib.exceptions import BTClibException
 from btclib.key import PubKeyData
 from btclib.script.taproot import output_pubkey
@@ -271,7 +268,7 @@ assert "btclib_secp256k1" not in sys.modules, "the finder let the bindings in"
 def refused(call):
     try:
         call()
-    except (BTClibException, BTClibEccException) as e:
+    except (BTClibException, EccException) as e:
         return [type(e).__name__, str(e)]
     return None  # a call this table names but does not refuse is the finding
 
@@ -326,7 +323,7 @@ def _refusal_child_answers() -> dict[str, Any]:
 
 def _locally_refused(call: Callable[[], object]) -> tuple[str, str]:
     """Run call with the bindings in reach and return what it raised."""
-    with pytest.raises((BTClibException, BTClibEccException)) as excinfo:
+    with pytest.raises((BTClibException, EccException)) as excinfo:
         call()
     return type(excinfo.value).__name__, str(excinfo.value)
 
@@ -335,8 +332,8 @@ def _locally_refused(call: Callable[[], object]) -> tuple[str, str]:
 def test_the_two_arms_refuse_the_same_inputs() -> None:
     """A refusal is held to one class everywhere, one wording where it can be.
 
-    `tests/py_arm_authority_test.py` counts which vectors of somebody
-    else's making reach each arm and never compares them, and
+    `tests/py_arm_authority_test.py` only counts the arms btclib holds
+    and compares no answers, and
     `test_btclib_answers_with_the_bindings_out_of_reach` above compares
     only what both arms compute successfully -- so neither would have
     caught issue #1227: a hybrid taproot internal key answered on the

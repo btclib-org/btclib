@@ -11,7 +11,7 @@ from io import BytesIO
 import pytest
 
 # private on purpose: two copies' agreement is the subject (issue #2282, Rule 3)
-from btclib_ecc.ecc.dsa import _parse_der_value
+from ecc.ecc.dsa import _parse_der_value
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -131,7 +131,7 @@ def _var_bytes_as_dsa_reports_it(stream: BytesIO) -> bytes:
 def test_dsa_reads_a_der_size_as_var_bytes_does(data: bytes) -> None:
     """The DER size reader of `ecc.dsa` answers as `var_bytes` does.
 
-    btclib_ecc does not import btclib, so `Sig.parse` cannot call
+    ecc does not import btclib, so `Sig.parse` cannot call
     `var_bytes` and reads a DER element's size itself. This is the one
     place both are in reach, and every branch of either reader is a row
     here: the value, or the refusal and its message.

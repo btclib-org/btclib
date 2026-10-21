@@ -20,8 +20,8 @@ tests/_data/README.md pins the revision of each.
 from typing import Any
 
 import pytest
-from btclib_ecc.ecc import ssa
-from btclib_ecc.exceptions import BTClibEccRuntimeError, BTClibEccValueError
+from ecc.ecc import ssa
+from ecc.exceptions import EccRuntimeError, EccValueError
 
 from btclib.alias import Octets, ScriptList, TaprootScriptTree
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
@@ -129,15 +129,15 @@ def test_invalid_taproot_key_path(vector: dict[str, Any]) -> None:
     # the two of the contract this can legitimately leave through: a
     # ValueError for a malformed input and a RuntimeError for
     # `ssa.assert_as_valid_` on a signature that does not verify, each in
-    # btclib's class or, from `ssa` itself, in btclib_ecc's. Neither
+    # btclib's class or, from `ssa` itself, in ecc's. Neither
     # derives from the other -- ValueError against RuntimeError -- so both
     # are named, and nothing wider is
     with pytest.raises(
         (
             BTClibRuntimeError,
             BTClibValueError,
-            BTClibEccRuntimeError,
-            BTClibEccValueError,
+            EccRuntimeError,
+            EccValueError,
         )
     ):
         sighash_type = 0  # all
@@ -427,21 +427,21 @@ def test_key_path_spend_round_trip(hash_type: int, script_tree: Any) -> None:
     #
     # An alternation and not a bare class, because the two arms of
     # `assert_as_valid_` word it differently: libsecp256k1 answers one bit
-    # and btclib_ecc says "signature verification failed", while the
+    # and ecc says "signature verification failed", while the
     # Python arm knows which of BIP340's checks failed and says so -- "y_K
-    # is odd" for these signatures. Both are BTClibEccRuntimeError,
-    # `ssa` being btclib_ecc's, which is the contract, and dropping the
+    # is odd" for these signatures. Both are EccRuntimeError,
+    # `ssa` being ecc's, which is the contract, and dropping the
     # match outright would throw away in both configurations a check that
     # has held since issue #124. Issue #998 is whether the wording should
     # agree
     wrong = ssa.sign(msg, output_prvkey(prv_key, script_tree))
-    with pytest.raises(BTClibEccRuntimeError, match=_REFUSED):
+    with pytest.raises(EccRuntimeError, match=_REFUSED):
         ssa.assert_as_valid_(msg, pub_key, wrong)
 
     # and the key from the script is the tweaked one, the internal key
     # being what the tweak is computed from
     wrong = ssa.sign_(msg, prv_key)
-    with pytest.raises(BTClibEccRuntimeError, match=_REFUSED):
+    with pytest.raises(EccRuntimeError, match=_REFUSED):
         ssa.assert_as_valid_(msg, pub_key, wrong)
 
 

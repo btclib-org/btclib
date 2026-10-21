@@ -49,7 +49,6 @@ own with its branch already in its path.
 [![deps-latest workflow status](https://github.com/btclib-org/btclib/actions/workflows/deps-latest.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/deps-latest.yml?query=branch%3Amain)
 [![pypi-install workflow status](https://github.com/btclib-org/btclib/actions/workflows/pypi-install.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/pypi-install.yml?query=branch%3Amain)
 [![deps-oldest workflow status](https://github.com/btclib-org/btclib/actions/workflows/deps-oldest.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/deps-oldest.yml?query=branch%3Amain)
-[![py-arm-authority workflow status](https://github.com/btclib-org/btclib/actions/workflows/py-arm-authority.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/py-arm-authority.yml?query=branch%3Amain)
 [![os-macos workflow status](https://github.com/btclib-org/btclib/actions/workflows/os-macos.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/os-macos.yml?query=branch%3Amain)
 [![os-ubuntu workflow status](https://github.com/btclib-org/btclib/actions/workflows/os-ubuntu.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/os-ubuntu.yml?query=branch%3Amain)
 [![os-windows workflow status](https://github.com/btclib-org/btclib/actions/workflows/os-windows.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/os-windows.yml?query=branch%3Amain)
@@ -82,7 +81,7 @@ and Bitcoin Core's script, transaction, sighash and key-encoding files.
 upstream commit it was copied from, and says whether the two still match —
 including the few vectors that are btclib's own, having no upstream.
 The elliptic curve schemes are answered for by
-[btclib_ecc](https://github.com/btclib-org/btclib-ecc)'s suite, with the
+[ecc](https://github.com/btclib-org/ecc)'s suite, with the
 vectors RFC 6979 and the BIPs publish for them.
 
 The library is not limited to secp256k1, and for that curve it delegates
@@ -128,9 +127,9 @@ Included features are:
   rather than tabulated
 
 The elliptic curve arithmetic and the schemes built on it are the
-[btclib_ecc](https://github.com/btclib-org/btclib-ecc) distribution,
+[ecc](https://github.com/btclib-org/ecc) distribution,
 which btclib depends on and does not re-export: import them from
-`btclib_ecc`. It provides:
+`ecc`. It provides:
 
 - modulo algebra functions (gcd, inverse, legendre symbol, square root)
 - the elliptic curve class
@@ -193,8 +192,8 @@ one function to the next, and `SECURITY.md` states each of them, for
 Whatever that conjunction declines runs the Python arithmetic, which
 the suite validates against the bindings but which is not
 constant-time. A process that has the bindings turns that switch off
-with `btclib_ecc.curves.set_libsecp256k1_serving(serving=False)`, or with
-`BTCLIB_ECC_NO_LIBSECP256K1` in the environment, and every operation here
+with `ecc.curves.set_libsecp256k1_serving(serving=False)`, or with
+`ECC_NO_LIBSECP256K1` in the environment, and every operation here
 is then the Python arithmetic. So a caller whose threat model includes
 timing should stay on the delegated paths, or keep the key out of the
 process altogether: `btclib_wallet.hwi` drives a hardware wallet through

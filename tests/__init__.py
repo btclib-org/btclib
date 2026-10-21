@@ -240,12 +240,12 @@ class KeyPairSpellings(NamedTuple):
 def key_pair_spellings() -> KeyPairSpellings:
     """Build one `KeyPairSpellings`, computed on call rather than at import.
 
-    `btclib.base58` and `btclib_ecc.curves` are imported
+    `btclib.base58` and `ecc.curves` are imported
     inside this function rather than at the top of the module, for the
     reason the block comment above gives: a top-level import would run at
     collection, the same moment `Q = mult(q)` would.
     """
-    from btclib_ecc.curves import mult  # noqa: PLC0415
+    from ecc.curves import mult  # noqa: PLC0415
 
     from btclib.base58 import encode as b58encode  # noqa: PLC0415
 
@@ -347,7 +347,7 @@ needs_bindings = pytest.mark.bindings
 
 # --------------------------------------------------------------------------
 # The libsecp256k1 dispatch switched off, for the tests that ask the Python
-# arm of a btclib function a question. The dispatch is btclib_ecc's, and
+# arm of a btclib function a question. The dispatch is ecc's, and
 # `curves.set_libsecp256k1_serving` is its public switch; `conftest.py`
 # puts it back after every test, the switch being process-wide where
 # `monkeypatch` undoes only its own patches.
@@ -362,7 +362,7 @@ def python_arithmetic() -> Iterator[None]:
     restores the switch after the test, and this restores it after the
     block, so that what follows in the same test is delegated again.
     """
-    from btclib_ecc.curves import (  # noqa: PLC0415
+    from ecc.curves import (  # noqa: PLC0415
         is_libsecp256k1_serving,
         set_libsecp256k1_serving,
     )
@@ -379,13 +379,13 @@ def no_bindings_anywhere(monkeypatch: pytest.MonkeyPatch) -> None:
     """Switch the dispatch off, and every bound bindings callable out of reach.
 
     An arm gated on the dispatch can hold a binding of its own --
-    `script.engine.script` imports the bindings' `dsa.verify`,
-    `script.taproot` their `xonly` -- and `from ... import x as y` copies
+    `ecc.ecc.ssa` holds the bindings' `xonly.tweak_add` as
+    `libsecp256k1_xonly_tweak_add` -- and `from ... import x as y` copies
     the object rather than looking it up again, so a patch on the module
     the bindings live in does not reach a name already copied out of it.
 
     So this walks every module already loaded under `btclib`,
-    `btclib_ecc` or `btclib_secp256k1` and replaces every callable there
+    `ecc` or `btclib_secp256k1` and replaces every callable there
     whose `__module__` traces back to the bindings with one that raises,
     whichever module holds the name; the dispatch is switched off
     alongside it, since a caller with the switch still on and every name
@@ -393,7 +393,7 @@ def no_bindings_anywhere(monkeypatch: pytest.MonkeyPatch) -> None:
     arm this does not cover fails by calling through instead of passing
     by measuring the bindings against themselves.
     """
-    from btclib_ecc.curves import set_libsecp256k1_serving  # noqa: PLC0415
+    from ecc.curves import set_libsecp256k1_serving  # noqa: PLC0415
 
     def refuse(what: str) -> Callable[..., Any]:
         def asked(*_args: object, **_kwargs: object) -> Any:
@@ -409,7 +409,7 @@ def no_bindings_anywhere(monkeypatch: pytest.MonkeyPatch) -> None:
         if mod_name.split(".")[0] not in {
             "btclib",
             "btclib_secp256k1",
-            "btclib_ecc",
+            "ecc",
         }:
             continue
         for attr, value in list(vars(mod).items()):

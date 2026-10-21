@@ -22,9 +22,9 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import Any
 
 import pytest
-from btclib_ecc.ecc import dsa
-from btclib_ecc.ecc import ellswift as ecc_ellswift
-from btclib_ecc.exceptions import BTClibEccException
+from ecc.ecc import dsa
+from ecc.ecc import ellswift as ecc_ellswift
+from ecc.exceptions import EccException
 
 from btclib import exceptions
 from btclib.ecc import ellswift
@@ -294,22 +294,22 @@ def test_a_field_carrying_exception_crosses_a_process_boundary() -> None:
     assert remote.value.status == local.value.status == 503
 
 
-def test_a_failure_raised_inside_btclib_ecc_is_caught_by_the_builtin() -> None:
+def test_a_failure_raised_inside_ecc_is_caught_by_the_builtin() -> None:
     """`except ValueError` catches it, and `except BTClibException` does not.
 
-    What btclib_ecc raises is that package's class, and so is what a
+    What ecc raises is that package's class, and so is what a
     function of btclib's own lets through from a call into it:
-    `ellswift.xdh` reads its private key with btclib_ecc's
+    `ellswift.xdh` reads its private key with ecc's
     `scalar_from_prv_key`. The built-in is the one
     base both packages share, which is what a caller catching either
     names.
     """
     with pytest.raises(ValueError, match="invalid compound header") as parsed:
         dsa.Sig.parse(b"")
-    ell = ecc_ellswift.create_var(1)
+    ell = ecc_ellswift.create(1)
     with pytest.raises(ValueError, match="private key not in 1..n-1") as read:
         ellswift.xdh(ell, ell, 0, 0)
 
     for raised in (parsed.value, read.value):
-        assert isinstance(raised, BTClibEccException)
+        assert isinstance(raised, EccException)
         assert not isinstance(raised, BTClibException)

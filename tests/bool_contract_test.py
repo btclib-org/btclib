@@ -45,7 +45,7 @@ and where its case is. What is left
 on the other side is `merkle_proof.verify` and the two script-engine
 spellings, which answer a structurally invalid argument with `False`.
 
-The verifications of the schemes btclib_ecc carries, `dsa`, `ssa`,
+The verifications of the schemes ecc carries, `dsa`, `ssa`,
 `dleq` and `pedersen`, are held to these rules by that package's own
 copy of this file (issue #2282); `bms.verify` is btclib's, and is here.
 
@@ -75,8 +75,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
-from btclib_ecc.ecc import dsa, ssa
-from btclib_ecc.hashes import reduce_to_hlen
+from ecc.ecc import dsa, ssa
+from ecc.hashes import reduce_to_hlen
 
 from btclib import b58
 from btclib.block import merkle_proof

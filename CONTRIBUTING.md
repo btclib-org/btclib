@@ -267,7 +267,7 @@ tools, including those needed to build the documentation, is then created with:
 uv sync
 ```
 
-**Every dependency is required but the bindings and the v2 transport's
+**Every dependency is required but ecc's bindings and the v2 transport's
 cipher, which are the `secp256k1` and `bip324` extras, and every one of
 them is a floor with no upper bound**, and the absence
 of a ceiling is a decision. Which releases those floors name is
@@ -280,15 +280,11 @@ imports from it. `cryptography` is pyca's, and no coordinated release
 stands in for a ceiling there: `deps-latest.yml` runs the suite on its
 newest release every week, which is what tells this tree it has moved.
 The others are btclib-org projects developed by the
-same people, and the bindings' whole purpose is to be the bindings this
-library calls, so a breaking change there is coordinated with the release
-here —
-which is what a version ceiling substitutes for when it cannot be. A
-`<0.9` ceiling would cost a btclib
-release for every bindings minor, the ones that break nothing included, and
-would make a published artifact refuse a version it in fact works with; a
-`<1` ceiling constrains nothing, pre-1.0 semver putting the breaking
-changes in the minor.
+same people, so a breaking change there is coordinated with the release
+here — which is what a version ceiling substitutes for when it cannot be.
+A ceiling on `ecc` would cost a btclib release for every ecc release, the
+ones that break nothing included, and would make a published artifact
+refuse a version it in fact works with.
 
 **The bindings are an extra because their absence changes a speed.**
 btclib answers without them, on a pure-Python arm that is supported,
@@ -304,17 +300,20 @@ carries no `[tool.uv.sources]` table and uv resolves the siblings from
 the index like anything else: `uv.lock` pins a version and its wheels,
 `uv sync` downloads rather than compiling libsecp256k1 in each
 environment, and every job that installs from the lock passes `--locked`.
-The floor is then the whole of the coordination with that sibling, and
-it carries weight the specifier alone does not show: btclib_ecc imports the bindings'
-surface in a single `try` whose `except ImportError` sets
-`INSTALLED = False`, so an install that resolves one release short of
-what that package imports does not lose the entry point it is missing —
-it loses every delegation, quietly, on to the Python arithmetic that
-SECURITY.md publishes as slower and not constant-time. btclib's own
-imports of the bindings are guarded one by one instead, so a shortfall
-there fails at the call rather than degrading. Calling something new is
-therefore the same commit that raises the floor in both of its places,
-with the reason written beside it.
+The floor is then the whole of the coordination with that sibling.
+Calling something new from it is therefore the same commit that raises the
+floor wherever pyproject.toml states it, with the reason written beside it.
+
+**The bindings' floor is ecc's.** btclib declares no `btclib-secp256k1`
+requirement and calls none of its functions: the `secp256k1` extra is
+`ecc[secp256k1]`, and the release of the bindings it resolves is the one
+ecc's own extra names. That floor carries weight the specifier alone does
+not show: ecc imports the bindings' surface in a single `try` whose
+`except ImportError` sets `INSTALLED = False`, so an install that resolves
+one release short of what ecc imports does not lose the entry point it is
+missing — it loses every delegation, quietly, on to the Python arithmetic
+that SECURITY.md publishes as slower and not constant-time.
+btclib-org/ecc#343 asks ecc to raise it.
 
 **The jobs that do not pass `--locked`** are deliberate exceptions.
 `uv build`, `uv run --no-project` and, on a rehearsal, the `dev-version`
@@ -349,8 +348,7 @@ publishes a plain floor and PyPI still accepts a release — where a
 direct reference written into `dependencies` instead would have to be
 written back over before publication, which is what RELEASING.md's step
 1 refuses. What the entry costs is the wheels: a git source has none, so
-every environment builds that sibling from source, for the bindings
-their submodule and C library included, and `uv.lock` pins the resolved
+every environment builds that sibling from source, and `uv.lock` pins the resolved
 commit, so the branch
 is followed only when the lock is regenerated. One release upstream
 clears it — the source table goes and the floor moves to the version
@@ -507,12 +505,11 @@ environment a commit runs through is decided by where the hook was
 installed rather than by which tree the commit is made in. Run the gate
 by hand before committing, the `uv run pre-commit run --all-files` above.
 
-One of those hooks needs maintenance, and only one. The test vectors under
-`tests/ecc/_data/` and `tests/script/_data/` are private keys by the
-hundred, so they are recorded in `.secrets.baseline` as
-already reviewed —
-rather than excluded from the scan, which would leave those files unwatched
-for a credential that has no business being there.
+One of those hooks needs maintenance, and only one. The test vector
+`tests/script/_data/taproot_test_vector.json` holds private keys, so it is
+recorded in `.secrets.baseline` as already reviewed rather than excluded
+from the scan, which would leave that file unwatched for a credential that
+has no business being there.
 `tests/block/_generated_files/block_481824.json` is in the baseline for a
 narrower reason: `ACCA` is one of the AWS key prefixes and is also four hex
 digits, so the block's own signatures match the detector wherever a script
@@ -616,7 +613,6 @@ a force.
 | `btcd-oracle` | weekly | the corpora, read by btcd |
 | `pypi-install` | weekly, a release | what PyPI serves |
 | `sdist-rebuild` | weekly | the latest release's sdist, rebuilt |
-| `py-arm-authority` | weekly, push to main | the arm-authority table |
 | `release-diff` | pull request on `src/` | the last release |
 | `api-break` | pull request | the pull request's base |
 | `release` | a tag | the workflows `release.yml` names in a `uses:` |
@@ -781,7 +777,7 @@ uv run --locked --no-default-groups --group harness \
     python -c "import importlib.util; \
       assert importlib.util.find_spec('btclib_secp256k1') is None, \
         'btclib_secp256k1 is installed'; \
-      from btclib_ecc.curves import is_libsecp256k1_serving; \
+      from ecc.curves import is_libsecp256k1_serving; \
       assert not is_libsecp256k1_serving()"
 COVERAGE_FILE=coverage-data-no-bindings \
     uv run --locked --no-default-groups --group harness \
@@ -922,8 +918,8 @@ cd "$tmp" && uv venv &&
     set -- "$OLDPWD"/dist/*.whl &&
     uv pip install --constraints constraints.txt "$1[secp256k1]" &&
     .venv/bin/python -c "import btclib; \
-      from btclib_ecc.curves import is_libsecp256k1_serving; \
-      from btclib_ecc.ecc import dsa; \
+      from ecc.curves import is_libsecp256k1_serving; \
+      from ecc.ecc import dsa; \
       from btclib.key import PrvKeyData; \
       print(btclib.__version__); \
       assert btclib.__version__ != 'unknown'; \
@@ -934,8 +930,8 @@ cd "$tmp" && uv venv &&
 cd "$OLDPWD" &&
     uv run --isolated --no-project --with "$(echo dist/*.whl)[secp256k1]" \
     python -c "import btclib; \
-      from btclib_ecc.curves import is_libsecp256k1_serving; \
-      from btclib_ecc.ecc import dsa; \
+      from ecc.curves import is_libsecp256k1_serving; \
+      from ecc.ecc import dsa; \
       from btclib.key import PrvKeyData; \
       print(btclib.__version__); \
       assert btclib.__version__ != 'unknown'; \
@@ -1008,7 +1004,7 @@ rather than as the answer the job was asked for:
 ```shell
 uv lock --upgrade-package btclib-secp256k1
 uv run --locked --no-default-groups --group test python -c \
-    "from btclib_ecc.curves import is_libsecp256k1_serving; \
+    "from ecc.curves import is_libsecp256k1_serving; \
      assert is_libsecp256k1_serving(), \
        'the newest btclib_secp256k1 does not import'"
 uv run --locked --no-default-groups --group test pytest
@@ -1032,7 +1028,7 @@ is fixed forever:
 ```shell
 python -m pip install btclib
 python -c "import btclib; \
-    from btclib_ecc.ecc import dsa; \
+    from ecc.ecc import dsa; \
     from btclib.key import PrvKeyData; \
     assert dsa.verify(b'btclib', PrvKeyData(1).pub.sec, \
       dsa.sign(b'btclib', 1))"
@@ -1052,8 +1048,8 @@ after it is meaningful because of that:
 python -m pip install --only-binary btclib --only-binary btclib-secp256k1 \
     "btclib[secp256k1]"
 python -c "import btclib; \
-    from btclib_ecc.curves import is_libsecp256k1_serving; \
-    from btclib_ecc.ecc import dsa; \
+    from ecc.curves import is_libsecp256k1_serving; \
+    from ecc.ecc import dsa; \
     from btclib.key import PrvKeyData; \
     assert is_libsecp256k1_serving(), \
       'the secp256k1 extra resolved, the bindings do not serve'; \
@@ -1317,8 +1313,8 @@ string, octets, or an object somebody built earlier — a name a caller can
 reach checks it before acting on it, and a malformed argument leaves as a
 `BTClibTypeError` or a `BTClibValueError`, which is what the callers of
 this library are written to catch. A function of btclib's own handing an
-argument on to btclib_ecc leaves with that package's
-`BTClibEccTypeError` or `BTClibEccValueError` instead: each derives from
+argument on to ecc leaves with that package's
+`EccTypeError` or `EccValueError` instead: each derives from
 the same built-in, and neither from `BTClibException` (issue #2282). The
 work itself may be deferred to a private twin that does not validate; that
 twin is then what the library composes internally, where the inputs have
@@ -1335,13 +1331,13 @@ own mistake, it is a call mypy already refuses, and it leaves as a
 12 being a private key in this library and never a public one, where a
 well-formed public key that simply did not sign is False.
 
-**`bms.verify` carves one case out of that**, as `btclib_ecc.ecc.musig2`
-and `btclib_ecc.ecc.frost` do: a value of a declared type whose size or
+**`bms.verify` carves one case out of that**, as `ecc.ecc.musig2`
+and `ecc.ecc.frost` do: a value of a declared type whose size or
 encoding makes it impossible to read as a signature, a key, an address, a
 digest or an opening raises rather than answering False. The function is
 not saying the signature is forged, it is saying it has no way to find out
-(issue #2170). So `btclib_ecc.ecc.dsa.verify(msg, "not a key", sig)` raises
-`BTClibEccValueError`, and `bms.verify(msg, "not an address", sig)`
+(issue #2170). So `ecc.ecc.dsa.verify(msg, "not a key", sig)` raises
+`EccValueError`, and `bms.verify(msg, "not an address", sig)`
 raises `BTClibValueError`, while a signature that is well formed and
 simply does not verify is False.
 
@@ -1358,7 +1354,7 @@ reference reads the same way: `dleq_verify_proof` asserts
 asserts `len(m) == 32`, while `s >= GE.ORDER` and a challenge that does
 not match are its False.
 
-`btclib_ecc.ecc.dsa`'s malformed DER encoding is the one thing on the other
+`ecc.ecc.dsa`'s malformed DER encoding is the one thing on the other
 side of the line, and it is there because a measurement put it there rather than
 because the rule reaches it: its own wycheproof vectors ask that question
 over profiles built for it, and answer False.
@@ -1536,7 +1532,7 @@ takes the hash `sign` would compute, `musig2.nonce_gen_` the randomness
 so it is an offer to skip work the caller has already paid for, not a way
 past the validation above: `sign_` checks its `msg_hash` as `sign` checks
 its `msg`. The two conventions are independent, and
-`btclib_ecc.ecc.dsa._assert_as_valid_` carries both.
+`ecc.ecc.dsa._assert_as_valid_` carries both.
 
 Publishing both names is what makes their agreement a promise rather than
 a tidiness. A keyword added to `verify` is added to `verify_` or to
@@ -1619,8 +1615,8 @@ the value of a valid operand decides how many times the function, or the
 `_var` function that is its work, loops or leaves early.
 
 btclib defines no `_var` primitive of its own. The multiplications, the
-inverses and the square roots are btclib-ecc's, but for MuHash's
-`pow(x, -1, m)`. btclib-ecc's `CONTRIBUTING.md` gives the ratios that
+inverses and the square roots are ecc's, but for MuHash's
+`pow(x, -1, m)`. ecc's `CONTRIBUTING.md` gives the ratios that
 illustrate them.
 What the rule decides here is which of btclib's functions that reach them
 take the suffix.
@@ -1631,14 +1627,16 @@ take the suffix.
 `point_from_octets_var` on public keys. So do
 `muhash.MuHash3072.digest_var` and `coinstats.CoinStats.digest_var`: their
 work is `pow(x, -1, m)`, an extended Euclid on a 3072-bit field element.
+So do `script.taproot._tweaked_pubkey_var` and
+`script.taproot.output_pubkey_from_merkle_root_var`: their work is ecc's
+`ssa.pub_key_tweak_add_var`, the bindings' `tweak_add` where they serve and
+the lift and an addition where they do not, as `curve.TweakChain.point`
+does in ecc.
 `compressor.decompress_script` keeps the plain name, that parse being one
 path of a dispatch on the script type, as do `script.engine.script.dsa_verify`
 and `script.taproot.check_output_pubkey`, which are verifications,
 `script.script_pub_key.addresses`, where the parse is one step among the
-hashing and encoding of each address,
-`script.taproot._tweaked_pubkey`, which runs the bindings' `tweak_add` where
-they serve and the lift and `add_var` where they do not, as
-`curve.TweakChain.point` does in btclib-ecc, and `ecc.ellswift.xdh`, whose
+hashing and encoding of each address, and `btclib.ecc.ellswift.xdh`, whose
 `decode_var` is on the other party's public encoding and whose `mult` is
 blinded. A named exception stops the carry, so its callers are not reached.
 

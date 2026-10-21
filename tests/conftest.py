@@ -26,12 +26,12 @@ from pathlib import Path
 from typing import Any, Protocol
 
 import pytest
-from btclib_ecc.curves import is_libsecp256k1_serving, set_libsecp256k1_serving
+from ecc.curves import is_libsecp256k1_serving, set_libsecp256k1_serving
 from hypothesis import settings
 
 # whether the bindings can be imported at all, asked of the import system
 # without importing them: `curves.is_libsecp256k1_serving` answers whether
-# they serve, which btclib_ecc's environment switch can make False with
+# they serve, which ecc's environment switch can make False with
 # them installed, and a test marked `bindings` needs them installed
 INSTALLED = importlib.util.find_spec("btclib_secp256k1") is not None
 
@@ -125,7 +125,7 @@ def coverage_fail_under(
     a gate that CI alone runs is one a change meets after it is pushed.
     What that costs is this function. `fail_under` applies to every
     report coverage writes, a partial one included, so `pytest
-    tests/ecc/bms_test.py` would end in `Required test coverage of
+    tests/schemes/bms_test.py` would end in `Required test coverage of
     100.0% not reached` -- true of that run and saying nothing about the
     tree. Running one file and one test are documented commands, and a
     gate that fails them is a gate read as noise.

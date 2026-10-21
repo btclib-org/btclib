@@ -36,9 +36,9 @@ module-path = "src/btclib/script/sig_hash.py"
 # named because sig_hash.from_tx is what the engine calls to check a
 # signature, so an engine vector kills sighash mutants that no test under
 # tests/script does -- leaving it out would report those as survivors.
-# python_path_test.py is ignored: it re-runs the same vectors with the two
-# symbols the engine takes from the bindings replaced by their python
-# implementations, which is a second verdict on btclib_ecc and the same
+# python_path_test.py is ignored: it re-runs the same vectors with ecc's
+# dispatch to the bindings switched off for the whole process, which is
+# a second verdict on ecc and the same
 # verdict on this module, at a real cost to the directory's own budget.
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
   tests/script tests/script_engine \

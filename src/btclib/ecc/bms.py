@@ -122,9 +122,9 @@ from dataclasses import dataclass
 from enum import Enum
 from hashlib import sha256
 
-from btclib_ecc.curves import bytes_from_prv_key_int, secp256k1
-from btclib_ecc.ecc import dsa
-from btclib_ecc.exceptions import BTClibEccRuntimeError
+from ecc.curves import bytes_from_prv_key_int, secp256k1
+from ecc.ecc import dsa
+from ecc.exceptions import EccRuntimeError
 
 from btclib.alias import BinaryData, Octets, String
 from btclib.b32 import is_segwit_prefixed, p2wpkh, witness_from_address
@@ -470,8 +470,8 @@ def _assert_structurally_valid_(addr: String, sig: Sig | String) -> Sig:
     65-octet signature, so `assert_as_valid` answers them below, on the
     `Sig` this returns.
 
-    The message is not asked here, as in `btclib_ecc.ecc.dsa` and
-    `btclib_ecc.ecc.ssa`: it is what the signature is verified about, and
+    The message is not asked here, as in `ecc.ecc.dsa` and
+    `ecc.ecc.ssa`: it is what the signature is verified about, and
     issue #814 is where that was settled.
     """
     parsed_sig = (
@@ -496,14 +496,14 @@ def verify(msg: Octets, addr: String, sig: Sig | String) -> bool:
     """
     parsed_sig = _assert_structurally_valid_(addr, sig)
     # ValueError and the two RuntimeErrors, btclib's and that of
-    # btclib_ecc, which recovers the key: a well-formed signature that
+    # ecc, which recovers the key: a well-formed signature that
     # does not open to the address is False, and so is a recovery flag
     # or a scalar out of range; a caller's own mistake in the address or
     # in the signature's encoding is refused above rather than excluded
     # from the except
     try:
         assert_as_valid(msg, addr, parsed_sig)
-    except (ValueError, BTClibRuntimeError, BTClibEccRuntimeError):
+    except (ValueError, BTClibRuntimeError, EccRuntimeError):
         return False
 
     return True
@@ -648,7 +648,7 @@ def message_verify(
         pub_key = dsa.recover_sec(
             flag & 0b11, magic_msg, dsa_sig, sha256, compressed=bool(flag & 0b100)
         )
-    except (ValueError, BTClibRuntimeError, BTClibEccRuntimeError):
+    except (ValueError, BTClibRuntimeError, EccRuntimeError):
         return MessageVerificationResult.ERR_PUBKEY_NOT_RECOVERED
 
     if hash160(pub_key) != key_hash:

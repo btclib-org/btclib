@@ -24,8 +24,8 @@ from dataclasses import dataclass
 from typing import Any, NamedTuple
 
 import pytest
-from btclib_ecc.curves import bytes_from_point, mult
-from btclib_ecc.ecc import dsa, ssa
+from ecc.curves import bytes_from_point, mult
+from ecc.ecc import dsa, ssa
 from hypothesis import given
 from hypothesis import strategies as st
 from typing_extensions import override

@@ -19,7 +19,7 @@ import hashlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from btclib_ecc.hashes import tagged_hash
+from ecc.hashes import tagged_hash
 
 from btclib import var_bytes
 from btclib.alias import Octets

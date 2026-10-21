@@ -215,9 +215,9 @@ chose to leave it". State the choice in the release pull request, next
 to `deps-latest`'s own result.
 
 1. Make sure the newest release of **each btclib-org dependency** —
-   every `btclib-*` requirement that `pyproject.toml` declares, in
-   `dependencies` and in the extras — is the one this release should
-   depend on, and that `pyproject.toml`'s pin
+   every `ecc` and `btclib-*` requirement that `pyproject.toml`
+   declares, in `dependencies` and in the extras — is the one this
+   release should depend on, and that `pyproject.toml`'s pin
    says so. Two questions, not one: whether the pin *resolves*, which the
    wheel smoke test of the `dist` job already answers on every pull
    request by failing when only an unreleased version satisfies it, and
@@ -616,7 +616,7 @@ to `deps-latest`'s own result.
    uv run --isolated --no-project --with btclib \
      --refresh-package btclib \
      python -c "from btclib.network import NETWORKS; \
-       from btclib_ecc.curves import CURVES; \
+       from ecc.curves import CURVES; \
        print(sorted(NETWORKS), CURVES['secp256r1'].n)"
    ```
 
@@ -845,12 +845,13 @@ a mismatch as tampering:
   writes covers those, and no digest is shared with the release.
 
 `btclib-secp256k1` is not a third bound. It is a runtime dependency,
-resolved by whoever installs the wheel, and the only trace of it in either
-distribution file is the `Requires-Dist` pyproject.toml already spells and
-the pin `uv.lock` carries into the sdist — both of them text belonging to
-the tag. Nothing the build resolves is a runtime dependency: an isolated
-build installs `[build-system] requires` and no more, and the rebuild
-above needs no `uv sync` to produce the published bytes.
+resolved by whoever installs the wheel through ecc's `secp256k1` extra,
+at the floor that extra declares. The only trace of it in either
+distribution file is the pin `uv.lock` carries into the sdist, which is
+text belonging to the tag. Nothing the build resolves is a runtime
+dependency: an isolated build installs `[build-system] requires` and no
+more, and the rebuild above needs no `uv sync` to produce the published
+bytes.
 
 ## If something goes wrong
 

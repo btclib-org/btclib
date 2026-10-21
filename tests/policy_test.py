@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from btclib_ecc.ecc import dsa
+from ecc.ecc import dsa
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.fee import FeeRate

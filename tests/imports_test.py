@@ -35,9 +35,9 @@ from tests import module_names
 
 def btclib_modules() -> list[str]:
     """Return the btclib modules in sys.modules, the bindings excluded."""
-    # not startswith("btclib"), which would also catch btclib_ecc and the
-    # btclib_secp256k1 bindings: neither is part of this package, and
-    # reimporting a cffi extension module is another matter entirely
+    # not startswith("btclib"), which would also catch the btclib_secp256k1
+    # bindings: they are not part of this package, and reimporting a cffi
+    # extension module is another matter entirely
     return [
         name for name in sys.modules if name == "btclib" or name.startswith("btclib.")
     ]
@@ -320,7 +320,7 @@ def _assert_stays_within(entry_point: str, allowed_btclib_modules: set[str]) -> 
 
 
 # the units `btclib.ecc` may load: itself, and the substrate
-# `ecc.ellswift.xdh` reads its octets with
+# `btclib.ecc.ellswift.xdh` reads its octets with
 _ECC_UNITS = frozenset({"ecc", "alias", "exceptions", "utils"})
 
 

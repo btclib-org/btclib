@@ -108,6 +108,12 @@ myst_heading_anchors = 6
 # a docstring type field, so it draws no reference for -n to raise on
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", (None, "_inventories/python.inv")),
+    # the classes of ecc that the signatures of `btclib.ecc` name; the
+    # pages here document none of that package
+    "ecc": (
+        "https://btclib-ecc.readthedocs.io/en/latest",
+        (None, "_inventories/ecc.inv"),
+    ),
 }
 # `_inventories/python.inv` is a copy of Python 3.14's inventory and no
 # cache: sphinx reads it only when `docs.python.org` fails, so a live site
@@ -116,6 +122,11 @@ intersphinx_mapping = {
 # To refresh it, run this from the repository root and rewrite the version
 # and source above:
 # curl -fsSL -o docs/source/_inventories/python.inv https://docs.python.org/3/objects.inv
+# `_inventories/ecc.inv` is the same for ecc: a copy of the inventory that
+# https://btclib-ecc.readthedocs.io/en/latest/objects.inv served on
+# 2026-10-22, read only when that site fails. To refresh it, run this from
+# the repository root and rewrite the date:
+# curl -fsSL -o docs/source/_inventories/ecc.inv https://btclib-ecc.readthedocs.io/en/latest/objects.inv
 
 # What the mapping above does not answer for is the shapes below, and each
 # entry carries its own reason rather than a nitpick_ignore_regex that
@@ -132,11 +143,6 @@ intersphinx_mapping = {
 #   below begin with an underscore, and automodule does not document a
 #   name spelled that way at all, so `:members:` renders no page for a
 #   signature naming one to link to
-# - a name under btclib_ecc's own path: the pages here document none of
-#   that package, whose classes the signatures of `btclib.ecc` still
-#   name, and btclib-ecc.readthedocs.io serves no objects.inv for a
-#   mapping to read (issue #2282). An inventory there is what retires
-#   them
 nitpick_ignore = [
     ("py:class", "collections.abc.Callable[[]"),
     ("py:class", "tuple[int"),
@@ -150,8 +156,6 @@ nitpick_ignore = [
     ("py:class", "btclib.p2p.block_filters._FilterRangeRequest"),
     ("py:class", "btclib.script.sig_hash._TaprootInputHashes"),
     ("py:class", "btclib.script.sig_hash._SigHashCache"),
-    ("py:class", "btclib_ecc.curves.curve.Curve"),
-    ("py:class", "btclib_ecc.ecc.dsa.Sig"),
 ]
 
 # no suppress_warnings, and myst.xref_missing least of all: the transform

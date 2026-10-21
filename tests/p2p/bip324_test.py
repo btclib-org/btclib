@@ -26,8 +26,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from btclib_ecc.curves import secp256k1
-from btclib_ecc.ecc import ellswift
+from ecc.curves import secp256k1
+from ecc.ecc import ellswift
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from tests import vector_id
@@ -37,7 +37,10 @@ pytest.importorskip("cryptography")
 from btclib.p2p import bip324
 
 _VECTORS = (
-    Path(__file__).parent.parent / "ecc" / "_data" / "packet_encoding_test_vectors.csv"
+    Path(__file__).parent.parent
+    / "schemes"
+    / "_data"
+    / "packet_encoding_test_vectors.csv"
 )
 # the message start the vectors' salt was made with
 _MAGIC = bytes.fromhex("f9beb4d9")
@@ -171,7 +174,7 @@ def _peers() -> tuple[bip324.Cipher, bip324.Cipher]:
     """Return an initiator's cipher and its responder's, on fresh keys."""
     prv_a = secrets.randbelow(secp256k1.n - 1) + 1
     prv_b = secrets.randbelow(secp256k1.n - 1) + 1
-    ell_a, ell_b = ellswift.create_var(prv_a), ellswift.create_var(prv_b)
+    ell_a, ell_b = ellswift.create(prv_a), ellswift.create(prv_b)
     return (
         bip324.Cipher(prv_a, ell_a, ell_b, True, _MAGIC),
         bip324.Cipher(prv_b, ell_b, ell_a, False, _MAGIC),

@@ -16,16 +16,10 @@ from __future__ import annotations
 from io import BytesIO
 from typing import cast
 
-from btclib_ecc.curves import (
-    bytes_from_prv_key_int,
-    is_libsecp256k1_serving,
-    mult,
-    scalar_from_prv_key,
-    secp256k1,
-)
-from btclib_ecc.ecc.ssa import point_from_bip340pub_key_var
-from btclib_ecc.exceptions import BTClibEccValueError
-from btclib_ecc.hashes import tagged_hash
+from ecc.curves import bytes_from_prv_key_int, scalar_from_prv_key, secp256k1
+from ecc.ecc.ssa import prv_key_tweak_add, pub_key_tweak_add_var
+from ecc.exceptions import EccValueError
+from ecc.hashes import tagged_hash
 
 from btclib import var_bytes
 from btclib.alias import (
@@ -58,17 +52,6 @@ from btclib.utils import (
     is_integer,
 )
 
-# the bindings' module, imported from their own package; None where they
-# are not installed, which nothing calls: what calls it here is behind
-# `is_libsecp256k1_serving`, False in that configuration. Installed one
-# name short, the call finds no such attribute and raises AttributeError
-# while btclib_ecc keeps serving, so it fails rather than degrading: the
-# floor the `secp256k1` extra puts on the bindings is what rules that out
-try:
-    from btclib_secp256k1 import xonly as libsecp256k1_xonly
-except ImportError:  # pragma: no cover -- only an install without them
-    libsecp256k1_xonly = None  # type: ignore[assignment]
-
 __all__ = [
     "MAX_TREE_DEPTH",
     "assert_valid_control_block",
@@ -78,7 +61,7 @@ __all__ = [
     "output_prvkey",
     "output_prvkey_from_merkle_root",
     "output_pubkey",
-    "output_pubkey_from_merkle_root",
+    "output_pubkey_from_merkle_root_var",
     "parse",
     "serialize",
     "tree_helper",
@@ -328,23 +311,13 @@ def _output_pubkey_and_internal_key(
 
     What `output_pubkey` and `input_script_sig` want between them: the
     first answers the pair and drops the third, the second needs the
-    internal key beside the parity. Read twice, that key was lifted twice
-    on the Python path -- the same square root of the same x, which is the
-    redundancy issue 896 is about, one function further out -- and two
-    ec_pubkey_parse calls with the bindings.
+    internal key beside the parity. Read once, the key is parsed once,
+    which is the redundancy issue 896 is about, one function further out.
 
     Sharing it is also what keeps the two answering for the same spellings
     of an internal key: a form accepted for the output key and refused for
     the control block that proves it would be refused one call after being
     accepted, and one reader cannot drift from another.
-
-    The key arrives as a `PubKeyData`, so that neither arm has to say how
-    much of it is worth building (issue #1188): the octets are the field
-    and `point_var` is a `cached_property`. The bindings arm wants the octets
-    unproven, the tweak's own parse being the proof and a second lift
-    issue 887; the Python arm wants the point it would otherwise lift
-    twice, which is issue 896. The arm that reads the point pays for it
-    and the arm that does not never asks.
     """
     # None is what stands for either being absent, and nothing else is:
     # read for its truth, a falsy value of a wrong type -- b"", 0, [] --
@@ -356,13 +329,8 @@ def _output_pubkey_and_internal_key(
         # the 33-byte and the 65-byte form both arrive here, and `[1:33]`
         # is the x-coordinate of either
         sec = internal_pubkey.sec
-        # A hybrid prefix is refused here, above the arm split, rather
-        # than left to whichever arm's own parse runs: it is a third
-        # spelling of a compressed or uncompressed key and not a
-        # malformed one, so libsecp256k1 admits it where the Python
-        # arm's `hybrid=False` default does not, and which internal keys
-        # this function takes would otherwise be `pip install`'s
-        # decision rather than btclib's (issue #1227). key.py's
+        # A hybrid prefix is a third spelling of a compressed or
+        # uncompressed key and not a malformed one (issue #1227). key.py's
         # paragraph on `_HYBRID_PREFIXES` is why the answer is refusal.
         # Asked ahead of `assert_valid` below, which refuses the prefix
         # too, so that the sentence names it as hybrid
@@ -371,12 +339,9 @@ def _output_pubkey_and_internal_key(
                 f"invalid internal public key: hybrid SEC prefix {sec[0]:#04x}"
             )
         # `check_validity=False` is "do not check now" and not an
-        # exemption (CONTRIBUTING.md), so the key is asked here, above the
-        # arm split: a length, a prefix and a network name, no point
-        # lifted, so the bindings arm still hands `tweak_add` octets
-        # nothing has proved (issue 887). The network is the field only
-        # the Python arm reads, `point_var` going through `curve`, and asked
-        # here it is refused on both arms rather than on that one alone
+        # exemption (CONTRIBUTING.md), so the key is asked here: a length,
+        # a prefix and a network name, no point lifted, the tweak's own
+        # parse being the proof (issue 887)
         internal_pubkey.assert_valid()
         key_data = internal_pubkey
     else:
@@ -386,7 +351,7 @@ def _output_pubkey_and_internal_key(
         # BIP341's lift being the even one
         key_data = PubKeyData(b"\x02" + bytes.fromhex(h_str), check_validity=False)
     h = b"" if script_tree is None else tree_helper(script_tree)[1]
-    q, parity_bit = _tweaked_pubkey(key_data, h)
+    q, parity_bit = _tweaked_pubkey_var(key_data, h)
     return q, parity_bit, key_data.sec[1:33]
 
 
@@ -407,96 +372,28 @@ def output_pubkey(
     return q, parity_bit
 
 
-def _tweaked_pubkey(pub_key: PubKeyData, h: bytes) -> tuple[bytes, int]:
+def _tweaked_pubkey_var(pub_key: PubKeyData, h: bytes) -> tuple[bytes, int]:
     """Return the x-only key an internal key tweaked by h, and its parity.
 
     The half of BIP341's output key that does not care where h came
     from: a tree the caller built, or the merkle root a psbt carries.
 
-    One `PubKeyData` for both arms, each reading off it the field it
-    uses (issue #1188). `sec` is what `xonly.tweak_add` prefers whole,
-    `04 || x || y` carrying the y it would otherwise lift, and `02 || x`,
-    `03 || x` and `04 || x || y` all name the same x-only key to it.
-    `point_var` is the square root, taken once
-    however many readers ask, which is issue 896.
+    `ssa.pub_key_tweak_add_var` is this very operation, parity included.
+    A compressed key goes to it as its x alone, unproven: the tweak's own
+    parse is the proof, and a lift first would be a second square root of
+    one x (issue 887). An uncompressed key goes whole, so that its y is
+    proved to be its x's. The refusal is ecc's class, read into btclib's.
     """
     t = _tap_tweak(pub_key.sec[1:33], h)
-
-    # secp256k1_xonly_pubkey_tweak_add is this very operation, parity
-    # included, and it answers the pair this function returns, at a
-    # fraction of what the three lines below cost over 2000 tweaks: the
-    # Python path lifts the x-only key to a point with
-    # secp256k1.y_even_var, i.e. a modular square root, which is most of
-    # that on its own -- while libsecp256k1 needs no such lift, having
-    # the y coordinate as it goes.
-    #
-    # The predicate is a constant now that the curve is, and the guards
-    # in this module keep it rather than saying so: it is the seam the
-    # suite closes -- `set_libsecp256k1_serving(serving=False)` -- to
-    # reach the Python arithmetic below, which is the reference
-    # implementation the bindings are checked against and not a path any
-    # caller takes. Stated here for every one of them: whatever else a
-    # guard goes on to read, its `is_libsecp256k1_serving` half asks the
-    # one question, which arithmetic runs
-    if is_libsecp256k1_serving():
-        try:
-            return libsecp256k1_xonly.tweak_add(pub_key.sec, t)
-        except ValueError as e:
-            # this arm hands the tweak octets nothing has proved are a
-            # point, deliberately (issue 887): tweak_add's own parse is
-            # the proof, and lifting first would be a second square root
-            # of one x. What comes with that trade is that the refusal
-            # arrives from the bindings rather than from btclib's own
-            # validation, and it arrives as a bare ValueError. dsa states
-            # the rule the whole tree follows: the discrimination is
-            # theirs, but the hierarchy has to be btclib's, a caller
-            # catching BTClibValueError not having to know which arm
-            # answered.
-            #
-            # Which message, and what decides it is what the
-            # octets are rather than which caller handed them over. A
-            # compressed key names its y by its prefix, so its x is all
-            # that is left for tweak_add to object to, and the wording is
-            # the lift's below, so that the two arms say one sentence for
-            # one input: `point_from_octets_var` is that lift, and this
-            # repeats its two sentences: one for an x out of range, one
-            # for an x that is no coordinate.
-            #
-            # Anything else carries more than an x. An uncompressed key's
-            # y is unproven for the same reason as its x, and a valid x
-            # with a y that is not its own is refused here too, where
-            # naming the x would name the half that is right.
-            # `check_output_pubkey`'s arm already says that in these
-            # words, its refusal being one it cannot decompose either.
-            # The prefix is not in question by here: the output key's
-            # caller has asked `assert_valid`, and the merkle root's
-            # writes 02 itself
-            if not pub_key.is_compressed:
-                raise BTClibValueError(f"invalid internal public key: {e}") from e
-            x_Q = int.from_bytes(pub_key.sec[1:33], "big")
-            err_msg = (
-                "invalid x-coordinate"
-                if x_Q < secp256k1.p
-                else "x-coordinate not in 0..p-1"
-            )
-            raise BTClibValueError(err_msg) from e
-
-    # which of the two roots the key names is its prefix's business and
-    # not BIP341's, whose lift wants the even one: an 03 key is the odd-y
-    # point, and the even y is then a subtraction from the root already
-    # taken rather than a second root. The lift is btclib_ecc's, and so
-    # is the class of its refusal: read into btclib's, the one the arm
-    # above raises, so that a caller need not know which arm answered
+    key = pub_key.sec[1:33] if pub_key.is_compressed else pub_key.sec
     try:
-        P_x, y_P = pub_key.point_var
-    except BTClibEccValueError as e:
+        x_Q, parity = pub_key_tweak_add_var(key, t)
+    except EccValueError as e:
         raise BTClibValueError(str(e)) from e
-    P_y = y_P if y_P % 2 == 0 else secp256k1.p - y_P
-    Q = secp256k1.add_var((P_x, P_y), mult(t))
-    return Q[0].to_bytes(32, "big"), Q[1] % 2
+    return x_Q.to_bytes(32, "big"), parity
 
 
-def output_pubkey_from_merkle_root(
+def output_pubkey_from_merkle_root_var(
     internal_pubkey: Octets, merkle_root: Octets = b""
 ) -> tuple[bytes, int]:
     """Return a taproot output key from a merkle root, per BIP341.
@@ -516,7 +413,7 @@ def output_pubkey_from_merkle_root(
     # 02 and not 03: x-only octets are all this caller has, and BIP341's
     # lift is the even one, so the prefix says what the key means rather
     # than adding anything to it
-    return _tweaked_pubkey(
+    return _tweaked_pubkey_var(
         # `assert_valid` reads a length and a prefix, and this call
         # settles both itself: the size is checked on the way in and the
         # prefix is the one supplied on the line below
@@ -545,38 +442,17 @@ def output_prvkey(
 def _tweaked_prvkey(internal_prvkey: int, h: bytes) -> int:
     """Return the private key an internal one tweaked by h.
 
-    The private half of `_tweaked_pubkey`, h coming from the same two
+    The private half of `_tweaked_pubkey_var`, h coming from the same two
     places: a tree the caller built, or the merkle root a psbt carries.
+    `ssa.prv_key_tweak_add` negates the key whose public point has an
+    odd y, as BIP341 requires, and adds the tweak. The refusal of a sum
+    that is zero is ecc's class, read into btclib's.
     """
-    # secp256k1_keypair_xonly_tweak_add is the whole of this function
-    # below the tweak: it negates the key whose public point has an odd
-    # y, as BIP341 requires, and adds the tweak to it -- in constant
-    # time, which the Python `%` on a secret scalar is not. The x-only
-    # public key the tweak commits to comes from the bindings too, and
-    # the parity byte dropped from it is the one they will decide again
-    # for themselves, at well under half the Python path's cost over
-    # 2000 tweaks, the difference being the point this path never
-    # materializes and the square root it never takes to check that
-    # point's parity
-    if is_libsecp256k1_serving():
-        pub_key = bytes_from_prv_key_int(internal_prvkey, secp256k1)[1:]
-        t = _tap_tweak(pub_key, h)
-        tweaked = libsecp256k1_xonly.prvkey_tweak_add(internal_prvkey, t)
-        return int.from_bytes(tweaked, "big")
-
-    P = mult(internal_prvkey)
-    # the parity of a y already in hand: secp256k1.y_even_var(P[0]) lifted
-    # the x back to the point P is -- a modular square root for nothing
-    # -- to compare its y with the one beside it (issue 619). Not a
-    # delegation but a deletion, which is what this path
-    # needed: it runs where the bindings do not, so there was nothing
-    # here to dispatch to. The two spellings differ on the infinity
-    # btclib writes as y == 0, and mult of a key scalar_from_prv_key has
-    # refused zero for cannot be it
-    has_even_y = P[1] % 2 == 0
-    internal_prvkey = internal_prvkey if has_even_y else secp256k1.n - internal_prvkey
-    t = _tap_tweak(P[0].to_bytes(32, "big"), h)
-    return (internal_prvkey + t) % secp256k1.n
+    x_P = bytes_from_prv_key_int(internal_prvkey, secp256k1)[1:]
+    try:
+        return prv_key_tweak_add(internal_prvkey, _tap_tweak(x_P, h))
+    except EccValueError as e:
+        raise BTClibValueError(str(e)) from e
 
 
 def output_prvkey_from_merkle_root(prv_key: Integer, merkle_root: Octets = b"") -> int:
@@ -657,50 +533,15 @@ def check_output_pubkey(q: Octets, script: Octets, control: Octets) -> bool:
         else:
             k = tagged_hash(b"TapBranch", e + k)
     p_bytes = control[1:33]
-    p = int.from_bytes(p_bytes, "big")
     t = _tap_tweak(p_bytes, k)
-
-    # secp256k1_xonly_pubkey_tweak_add_check is the call libsecp256k1
-    # provides for this very question, and it compares the serialized
-    # keys instead of tweaking into a point and back.
-    # Only for a 32-byte q, which is what it takes: a q of any other
-    # length is not a taproot output key, but it is not necessarily
-    # unequal either -- b"\x00" + 32 bytes reads as the same integer the
-    # comparison below makes -- so the answer for it stays the Python
-    # one rather than becoming an exception
-    if is_libsecp256k1_serving() and len(q) == 32:
-        try:
-            return libsecp256k1_xonly.tweak_add_check(q, control[0] & 1, p_bytes, t)
-        except ValueError as e:
-            # an internal key that is not a point leaves the bindings
-            # through a plain ValueError and the Python path below
-            # through the BTClibEccValueError of the lift. The engine
-            # catches the library's own error, so the two must agree on
-            # what they raise as well as on what they answer -- and this
-            # call knows which half was refused, unlike _tweaked_pubkey's
-            # arm given a sec: tweak_add_check is handed the internal
-            # key's x alone, and a q that is no x-coordinate is answered
-            # False by both arms rather than raised on. So the wording is
-            # the lift's below, range check included, and the two arms
-            # answer the same sentence for the same control block
-            err_msg = (
-                "invalid x-coordinate"
-                if p < secp256k1.p
-                else "x-coordinate not in 0..p-1"
-            )
-            raise BTClibValueError(err_msg) from e
-
-    # the lift with its modular square root delegated, as a BIP340 key is:
-    # this is the path a q of any other length takes, secp256k1 included,
-    # so the root is worth not taking here either. Its refusal is
-    # btclib_ecc's class, and read into btclib's, the one the arm
-    # above raises for the same control block
+    # libsecp256k1's secp256k1_xonly_pubkey_tweak_add_check is this tweak
+    # and a comparison of what it answers. An internal key that is not a
+    # point is refused with ecc's class, read into btclib's
     try:
-        P = point_from_bip340pub_key_var(p)
-    except BTClibEccValueError as e:
+        x_Q, parity = pub_key_tweak_add_var(p_bytes, t)
+    except EccValueError as e:
         raise BTClibValueError(str(e)) from e
-    Q = secp256k1.add_var(P, mult(t))
-    return Q[0] == int.from_bytes(q, "big") and control[0] & 1 == Q[1] % 2
+    return x_Q == int.from_bytes(q, "big") and control[0] & 1 == parity
 
 
 def assert_valid_control_block(control_block: Octets) -> None:

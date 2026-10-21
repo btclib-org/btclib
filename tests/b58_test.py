@@ -9,8 +9,8 @@ from __future__ import annotations
 import string
 
 import pytest
-from btclib_ecc.curves import bytes_from_point, point_from_octets_var, secp256k1
-from btclib_ecc.exceptions import BTClibEccValueError
+from ecc.curves import bytes_from_point, point_from_octets_var, secp256k1
+from ecc.exceptions import EccValueError
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -51,12 +51,12 @@ def test_wif_from_prv_key() -> None:
         assert (data.q, data.network, data.compressed) == (q_int, network, compressed)
 
     bad_q = ec.n.to_bytes(ec.n_size, byteorder="big", signed=False)
-    with pytest.raises(BTClibEccValueError, match="private key not in 1..n-1"):
+    with pytest.raises(EccValueError, match="private key not in 1..n-1"):
         b58.wif_from_prv_key(bad_q, "mainnet", True)
 
     # not a private key: 33 bytes, not the 32 a scalar's octets are
     bad_q = 33 * b"\x02"
-    with pytest.raises(BTClibEccValueError, match="invalid size: 33 bytes"):
+    with pytest.raises(EccValueError, match="invalid size: 33 bytes"):
         b58.wif_from_prv_key(bad_q, "mainnet", True)
 
 

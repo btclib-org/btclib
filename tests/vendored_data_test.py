@@ -294,7 +294,7 @@ def test_a_numeral_that_names_something_is_subtracted_and_a_count_is_not() -> No
         "All of them entered upstream in 2026-08, after 3.2.0 shipped, so the",
         "BIP322 files on 2026-08-08, and the Wycheproof files with the licence",
         "The vectors of `bip-0327/vectors/`, vendored whole",
-        "P-192, P-224, P-256, P-384 and P-521, as btclib_ecc's `tests/ecc/rfc6979_test.py`",
+        "P-192, P-224, P-256, P-384 and P-521, as ecc's `tests/schemes/rfc6979_test.py`",
         "which engine the vectors feed (issue 168).",
         "is not implemented (issue #187), so there is nothing yet for those to",
         "[ISS 1120](https://github.com/btclib-org/btclib/issues/1120) is where",

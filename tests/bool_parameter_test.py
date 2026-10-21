@@ -55,7 +55,7 @@ The two tests below are that line, one each:
 Every kind below was ungated when this file was written, `include_witness`
 excepted -- `Block.serialize` and `Tx.serialize` were gated with
 `utils.assert_type` as the serialization boundary was -- and so were
-`musig2.apply_tweak`'s `is_xonly`, which `_flag` refuses, and
+`musig2.apply_tweak_var`'s `is_xonly`, which `_flag` refuses, and
 `btclib_wallet`'s `KeyGroup(verify=)`. The two the issue names are the sharpest:
 
 ```text
@@ -95,8 +95,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from btclib_ecc.curves import bytes_from_point, bytes_from_prv_key_int
-from btclib_ecc.ecc import dsa, ellswift
+from ecc.curves import bytes_from_point, bytes_from_prv_key_int
+from ecc.ecc import dsa, ellswift
 
 from btclib import b32, b58, var_bytes
 from btclib.block.block import Block
@@ -164,7 +164,7 @@ _BLOCK = Block.parse(
 def _cipher(*, initiator: Any = True, self_decrypt: Any = False) -> Any:
     """Return a `btclib.p2p.bip324.Cipher`, which needs the `bip324` extra."""
     bip324 = pytest.importorskip("btclib.p2p.bip324")
-    ell = ellswift.create_var(_PRV_KEY)
+    ell = ellswift.create(_PRV_KEY)
     return bip324.Cipher(
         _PRV_KEY, ell, ell, initiator, bytes(4), self_decrypt=self_decrypt
     )

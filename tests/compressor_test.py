@@ -12,7 +12,7 @@ tag): `src/test/serialize_tests.cpp` for `VARINT` and
 from io import BytesIO
 
 import pytest
-from btclib_ecc.curves import secp256k1
+from ecc.curves import secp256k1
 from hypothesis import example, given
 from hypothesis import strategies as st
 from typing_extensions import override

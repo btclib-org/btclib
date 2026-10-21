@@ -11,7 +11,7 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
-from btclib_ecc.curves import bytes_from_point, mult
+from ecc.curves import bytes_from_point, mult
 from hypothesis import given
 
 from btclib import b32, b58, var_bytes

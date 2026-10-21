@@ -16,7 +16,7 @@ from dataclasses import FrozenInstanceError
 from typing import Any
 
 import pytest
-from btclib_ecc.ecc import dsa, ssa
+from ecc.ecc import dsa, ssa
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256, sha256

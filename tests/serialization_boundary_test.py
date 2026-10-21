@@ -39,7 +39,7 @@ is driven.
 
 **Parametric above the byte boundary, mono-format at it.** `ec` and
 `hf` are arguments everywhere arithmetic and protocol take them --
-`sign`, `verify`, `key_agg` -- and nowhere in this family: no `parse`
+`sign`, `verify`, `key_agg_var` -- and nowhere in this family: no `parse`
 or `serialize` here declares either, and
 `test_the_family_takes_no_ec_or_hf` is what turns that from an
 agreement into a gate (issue #1084). The reason is not efficiency, and
@@ -67,7 +67,7 @@ for its truth, and `check_validity_test.py` owns that convention.
 `bool_parameter_test.py` is where that classification is decided, for
 every flag in the library and with the reason for each.
 
-The decoders of the schemes btclib_ecc carries, `dsa.Sig`, `ssa.Sig`,
+The decoders of the schemes ecc carries, `dsa.Sig`, `ssa.Sig`,
 `BorromeanSig`, `RangeProof` and `ecies.Envelope`, are that package's to
 hold to this contract, and btclib publishes none of them.
 """

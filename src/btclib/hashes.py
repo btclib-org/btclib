@@ -8,7 +8,7 @@ ripemd160 and sha1 through sha256, the hash160 and hash256 pairs,
 SipHash-2-4, the BMS magic envelope, and the merkle roots and branches of
 a block.
 
-BIP340's `tagged_hash` and `reduce_to_hlen` are `btclib_ecc.hashes`'s,
+BIP340's `tagged_hash` and `reduce_to_hlen` are `ecc.hashes`'s,
 which the schemes of that package hash with: a caller imports them from
 there.
 """

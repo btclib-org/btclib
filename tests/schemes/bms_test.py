@@ -23,9 +23,9 @@ from hashlib import sha256
 from typing import Any
 
 import pytest
-from btclib_ecc.curves import CURVES, mult, secp256k1
-from btclib_ecc.ecc import dsa
-from btclib_ecc.exceptions import BTClibEccRuntimeError, BTClibEccValueError
+from ecc.curves import CURVES, mult, secp256k1
+from ecc.ecc import dsa
+from ecc.exceptions import EccRuntimeError, EccValueError
 
 from btclib import b32, b58
 from btclib.alias import Point
@@ -726,7 +726,7 @@ def test_sign_strippable_message() -> None:
 # report a regression at all
 PYTHON_BITCOINLIB_VECTORS = [
     pytest.param(vector, id=vector_id(index, vector["address"]))
-    for index, vector in enumerate(load("ecc", "_data", "signmessage.json"))
+    for index, vector in enumerate(load("schemes", "_data", "signmessage.json"))
 ]
 
 
@@ -794,7 +794,7 @@ def test_the_file_carries_the_high_s_vectors_the_case_rests_on() -> None:
     200 of these, and these 88 are the ones btclib refused.
     """
     high_s = 0
-    for vector in load("ecc", "_data", "signmessage.json"):
+    for vector in load("schemes", "_data", "signmessage.json"):
         sig = bms.Sig.b64decode(vector["signature"])
         high_s += sig.dsa_sig.s > ec.n - sig.dsa_sig.s
     assert high_s == 88
@@ -912,8 +912,8 @@ def test_the_recovery_flag_carries_a_key_id_not_a_list_index() -> None:
 
 
 def _recovers(key_id: int, magic_msg: bytes, dsa_sig: dsa.Sig) -> Point | None:
-    # btclib_ecc's two classes, `dsa` being that package's
-    with contextlib.suppress(BTClibEccValueError, BTClibEccRuntimeError):
+    # ecc's two classes, `dsa` being that package's
+    with contextlib.suppress(EccValueError, EccRuntimeError):
         return dsa.recover_pub_key(key_id, magic_msg, dsa_sig)
     return None
 
@@ -982,8 +982,8 @@ def test_a_key_id_that_recovers_nothing() -> None:
         # either exception, which is why the helper suppresses both: the
         # wrapped x may miss the curve, and a ValueError comes out of the
         # lift, or it may land on it and recover a key that does not
-        # verify, which is the RuntimeError -- each btclib_ecc's class
-        with pytest.raises((BTClibEccValueError, BTClibEccRuntimeError)):
+        # verify, which is the RuntimeError -- each ecc's class
+        with pytest.raises((EccValueError, EccRuntimeError)):
             dsa.recover_pub_key(key_id, magic_msg, bms_sig.dsa_sig)
 
 
@@ -1356,7 +1356,7 @@ def test_the_py_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None
 
     `no_bindings_anywhere` is the check `tests.script.taproot_test` uses
     for the same shape: it puts the whole of btclib_secp256k1 out of
-    reach, module and already-bound name alike, btclib_ecc's bindings
+    reach, module and already-bound name alike, ecc's bindings
     included, and switches the dispatch off.
     """
     from btclib_secp256k1 import recovery as libsecp256k1_recovery  # noqa: PLC0415
