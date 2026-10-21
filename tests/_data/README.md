@@ -128,6 +128,8 @@ refreshed again on 2026-09-14, 2026-09-29 and 2026-10-07, at the tip of its
 path each time.
 BIP324's `packet_encoding_test_vectors.csv` followed on 2026-09-27, at the
 tip of its path.
+opentimestamps-client's examples and their licence followed on
+2026-10-21, at the tip of their paths.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -769,6 +771,142 @@ pair of exceptions. It broke past versions of rust-bitcoin and LND, as
 [an electrs issue](https://github.com/romanz/electrs/issues/783) records.
 The licence is rust-bitcoin's, whose `LICENSE` is the CC0 text.
 
+### `tests/block/_data/opentimestamps/LICENSE`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     LICENSE
+commit   f47a4ec046649ac3efa1543bd83a9fa5affcc8d3  2016-08-22
+blob     4165418d146712fb294cb39d94e7c28b2d26055b
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. Upstream's licence, kept beside the proofs below:
+btclib is MIT, and the proofs are redistributed rather than written here.
+
+The proofs are the examples of opentimestamps-client that
+`tests/block/opentimestamps_test.py` replays: every example carrying a
+Bitcoin attestation, `bad-stamp.txt.ots` among them, which the test
+refuses, and `incomplete.txt.ots`, which it reports as pending. The other
+examples carry no Bitcoin attestation, or are invalid on purpose, and are
+not vendored. Each keeps its upstream name: `a-or-b.ots` is under
+`examples/sha1/` upstream, the others under `examples/`. The headers they
+attest are under *Chain data, not a repository*.
+
+### `tests/block/_data/opentimestamps/a-or-b.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/sha1/a-or-b.ots
+commit   185a5997cf315402747223a1feae18e669ae08f2  2023-10-20
+blob     346e86a865507d57034847e1cae4b118ffb8e9dc
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the only one to touch the path
+```
+
+Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/bad-stamp.txt.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/bad-stamp.txt.ots
+commit   5d5d325b2a7083e93a7c685a679edc3f6b8f27d7  2016-09-14
+blob     897b46dba45e4dbef2667d1323acad0ee1c431e6
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/bitcoin.pdf.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/bitcoin.pdf.ots
+commit   34bbebd50ec20d26a72cf200d8eae2506f47bc2d  2021-01-22
+blob     c2114bafba315ce4efcf46c711d9ee06b3b181ad
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the only one to touch the path
+```
+
+Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/different-blockchains.txt.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/different-blockchains.txt.ots
+commit   afa0640501f5bf26a9a4c0eb86b14acf57c21cd7  2017-05-28
+blob     95013bb5d6c34a0f91c80faac062bef884ca7634
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the only one to touch the path
+```
+
+Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/empty.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/empty.ots
+commit   5d5d325b2a7083e93a7c685a679edc3f6b8f27d7  2016-09-14
+blob     c4c3ea3e811a12490a95832e3974cc1b19942d57
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/gdp2q25-2nd.pdf.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/gdp2q25-2nd.pdf.ots
+commit   cd71c7609421bed2a07b9642a3c02a58c9fd2cdf  2026-02-07
+blob     3779b5ce648ea9aca6aff04e50991b5ee91c41a7
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the only one to touch the path
+```
+
+Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/hello-world.txt.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/hello-world.txt.ots
+commit   5d5d325b2a7083e93a7c685a679edc3f6b8f27d7  2016-09-14
+blob     d8357eb50f9f26136a367bcc7e8365b2ddd7e0f5
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/incomplete.txt.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/incomplete.txt.ots
+commit   5d5d325b2a7083e93a7c685a679edc3f6b8f27d7  2016-09-14
+blob     f49cd3595c50ed52d8ffada5f8f84ceb18f4c1ca
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**.
+
 ## Chain data, not a repository
 
 These are consensus bytes. There is no upstream repository to pin and no
@@ -777,11 +915,9 @@ explorer settles a dispute. The identifier is the block hash or the txid,
 which is what `Block.parse` and `Tx.parse` recompute from the bytes on
 every run — so the first two entries verify themselves. So does the
 rust-bitcoin transaction above, whose bytes come from upstream and not from
-a node; no other vendored vector does. The third holds parts of
-transactions rather than whole ones, and says what that costs. The
-fourth is chain data inside an envelope: bodies a node and an explorer
-send, carrying bytes the first entry already holds, and it is the one
-entry here that needs no node to re-derive.
+a node. The third holds parts of transactions rather than whole ones, and
+says what that costs. The last holds block headers beside their hashes,
+and verifies itself the same way.
 
 ### `tests/block/_data/block_*.bin`
 
@@ -867,6 +1003,31 @@ Any explorer answers the same question — Esplora's
 is where this copy came from, no node with a transaction index being at
 hand. The heights are the issue's own, and `getblockhash`/`getblock`
 confirm them.
+
+### `tests/block/_data/opentimestamps_headers.json`
+
+```text
+source  Esplora: api/block-height/<height>, then api/block/<hash>/header
+hosts   mempool.space and blockstream.info, which answered the same bytes
+pulled  2026-10-21
+```
+
+Verdict: **recorded**. Each key is a height that a proof under
+`tests/block/_data/opentimestamps/` attests, and holds the hash of the
+block at that height and its header.
+`tests/block/opentimestamps_test.py` recomputes the hash from the header,
+so a corrupted copy announces itself. The height stands in a fence of its
+own; the fence below reads it as `${height:?}`, the shell's must-be-set
+form.
+
+```shell
+height=<a height the file names>
+```
+
+```shell
+hash=$(curl -s "https://mempool.space/api/block-height/${height:?}")
+curl -s "https://mempool.space/api/block/${hash}/header"
+```
 
 ## Not vendored from anywhere
 
@@ -962,7 +1123,9 @@ Against a pinned upstream blob:
   `sig_hash_legacy_test_vectors.json`, `script_tests.json`,
   `tx_valid.json`, `tx_invalid.json`, `key_io_valid.json`,
   `key_io_invalid.json`, `base58_encode_decode.json`, `siphash.json`,
-  `blockfilters.json`, `checkblock_valid.json`, `checkblock_invalid.json`.
+  `blockfilters.json`, `checkblock_valid.json`, `checkblock_invalid.json`,
+  and opentimestamps-client's proofs and `LICENSE` under
+  `tests/block/_data/opentimestamps/`.
 - identical but for a trailing newline: `script_assets_test.json`.
 - identical but for line endings: `packet_encoding_test_vectors.csv`.
 - JSON-equal, reformatted: `signmessage.json`.
@@ -975,8 +1138,8 @@ Not checked byte for byte against one:
   `muhash_vectors.json`, `secp256k1_symbols.txt`,
   `huge_witness.bin`.
 - chain data, identified by block hash or txid: the blocks under
-  `tests/block/_data/`, the segwit transaction under `tests/tx/_data/`, and
-  `unspendable_script_pub_keys.json`, which is scripts rather than whole
-  transactions and so is the one that cannot recompute its own
-  identifier.
+  `tests/block/_data/`, the segwit transaction under `tests/tx/_data/`,
+  `opentimestamps_headers.json`, and `unspendable_script_pub_keys.json`,
+  which is scripts rather than whole transactions and so is the one that
+  cannot recompute its own identifier.
 - not vendored: `gettxoutsetinfo_regtest.json` (btclib's own).
