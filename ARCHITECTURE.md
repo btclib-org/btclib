@@ -66,7 +66,7 @@ message signature names.
   `b58`, `b32`
 - **the chain**: `script`, `tx`, `block`, `fee`, `policy`, `coinstats`,
   `muhash`
-- **the wire**: `p2p`, `electrum`
+- **the wire**: `p2p`
 
 `alias` holds the types the public API accepts, much of it taking anything
 convertible rather than one type, and `exceptions` the errors it raises.
@@ -125,19 +125,19 @@ Each spelling of a key is read by the module that defines it:
 `script`, `tx` and `block` build and validate what goes on the chain, and
 `script.engine` verifies a transaction against the consensus rules.
 `p2p` is the wire format peers speak: the message envelope, its framing,
-the message start of each network, and the payloads. `electrum` is the
-Electrum server protocol. Both turn octets into objects and objects into
-octets, and neither opens a socket: a caller reading from a connection
-hands them what it read. `p2p` also holds Bitcoin Core's low-work headers
-sync, which decides what to ask a peer for and sends nothing itself.
+the message start of each network, and the payloads. It turns octets
+into objects and objects into octets, and opens no socket: a caller
+reading from a connection hands it what it read. It also holds Bitcoin
+Core's low-work headers sync, which decides what to ask a peer for and
+sends nothing itself.
 
 ## What sits outside the package
 
 - **The wallet side** (key derivation, mnemonics, PSBTs, output
-  descriptors, signers and chain backends) is the `btclib-wallet`
-  distribution, imported as `btclib_wallet`. It imports btclib, and
-  nothing in btclib imports it: `tests/imports_test.py` holds that edge to
-  one direction.
+  descriptors, signers, chain backends and the Electrum protocol's
+  codec) is the `btclib-wallet` distribution, imported as
+  `btclib_wallet`. It imports btclib, and nothing in btclib imports it:
+  `tests/imports_test.py` holds that edge to one direction.
 - **[bitcoin-core-rpc](https://github.com/btclib-org/bitcoin-core-rpc)** is
   a required dependency. `btclib.p2p.magic` takes the message start of
   each network from its `chains` module, which depends on nothing beyond
@@ -145,8 +145,8 @@ sync, which decides what to ask a peer for and sends nothing itself.
   that package, and no module loads `urllib.request` on its way to
   anything else, so a caller who parses messages pays nothing for a
   client it never uses. `tests/imports_test.py`'s
-  `test_the_codec_does_not_pay_for_the_rpc_package` and
-  `test_electrum_codec_stays_stdlib_light` hold both codecs to that.
+  `test_the_codec_does_not_pay_for_the_rpc_package` holds the codec to
+  that.
 - **Package data.** The networks are JSON under `src/btclib/_data/`, read
   once at import by `src/btclib/network.py`; the catalogued curves are
   btclib_ecc's package data.

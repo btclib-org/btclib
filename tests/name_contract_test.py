@@ -353,7 +353,7 @@ def test_the_walk_reaches_what_it_claims() -> None:
     assert _NAMED["btclib.script.engine.script.check_pub_key"] == "bool"
     assert _NAMED["btclib.script.taproot.check_output_pubkey"] == "bool"
     assert _NAMED["btclib.script.engine.script.dsa_verify"] == "bool"
-    assert _NAMED["btclib.electrum.verify_merkle_proof"] == "bool"
+    assert _NAMED["btclib.block.merkle_proof.verify"] == "bool"
     assert _NAMED["btclib.ecc.bms.assert_as_valid"] == "None"
     # a method, and a property among them
     assert _NAMED["btclib.key.is_compressed"] == "bool"

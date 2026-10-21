@@ -184,7 +184,7 @@ def test_probe_answers_each_kind_of_outcome(cmp: Any) -> None:
                 ["builtins:int", "()"],
                 ["btclib.no_such_module:parse", "()"],
                 ["btclib.var_int:no_such_name", "()"],
-                ["btclib.electrum:estimate_fee_response", "(1,)"],
+                ["btclib.utils:bytes_from_octets", "(2,)"],
             ]
         },
         "inputs": [["h", "one", "fdfd00"], ["h", "two", "fd00"]],
@@ -196,7 +196,8 @@ def test_probe_answers_each_kind_of_outcome(cmp: Any) -> None:
     assert outcome["btclib.no_such_module:parse", "one"] == "absent"
     assert outcome["btclib.var_int:no_such_name", "one"] == "absent"
     assert outcome["btclib.var_int:parse", "one"].startswith("accepted ")
-    assert outcome["btclib.electrum:estimate_fee_response", "two"] == "refused"
+    assert outcome["btclib.utils:bytes_from_octets", "one"] == "refused"
+    assert outcome["btclib.utils:bytes_from_octets", "two"].startswith("accepted ")
     assert answer["file"].endswith("__init__.py")
     assert answer["version"]
 
@@ -328,24 +329,6 @@ def test_main_runs_the_probe(
     assert json.loads(capsys.readouterr().out)["records"] == [
         ["h", "btclib.var_int:parse", "x", "accepted 0"]
     ]
-
-
-def test_an_entry_point_taking_more_than_the_input_is_run(cmp: Any) -> None:
-    """This tree's Electrum harness gets past `TypeError` on its own seed.
-
-    `block_headers_response` takes the input, the request id and the
-    number of headers asked for, as the harness declares.
-    """
-    entries, inputs = cmp.collect(_SCRIPT.parents[2] / "fuzz", None)
-    spec = "btclib.electrum:block_headers_response"
-    assert (spec, "(1, 2)") in entries["fuzz_electrum"]
-    seed = "corpus/fuzz_electrum/block_headers.bin"
-    request = {
-        "entries": entries,
-        "inputs": [i for i in inputs if i[:2] == ("fuzz_electrum", seed)],
-    }
-    outcome = {s: out for _, s, _, out in cmp._probe(request)["records"]}
-    assert outcome[spec].startswith("accepted ")
 
 
 def test_a_changed_float_or_dataclass_is_a_difference(cmp: Any) -> None:

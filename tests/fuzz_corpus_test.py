@@ -41,9 +41,7 @@ answers with a plain value has its module's `serialize` named in
 `_WRITERS` below: `var_int.parse` and `var_bytes.parse` must reproduce
 the bytes, and `script.parse` and `taproot.parse` the weaker form their
 harnesses assert, since a script has several encodings of one value: the
-octets written parse back to the same commands. An Electrum answer is
-JSON, which has no serialization to compare with, so that seed is
-accepted parse-only and nothing else is asked of it.
+octets written parse back to the same commands.
 
 **Trying every declared entry point rather than picking one by filename
 convention buys the manifest's simplicity at a stated price: where a
@@ -582,6 +580,11 @@ def test_round_trip_of_a_b64decode_entry_point() -> None:
     assert _round_trip(spec, object(), b"") is None
 
 
+def test_an_answer_with_no_serialization_is_parse_only() -> None:
+    """Nothing is compared where the accepted object has no `serialize`."""
+    assert _round_trip("btclib.var_int:decode", object(), b"") is None
+
+
 def test_entry_points_with_arguments() -> None:
     """A dict declares arguments, a name read as the literal assigned to it."""
     source = 'N = 1\nENTRY_POINTS = {"m:f": (N, 2), "m:g": ()}\n'
@@ -600,9 +603,9 @@ def test_called_specs_reads_the_arguments_after_the_input() -> None:
     source = "def fuzz_target(data):\n    m.f_response(data, N, 2)\n"
     func = _fuzz_target(_module(source))
     assert func is not None
-    bindings = {"m": ("btclib", "electrum")}
+    bindings = {"m": ("btclib", "var_int")}
     assert _called_specs(func, bindings, {"N": 1}) == {
-        "btclib.electrum:f_response": [(1, 2)]
+        "btclib.var_int:f_response": [(1, 2)]
     }
 
 
@@ -612,4 +615,4 @@ def test_called_specs_rejects_a_keyword_argument() -> None:
     func = _fuzz_target(_module(source))
     assert func is not None
     with pytest.raises(AssertionError, match="passes a keyword"):
-        _called_specs(func, {"m": ("btclib", "electrum")}, {})
+        _called_specs(func, {"m": ("btclib", "var_int")}, {})

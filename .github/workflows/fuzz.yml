@@ -7,8 +7,7 @@ name: fuzz
 # the payload deserializers it hands off to once a caller has read
 # `message.command` -- `handshake`, `addrv2`, `inventory`,
 # `compact_blocks`, `block_filters`, `keepalive`, `negotiation`,
-# `address`, `data` and `merkleblock` -- and the response decoders of
-# `btclib.electrum`. Reached only once a transaction, a script or a
+# `address`, `data` and `merkleblock`. Reached only once a transaction, a script or a
 # signature is already being handled: `Tx`, `Block`, `Witness`,
 # `var_int`, `var_bytes`, and the script and tapscript decoders.
 # btclib-org/.github#342 is where that distinction, and the choice of

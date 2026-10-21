@@ -89,7 +89,6 @@ __all__ = [
     "compressor",
     "consensus",
     "ecc",
-    "electrum",
     "exceptions",
     "fee",
     "hashes",

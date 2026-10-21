@@ -88,9 +88,8 @@ EOF
 
 **The adversaries.**
 
-- A remote party supplying octets: a peer's p2p messages, an Electrum
-  server's replies, a transaction, a block, a script or a signature
-  received from anyone.
+- A remote party supplying octets: a peer's p2p messages, a
+  transaction, a block, a script or a signature received from anyone.
 - A counterparty in a protocol: a co-signer in MuSig2 or FROST, the other
   side of a key agreement, the author of a public key or a signature to
   verify.
@@ -158,9 +157,7 @@ with no bound of its own. The script engine in
 consensus rules and the limits Core applies to it. BIP342 sets no size or
 op code limit on a tapscript, so the engine keeps the work of each op code
 independent of the script around it, and
-`tests/script_engine/tapscript_scaling_test.py` checks that. An Electrum
-reply is json, and `electrum.decode_response` refuses a line that is not
-a well-formed answer to the request it is matched to.
+`tests/script_engine/tapscript_scaling_test.py` checks that.
 
 **Files.** btclib opens no file a caller names. What it reads is its own
 package data, the network tables under `src/btclib/_data/`, once, at
@@ -203,10 +200,9 @@ describes beside them.
   defended.
 - **Least privilege.** The library holds no socket and runs no program,
   as the census under *Threat model* shows, `bitcoin_core_rpc`'s client
-  and transport included, which btclib never loads. `btclib.p2p` and
-  `btclib.electrum` turn octets into objects and back, and
-  `tests/imports_test.py` holds both to import closures without
-  `urllib.request`. The one environment variable
+  and transport included, which btclib never loads. `btclib.p2p` turns
+  octets into objects and back, and `tests/imports_test.py` holds it to
+  an import closure without `urllib.request`. The one environment variable
   btclib_ecc reads can only take the bindings away.
 - **Psychological acceptability.** The choice that matters is made at
   the call site and read there: `mod_inv` beside `mod_inv_var`, `mult`
@@ -235,9 +231,8 @@ to, and what counters each.
   boundaries*, and `tests/integer_policy_test.py`, which refuses a
   `bool` where an integer field is expected.
 - **Uncaught exceptions on hostile input (CWE-248, CWE-755).**
-  `tests/fuzz_test.py` asserts that every parser, and every response
-  decoder of `btclib.electrum`, fails the way the library says it fails,
-  whatever it is handed. The targets under `fuzz/` run under
+  `tests/fuzz_test.py` asserts that every parser fails the way the
+  library says it fails, whatever it is handed. The targets under `fuzz/` run under
   ClusterFuzzLite in `.github/workflows/fuzz.yml`, which gives each at
   least an equal share of the time, and `tests/fuzz_corpus_test.py`
   checks that every seed of their corpus is still accepted by its target.
@@ -287,8 +282,8 @@ to, and what counters each.
   `pyproject.toml`, and mutation testing, profiled under
   `.github/mutation/` and run by `.github/workflows/mutation.yml`, asks
   whether the suite notices a line that is wrong. It mutates the modules
-  a profile names, the parsers of `btclib.p2p`, `btclib.tx`,
-  `btclib.electrum` and `btclib.key` among them, and gates nothing. A
+  a profile names, the parsers of `btclib.p2p`, `btclib.tx` and
+  `btclib.key` among them, and gates nothing. A
   module no profile names, `btclib.network` for one, is held by
   coverage and the tests alone.
 - **Supply chain.** SECURITY.md's *Supported versions* describes the
