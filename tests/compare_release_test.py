@@ -66,15 +66,7 @@ def test_entry_points_are_read_without_importing(cmp: Any, tmp_path: Path) -> No
     (tmp_path / "fuzz_a.py").write_text(
         'import atheris\nENTRY_POINTS = ("m:f", "m:C.g")\n'
     )
-    assert cmp.entry_points(tmp_path / "fuzz_a.py") == {"m:f": (), "m:C.g": ()}
-
-
-def test_entry_points_read_the_arguments(cmp: Any, tmp_path: Path) -> None:
-    """A dict gives the arguments, a name standing for the literal above."""
-    (tmp_path / "fuzz_a.py").write_text(
-        'a = f()\nN = 1\nENTRY_POINTS = {"m:f": (N, b"x"), "m:g": ()}\n'
-    )
-    assert cmp.entry_points(tmp_path / "fuzz_a.py") == {"m:f": (1, b"x"), "m:g": ()}
+    assert cmp.entry_points(tmp_path / "fuzz_a.py") == ("m:f", "m:C.g")
 
 
 @pytest.mark.parametrize(
@@ -82,14 +74,15 @@ def test_entry_points_read_the_arguments(cmp: Any, tmp_path: Path) -> None:
     [
         "x = 1\n",
         "ENTRY_POINTS = ['m:f']\n",
-        "ENTRY_POINTS = {'m:f': 1}\n",
-        "ENTRY_POINTS = {'m:f': (N,)}\n",
+        "ENTRY_POINTS = {'m:f': ()}\n",
+        "ENTRY_POINTS = (1,)\n",
+        "ENTRY_POINTS = (N,)\n",
     ],
 )
 def test_entry_points_refuse_what_is_not_a_tuple_of_strings(
     cmp: Any, tmp_path: Path, source: str
 ) -> None:
-    """No declaration, or a list, is an error and not an empty comparison."""
+    """Anything but a tuple of strings is an error, not an empty comparison."""
     (tmp_path / "fuzz_a.py").write_text(source)
     with pytest.raises(ValueError, match="declares no ENTRY_POINTS"):
         cmp.entry_points(tmp_path / "fuzz_a.py")
@@ -129,8 +122,8 @@ def test_collect_gathers_seeds_and_artifacts(cmp: Any, tmp_path: Path) -> None:
     entries, inputs = cmp.collect(fuzz, artifacts)
 
     assert entries == {
-        "fuzz_a": [("m:f", "()")],
-        "fuzz_b": [("m:g", "()"), ("m:h", "()")],
+        "fuzz_a": ["m:f"],
+        "fuzz_b": ["m:g", "m:h"],
     }
     assert inputs == [
         ("fuzz_a", "corpus/fuzz_a/s.bin", "ab"),
@@ -176,15 +169,14 @@ def test_describe(cmp: Any, obj: object, expected: str) -> None:
 
 
 def test_probe_answers_each_kind_of_outcome(cmp: Any) -> None:
-    """Accepted, refused, crashed and absent, each with its arguments."""
+    """Accepted, refused, crashed and absent."""
     request = {
         "entries": {
             "h": [
-                ["btclib.var_int:parse", "()"],
-                ["builtins:int", "()"],
-                ["btclib.no_such_module:parse", "()"],
-                ["btclib.var_int:no_such_name", "()"],
-                ["btclib.electrum:estimate_fee_response", "(1,)"],
+                "btclib.var_int:parse",
+                "builtins:int",
+                "btclib.no_such_module:parse",
+                "btclib.var_int:no_such_name",
             ]
         },
         "inputs": [["h", "one", "fdfd00"], ["h", "two", "fd00"]],
@@ -196,7 +188,6 @@ def test_probe_answers_each_kind_of_outcome(cmp: Any) -> None:
     assert outcome["btclib.no_such_module:parse", "one"] == "absent"
     assert outcome["btclib.var_int:no_such_name", "one"] == "absent"
     assert outcome["btclib.var_int:parse", "one"].startswith("accepted ")
-    assert outcome["btclib.electrum:estimate_fee_response", "two"] == "refused"
     assert answer["file"].endswith("__init__.py")
     assert answer["version"]
 
@@ -204,7 +195,7 @@ def test_probe_answers_each_kind_of_outcome(cmp: Any) -> None:
 def test_run_probe_in_a_subprocess(cmp: Any) -> None:
     """The script run by path answers what the in-process probe answers."""
     request = {
-        "entries": {"h": [["btclib.var_int:parse", "()"]]},
+        "entries": {"h": ["btclib.var_int:parse"]},
         "inputs": [["h", "one", "fdfd00"]],
     }
     run = cmp.run_probe(sys.executable, request)
@@ -330,7 +321,7 @@ def test_main_runs_the_probe(
 ) -> None:
     """`--probe` reads a request on stdin and writes the answer."""
     request = {
-        "entries": {"h": [["btclib.var_int:parse", "()"]]},
+        "entries": {"h": ["btclib.var_int:parse"]},
         "inputs": [["h", "x", "00"]],
     }
     monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(request)))
@@ -338,24 +329,6 @@ def test_main_runs_the_probe(
     assert json.loads(capsys.readouterr().out)["records"] == [
         ["h", "btclib.var_int:parse", "x", "accepted 0"]
     ]
-
-
-def test_an_entry_point_taking_more_than_the_input_is_run(cmp: Any) -> None:
-    """This tree's Electrum harness gets past `TypeError` on its own seed.
-
-    `block_headers_response` takes the input, the request id and the
-    number of headers asked for, as the harness declares.
-    """
-    entries, inputs = cmp.collect(_SCRIPT.parents[2] / "fuzz", None)
-    spec = "btclib.electrum:block_headers_response"
-    assert (spec, "(1, 2)") in entries["fuzz_electrum"]
-    seed = "corpus/fuzz_electrum/block_headers.bin"
-    request = {
-        "entries": entries,
-        "inputs": [i for i in inputs if i[:2] == ("fuzz_electrum", seed)],
-    }
-    outcome = {s: out for _, s, _, out in cmp._probe(request)["records"]}
-    assert outcome[spec].startswith("accepted ")
 
 
 def test_a_changed_float_or_dataclass_is_a_difference(cmp: Any) -> None:
@@ -388,7 +361,7 @@ class _BrokenSerialize:
 
 def test_an_object_that_cannot_be_described_is_an_outcome(cmp: Any) -> None:
     """The probe reports it and goes on, so the comparison has a report."""
-    answer = cmp._answer(lambda _data: _BrokenSerialize(), ValueError, b"", ())
+    answer = cmp._answer(lambda _data: _BrokenSerialize(), ValueError, b"")
     assert answer == "unserializable KeyError"
 
 
