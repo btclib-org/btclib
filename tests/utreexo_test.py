@@ -479,6 +479,15 @@ def test_update_data_destroying_a_full_root_is_refused() -> None:
         Proof([1], [leaf(1)]).update([leaf(2)], [], [], [], update)
 
 
+def test_an_empty_proof_follows_the_first_block() -> None:
+    """A wallet starting at an empty forest keeps a leaf of the first block."""
+    update = Stump().update_data([leaf(1)], [], Proof())
+    proof, proven = Proof().update([], [leaf(1)], [], [0], update)
+    assert proven == (leaf(1),)
+    assert grown(1).verify(proof, proven)
+    assert Proof().update([], [leaf(1)], [], [], update) == (Proof(), ())
+
+
 def test_a_remembered_leaf_survives_deleting_everything_before_it() -> None:
     """Delete eight leaves, add five, remember one: its proof verifies."""
     leaves = [leaf(i) for i in range(8)]

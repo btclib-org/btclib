@@ -407,7 +407,7 @@ def _to_local(targets: Sequence[int], leaves: int) -> list[int]:
         if _detect_row(target, _MAX_FOREST_ROWS) > rows:
             raise BTClibValueError("proof target outside the forest")
         local.append(_translate(target, _MAX_FOREST_ROWS, rows))
-    if not leaves or any(t >= (2 << rows) - 1 for t in local):
+    if (local and not leaves) or any(t >= (2 << rows) - 1 for t in local):
         raise BTClibValueError("proof target outside the forest")
     if len(set(local)) != len(local):
         raise BTClibValueError("duplicate proof targets")
