@@ -1,5 +1,8 @@
 # Repository instructions
 
+Every session works in its own worktree from its first edit; never work in the
+primary checkout.
+
 Follow [CONTRIBUTING.md](./CONTRIBUTING.md) for issues, pull requests,
 local gates, and worktree setup and cleanup. Use
 [REVIEWING.md](./REVIEWING.md) for reviews and
@@ -15,9 +18,9 @@ Increase capability if progress stalls.
 Read `ARCHITECTURE.md` before changing `src/btclib/ecc/`; it defines the
 module boundaries and the Python and bindings paths.
 
-Do not state how many entries a file contains. Tests enforce this in
+Never state how many of anything a file holds. Tests enforce this in
 `CHANGELOG.md`, `RELEASE_NOTES.md`, and `tests/_data/README.md`;
-`SECURITY.md` is maintained by hand. A count of upstream-published data
+`SECURITY.md` is maintained by hand. A count of what upstream published
 is the exception.
 
 rust-bitcoin fuzz builds replace hashes and secp256k1 with stubs. Its
