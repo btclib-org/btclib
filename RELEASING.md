@@ -739,7 +739,7 @@ valid attestation from any workflow in the repository passes.
 `--source-ref` names the tag, which is what stops a rehearsal dispatched
 from a branch from verifying as the release.
 
-A worktree and not `git checkout`, for the reason CLAUDE.md gives: the
+A worktree and not `git checkout`, for the reason AGENTS.md gives: the
 primary checkout is the maintainer's, and a rebuild wants a tree of its
 own regardless.
 

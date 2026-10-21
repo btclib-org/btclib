@@ -38,7 +38,7 @@ _ROOT = Path(__file__).parents[1]
 # the files where a count can come back through a merge, which is what a
 # test rather than a reading answers for. `SECURITY.md` is governed by the
 # same rule and is not here: the patterns below are keyed on the paragraph
-# each forbids, so naming it adds a guard that cannot fail on it. CLAUDE.md's
+# each forbids, so naming it adds a guard that cannot fail on it. AGENTS.md's
 # *Never state how many of anything a file holds* carries that decision
 # (issue #2035)
 _FILES = (_ROOT / "CHANGELOG.md", _ROOT / "RELEASE_NOTES.md")
