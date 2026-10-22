@@ -224,7 +224,7 @@ _WRONG_CONSTANT = [
         "tb1q0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq24jc47",
         "^invalid checksum \\(bech32m instead of bech32\\)$",
     ),
-    # BIP350, "Invalid checksum (Bech32 instead of Bech32m)", version 1
+    # BIP350, "Invalid checksum (Bech32 instead of Bech32m)", versions 1 and 2
     (
         "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqh2y7hd",
         "^invalid checksum \\(bech32 instead of bech32m\\)$",
