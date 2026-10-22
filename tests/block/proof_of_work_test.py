@@ -10,13 +10,12 @@ comes from one of two places, named per test:
 - `bitcoin/src/test/pow_tests.cpp`, whose own comments give the height
   each timestamp belongs to. One value there is flagged by Core itself as
   "NOT an actual block time", and this file repeats the flag;
-- the `_data/block_*.bin` files this directory already vendors, which
-  verify themselves: `Block.parse` recomputes each hash from the bytes,
+- the vendored blocks this directory already reads, which verify
+  themselves: `Block.parse` recomputes each hash from the bytes,
   so the `bits` taken from them are bits that satisfied real work.
 """
 
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import pytest
 
@@ -39,6 +38,7 @@ from btclib.block.proof_of_work import (
 )
 from btclib.consensus import CONSENSUS_PARAMS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from tests import vendored_block
 
 
 def _time(timestamp: int) -> datetime:
@@ -48,10 +48,7 @@ def _time(timestamp: int) -> datetime:
 
 def _bits_of(fname: str) -> bytes:
     """Return the bits of a vendored block, which verifies itself."""
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        block_bytes = file_.read()
-    return Block.parse(block_bytes).header.bits
+    return Block.parse(vendored_block(fname)).header.bits
 
 
 def test_consensus_parameters() -> None:

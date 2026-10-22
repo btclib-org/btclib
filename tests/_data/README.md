@@ -1,6 +1,6 @@
 # Vendored test vectors
 
-This file is about `tests/**/_data/`.
+This file is about `tests/**/_data/` and `src/btclib/testing/_data/`.
 
 The other directory holding json beside the tests,
 `tests/**/_generated_files/`, is the opposite kind of thing and has no
@@ -26,7 +26,8 @@ names a range of Core's `script/script.h` and the released tag it read
 them at, and `src/btclib/consensus.py` pins its tag once at the top and
 says why a tag rather than a `master` tip.
 
-Where every file under a `tests/**/_data/` directory came from, and
+Where every file under a `tests/**/_data/` directory or
+`src/btclib/testing/_data/` came from, and
 whether our copy still matches it. The test modules already cite their
 sources, but against `master`: a citation like
 `bips/blob/master/bip-0340/test-vectors.csv` names a file that changes
@@ -481,7 +482,7 @@ whole is what made that possible without a second pull — and it is what
 the naming section above asks for anyway, a btclib-named extract of the
 block column having no upstream name to be compared against.
 
-The ten are testnet, where the four blocks of `tests/block/_data/` are
+The ten are testnet, where the vendored `block_*.bin` files are
 mainnet, and Core picked them for the shapes their scripts have: a
 coinbase output script no parser can read, an output paying to an empty
 script and a transaction spending from one, duplicate pushdata, witness
@@ -775,39 +776,51 @@ These are consensus bytes. There is no upstream repository to pin and no
 commit to name: the authority is the chain, and any node or block
 explorer settles a dispute. The identifier is the block hash or the txid,
 which is what `Block.parse` and `Tx.parse` recompute from the bytes on
-every run — so the first two entries verify themselves. So does the
-rust-bitcoin transaction above, whose bytes come from upstream and not from
-a node; no other vendored vector does. The third holds parts of
-transactions rather than whole ones, and says what that costs. The
-fourth is chain data inside an envelope: bodies a node and an explorer
-send, carrying bytes the first entry already holds, and it is the one
-entry here that needs no node to re-derive.
+every run — so the block files and the segwit transaction verify
+themselves. So does the rust-bitcoin transaction above, whose bytes come
+from upstream and not from a node; no other vendored vector does.
+`unspendable_script_pub_keys.json` holds parts of transactions rather than
+whole ones, and says what that costs.
 
 ### `tests/block/_data/block_*.bin`
 
 ```text
 block_1.bin       height 1, 215 bytes
   00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048
+block_481824.bin  height 481824, 988,519 bytes
+  0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893
+```
+
+Pulled 2020-06-08.
+
+Verdict: **recorded**, except `block_481824.bin`, which is derived rather
+than returned by any call (below).
+
+`bitcoin-cli getblock <hash> 0` returns `block_1.bin`. It does not return
+`block_481824.bin`: that is the block of
+`src/btclib/testing/_data/block_481824_complete.bin` serialized *without*
+witness data, as a pre-segwit node sees it, which no RPC hands over.
+It is derivable —
+`Block.parse(complete).serialize(include_witness=False)` reproduces it
+byte for byte, checked — and that is how to regenerate it.
+
+### `src/btclib/testing/_data/block_*.bin`
+
+```text
 block_170.bin     height 170, 490 bytes
   00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee
 block_200000.bin  height 200000, 247,533 bytes
   000000000000034a7dedef4a161fa058a2d67a173a90155f3a2fe6fc132e0ebf
-block_481824.bin and block_481824_complete.bin
-  height 481824, 988,519 and 989,323 bytes
+block_481824_complete.bin
+  height 481824, 989,323 bytes
   0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893
 ```
 
 Pulled 2020-06-08, except `block_200000.bin`, 2020-06-09.
 
-Verdict: **recorded**, except `block_481824.bin`, which is derived rather
-than returned by any call (below).
-
-`bitcoin-cli getblock <hash> 0` returns the first three and
-`block_481824_complete.bin`. It does not return `block_481824.bin`: that
-is the same block serialized *without* witness data, as a pre-segwit node
-sees it, which no RPC hands over. It is derivable —
-`Block.parse(complete).serialize(include_witness=False)` reproduces it
-byte for byte, checked — and that is how to regenerate it.
+Verdict: **recorded**. `bitcoin-cli getblock <hash> 0` returns each of
+them. They ship in the wheel, as `btclib.testing.blocks`, so that the
+tests of btclib's callers read them too.
 
 ### `tests/tx/_data/` — a segwit transaction
 
@@ -953,7 +966,8 @@ that is wrong. The lists *are* the fact the number summarized, and the tree
 answers whenever the number is wanted:
 
 ```shell
-git ls-files 'tests/_data/*' 'tests/*/_data/*' | grep -cv 'README.md'
+git ls-files 'tests/_data/*' 'tests/*/_data/*' 'src/btclib/testing/_data/*' |
+  grep -cv 'README.md'
 ```
 
 Against a pinned upstream blob:
@@ -975,7 +989,8 @@ Not checked byte for byte against one:
   `muhash_vectors.json`, `secp256k1_symbols.txt`,
   `huge_witness.bin`.
 - chain data, identified by block hash or txid: the blocks under
-  `tests/block/_data/`, the segwit transaction under `tests/tx/_data/`, and
+  `tests/block/_data/` and `src/btclib/testing/_data/`, the segwit
+  transaction under `tests/tx/_data/`, and
   `unspendable_script_pub_keys.json`, which is scripts rather than whole
   transactions and so is the one that cannot recompute its own
   identifier.

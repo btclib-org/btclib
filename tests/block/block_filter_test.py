@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from io import BytesIO
-from pathlib import Path
 from typing import Any, cast
 
 import pytest
@@ -29,6 +28,7 @@ from btclib.block import BasicBlockFilter, Block, prevout_scripts_from_utxos
 from btclib.block.block_filter import BASIC_FILTER_M, BASIC_FILTER_P
 from btclib.block.block_filter import MAX_FILTER_ELEMENT_COUNT as MAX_COUNT
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.testing.blocks import read_bytes
 from btclib.tx import TxOut
 
 # any thirty-two octets: what the block hash decides is the SipHash key,
@@ -65,9 +65,7 @@ def _filter(values: Sequence[int]) -> BasicBlockFilter:
 
 def _block_170() -> Block:
     """Return the first block with a transaction, one input to resolve."""
-    filename = Path(__file__).parent / "_data" / "block_170.bin"
-    with filename.open("rb") as file_:
-        return Block.parse(file_.read())
+    return Block.parse(read_bytes("block_170.bin"))
 
 
 @pytest.mark.parametrize(
