@@ -1363,9 +1363,8 @@ def test_minimalif_all_leaves_an_unexecuted_condition_alone() -> None:
 def test_minimalif_all_names_core_s_code_for_a_witness_v0_script() -> None:
     """In segwit v0 it is the rule Core's MINIMALIF applies, and stands alone.
 
-    The flag is not a request for MINIMALIF besides: btcd's
-    ScriptVerifyMinimalIfAll is the same, and a caller asking for the one
-    asks for every context.
+    It needs no MINIMALIF beside it, as btcd's ScriptVerifyMinimalIfAll
+    needs none.
     """
     witness_script = serialize(_IF_SCRIPT)
     program = b"\x00\x20" + sha256(witness_script)

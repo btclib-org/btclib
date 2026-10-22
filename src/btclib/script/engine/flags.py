@@ -47,8 +47,7 @@ class ScriptFlag(Flag):
     does not: asking for a member is asking for a branch, never a request
     quietly ignored, which is the failure mode this enum exists to
     remove. So every `SCRIPT_VERIFY_*` Core spells is a member here, bit
-    for bit and with no holes in the positions below, `MINIMALIF_ALL`
-    excepted.
+    for bit and with no holes in the positions below.
 
     `MINIMALIF_ALL` is not a Core flag. BIP322's verification process
     (step 3) requires MINIMALIF for every script a message can be signed
@@ -75,7 +74,7 @@ class ScriptFlag(Flag):
     # that outlived it. A block breaking one of these is valid, so
     # ALL_FLAGS leaves them off and only a caller asking a policy question
     # turns them on. Where a BIP made one of them consensus for a script
-    # version -- cleanstack and minimalif under segwit, minimalif under
+    # version -- cleanstack under segwit, minimalif under
     # tapscript -- the engine enforces that part whatever the flags say,
     # which is why these are still off by default
     STRICTENC = 1 << 1
@@ -98,9 +97,9 @@ class ScriptFlag(Flag):
     DISCOURAGE_OP_SUCCESS = 1 << 19
     DISCOURAGE_UPGRADABLE_TAPROOT_VERSION = 1 << 20
 
-    # not Core's, so not in its positions: this one sits well above them,
-    # where Core cannot add a flag over it. The class docstring says what
-    # it is for
+    # not Core's: set well above Core's positions, which end at 1 << 20, so
+    # that the flags Core adds next do not reach it. The class docstring
+    # says what it is for
     MINIMALIF_ALL = 1 << 32
 
 
@@ -109,7 +108,7 @@ class ScriptFlag(Flag):
 NO_FLAGS = ScriptFlag(0)
 
 # what the engine enforces when a caller names nothing: the consensus soft
-# forks, i.e. seven of the twenty-one members and not all of them
+# forks, not every member
 ALL_FLAGS = (
     ScriptFlag.P2SH
     | ScriptFlag.DERSIG
