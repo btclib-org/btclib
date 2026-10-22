@@ -22,7 +22,7 @@ else in this library parses the format (issue #1188).
 from __future__ import annotations
 
 import string
-from typing import Literal
+from typing import Literal, overload
 
 from btclib_ecc.curves import scalar_from_prv_key
 
@@ -36,7 +36,13 @@ from btclib.consensus import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.exceptions import BTClibValueError, InvalidPrvKeyError, NotAPrvKeyError
 from btclib.hashes import hash160
 from btclib.key import PrvKeyData, PubKeyData
-from btclib.network import network_from_key_value, network_from_name
+from btclib.network import (
+    Network,
+    _assert_network,
+    _network_from,
+    _normalized_network,
+    network_from_key_value,
+)
 from btclib.utils import assert_type, bytes_from_octets, str_from_string
 
 __all__ = [
@@ -52,7 +58,7 @@ __all__ = [
 
 
 def wif_from_prv_key(
-    prv_key: Integer, network: str = "mainnet", compressed: bool = True
+    prv_key: Integer, network: str | Network = "mainnet", compressed: bool = True
 ) -> str:
     """Return the WIF encoding of a private key.
 
@@ -64,7 +70,7 @@ def wif_from_prv_key(
     comes back are handed here.
     """
     assert_type(compressed, bool, "compressed")
-    net = network_from_name(network)
+    net = _network_from(network)
     q = scalar_from_prv_key(prv_key, net.curve)
     payload = b"".join(
         [
@@ -76,13 +82,19 @@ def wif_from_prv_key(
     return b58encode(payload).decode("ascii")
 
 
-def _wif_network(prefix: bytes, network: str | None) -> str:
+def _wif_network(prefix: bytes, network: str | Network | None) -> str | Network:
     """Return the network a WIF version prefix belongs to.
 
     NotAPrvKeyError for a prefix no network claims: the text is not a
     WIF. InvalidPrvKeyError once a network has claimed it and the caller
     asked for another one: that is a WIF, and the wrong one.
     """
+    # a Network NETWORKS does not hold claims its own prefix; the rest
+    # is asked of NETWORKS
+    if isinstance(network, Network) and prefix == network.wif:
+        claimed: str | Network = _normalized_network(network)
+        return claimed
+
     net = network_from_key_value("wif", prefix)
     if net is None:
         raise NotAPrvKeyError(f"not a WIF (invalid prefix 0x{prefix.hex()})")
@@ -97,12 +109,15 @@ def _wif_network(prefix: bytes, network: str | None) -> str:
     # naming the very prefix signet asks for (issue #207).
     # `btclib_wallet.bip32.prv_keyinfo_from_xprv` makes the same
     # membership check
-    if prefix != network_from_name(network).wif:
-        raise InvalidPrvKeyError(f"not a {network} wif: prefix 0x{prefix.hex()}")
+    kept: str | Network = _normalized_network(network)
+    if prefix != _network_from(kept).wif:
+        label = kept if isinstance(kept, str) else "given network's"
+        raise InvalidPrvKeyError(f"not a {label} wif: prefix 0x{prefix.hex()}")
     # the declared network, not the lookup's guess: for a caller who
     # said "signet" the answer is signet, and it is the one that ends
-    # up in the returned key
-    return network
+    # up in the returned key. A Network equal to a NETWORKS entry is that
+    # entry's name; one equal to none is kept
+    return kept
 
 
 def _wif_prv_key_and_compression(
@@ -132,7 +147,7 @@ def _wif_prv_key_and_compression(
 
 
 def prv_key_data_from_wif(
-    wif: String, network: str | None = None, compressed: bool | None = None
+    wif: String, network: str | Network | None = None, compressed: bool | None = None
 ) -> PrvKeyData:
     """Return the private key a WIF encodes, with its network and compression.
 
@@ -142,6 +157,11 @@ def prv_key_data_from_wif(
     network sharing its prefix with others -- the 0xef that testnet,
     regtest, signet and testnet4 all use answers "testnet" on its own,
     and a caller who said "signet" gets signet (issue #207).
+
+    `network` may be a Network as well as a name. A Network equal to a
+    NETWORKS entry gives that entry's name; one NETWORKS does not hold is
+    kept by the returned key, `PrvKeyData.network` being a name or a
+    Network.
 
     Two error classes, in refusal order. Everything up to and including
     the version prefix answers "is this a WIF at all", and a no is a
@@ -155,6 +175,8 @@ def prv_key_data_from_wif(
     # it is the one non-bool this position takes
     if compressed is not None:
         assert_type(compressed, bool, "compressed")
+    if isinstance(network, Network):
+        _assert_network(network)
     # coerced before stripping, as b32.witness_from_address does, so that
     # surrounding whitespace is trimmed from bytes input too rather than
     # only from a caller that happened to pass a str (issue #2297)
@@ -170,7 +192,7 @@ def prv_key_data_from_wif(
         raise NotAPrvKeyError(f"not a WIF ({e})") from e
 
     net = _wif_network(payload[:1], network)
-    ec = network_from_name(net).curve
+    ec = _network_from(net).curve
     prv_key, compr = _wif_prv_key_and_compression(payload, ec.n_size, compressed)
 
     q = int.from_bytes(prv_key, byteorder="big")
@@ -190,7 +212,7 @@ def prv_key_data_from_wif(
 
 
 def address_from_h160(
-    script_type: ScriptType, h160: Octets, network: str = "mainnet"
+    script_type: ScriptType, h160: Octets, network: str | Network = "mainnet"
 ) -> str:
     """Return a base58 address from the payload."""
     # the whole ScriptType and not a Literal of the two encoded here:
@@ -200,9 +222,9 @@ def address_from_h160(
     # spell it makes that a cast at every call site rather than a
     # message from here
     if script_type == "p2sh":
-        prefix = network_from_name(network).p2sh
+        prefix = _network_from(network).p2sh
     elif script_type == "p2pkh":
-        prefix = network_from_name(network).p2pkh
+        prefix = _network_from(network).p2pkh
     else:
         raise BTClibValueError(f"invalid script type: {script_type}")
 
@@ -210,8 +232,30 @@ def address_from_h160(
     return b58encode(payload).decode("ascii")
 
 
-def h160_from_address(b58addr: String) -> tuple[ScriptType, bytes, str]:
-    """Return the payload from a base58 address."""
+@overload
+def h160_from_address(
+    b58addr: String, network: None = None
+) -> tuple[ScriptType, bytes, str]: ...
+
+
+@overload
+def h160_from_address(
+    b58addr: String, network: Network
+) -> tuple[ScriptType, bytes, Network]: ...
+
+
+def h160_from_address(
+    b58addr: String, network: Network | None = None
+) -> tuple[ScriptType, bytes, str | Network]:
+    """Return the script type, the payload and the network of a base58 address.
+
+    Without a `network`, the prefix is looked up in NETWORKS and the
+    network is its name. Given one, the prefix has to be that network's
+    p2pkh or p2sh prefix, and the network itself is returned. This is how
+    a caller decodes another chain's addresses with a Network it built.
+    """
+    if network is not None:
+        _assert_network(network)
     # coerced before stripping, as b32.witness_from_address does, so that
     # surrounding whitespace is trimmed from bytes input too rather than
     # only from a caller that happened to pass a str (issue #2297)
@@ -226,8 +270,11 @@ def h160_from_address(b58addr: String) -> tuple[ScriptType, bytes, str]:
     # str literals to tuple[str, str], and str is neither
     script_types: tuple[Literal["p2pkh", "p2sh"], ...] = ("p2pkh", "p2sh")
     for script_type in script_types:
-        if network := network_from_key_value(script_type, prefix):
-            return script_type, payload[1:], network
+        if network is not None:
+            if prefix == getattr(network, script_type):
+                return script_type, payload[1:], network
+        elif name := network_from_key_value(script_type, prefix):
+            return script_type, payload[1:], name
 
     err_msg = f"invalid base58 address prefix: 0x{prefix.hex()}"
     raise BTClibValueError(err_msg)
@@ -275,7 +322,7 @@ def _script_hash_from_redeem_script(redeem_script: Octets) -> bytes:
     return hash160(redeem_script)
 
 
-def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
+def p2sh(script_pub_key: Octets, network: str | Network = "mainnet") -> str:
     """Return the p2sh base58 address corresponding to a script_pub_key.
 
     The script_pub_key is the redeem script, and a redeem script over
@@ -291,7 +338,7 @@ def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
 # it cannot be inverted because of the hash performed by p2sh
 
 
-def _address_from_v0_witness(wit_prg: Octets, network: str) -> str:
+def _address_from_v0_witness(wit_prg: Octets, network: str | Network) -> str:
     """Return the legacy base58 p2sh-wrapped segwit v0 address."""
     wit_prg = b32.bytes_from_witness_program(0, wit_prg)
     # the redeem script is [OP_0, wit_prg], spelled out here instead of
@@ -318,7 +365,7 @@ def p2wpkh_p2sh(key: PubKeyData) -> str:
     return _address_from_v0_witness(_v0_witness_program_from_key(key), key.network)
 
 
-def p2wsh_p2sh(redeem_script: Octets, network: str = "mainnet") -> str:
+def p2wsh_p2sh(redeem_script: Octets, network: str | Network = "mainnet") -> str:
     """Return the base58 p2sh-wrapped address of a p2wsh.
 
     The redeem_script is the witness script, and a witness script over

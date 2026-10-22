@@ -372,7 +372,7 @@ def _output_pubkey_and_internal_key(
             )
         # `check_validity=False` is "do not check now" and not an
         # exemption (CONTRIBUTING.md), so the key is asked here, above the
-        # arm split: a length, a prefix and a network name, no point
+        # arm split: a length, a prefix and a network, no point
         # lifted, so the bindings arm still hands `tweak_add` octets
         # nothing has proved (issue 887). The network is the field only
         # the Python arm reads, `point_var` going through `curve`, and asked
