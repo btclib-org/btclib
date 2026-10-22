@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -826,6 +827,148 @@ def test_p2tr() -> None:
     err_msg = "invalid redeem script hash length marker: "
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2tr(script_pub_key[:1] + b"\x00" + script_pub_key[2:])
+
+
+_G = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+_G_HASH = "751e76e8199196d454941c45d1b3a323f1433bd6"
+_P2PK_SCRIPT = bytes.fromhex(f"21{_G}ac")
+_BIP86_INTERNAL_KEY = (
+    "02cc8a4bc64d897bddc5fbc2f670f7a8ba0b386779106cf1223c6fc5d7cd6fc115"
+)
+_BIP86_OUTPUT_KEY = "a60869f0dbcf1dc659c9cecbaf8050135ea9e8cdc487053f1dc6880949dc684c"
+
+
+@dataclasses.dataclass(frozen=True)
+class _Payment:
+    """A payment: its source, its triple and the derivation of each."""
+
+    script_type: str
+    key_or_script: PubKeyData | bytes
+    payload: bytes
+    script: bytes
+    address: str
+    script_from_key_or_script: Callable[[Any], ScriptPubKey]
+    address_from_key_or_script: Callable[[Any], str]
+    script_from_payload: Callable[[bytes], bytes]
+    address_from_payload: Callable[[bytes], str]
+
+
+# Each expected triple is independent of btclib: the p2wpkh and p2wsh ones are
+# BIP173's examples, the p2tr one is BIP86's first receiving address, and the
+# p2pkh and p2sh ones are recomputed with hashlib and a base58 encoder.
+_PAYMENTS = {
+    "p2pkh": _Payment(
+        "p2pkh",
+        PubKeyData(_G),
+        bytes.fromhex(_G_HASH),
+        bytes.fromhex(f"76a914{_G_HASH}88ac"),
+        "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+        ScriptPubKey.p2pkh,
+        b58.p2pkh,
+        lambda payload: serialize(
+            ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
+        ),
+        lambda payload: b58.address_from_h160("p2pkh", payload),
+    ),
+    "p2sh": _Payment(
+        "p2sh",
+        _P2PK_SCRIPT,
+        bytes.fromhex("23b0ad3477f2178bc0b3eed26e4e6316f4e83aa1"),
+        bytes.fromhex("a91423b0ad3477f2178bc0b3eed26e4e6316f4e83aa187"),
+        "34wjDxkCQrUPYwnCRtap5uib6XNcVaud9K",
+        ScriptPubKey.p2sh,
+        b58.p2sh,
+        lambda payload: serialize(["OP_HASH160", payload, "OP_EQUAL"]),
+        lambda payload: b58.address_from_h160("p2sh", payload),
+    ),
+    "p2wpkh": _Payment(
+        "p2wpkh",
+        PubKeyData(_G),
+        bytes.fromhex(_G_HASH),
+        bytes.fromhex(f"0014{_G_HASH}"),
+        "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+        ScriptPubKey.p2wpkh,
+        b32.p2wpkh,
+        lambda payload: serialize(["OP_0", payload]),
+        lambda payload: b32.address_from_witness(0, payload),
+    ),
+    "p2wsh": _Payment(
+        "p2wsh",
+        _P2PK_SCRIPT,
+        bytes.fromhex(
+            "1863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262"
+        ),
+        bytes.fromhex(
+            "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262"
+        ),
+        "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3",
+        ScriptPubKey.p2wsh,
+        b32.p2wsh,
+        lambda payload: serialize(["OP_0", payload]),
+        lambda payload: b32.address_from_witness(0, payload),
+    ),
+    "p2tr": _Payment(
+        "p2tr",
+        PubKeyData(_BIP86_INTERNAL_KEY),
+        bytes.fromhex(_BIP86_OUTPUT_KEY),
+        bytes.fromhex(f"5120{_BIP86_OUTPUT_KEY}"),
+        "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
+        ScriptPubKey.p2tr,
+        lambda key: b32.p2tr(output_pubkey(key)[0]),
+        lambda payload: serialize(["OP_1", payload]),
+        lambda payload: b32.address_from_witness(1, payload),
+    ),
+}
+
+
+@pytest.mark.parametrize("source", ["key_or_script", "payload", "script", "address"])
+@pytest.mark.parametrize("script_type", list(_PAYMENTS))
+def test_each_field_of_a_payment_from_each_sufficient_source(
+    script_type: str, source: str
+) -> None:
+    """Derive payload, script and address from one source, and compare.
+
+    The payload is `type_and_payload`'s, the script is `ScriptPubKey`'s and
+    the address is `address`'s or the encoder's of the type. The source is
+    given, so its own field is the expected one.
+    """
+    payment = _PAYMENTS[script_type]
+    expected = (
+        (script_type, payment.payload),
+        payment.script,
+        payment.address,
+    )
+
+    derived: tuple[tuple[str, bytes], bytes, str]
+    if source == "key_or_script":
+        key_or_script = payment.key_or_script
+        script = payment.script_from_key_or_script(key_or_script)
+        derived = (
+            type_and_payload(script.script),
+            script.script,
+            payment.address_from_key_or_script(key_or_script),
+        )
+    elif source == "payload":
+        derived = (
+            (script_type, payment.payload),
+            ScriptPubKey(payment.script_from_payload(payment.payload)).script,
+            payment.address_from_payload(payment.payload),
+        )
+    elif source == "script":
+        derived = (
+            type_and_payload(payment.script),
+            ScriptPubKey(payment.script).script,
+            address(payment.script),
+        )
+    else:
+        script = ScriptPubKey.from_address(payment.address)
+        derived = (
+            type_and_payload(script.script),
+            script.script,
+            payment.address,
+        )
+
+    assert derived == expected
 
 
 def test_script_pub_key_is_a_dataclass() -> None:
