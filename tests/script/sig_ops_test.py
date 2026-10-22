@@ -136,6 +136,12 @@ _P2WPKH = serialize(["OP_0", hash160(_KEY)])
         pytest.param(0, 0, _p2sh(_S2), id="core-its-p2sh-script-pub-key"),
         pytest.param(
             _MAX,
+            1,
+            serialize(["OP_1", _DUMMY, "OP_1", "OP_CHECKMULTISIG"]),
+            id="op-1-is-one",
+        ),
+        pytest.param(
+            _MAX,
             16,
             serialize(["OP_16", "OP_CHECKMULTISIGVERIFY"]),
             id="op-16-is-sixteen",
@@ -190,6 +196,12 @@ def test_accurate_sig_op_count(legacy: int, accurate: int, script: bytes) -> Non
             serialize(["OP_1", _DUMMY, _DUMMY, _S2]),
             _p2sh(_S2),
             id="core-p2sh-of-s2",
+        ),
+        pytest.param(
+            3,
+            serialize(["OP_16", _S2]),
+            _p2sh(_S2),
+            id="op-16-is-push-only-too",
         ),
         pytest.param(
             3,
