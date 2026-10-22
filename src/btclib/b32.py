@@ -48,6 +48,8 @@ with the following modifications:
 * detailed error messages and extended safety checks
 * check that bech32 addresses are not longer than 90 characters,
   a bound bech32.decode deliberately leaves to this module
+* check BIP350's constant rule: version 0 is bech32, any other version
+  bech32m, whichever constants the codec accepts
 """
 
 from __future__ import annotations
@@ -56,7 +58,7 @@ import string
 from collections.abc import Iterable
 
 from btclib.alias import Octets, String
-from btclib.bech32 import decode, encode
+from btclib.bech32 import BECH32_1_CONST, BECH32_M_CONST, decode, encode
 from btclib.consensus import MAX_SCRIPT_SIZE
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
@@ -178,6 +180,30 @@ def bytes_from_witness_program(wit_ver: int, wit_prg: Octets) -> bytes:
 # 2. bech32 address from WitnessProgram and vice versa
 
 
+def _decode_with_constant(addr: str) -> tuple[str, list[int]]:
+    """Decode a segwit address, held to BIP350's constant rule.
+
+    Version 0 is bech32 and any other version is bech32m. The rule is
+    applied here, from the constant that verified the checksum, and not
+    left to the codec's choice when it is given none.
+    """
+    try:
+        hrp, data = decode(addr, BECH32_1_CONST)
+        m = BECH32_1_CONST
+    except BTClibValueError:
+        hrp, data = decode(addr, BECH32_M_CONST)
+        m = BECH32_M_CONST
+
+    if not data:
+        raise BTClibValueError("empty data in bech32 address")
+
+    if data[0] == 0 and m != BECH32_1_CONST:
+        raise BTClibValueError("invalid checksum (bech32m instead of bech32)")
+    if data[0] != 0 and m != BECH32_M_CONST:
+        raise BTClibValueError("invalid checksum (bech32 instead of bech32m)")
+    return hrp, data
+
+
 def _address_from_witness(wit_ver: int, wit_prg: Octets, hrp: str) -> str:
     wit_prg = bytes_from_witness_program(wit_ver, wit_prg)
     data = [wit_ver, *_power_of_2_base_conversion(wit_prg, 8, 5, True)]
@@ -208,7 +234,7 @@ def witness_from_address(b32addr: String) -> tuple[int, bytes, str]:
     if len(addr) > 90:
         raise BTClibValueError(f"invalid bech32 address length: {len(addr)} > 90")
 
-    hrp, data = decode(addr)
+    hrp, data = _decode_with_constant(addr)
 
     wit_ver = data[0]
     wit_prog = bytes(_power_of_2_base_conversion(data[1:], 5, 8, False))
