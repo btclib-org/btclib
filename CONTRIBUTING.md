@@ -444,7 +444,7 @@ special-cases the value, so 99.999% is a red build where the 99.99 this
 replaces passed everything above 99.985%, and the 99.9 before it ten
 times as much again. No slack, so a statement no test reaches is either
 covered by patching what stands in the way, as the ripemd160 fallback
-and electrum's round-trip check are, or marked `pragma: no cover --`
+is, or marked `pragma: no cover --`
 with the reason on that same line, and a reason too long for the line
 above it as well, the inline half naming the case. `--cov` is in
 pyproject.toml's addopts, so `uv run pytest` prints the total and

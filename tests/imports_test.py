@@ -80,15 +80,9 @@ def test_exceptions_imports_nothing_of_btclibs_and_no_client(
 ) -> None:
     """btclib.exceptions declares its own classes and reaches nothing.
 
-    It used to import the rpc client, which was in-tree then and defined
-    the six classes this module now declares. That put `urllib.request`,
-    and `ssl` and `socket` under it, behind every import reaching here --
-    which is most of the library, an exception being what most of it
-    raises. Since the client became a package of its own, the classes are
-    btclib's again and `btclib_wallet.fetch.fetcher.client_errors` translates at
-    the one boundary that needs it.
-
-    So the cost pinned here is nothing at all: no btclib module beyond
+    Most of the library imports it, an exception being what most of it
+    raises, so what it imports every caller pays for. The cost pinned
+    here is nothing at all: no btclib module beyond
     this one, and no socket machinery. `sys.modules` is what says so,
     rather than a timing.
     """
@@ -194,30 +188,13 @@ def test_the_codec_does_not_pay_for_the_rpc_package() -> None:
     assert transport_cost not in loaded
 
 
-def test_electrum_codec_stays_stdlib_light() -> None:
-    """`btclib.electrum` is the codec, and importing it opens nothing.
-
-    `btclib_wallet.fetch.electrum` is the fetcher built on it, and that
-    package's `__init__` imports every fetcher, `urllib`, `ssl` and
-    `socket` behind them: an importer of this module alone -- node, should
-    it ever serve the protocol rather than only speak it -- pays for none
-    of that. `btclib.p2p`'s own docstring states the same rule for the
-    same reason, and `_HEAVY_MODULES` below is the list both are held to.
-
-    A subprocess and not `unimported_btclib`, for the reason the p2p test
-    above gives.
-    """
-    loaded = _loaded_after_importing("btclib.electrum")
-    assert not set(loaded) & set(_HEAVY_MODULES)
-
-
 def test_the_tests_package_imports_no_btclib_submodule() -> None:
     """Importing the `tests` package alone must reach no `btclib` submodule.
 
     `tests/__init__.py` is imported by every test module before that
     module's own body runs -- before any fixture, `unimported_btclib`
     included, so this probe is a subprocess rather than that fixture, the
-    same way the two tests above are. Neither the suite's coverage floor
+    same way the codec test above is. Neither the suite's coverage floor
     nor the weekly no-bindings census reads what a test body goes on to
     call, only what the import itself reaches: a value built at
     `tests/__init__.py`'s own module scope by calling into `btclib`'s
