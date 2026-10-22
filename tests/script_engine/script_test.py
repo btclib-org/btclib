@@ -8,6 +8,7 @@ The vectors are Bitcoin Core's `src/test/data/script_tests.json`, entire
 and byte for byte; tests/_data/README.md pins the revision.
 """
 
+from base64 import b64decode
 from io import BytesIO
 from typing import Any, NamedTuple
 
@@ -27,6 +28,7 @@ from btclib.script.engine import (
     NO_FLAGS,
     ScriptFlag,
     tapscript,
+    to_script_flags,
     validate_push_only,
     verify_input,
     verify_transaction,
@@ -1225,6 +1227,180 @@ def test_const_scriptcode_leaves_an_unexecuted_signature_check_alone() -> None:
     tx_in = TxIn(OutPoint(b"\x01" * 32, 0), serialize(script_sig), 1, Witness([]))
     tx = Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
     verify_input([prevout], tx, 0, ScriptFlag.CONST_SCRIPTCODE)
+
+
+# Both branches push OP_1, so the script succeeds whichever way its condition
+# is read and the one thing the MINIMALIF_ALL tests below measure is whether
+# the condition is refused.
+_IF_SCRIPT = ["OP_IF", "OP_1", "OP_ELSE", "OP_1", "OP_ENDIF"]
+_NOTIF_SCRIPT = ["OP_NOTIF", "OP_1", "OP_ELSE", "OP_1", "OP_ENDIF"]
+
+# What is neither the empty vector nor 0x01, as an IF argument
+_NON_MINIMAL = [
+    pytest.param("OP_2", id="2"),
+    pytest.param(b"\x00", id="0x00, a false that is not the empty vector"),
+    pytest.param(b"\x01\x00", id="0x0100"),
+    pytest.param(b"\x80", id="negative zero"),
+]
+_MINIMAL = [
+    pytest.param("OP_0", id="the empty vector"),
+    pytest.param("OP_1", id="0x01"),
+]
+
+# btcd's BIP322 corpus: btcsuite/btcd#2521, as guggero/btcd's `bip-322`
+# branch holds it at 2a3191e9d5766b8430b877d574bcc3bece74c250, file
+# bip322/testdata/generated-negative-test-vectors.json, entries 11 and 12
+# of "error". Each is a BIP322 `ful` signature: the `to_sign` transaction,
+# base64, for a P2SH address whose redeem script is the IF (or NOTIF) of
+# `_IF_SCRIPT` (`_NOTIF_SCRIPT`), its argument 2. btcd expects both
+# invalid, with ErrMinimalIf.
+_BTCD_LEGACY_MINIMALIF = [
+    pytest.param(
+        "33cqhRZ7BcuusfSsMQEMKNLjkTfp9vbo1r",
+        "fulAAAAAAEJHFa1ED3rbaBjz7XxTW2szMdLirOXJHlYeJ7MHQt1WwAAAAAHUgVjUWdRaAAAAAABAAAAAAAAAAABagAAAAA=",
+        id="btcd error[11]: legacy P2SH OP_IF uses non-minimal true",
+    ),
+    pytest.param(
+        "3DYfPq8oyDMVw6qJmRsFXxHxEv7SiEki6A",
+        "fulAAAAAAHZcdUnlT+qg86YWl4QEDUeJe2d6WtADsQDAUj76DsCsAAAAAAHUgVkUWdRaAAAAAABAAAAAAAAAAABagAAAAA=",
+        id="btcd error[12]: legacy P2SH OP_NOTIF uses non-minimal true",
+    ),
+]
+
+
+def _legacy_spend(
+    script_sig: list[Any], script_pub_key: list[Any]
+) -> tuple[list[TxOut], Tx]:
+    """Build the spend of a bare or P2SH output by its script_sig, unsigned."""
+    prevout = TxOut(1000, ScriptPubKey(serialize(script_pub_key)))
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), serialize(script_sig), 1, Witness([]))
+    tx = Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
+    return [prevout], tx
+
+
+def _p2sh_spend(argument: Any, redeem_script: list[Any]) -> tuple[list[TxOut], Tx]:
+    """Build the spend of a P2SH output whose redeem script takes `argument`."""
+    redeem = serialize(redeem_script)
+    return _legacy_spend(
+        [argument, redeem], ["OP_HASH160", hash160(redeem), "OP_EQUAL"]
+    )
+
+
+def _refused_as_non_minimal(prevouts: list[TxOut], tx: Tx, flags: ScriptFlag) -> None:
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(prevouts, tx, 0, flags)
+    assert exc_info.value.code is ScriptErrorCode.MINIMALIF
+
+
+@pytest.mark.parametrize("address, signature", _BTCD_LEGACY_MINIMALIF)
+def test_minimalif_all_refuses_btcd_s_legacy_p2sh_vectors(
+    address: str, signature: str
+) -> None:
+    """Both of btcd's negative vectors for BIP322's MINIMALIF in legacy P2SH.
+
+    BIP322's *Verification Process* step 3 requires MINIMALIF with no
+    limit on the script version, and Core's flag applies it to segwit v0
+    alone: without MINIMALIF_ALL the spend is valid, as it is for a block.
+    """
+    encoded = signature.removeprefix("ful")
+    to_sign = Tx.parse(b64decode(encoded + "=" * (-len(encoded) % 4)))
+    prevouts = [TxOut(0, ScriptPubKey.from_address(address))]
+
+    verify_input(prevouts, to_sign, 0, ALL_FLAGS)
+    verify_input(prevouts, to_sign, 0, ALL_FLAGS | ScriptFlag.MINIMALIF)
+    _refused_as_non_minimal(prevouts, to_sign, ALL_FLAGS | ScriptFlag.MINIMALIF_ALL)
+
+
+@pytest.mark.parametrize("script", [_IF_SCRIPT, _NOTIF_SCRIPT], ids=["IF", "NOTIF"])
+@pytest.mark.parametrize("argument", _NON_MINIMAL)
+def test_minimalif_all_refuses_a_non_minimal_condition_in_a_bare_script(
+    script: list[Any], argument: Any
+) -> None:
+    """A bare script_pub_key is a legacy script, and so is its script_sig."""
+    prevouts, tx = _legacy_spend([argument], script)
+
+    verify_input(prevouts, tx, 0, ALL_FLAGS)
+    verify_input(prevouts, tx, 0, ALL_FLAGS | ScriptFlag.MINIMALIF)
+    _refused_as_non_minimal(prevouts, tx, ALL_FLAGS | ScriptFlag.MINIMALIF_ALL)
+    _refused_as_non_minimal(prevouts, tx, ScriptFlag.MINIMALIF_ALL)
+
+
+@pytest.mark.parametrize("script", [_IF_SCRIPT, _NOTIF_SCRIPT], ids=["IF", "NOTIF"])
+@pytest.mark.parametrize("argument", _NON_MINIMAL)
+def test_minimalif_all_refuses_a_non_minimal_condition_in_a_redeem_script(
+    script: list[Any], argument: Any
+) -> None:
+    """The redeem script of a P2SH output is a legacy script, as btcd says."""
+    prevouts, tx = _p2sh_spend(argument, script)
+
+    verify_input(prevouts, tx, 0, ALL_FLAGS)
+    verify_input(prevouts, tx, 0, ALL_FLAGS | ScriptFlag.MINIMALIF)
+    _refused_as_non_minimal(prevouts, tx, ALL_FLAGS | ScriptFlag.MINIMALIF_ALL)
+
+
+@pytest.mark.parametrize("script", [_IF_SCRIPT, _NOTIF_SCRIPT], ids=["IF", "NOTIF"])
+@pytest.mark.parametrize("argument", _MINIMAL)
+def test_minimalif_all_accepts_the_empty_vector_and_0x01(
+    script: list[Any], argument: Any
+) -> None:
+    """The two conditions MINIMALIF allows, bare and in a redeem script."""
+    flags = ALL_FLAGS | ScriptFlag.MINIMALIF_ALL
+    for prevouts, tx in (
+        _legacy_spend([argument], script),
+        _p2sh_spend(argument, script),
+    ):
+        verify_input(prevouts, tx, 0, flags)
+
+
+def test_minimalif_all_leaves_an_unexecuted_condition_alone() -> None:
+    """Core pops an IF argument only in a branch that runs, and so does this."""
+    prevouts, tx = _legacy_spend(
+        ["OP_0"], ["OP_IF", "OP_IF", "OP_ENDIF", "OP_ENDIF", "OP_1"]
+    )
+    verify_input(prevouts, tx, 0, ALL_FLAGS | ScriptFlag.MINIMALIF_ALL)
+
+
+def test_minimalif_all_names_core_s_code_for_a_witness_v0_script() -> None:
+    """In segwit v0 it is the rule Core's MINIMALIF applies, and stands alone.
+
+    The flag is not a request for MINIMALIF besides: btcd's
+    ScriptVerifyMinimalIfAll is the same, and a caller asking for the one
+    asks for every context.
+    """
+    witness_script = serialize(_IF_SCRIPT)
+    program = b"\x00\x20" + sha256(witness_script)
+    prevouts = [TxOut(1000, ScriptPubKey(program))]
+    tx_in = TxIn(
+        OutPoint(b"\x01" * 32, 0), b"", 1, Witness(["02", witness_script.hex()])
+    )
+    tx = Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
+
+    verify_input(prevouts, tx, 0, ALL_FLAGS)
+    _refused_as_non_minimal(prevouts, tx, ALL_FLAGS | ScriptFlag.MINIMALIF)
+    _refused_as_non_minimal(prevouts, tx, ALL_FLAGS | ScriptFlag.MINIMALIF_ALL)
+
+
+@pytest.mark.parametrize("opt_in", [False, True], ids=["without", "with"])
+def test_minimalif_all_changes_nothing_in_tapscript(opt_in: bool) -> None:
+    """Tapscript has MINIMALIF as consensus (BIP342), under its own code."""
+    flags = ALL_FLAGS | ScriptFlag.MINIMALIF_ALL if opt_in else ALL_FLAGS
+    prevouts, tx = taproot_script_spend(_IF_SCRIPT, 0, 1, ("02",))
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(prevouts, tx, 0, flags)
+    assert exc_info.value.code is ScriptErrorCode.TAPSCRIPT_MINIMALIF
+
+    prevouts, tx = taproot_script_spend(_IF_SCRIPT, 0, 1, ("01",))
+    verify_input(prevouts, tx, 0, flags)
+
+
+def test_minimalif_all_is_opt_in_and_named_like_any_flag() -> None:
+    """Off by default, and a name the entry points take like any other flag."""
+    assert ScriptFlag.MINIMALIF_ALL not in ALL_FLAGS
+    # above every bit interpreter.h assigns
+    assert ScriptFlag.MINIMALIF_ALL.value >= 1 << 21
+    assert to_script_flags("P2SH,MINIMALIF_ALL") == (
+        ScriptFlag.P2SH | ScriptFlag.MINIMALIF_ALL
+    )
 
 
 def test_a_truncated_script_sig_is_not_push_only() -> None:

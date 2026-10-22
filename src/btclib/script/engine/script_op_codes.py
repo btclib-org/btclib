@@ -272,7 +272,9 @@ def _assert_minimal_if(
 ) -> None:
     if segwit_version == 1:
         code = ScriptErrorCode.TAPSCRIPT_MINIMALIF
-    elif segwit_version == 0 and ScriptFlag.MINIMALIF in flags:
+    elif ScriptFlag.MINIMALIF_ALL in flags or (
+        segwit_version == 0 and ScriptFlag.MINIMALIF in flags
+    ):
         code = ScriptErrorCode.MINIMALIF
     else:
         return
@@ -351,9 +353,11 @@ def op_if(
     unexecuted branch is opened, so nesting is tracked without
     evaluating anything. The minimal-condition rule -- the empty
     element or 0x01, nothing else -- is consensus in tapscript per
-    BIP342 and opt-in through the MINIMALIF flag in segwit v0; a
-    legacy script takes any element as its condition. Core names the
-    two refusals apart, TAPSCRIPT_MINIMALIF and MINIMALIF.
+    BIP342 and opt-in through the MINIMALIF flag in segwit v0. A
+    legacy script takes any element as its condition unless the
+    MINIMALIF_ALL flag, which is not Core's, applies the rule to every
+    script. Core names the two refusals apart, TAPSCRIPT_MINIMALIF and
+    MINIMALIF.
     """
     if not condition_stack.is_executing:
         condition_stack.push(False)

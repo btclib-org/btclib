@@ -20,7 +20,8 @@ checked there may be missing here.
 Names and bit positions are Bitcoin Core's `SCRIPT_VERIFY_*` of
 src/script/interpreter.h, so a flag means here what it means there, and
 Core's vectors -- `script_tests.json` and `tx_valid.json` carry theirs as
-a comma-separated string -- can be passed as they are written.
+a comma-separated string -- can be passed as they are written. The one
+member that is not Core's is `MINIMALIF_ALL`, and no vector names it.
 """
 
 from __future__ import annotations
@@ -46,7 +47,18 @@ class ScriptFlag(Flag):
     does not: asking for a member is asking for a branch, never a request
     quietly ignored, which is the failure mode this enum exists to
     remove. So every `SCRIPT_VERIFY_*` Core spells is a member here, bit
-    for bit and with no holes in the positions below.
+    for bit and with no holes in the positions below, `MINIMALIF_ALL`
+    excepted.
+
+    `MINIMALIF_ALL` is not a Core flag. BIP322's verification process
+    (step 3) requires MINIMALIF for every script a message can be signed
+    for, legacy and P2SH ones included, while Core's `MINIMALIF` reaches
+    segwit v0 alone, and so a verifier of BIP322 signatures has no flag
+    to ask for it. Set, `MINIMALIF_ALL` refuses an OP_IF or OP_NOTIF
+    whose argument is not the empty vector or 0x01 in any script, with
+    the error Core's `MINIMALIF` raises in segwit v0. It does not need
+    `MINIMALIF` and is off in `ALL_FLAGS`. In tapscript the rule is
+    consensus (BIP342), so it changes nothing there.
     """
 
     # consensus: what a node must enforce to stay on the chain, and what
@@ -85,6 +97,11 @@ class ScriptFlag(Flag):
     DISCOURAGE_UPGRADABLE_PUBKEYTYPE = 1 << 18
     DISCOURAGE_OP_SUCCESS = 1 << 19
     DISCOURAGE_UPGRADABLE_TAPROOT_VERSION = 1 << 20
+
+    # not Core's, so not in its positions: this one sits well above them,
+    # where Core cannot add a flag over it. The class docstring says what
+    # it is for
+    MINIMALIF_ALL = 1 << 32
 
 
 # no rule at all, which is not the same as "the default rules": `None`
