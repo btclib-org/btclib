@@ -364,3 +364,9 @@ def test_no_character_outside_33_126_is_a_data_character(
     mutated = data_part[:i] + char + data_part[i + 1 :]
     with pytest.raises(BTClibValueError, match="data part character out of range"):
         decode(f"BC1{mutated}")
+
+
+def test_no_data_has_no_witness_version_to_choose_the_constant() -> None:
+    """With no `m` the first data value picks the constant, so one is needed."""
+    with pytest.raises(BTClibValueError, match="^empty data in bech32 address$"):
+        decode("bc1gmk9yu")
