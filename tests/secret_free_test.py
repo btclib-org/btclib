@@ -204,6 +204,59 @@ def test_each_planted_key_is_found(case: str) -> None:
         assert_secret_free(make(), secrets)
 
 
+@pytest.mark.parametrize("separator", [" ", "\t", "\n", "\N{EM SPACE}"])
+@pytest.mark.parametrize("secret", [KEY, KEY_BYTES, bytearray(KEY_BYTES)])
+def test_grouping_a_scalar_does_not_hide_its_hex(
+    separator: str, secret: str | bytes | bytearray
+) -> None:
+    """Four-byte groups still disclose the scalar fed as text or bytes.
+
+    :param separator: the whitespace between groups.
+    :param secret: the scalar as a caller feeds it.
+    """
+    grouped = separator.join(KEY[i : i + 8].upper() for i in range(0, len(KEY), 8))
+    with pytest.raises(AssertionError):
+        assert_secret_free(raised(ValueError, f"bad scalar {grouped}"), [secret])
+
+
+@pytest.mark.parametrize(
+    "secret", ["vel vet orbit", b"vel vet orbit", bytearray(b"vel vet orbit")]
+)
+def test_a_passphrase_with_spaces_is_still_found(
+    secret: str | bytes | bytearray,
+) -> None:
+    """A secret's own spaces do not weaken its raw spelling check.
+
+    :param secret: the passphrase as a caller feeds it.
+    """
+    with pytest.raises(AssertionError):
+        assert_secret_free(raised(ValueError, secret), [secret])
+
+
+@pytest.mark.parametrize("secret", ["\t\n", " \t\n", b"\t\n", bytearray(b"\t\n")])
+def test_a_whitespace_passphrase_is_compared_as_given(
+    secret: str | bytes | bytearray,
+) -> None:
+    """A whitespace-only secret is found only where a refusal quotes it.
+
+    :param secret: the whitespace-only passphrase.
+    """
+    assert_secret_free(raised(ValueError, "bad key"), [secret])
+    with pytest.raises(AssertionError):
+        assert_secret_free(raised(ValueError, secret), [secret])
+
+
+@pytest.mark.parametrize("secret", [" a", "ke y", b" a", b"ke y"])
+def test_a_secret_with_spaces_does_not_flag_a_clean_refusal(
+    secret: str | bytes,
+) -> None:
+    """A secret's own whitespace is kept, so it cannot match across words.
+
+    :param secret: a passphrase with whitespace of its own.
+    """
+    assert_secret_free(raised(ValueError, "bad key"), [secret])
+
+
 def test_the_input_of_a_unicode_error_is_found() -> None:
     """A `UnicodeError` hides its input from `str` and `vars`, not `args`."""
     with pytest.raises(UnicodeDecodeError) as caught:
