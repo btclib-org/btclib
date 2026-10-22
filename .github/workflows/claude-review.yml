@@ -48,8 +48,14 @@ on:
     types: [opened, reopened, synchronize, ready_for_review, closed]
   # the on-demand half: somebody writes @claude in a comment on a pull
   # request, or on a line of its diff, and asks for something the automatic
-  # pass did not answer
-  issue_comment:
+  # pass did not answer.
+  #
+  # zizmor's dangerous-triggers is declined on issue_comment, which
+  # anybody can fire with a comment. Only the review and the mention in
+  # btclib-org/.github's reusable-claude-review.yml can run on it: the
+  # review declines every comment, and the mention answers only the
+  # authors its `if:` names (btclib-org/.github#1813)
+  issue_comment: # zizmor: ignore[dangerous-triggers]
     types: [created]
   pull_request_review_comment:
     types: [created]
