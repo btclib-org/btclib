@@ -25,8 +25,9 @@ is the exception.
 
 rust-bitcoin fuzz builds replace hashes and secp256k1 with stubs. Its
 qa-assets may therefore contain fake hashes and signatures; see
-`tests/integration/qa_assets_test.py` and `fuzz/rustflags.sh` before
-treating a replay as a real hash or signature check.
+`tests/integration/qa_assets_test.py` and rust-bitcoin's
+`fuzz/rustflags.sh` before treating a replay as a real hash or signature
+check.
 
 `Block.parse`, `Block.serialize`, and `Block(...)` use mainnet's
 proof-of-work limit by default. See `Block.assert_valid` for checking
