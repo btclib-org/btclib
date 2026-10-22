@@ -113,12 +113,14 @@ _LONG_OCTETS = st.one_of(st.binary(max_size=40), st.binary(min_size=250, max_siz
 def _octets_between(low: int, high: int) -> st.SearchStrategy[bytes]:
     """Draw bytes of a limited length, both limits included.
 
-    Lengths past 253 are drawn where the limit allows.
+    Length 253, where a var_int takes three bytes, is drawn where the limits
+    allow, and so are lengths past it.
 
     `st.binary` keeps its draws short whatever its `max_size`, so the length
     is drawn first.
     """
-    lengths = st.sampled_from([low, high]) | st.integers(low, min(high, 40))
+    edges = [low, high] + ([253] if low <= 253 <= high else [])
+    lengths = st.sampled_from(edges) | st.integers(low, min(high, 40))
     if high >= 250:
         lengths |= st.integers(max(low, 250), high)
     return lengths.flatmap(lambda size: st.binary(min_size=size, max_size=size))
