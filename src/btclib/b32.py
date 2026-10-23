@@ -99,7 +99,7 @@ def power_of_2_base_conversion(
 ) -> list[int]:
     """Convert a power-of-two digit sequence to another power-of-two base.
 
-    Both widths are positive integers and every value is an integer of at
+    Both widths are integers from 1 to 64 and every value is an integer of at
     most `from_bits` bits, anything else being refused: a wider value
     would come out as the conversion of a different sequence, `[256]`
     from 8 to 5 bits as `[0]` does, and a zero `to_bits` would never
@@ -112,6 +112,8 @@ def power_of_2_base_conversion(
             raise BTClibTypeError(f"invalid {what} type: {type(width).__name__}")
         if width < 1:
             raise BTClibValueError(f"invalid {what}: {_message_text(width)} < 1")
+        if width > 64:
+            raise BTClibValueError(f"invalid {what}: {_message_text(width)} > 64")
     assert_type(data, Iterable, "data")
 
     values = list(data)
