@@ -47,7 +47,7 @@ name: pypi-install
 # installs and works; it has not asked the index for the bindings and
 # cannot ask whether they serve. install-published-secp256k1 names the
 # extra a user who wants the bindings actually types, and is the one this
-# workflow lacked until issue #1143: btclib_ecc answers a resolution
+# workflow lacked until issue #1143: ecc answers a resolution
 # of the bindings it cannot import with `INSTALLED = False`, no error and no
 # warning, so a pair broken on the index degrades silently to the Python
 # arithmetic -- tens of times slower, not constant-time -- rather than
@@ -272,7 +272,7 @@ jobs:
         shell: bash
         run: |
           uv run --no-project python -c "import btclib; \
-            from btclib_ecc.ecc import dsa; \
+            from ecc.ecc import dsa; \
             from btclib.key import PrvKeyData; \
             print(btclib.__version__); \
             assert btclib.__version__ != 'unknown'; \
@@ -371,8 +371,8 @@ jobs:
         shell: bash
         run: |
           uv run --no-project python -c "import btclib; \
-            from btclib_ecc.curves import is_libsecp256k1_serving; \
-            from btclib_ecc.ecc import dsa; \
+            from ecc.curves import is_libsecp256k1_serving; \
+            from ecc.ecc import dsa; \
             from btclib.key import PrvKeyData; \
             print(btclib.__version__); \
             assert btclib.__version__ != 'unknown'; \

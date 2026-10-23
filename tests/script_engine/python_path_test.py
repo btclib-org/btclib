@@ -4,9 +4,10 @@
 
 """The vendored consensus vectors, judged by the Python implementation.
 
-btclib keeps two implementations of a signature verification, and an
-installation that has the bindings runs one of them: the vectors below
-reach the Python one only where something asks for it, so a defect there
+The engine's signature verifications are ecc's, which has two
+implementations of each, and an installation that has the bindings runs
+one of them: the vectors below reach the Python one only where something
+asks for it, so a defect there
 is unreachable rather than absent. Issue #129 found two hiding exactly
 there, each accepting a transaction the data calls invalid.
 
@@ -29,7 +30,7 @@ disagreement rather than as two red suites nobody compares.
 from typing import Any
 
 import pytest
-from btclib_ecc.curves import is_libsecp256k1_serving, set_libsecp256k1_serving
+from ecc.curves import is_libsecp256k1_serving, set_libsecp256k1_serving
 
 from btclib.script.engine import script as engine_script
 from btclib.script.engine import tapscript as engine_tapscript
@@ -59,7 +60,7 @@ def python_verification() -> None:
 
     One call, and it has to be the process-wide switch rather than a
     predicate per module: `curves.set_libsecp256k1_serving` is what every
-    dispatch reads, btclib_ecc's and btclib's, so switching it off is
+    dispatch of ecc's reads, so switching it off is
     the dispatch switched off at once -- the engine's two verifications,
     `ecc.dsa` and `ecc.ssa` beneath them, and the field and group
     arithmetic beneath those; `conftest.py` switches it back after the
@@ -133,12 +134,11 @@ def test_nullfail_refuses_what_cannot_verify(signature: bytes, pub_key: bytes) -
 def test_verify_answers_false_for_what_cannot_be_parsed(*, delegated: bool) -> None:
     """A malformed signature is a failed CHECKSIG, not an exception.
 
-    The contract of both adapters, and it is one contract for two arms
-    that refuse in two different ways: the bindings raise a ValueError of
-    "invalid DER signature" or "invalid public key", `point_from_octets_var`
-    raises BTClibEccValueError, and `ecc.dsa.verify_` and `ecc.ssa.verify_`
-    answer False for what they decline. Whichever it is, the interpreter
-    loop must see False.
+    The contract of both adapters, and it is one contract for two arms.
+    The refusals are ecc's on either: `point_from_octets_var` raises
+    EccValueError for a public key that is no point, and
+    `ecc.dsa.verify_` and `ecc.ssa.verify_` answer False for what they
+    decline. Whichever it is, the interpreter loop must see False.
 
     DER strictness is enforced earlier, by `fix_signature` under any of
     DERSIG, LOW_S and STRICTENC, so by the time the engine verifies, the

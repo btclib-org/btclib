@@ -4,8 +4,8 @@
 
 """ElligatorSwift encoding of a public key, and BIP324's x-only ECDH on it.
 
-The encoding itself, `create_var`, `encode_var` and `decode_var`, is
-`btclib_ecc.ecc.ellswift`'s. What BIP324 builds on the map is a protocol's
+The encoding itself, `create`, `encode_var` and `decode_var`, is
+`ecc.ecc.ellswift`'s. What BIP324 builds on the map is a protocol's
 rather than a fact about a curve, and it is this module's: `xdh`, the
 x-only ECDH over two encodings, with `XDH_TAG` and `ELL_SIZE`.
 
@@ -14,9 +14,9 @@ https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki
 This module stops at the x-only ECDH. The cipher and the packet layer of
 BIP324's v2 transport are `btclib.p2p.bip324`, behind the `bip324`
 extra. The key schedule's HKDF-SHA256 is a construction over a hash,
-`hmac` and `hashlib` and nothing else, and it is `btclib_ecc.kdf.hkdf`.
+`hmac` and `hashlib` and nothing else, and it is `ecc.kdf.hkdf`.
 
-- **ChaCha20-Poly1305** is the cipher, and `btclib_ecc.ecc.ecies` is where
+- **ChaCha20-Poly1305** is the cipher, and `ecc.ecc.ecies` is where
   the rule about a cipher is stated: btclib writes none. A hand-rolled one
   would be the only implementation, on by default, for every installation,
   on a network path, so `btclib.p2p.bip324` uses `cryptography`'s, which
@@ -29,30 +29,13 @@ extra. The key schedule's HKDF-SHA256 is a construction over a hash,
 
 from __future__ import annotations
 
-from btclib_ecc.curves import (
-    Curve,
-    is_libsecp256k1_serving,
-    mult,
-    scalar_from_prv_key,
-    secp256k1,
-)
-from btclib_ecc.ecc import ellswift as _ecc_ellswift
-from btclib_ecc.hashes import tagged_hash
+from ecc.curves import Curve, mult, scalar_from_prv_key, secp256k1
+from ecc.ecc import ellswift as _ecc_ellswift
+from ecc.hashes import tagged_hash
 
 from btclib.alias import Integer, Octets
 from btclib.exceptions import BTClibValueError
 from btclib.utils import assert_type, bytes_from_octets
-
-# the bindings' module, imported from their own package; None where they
-# are not installed, which nothing calls: what calls it here is behind
-# `is_libsecp256k1_serving`, False in that configuration. Installed one
-# name short, the call finds no such attribute and raises AttributeError
-# while btclib_ecc keeps serving, so it fails rather than degrading: the
-# floor the `secp256k1` extra puts on the bindings is what rules that out
-try:
-    from btclib_secp256k1 import ellswift as libsecp256k1_ellswift
-except ImportError:  # pragma: no cover -- only an install without them
-    libsecp256k1_ellswift = None  # type: ignore[assignment]
 
 __all__ = [
     "ELL_SIZE",
@@ -94,6 +77,9 @@ def xdh(
     correspondence between the private key and the caller's encoding is
     not checked: the two parties reach the same 32 bytes when it holds,
     and nothing here can tell that it does.
+
+    `decode_var` and `mult` run on the bindings for secp256k1 where they
+    serve, and that `mult` is constant-time in the key.
     """
     ell_a = _ell_from_octets(ell_a, ec)
     ell_b = _ell_from_octets(ell_b, ec)
@@ -101,9 +87,6 @@ def xdh(
         # the value is not quoted: with the arguments swapped it is the key
         raise BTClibValueError("invalid party, not 0 (A) or 1 (B)")
     q = scalar_from_prv_key(prv_key, ec)
-
-    if is_libsecp256k1_serving() and ec == secp256k1:
-        return libsecp256k1_ellswift.xdh(ell_a, ell_b, q, party)
 
     # the shared x-coordinate is the same for either y of the decoded
     # point, q*P and q*(-P) differing by their own y alone, so which y

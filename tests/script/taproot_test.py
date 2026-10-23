@@ -15,17 +15,17 @@ tests/_data/README.md pins the revision of each.
 import re
 import string
 from collections.abc import Callable
+from contextlib import nullcontext
 from typing import Any
 
 import pytest
-from btclib_ecc.curves import (
+from ecc.curves import (
     Curve,
     bytes_from_point,
     mult,
     secp256k1,
-    set_libsecp256k1_serving,
 )
-from btclib_ecc.number_theory import mod_sqrt_var
+from ecc.number_theory import mod_sqrt_var
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -43,7 +43,7 @@ from btclib.script import (
     output_prvkey,
     output_prvkey_from_merkle_root,
     output_pubkey,
-    output_pubkey_from_merkle_root,
+    output_pubkey_from_merkle_root_var,
     taproot,
     type_and_payload,
 )
@@ -57,12 +57,18 @@ from btclib.script.taproot import (
     tree_helper,
 )
 from btclib.tx import TxOut
-from tests import load, needs_bindings, no_bindings_anywhere, vector_id
+from tests import (
+    load,
+    needs_bindings,
+    no_bindings_anywhere,
+    python_arithmetic,
+    vector_id,
+)
 from tests.script import serialize_non_canonical
 
-# the modular square root the lift of an x takes, where btclib_ecc's
+# the modular square root the lift of an x takes, where ecc's
 # group law calls it: what the tests counting roots patch
-_EC_CURVE_GROUP_ROOT = "btclib_ecc.curves.curve_group.mod_sqrt_var"
+_EC_CURVE_GROUP_ROOT = "ecc.curves.curve_group.mod_sqrt_var"
 
 
 def script_path_vectors() -> list[Any]:
@@ -127,9 +133,7 @@ def test_taproot_key_tweaking() -> None:
         assert tweaked_pubkey == mult(tweaked_prvkey)[0].to_bytes(32, "big")
 
 
-def test_one_internal_key_however_it_is_spelled(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_one_internal_key_however_it_is_spelled() -> None:
     """Every spelling of an internal key names the same output key (issue 896).
 
     Both SEC forms of one point, because `[1:33]` is the x of either: 65
@@ -140,8 +144,7 @@ def test_one_internal_key_however_it_is_spelled(
     internal key between them -- it reads the parity of the output key and
     carries the key itself in the control block -- and they answer for the
     same spellings by sharing one reader rather than by agreeing. Both
-    arithmetics, because the arms read the key differently: the bindings one
-    wants the octets alone and the Python one the point.
+    arithmetics, the bindings and ecc's Python.
 
     The buffers are here because the key reaches the tweak as octets to be
     concatenated, and a memoryview is not one: `PubKeyData` coerces its
@@ -163,8 +166,7 @@ def test_one_internal_key_however_it_is_spelled(
         expected = output_pubkey(PubKeyData(sec), script_tree)
         for key in spellings:
             assert output_pubkey(PubKeyData(key), script_tree) == expected
-            with monkeypatch.context() as no_bindings:
-                no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
+            with python_arithmetic():
                 assert output_pubkey(PubKeyData(key), script_tree) == expected
 
     # and the control block carries the same internal key from any of them,
@@ -176,9 +178,7 @@ def test_one_internal_key_however_it_is_spelled(
             assert input_script_sig(PubKeyData(key), script_tree, 0) == expected_sig
 
 
-def test_the_python_tweak_is_the_bindings_tweak(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_the_python_tweak_is_the_bindings_tweak() -> None:
     """Both output keys, computed twice, are the same keys on secp256k1.
 
     The bindings are the authority on the answer and the Python
@@ -199,54 +199,38 @@ def test_the_python_tweak_is_the_bindings_tweak(
     for script_tree in SCRIPT_TREES:
         delegated = output_pubkey(pub_key, script_tree)
         delegated_prvkey = output_prvkey(prv_key, script_tree)
-        with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
+        with python_arithmetic():
             assert output_pubkey(pub_key, script_tree) == delegated
             assert output_prvkey(prv_key, script_tree) == delegated_prvkey
 
 
 @pytest.mark.parametrize(
-    "compressed, roots",
-    [(True, 1), (False, 0)],
-    ids=["compressed", "uncompressed"],
+    "compressed", [True, False], ids=["compressed", "uncompressed"]
 )
 def test_the_python_output_key_lifts_the_internal_x_once(
-    compressed: bool, roots: int, monkeypatch: pytest.MonkeyPatch
+    compressed: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """One reading of the internal key is one square root, not two.
 
     Two things want the internal key's point: proving the octets are one,
     and adding tG to it. Taken separately those are two modular square
-    roots of the same x -- issue 896, which was roughly a quarter of what
-    an output key cost on this arm. `PubKeyData` is what makes them one:
-    `point_var` is a `cached_property`, so the lift is the proof and the
-    proof is the lift (issue #1188).
+    roots of the same x -- issue 896. `ssa.pub_key_tweak_add_var` makes
+    them one: its lift is the proof and the proof is the lift.
 
     Counting `mod_sqrt_var` rather than forbidding it, which is what
     `test_the_python_prvkey_tweak_lifts_nothing` does below: here the
     right answer is not zero, and a test that only refused a second root
     would pass on a function that took none and answered nothing.
 
-    Both SEC forms, because they are the two sides of what is being
-    asserted: 65 octets carry the y and must lift nothing at all, and 33
-    are exactly the x a second reader would have lifted again.
+    Both SEC forms: 65 octets carry a y, which is checked against the x
+    and not lifted, and the lift of the x is then the one root.
 
     `input_script_sig` beside `output_pubkey` because they are the two
     readers of `_output_pubkey_and_internal_key`, and reading it twice is
     the shape the count would otherwise hide.
 
-    The dispatch goes off at `curves.set_libsecp256k1_serving` and not at
-    this module's own guard, which is what the test below patches: the
-    lift is `point_from_octets_var`', and that call delegates on its own, so
-    silencing taproot alone leaves the square root being taken in C where
-    `mod_sqrt_var` never sees it. A count needs every arm Python; a test
-    asserting zero, as that one does, does not.
-
-    A key of its own per measured call, and that is the measurement
-    rather than bookkeeping: `PubKeyData.point_var` memoizes, so one key
-    handed to several calls is lifted by the first of them and by none
-    of the rest -- which would count zero here and say nothing about
-    what one call costs.
+    The dispatch goes off at `curves.set_libsecp256k1_serving`, so that
+    no root is taken in C where `mod_sqrt_var` never sees it.
     """
     sec = bytes_from_point(mult(0xC0FFEE), compressed=compressed)
     roots_taken = 0
@@ -255,7 +239,7 @@ def test_the_python_output_key_lifts_the_internal_x_once(
     # two are one function, and reading it off the module that exports it
     # is what strict mypy allows -- an attribute an `__all__` does not
     # name cannot be read, only set. The binding patched is
-    # btclib_ecc's own, where the lift takes its root: the arithmetic
+    # ecc's own, where the lift takes its root: the arithmetic
     # is that package's, and the count is of what btclib asks of it
     def counting(a: int, p_: int) -> int:
         nonlocal roots_taken
@@ -263,18 +247,17 @@ def test_the_python_output_key_lifts_the_internal_x_once(
         return mod_sqrt_var(a, p_)
 
     for tree in SCRIPT_TREES:
-        with monkeypatch.context() as no_bindings:
-            set_libsecp256k1_serving(serving=False)
+        with monkeypatch.context() as no_bindings, python_arithmetic():
             no_bindings.setattr(_EC_CURVE_GROUP_ROOT, counting)
 
             roots_taken = 0
             output_pubkey(PubKeyData(sec), tree)
-            assert roots_taken == roots
+            assert roots_taken == 1
 
             if tree is not None:
                 roots_taken = 0
                 input_script_sig(PubKeyData(sec), tree, 0)
-                assert roots_taken == roots
+                assert roots_taken == 1
 
 
 @pytest.mark.parametrize(
@@ -309,8 +292,7 @@ def test_the_python_prvkey_tweak_lifts_nothing(
             "the internal point's x was lifted to read a parity"
         )
 
-    with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
+    with monkeypatch.context() as no_bindings, python_arithmetic():
         no_bindings.setattr(_EC_CURVE_GROUP_ROOT, refuse)
         for tree, expected in zip(SCRIPT_TREES, delegated, strict=True):
             assert output_prvkey(prv_key, tree) == expected
@@ -318,23 +300,13 @@ def test_the_python_prvkey_tweak_lifts_nothing(
 
 @needs_bindings
 def test_the_py_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Both tweaks this module gates must be Python throughout.
+    """Both tweaks must be Python throughout with the dispatch off.
 
     A mixed arm is the one shape that is never right: with libsecp256k1 in
-    reach `libsecp256k1_xonly.tweak_add` and `.prvkey_tweak_add` are the
-    better calls, and out of reach there is nothing to mix.
-    `_tweaked_pubkey`'s tweak and `_tweaked_prvkey`'s are that shape,
-    gated on `secp256k1` and nothing else, and `output_pubkey` together
-    with `output_prvkey` reach both between them.
-
-    `check_output_pubkey`'s guard is not: it adds `len(q) == 32` to the
-    same predicate, so with the bindings in reach and a q of another
-    length its Python arm still runs, and that arm calls `mult`, which
-    delegates on its own -- the mixed arm SECURITY.md documents for dsa
-    and ssa, real there for the same reason it is real here. That guard
-    is left out of this test on purpose; the fallthrough it takes with
-    the bindings installed is what
-    `test_check_output_pubkey_of_a_key_that_is_not_32_bytes` exercises.
+    reach the bindings' `xonly.tweak_add` and `xonly.prvkey_tweak_add` are
+    the better calls, and out of reach there is nothing to mix.
+    `output_pubkey` and `output_prvkey` reach both between them, through
+    ecc's `ssa.pub_key_tweak_add_var` and `ssa.prv_key_tweak_add`.
 
     `no_bindings_anywhere` is the check `tests.bip32.bip32_test` uses for
     the same shape: it puts the whole of btclib_secp256k1 out of reach,
@@ -366,9 +338,7 @@ def test_the_py_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None
     ) == delegated
 
 
-def test_the_python_commitment_check_is_the_bindings_one(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_the_python_commitment_check_is_the_bindings_one() -> None:
     """The control block verdict, taken twice, is the same verdict.
 
     Both verdicts, because a check that only ever says True is a check
@@ -384,8 +354,7 @@ def test_the_python_commitment_check_is_the_bindings_one(
 
     assert check_output_pubkey(q, script_bytes, control)
     assert not check_output_pubkey(not_q, script_bytes, control)
-    with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
+    with python_arithmetic():
         assert check_output_pubkey(q, script_bytes, control)
         assert not check_output_pubkey(not_q, script_bytes, control)
 
@@ -393,12 +362,8 @@ def test_the_python_commitment_check_is_the_bindings_one(
 def test_check_output_pubkey_of_a_key_that_is_not_32_bytes() -> None:
     """A q of another length is answered, not refused.
 
-    `tweak_add_check` takes 32 bytes and raises for anything else, so
-    the dispatch asks for that size and leaves every other q to the
-    Python comparison. Which is not a length test but an integer one:
-    it says no to a truncated key and yes to a zero-padded one, and
-    that second answer is why the dispatch falls through here instead
-    of turning the size into a refusal.
+    The comparison is not a length test but an integer one: it says no
+    to a truncated key and yes to a zero-padded one.
     """
     script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
     pub_key = output_pubkey(None, script_tree)[0]
@@ -408,18 +373,13 @@ def test_check_output_pubkey_of_a_key_that_is_not_32_bytes() -> None:
     assert check_output_pubkey(b"\x00" + pub_key, serialize(script), control)
 
 
-def test_check_output_pubkey_of_an_internal_key_that_is_not_a_point(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_check_output_pubkey_of_an_internal_key_that_is_not_a_point() -> None:
     """Both paths refuse an internal key with no y, in the same words.
 
-    libsecp256k1 rejects it while parsing and `ec.y_even_var` while
-    lifting it, and the two have to agree on what they raise as well as
-    on what they answer, the script engine catching the library's own.
-    This call can make them agree on the sentence too, unlike
-    `_tweaked_pubkey` given a `sec`: `tweak_add_check` is handed the
-    internal key's x alone, so a refusal is about that x and nothing
-    else (issue 1218).
+    The two have to agree on what they raise as well as on what they
+    answer, the script engine catching the library's own. The tweak is
+    handed the internal key's x alone, so a refusal is about that x and
+    nothing else (issue 1218).
 
     Three shapes, as the tweak's own test has: 5 and p - 1 are no
     x-coordinate, and p is not a field element at all, which `y_even_var`
@@ -433,29 +393,18 @@ def test_check_output_pubkey_of_an_internal_key_that_is_not_a_point(
         control = b"\xc0" + x.to_bytes(32, "big")
         with pytest.raises(BTClibValueError, match=err_msg):
             check_output_pubkey(b"\x00" * 32, b"\x51", control)
-        with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
-            with pytest.raises(BTClibValueError, match=err_msg):
-                check_output_pubkey(b"\x00" * 32, b"\x51", control)
+        with python_arithmetic(), pytest.raises(BTClibValueError, match=err_msg):
+            check_output_pubkey(b"\x00" * 32, b"\x51", control)
 
 
-def test_the_tweak_refuses_an_internal_key_that_is_no_point_alike(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Both arms of the tweak refuse the same internal key the same way.
+def test_the_tweak_refuses_an_internal_key_that_is_no_point_alike() -> None:
+    """Both arithmetics of the tweak refuse the same internal key the same way.
 
-    The bindings arm hands `tweak_add` octets nothing has proved are a
-    point, deliberately (issue 887), so its refusal arrives from C as a
-    bare `ValueError` where the arm below raises btclib's own. Which of
-    the two answered is a `pip install`, and a caller catching
-    `BTClibValueError` is not meant to have to know (issue 1214).
-
-    On the x-only path the sentence agrees too: the lift is
-    `point_from_octets_var`, which gives `curve_group.y_var`'s two complaints,
-    an x that is no coordinate and an x that is no field element, in their
-    own words, and this arm repeats them rather than what the lift's own
-    caller would have said. The sentence quotes no x, which may
-    be a private key passed as a public one.
+    Which of the two answered is a `pip install`, and a caller catching
+    `BTClibValueError` is not meant to have to know (issue 1214). The
+    sentence is the lift's: an x that is no coordinate and an x that is
+    no field element. It quotes no x, which may be a private key passed
+    as a public one.
     """
     for x, err_msg in (
         (5, "^invalid x-coordinate$"),
@@ -464,43 +413,56 @@ def test_the_tweak_refuses_an_internal_key_that_is_no_point_alike(
     ):
         x_only = x.to_bytes(32, "big")
         with pytest.raises(BTClibValueError, match=err_msg):
-            output_pubkey_from_merkle_root(x_only, b"")
-        with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
-            with pytest.raises(BTClibValueError, match=err_msg):
-                output_pubkey_from_merkle_root(x_only, b"")
+            output_pubkey_from_merkle_root_var(x_only, b"")
+        with python_arithmetic(), pytest.raises(BTClibValueError, match=err_msg):
+            output_pubkey_from_merkle_root_var(x_only, b"")
 
 
-@needs_bindings
-def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame() -> None:
     """A sec whose fault is not its x is refused without naming one.
 
-    Marked: the first assertion is the delegated arm's own message, so
-    with no bindings installed there is no such arm to reach and nothing
-    to compare the second against.
-
     `04 || x || y`, a good x and a y that is not its own, passes
-    `assert_valid`, which reads a length and a prefix and lifts no point,
-    and so reaches `tweak_add` unproven. The x is the half that is right,
-    and naming it would be false.
-
-    The two arms agree on the class here rather than on the sentence.
-    With no bindings the refusal is the lift `PubKeyData.point_var` performs,
-    in the curve's own words: the tweak is computed either way, and what
-    never happens is the addition it was computed for.
+    `assert_valid`, which reads a length and a prefix and lifts no point.
+    The x is the half that is right, and naming it would be false: the
+    refusal is the parse of the whole sec, in the curve's own words, on
+    both arithmetics.
     """
     Q = mult(7)
     x = Q[0].to_bytes(32, "big")
     y_not_x_s = ((Q[1] + 1) % secp256k1.p).to_bytes(32, "big")
     key = PubKeyData(b"\x04" + x + y_not_x_s, check_validity=False)
-    with pytest.raises(BTClibValueError, match="invalid internal public key"):
+    with pytest.raises(BTClibValueError, match="point not on curve"):
         output_pubkey(key)
-    with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
-        with pytest.raises(BTClibValueError, match="point not on curve"):
+    with (
+        python_arithmetic(),
+        pytest.raises(BTClibValueError, match="point not on curve"),
+    ):
+        output_pubkey(key)
+
+
+@pytest.mark.parametrize("python", [False, True], ids=["bindings", "python"])
+def test_a_tweak_that_cancels_the_key_is_refused_as_btclibs(
+    *, python: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A tweak summing the key to infinity or zero raises BTClibValueError.
+
+    No hash is known to give such a tweak: it is the negation of the
+    key BIP341 tweaks, with its y made even. The tweak is patched in, as
+    that is the only way to reach the refusal, and both halves of the
+    output key raise ecc's refusal read into btclib's class, on either
+    arithmetic.
+    """
+    prv_key = 7
+    P = mult(prv_key)
+    even_prv_key = prv_key if P[1] % 2 == 0 else secp256k1.n - prv_key
+    cancelling = (secp256k1.n - even_prv_key).to_bytes(32, "big")
+    monkeypatch.setattr(taproot, "_tap_tweak", lambda *_: cancelling)
+    key = PubKeyData(b"\x02" + P[0].to_bytes(32, "big"))
+    with python_arithmetic() if python else nullcontext():
+        with pytest.raises(BTClibValueError, match="infinity"):
             output_pubkey(key)
+        with pytest.raises(BTClibValueError, match="zero"):
+            output_prvkey(prv_key)
 
 
 @pytest.mark.parametrize(
@@ -529,15 +491,13 @@ def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
     ],
 )
 def test_an_unchecked_internal_key_is_asked_above_the_arm_split(
-    key: PubKeyData, err_msg: str, monkeypatch: pytest.MonkeyPatch
+    key: PubKeyData, err_msg: str
 ) -> None:
-    """`assert_valid` runs before either arm, so both refuse in its words.
+    """`assert_valid` runs before the tweak, so both arithmetics agree.
 
-    The network is the case that decided it (issue #2342): the bindings
-    arm reads `sec` alone and took a key on a network no name has, which
-    the Python arm refused from `PubKeyData.point_var` through `curve`. The
-    prefix and the length were refused on both arms already, each in
-    its own parse's words.
+    The network is the case that decided it (issue #2342): the tweak
+    reads the octets alone, and would take a key on a network no name
+    has.
     """
     for call in (
         lambda: output_pubkey(key),
@@ -546,31 +506,19 @@ def test_an_unchecked_internal_key_is_asked_above_the_arm_split(
     ):
         with pytest.raises(BTClibValueError, match=err_msg):
             call()
-        with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
-            with pytest.raises(BTClibValueError, match=err_msg):
-                call()
+        with python_arithmetic(), pytest.raises(BTClibValueError, match=err_msg):
+            call()
 
 
-@needs_bindings
 @pytest.mark.parametrize("prefix", [0x06, 0x07], ids=["0x06", "0x07"])
-def test_a_hybrid_internal_key_is_refused_on_both_arms(
-    prefix: int, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A hybrid internal key is refused, not a spelling one arm alone parses.
-
-    Marked, as the test above is, for the same reason: with no bindings
-    installed there is no delegated arm to compare the second assertion
-    of each pair against.
+def test_a_hybrid_internal_key_is_refused_on_both_arms(prefix: int) -> None:
+    """A hybrid internal key is refused, naming the prefix as hybrid.
 
     libsecp256k1's `ec_pubkey_parse` takes 0x06 and 0x07 as it takes
     0x04, and `sec_point.point_from_octets_var`'s own lift defaults
-    `hybrid=False` -- unrefused, that asymmetry is issue #1227: which
-    internal keys `output_pubkey` and `input_script_sig` take would be
-    `pip install`'s decision rather than btclib's. The refusal in
-    `_output_pubkey_and_internal_key` runs above the arm split, so this
-    is one message on both arms rather than a silent accept on one and
-    `point_from_octets_var`'s own "not a point: prefix 0x0…" on the other.
+    `hybrid=False` (issue #1227). The refusal in
+    `_output_pubkey_and_internal_key` runs ahead of the tweak, so this
+    is one message on both arithmetics.
 
     Both prefixes, because `hybrid=True` reads them asymmetrically once
     a caller does ask for them -- 0x06 names an even y and 0x07 an odd
@@ -580,20 +528,21 @@ def test_a_hybrid_internal_key_is_refused_on_both_arms(
     Q = mult(7)
     sec = bytes([prefix]) + Q[0].to_bytes(32, "big") + Q[1].to_bytes(32, "big")
     # check_validity=False: a hybrid prefix is what `assert_valid` would
-    # refuse, and the refusal under test is the one taproot makes above
-    # its own arm split
+    # refuse, and the refusal under test is the one taproot makes ahead
+    # of it
     key = PubKeyData(sec, check_validity=False)
     with pytest.raises(BTClibValueError, match="hybrid SEC prefix"):
         output_pubkey(key)
-    with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
-        with pytest.raises(BTClibValueError, match="hybrid SEC prefix"):
-            output_pubkey(key)
+    with (
+        python_arithmetic(),
+        pytest.raises(BTClibValueError, match="hybrid SEC prefix"),
+    ):
+        output_pubkey(key)
 
 
 @pytest.mark.parametrize("spelling", [bytes, bytearray, memoryview])
 def test_check_output_pubkey_takes_every_buffer_the_door_accepts(
-    spelling: Callable[[bytes], Octets], monkeypatch: pytest.MonkeyPatch
+    spelling: Callable[[bytes], Octets],
 ) -> None:
     """Every spelling `bytes_from_octets` takes reaches the same answer.
 
@@ -613,8 +562,7 @@ def test_check_output_pubkey_takes_every_buffer_the_door_accepts(
     script, control = serialize(witness[0]), witness[1]
 
     assert check_output_pubkey(spelling(q), spelling(script), spelling(control))
-    with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
+    with python_arithmetic():
         assert check_output_pubkey(spelling(q), spelling(script), spelling(control))
 
 
@@ -833,7 +781,7 @@ def test_control_block() -> None:
 def test_the_two_output_keys_are_one_tweak() -> None:
     """A tree and its own merkle root reach the same output key.
 
-    Which is the whole claim of `output_pubkey_from_merkle_root`: it is
+    Which is the whole claim of `output_pubkey_from_merkle_root_var`: it is
     `output_pubkey` with the root already computed, the form a psbt
     carries it in. Both halves of BIP341's tweak are checked -- the key
     path, where the root is empty, and a tree, whose root comes from
@@ -845,11 +793,11 @@ def test_the_two_output_keys_are_one_tweak() -> None:
     """
     internal_pubkey = PrvKeyData(123456).pub
     x_only = internal_pubkey.sec[1:]
-    assert output_pubkey_from_merkle_root(x_only) == output_pubkey(internal_pubkey)
+    assert output_pubkey_from_merkle_root_var(x_only) == output_pubkey(internal_pubkey)
 
     script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
     merkle_root = tree_helper(script_tree)[1]
-    assert output_pubkey_from_merkle_root(x_only, merkle_root) == (
+    assert output_pubkey_from_merkle_root_var(x_only, merkle_root) == (
         output_pubkey(internal_pubkey, script_tree)
     )
 
@@ -857,7 +805,7 @@ def test_the_two_output_keys_are_one_tweak() -> None:
     # before the `02` it prefixes: the internal key of `output_pubkey`
     # becomes bytes one layer lower, in `PubKeyData`, so this entry point
     # needs its own assertion rather than that one's
-    assert output_pubkey_from_merkle_root(memoryview(x_only), merkle_root) == (
+    assert output_pubkey_from_merkle_root_var(memoryview(x_only), merkle_root) == (
         output_pubkey(internal_pubkey, script_tree)
     )
 
@@ -1172,18 +1120,14 @@ def test_the_element_size_limit_is_reachable_not_only_crossable() -> None:
 
 
 @pytest.mark.parametrize("internal_key", [0xC0FFEE, 0xBADC0DE])
-def test_the_control_block_commits_to_the_output_key_parity(
-    internal_key: int, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_the_control_block_commits_to_the_output_key_parity(internal_key: int) -> None:
     """The lowest bit of the first control byte is the output key's parity.
 
     The rest of that byte is the leaf version, which the leaf hash reads
     with the parity bit masked off, so flipping it leaves every hash in
     the proof alone and changes only the claim about which of the two y
-    coordinates the output key has. Both paths compare it --
-    libsecp256k1's `tweak_add_check` takes it as an argument and the
-    Python one against Q's own y -- and a wrong claim has to be a no on
-    each.
+    coordinates the output key has, and a wrong claim has to be a no on
+    both arithmetics.
 
     Two internal keys because the output key's parity is what it is:
     0xC0FFEE tweaks to an even y and 0xBADC0DE to an odd one, so between
@@ -1200,7 +1144,6 @@ def test_the_control_block_commits_to_the_output_key_parity(
 
     assert check_output_pubkey(q, script_bytes, control)
     assert not check_output_pubkey(q, script_bytes, flipped)
-    with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "is_libsecp256k1_serving", lambda: False)
+    with python_arithmetic():
         assert check_output_pubkey(q, script_bytes, control)
         assert not check_output_pubkey(q, script_bytes, flipped)

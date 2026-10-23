@@ -31,7 +31,7 @@ builds on these.
 
 from datetime import UTC, datetime, timedelta, timezone
 
-from btclib_ecc.curves import bytes_from_point, mult
+from ecc.curves import bytes_from_point, mult
 from hypothesis import strategies as st
 
 from btclib.amount import _MAX_SATOSHI

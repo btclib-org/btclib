@@ -25,9 +25,9 @@ Both are `BTClibException`, which is what makes the second rule one
 predicate instead of a tuple that has to be kept in step with the
 hierarchy -- the reason issue #743 landed that base class before this
 test rather than after it. A function of btclib's own that hands its
-argument on to btclib_ecc, a private key to `scalar_from_prv_key`
+argument on to ecc, a private key to `scalar_from_prv_key`
 most often, lets that package's refusal through, and its classes are
-`BTClibEccTypeError` and `BTClibEccException` (issue #2282):
+`EccTypeError` and `EccException` (issue #2282):
 each rule accepts the class of either package, and nothing else.
 
 ## How it calls what it calls
@@ -100,7 +100,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from btclib_ecc.exceptions import BTClibEccException, BTClibEccTypeError
+from ecc.exceptions import EccException, EccTypeError
 
 from btclib.exceptions import BTClibException, BTClibTypeError
 
@@ -266,7 +266,7 @@ def test_a_wrong_type_leaves_as_a_btclib_type_error(dotted: str) -> None:
     is the library calling a caller's mistake a fact about the input.
     """
     for call in _calls(dotted, _WRONG_TYPE):
-        with pytest.raises((BTClibTypeError, BTClibEccTypeError)):
+        with pytest.raises((BTClibTypeError, EccTypeError)):
             call()
 
 
@@ -280,7 +280,7 @@ def test_a_wrong_value_leaves_as_a_btclib_exception(dotted: str) -> None:
     `BTClibTypeError` -- and the contract a caller is given is the base.
     """
     for call in _calls(dotted, _WRONG_VALUE):
-        with pytest.raises((BTClibException, BTClibEccException)):
+        with pytest.raises((BTClibException, EccException)):
             call()
 
 
@@ -352,7 +352,7 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
         # the two hash-function types are always behind a default -- `hf`
         # is the last parameter of everything that takes one -- so the
         # walk cannot reach them for the reason the module docstring
-        # gives. btclib_ecc's `hashes` holds the check, and that
+        # gives. ecc's `hashes` holds the check, and that
         # package's suite is where it is held to it
         "HashDigestF",
         "HashF",

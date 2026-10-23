@@ -24,7 +24,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
-from btclib_ecc.ecc import dsa
+from ecc.ecc import dsa
 
 from btclib import base58, electrum, var_int
 from btclib.alias import TaprootScriptTree

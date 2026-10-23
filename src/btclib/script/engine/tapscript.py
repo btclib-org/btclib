@@ -8,9 +8,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from btclib_ecc.curves import is_libsecp256k1_serving
-from btclib_ecc.ecc import ssa
-from btclib_ecc.exceptions import BTClibEccValueError
+from ecc.ecc import ssa
+from ecc.exceptions import EccValueError
 
 from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
 from btclib.script.engine import script_op_codes
@@ -32,17 +31,6 @@ from btclib.script.op_codes_tapscript import OP_CODE_NAMES, OP_SUCCESS
 from btclib.script.script import op_code_spans
 from btclib.script.script_pub_key import type_and_payload
 from btclib.script.sig_hash import PrecomputedTxData, _taproot, _TaprootInputHashes
-
-# the bindings, imported from their own package; None where they are not
-# installed, which nothing calls: what calls them here is behind
-# `is_libsecp256k1_serving`, False in that configuration. Installed one
-# name short, this import alone falls back to None while btclib_ecc
-# keeps serving, so the call fails rather than degrading: the floor the
-# `secp256k1` extra puts on the bindings is what rules that out
-try:
-    from btclib_secp256k1.ssa import verify as _libsecp256k1_ssa_verify
-except ImportError:  # pragma: no cover -- only an install without them
-    _libsecp256k1_ssa_verify = None  # type: ignore[assignment]
 from btclib.script.taproot import leaf_hash
 from btclib.script.taproot import serialize as serialize_script
 from btclib.tx.tx import Tx
@@ -63,16 +51,15 @@ __all__ = [
 def ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     """Verify a BIP340 signature, returning False if it is malformed.
 
-    The dispatch `engine.script.dsa_verify` makes and for its reason:
-    `btclib_ecc.ecc.ssa` answers the same question in Python, and the arm is
-    what there is to reach with libsecp256k1 out of reach. No hybrid prefix to
-    ask for here -- an x-only key is 32 bytes and BIP340 says which of
-    the two points it is -- so the arm is the prepared spelling alone.
+    `ecc.ecc.ssa.verify_` answers it, on the bindings for secp256k1 and
+    sha256 where they serve and in Python where they do not. No hybrid
+    prefix to ask for here: an x-only key is 32 bytes and BIP340 says
+    which of the two points it is.
 
-    The bindings raise a ValueError on a signature or x-only public key
-    that libsecp256k1 refuses to parse, and `ssa.verify_` answers False
-    for the same; the caller treats either as a failed verification and
-    raises Core's SCHNORR_SIG itself.
+    `ssa.verify_` raises a ValueError for a signature or a key of the
+    wrong size and answers False for one that does not verify; the
+    caller treats either as a failed verification and raises Core's
+    SCHNORR_SIG itself.
 
     `bytes` and nothing wider, as in `engine.script.dsa_verify` and for
     its reason.
@@ -80,8 +67,6 @@ def ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     _assert_bytes_arguments(msg_hash=msg_hash, pub_key=pub_key, sig=sig)
 
     try:
-        if is_libsecp256k1_serving():
-            return bool(_libsecp256k1_ssa_verify(msg_hash, pub_key, sig))
         return ssa.verify_(msg_hash, pub_key, sig)
     except ValueError:
         return False
@@ -569,7 +554,7 @@ def verify_script_path_vc0(
     # the three arms are script.py's verify_script's, and so is the reason
     except ScriptError as e:
         raise ScriptError(e.args[0], e.code, script_index_ref[0], len(stack)) from e
-    except (BTClibValueError, BTClibEccValueError) as e:
+    except (BTClibValueError, EccValueError) as e:
         code = ScriptErrorCode.UNKNOWN_ERROR
         raise ScriptError(str(e), code, script_index_ref[0], len(stack)) from e
     except IndexError as e:

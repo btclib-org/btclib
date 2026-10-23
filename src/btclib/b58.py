@@ -24,7 +24,7 @@ from __future__ import annotations
 import string
 from typing import Literal
 
-from btclib_ecc.curves import scalar_from_prv_key
+from ecc.curves import scalar_from_prv_key
 
 from btclib import b32
 from btclib.alias import Integer, Octets, ScriptType, String

@@ -202,7 +202,7 @@ and their five p2sh addresses — appear verbatim in the pinned text, and
 re-checking against the tip on 2026-07-30 and again on 2026-08-06 found no
 sixth group. Nothing to refresh.
 
-### `tests/ecc/_data/packet_encoding_test_vectors.csv`
+### `tests/schemes/_data/packet_encoding_test_vectors.csv`
 
 ```text
 repo    bitcoin/bips
@@ -218,12 +218,12 @@ Verdict: **identical but for line endings** — upstream is CRLF and this
 repository is LF throughout, which `mixed-line-ending` enforces with
 `--fix=lf`, so our blob is `c556c47c` rather than the one above.
 
-`tests/ecc/ellswift_test.py` reads the columns of the x-only ECDH --
+`tests/schemes/ellswift_test.py` reads the columns of the x-only ECDH --
 `in_priv_ours`, `in_ellswift_ours`, `in_ellswift_theirs`,
 `in_initiating`, `mid_x_shared` and `mid_shared_secret` -- and holds
-`ecc.ellswift.xdh` to every row on the bindings and on the Python
+`btclib.ecc.ellswift.xdh` to every row on the bindings and on the Python
 arithmetic. `mid_x_ours` and `mid_x_theirs` are the x-coordinates the
-encodings decode to, a question for btclib_ecc's map, and are not
+encodings decode to, a question for ecc's map, and are not
 asserted. `tests/p2p/bip324_test.py` reads the session id, the garbage
 terminators and the packet columns, and holds `p2p.bip324.Cipher` to
 them; the `mid_*_l` and `mid_*_p` keys are not read, and the ciphertext
@@ -601,7 +601,7 @@ of the headers would answer that for the published part of the family and
 leave C prototypes to be re-pinned for the rest of it.
 
 `src` and not `include` for the same reason. `include` is what the
-library publishes, where a credit names what is read: btclib_ecc's
+library publishes, where a credit names what is read: ecc's
 `curves.curve` names `secp256k1_ge_x_on_curve_var` and its
 `number_theory` names `secp256k1_ctz64_var`, which are that library's
 own and are declared in no header of `include`, only in one under `src`.
@@ -656,7 +656,7 @@ bindings expose a name, that being a fact about their own surface.
 
 ## Other projects
 
-### `tests/ecc/_data/signmessage.json`
+### `tests/schemes/_data/signmessage.json`
 
 ```text
 repo    petertodd/python-bitcoinlib
@@ -669,7 +669,7 @@ behind  0 revisions; still the blob on master
 ```
 
 Verdict: **reformatted**. 200 vectors, JSON-equal, and all 200 are
-exercised by `tests/ecc/bms_test.py`.
+exercised by `tests/schemes/bms_test.py`.
 
 ### `tests/block/_data/checkblock_valid.json`
 

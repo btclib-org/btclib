@@ -71,7 +71,7 @@ MuSig2 and FROST have no ceiling the chain imposes, the chain seeing one
 key. What bounds them is the specification, and the two bounds are not
 the same kind of thing. BIP327's is serialization: the number of
 individual public keys is an unsigned 32-bit count. BIP445's is
-security: it refuses an *n* past 128, `btclib_ecc.ecc.frost` refuses
+security: it refuses an *n* past 128, `ecc.ecc.frost` refuses
 it too, and the module's own docstring carries the reason — the
 unforgeability proof assumes the compromised set is fixed before key
 generation, and an adaptive adversary's advantage rests on a search
@@ -110,7 +110,7 @@ here as it is in BIP445.
 Script multisig has no phase in which anybody holds everything. FROST
 has one wherever a trusted dealer distributes the shares: that dealer
 transiently knows the whole key. Avoiding it takes a distributed key
-generation, and `btclib_ecc.ecc.frost` takes key material already split
+generation, and `ecc.ecc.frost` takes key material already split
 rather than splitting any.
 [ISS 2200](https://github.com/btclib-org/btclib/issues/2200) tracks
 key generation: a dealer split first, then ChillDKG.
@@ -174,8 +174,8 @@ that writes one in `btclib_wallet.descriptors.descriptors` — `multi()`
 and `sortedmulti()` (BIP383), `multi_a()` and `sortedmulti_a()` (BIP386,
 BIP387).
 
-The cryptographic threshold is `btclib_ecc.ecc.musig2` (BIP327) and
-`btclib_ecc.ecc.frost` (BIP445), in the `btclib-ecc` distribution that
+The cryptographic threshold is `ecc.ecc.musig2` (BIP327) and
+`ecc.ecc.frost` (BIP445), in the `ecc` distribution that
 btclib depends on, with `btclib_wallet.psbt.musig2`
 (BIP373) and `btclib_wallet.psbt.frost` carrying a session of each
 through a psbt -- the first in the fields BIP373 assigns, the second in
@@ -185,9 +185,9 @@ or a `rawtr()`; FROST has none.
 
 What they produce is not one object for all three.
 `musig2.partial_sig_agg` and `frost.partial_sig_agg` each answer an
-`btclib_ecc.ecc.ssa.Sig`, the BIP340 signature `btclib_ecc.ecc.ssa`
+`ecc.ecc.ssa.Sig`, the BIP340 signature `ecc.ecc.ssa`
 verifies and so does every other BIP340 verifier; a `multi_a()` leaf is
 checked against BIP340 signatures too, the tapscript engine calling
-`btclib_ecc.ecc.ssa` for them.
+`ecc.ecc.ssa` for them.
 `OP_CHECKMULTISIG` is the one that differs: it verifies ECDSA, through
-`btclib_ecc.ecc.dsa`.
+`ecc.ecc.dsa`.

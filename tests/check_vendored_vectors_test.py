@@ -322,12 +322,12 @@ _PIN_README = Path(__file__).parent / "_data" / "README.md"
 _UNPINNED = """\
 ## bitcoin/bips
 
-### BIP327 (MuSig2): one file under `tests/ecc/_data/`
+### BIP327 (MuSig2): one file under `tests/schemes/_data/`
 
 Eight files, pinned one by one below: the group heading is where the
 prose common to them goes.
 
-### `tests/ecc/_data/key_agg_vectors.json`
+### `tests/schemes/_data/key_agg_vectors.json`
 
 ```text
 repo    bitcoin/bips
@@ -362,9 +362,11 @@ def test_a_heading_with_no_fenced_block_of_its_own_is_named_as_skipped(
     """
     entries, skipped = checker._entries_at_tip(_UNPINNED)
 
-    assert [e.heading for e in entries] == ["`tests/ecc/_data/key_agg_vectors.json`"]
+    assert [e.heading for e in entries] == [
+        "`tests/schemes/_data/key_agg_vectors.json`"
+    ]
     assert skipped == [
-        "BIP327 (MuSig2): one file under `tests/ecc/_data/` (no fenced block)",
+        "BIP327 (MuSig2): one file under `tests/schemes/_data/` (no fenced block)",
         "`tests/_data/ours.json` (no fenced block)",
     ]
 

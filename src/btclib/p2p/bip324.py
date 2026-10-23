@@ -36,12 +36,12 @@ immutable `bytes`.
 from hashlib import sha256
 from typing import Any
 
-from btclib_ecc.kdf import hkdf_expand, hkdf_extract
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers import Cipher as _StreamCipher
 from cryptography.hazmat.primitives.ciphers import CipherContext
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives.ciphers.algorithms import ChaCha20
+from ecc.kdf import hkdf_expand, hkdf_extract
 
 from btclib.alias import Integer, Octets
 from btclib.ecc.ellswift import xdh

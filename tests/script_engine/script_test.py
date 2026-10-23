@@ -12,10 +12,10 @@ from io import BytesIO
 from typing import Any, NamedTuple
 
 import pytest
-from btclib_ecc.curves import secp256k1
-from btclib_ecc.ecc import ssa
-from btclib_ecc.ecc.dsa import Sig, sign_
-from btclib_ecc.exceptions import BTClibEccValueError
+from ecc.curves import secp256k1
+from ecc.ecc import ssa
+from ecc.ecc.dsa import Sig, sign_
+from ecc.exceptions import EccValueError
 
 from btclib.alias import TaprootScriptTree
 from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
@@ -47,7 +47,7 @@ from btclib.script.taproot import (
     leaf_hash,
     output_prvkey,
     output_pubkey,
-    output_pubkey_from_merkle_root,
+    output_pubkey_from_merkle_root_var,
 )
 from btclib.script.taproot import parse as parse_tapscript
 from btclib.script.taproot import serialize as serialize_tapscript
@@ -584,7 +584,7 @@ def test_fix_signature_refuses_what_core_lax_der_refuses() -> None:
         b"\x30\x00\x02\x00" + s_part,
         b"\x30\x00\x02\x21\x01" + b"\x00" * 32 + s_part,
     ):
-        with pytest.raises(BTClibEccValueError, match="scalar r not in 1..n-1"):
+        with pytest.raises(EccValueError, match="scalar r not in 1..n-1"):
             fix_signature(encoding + b"\x01", NO_FLAGS)
 
 
@@ -1966,7 +1966,7 @@ def _raw_tapscript_spend(leaf: bytes, witness: list[bytes]) -> tuple[list[TxOut]
     nums = bytes.fromhex(
         "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
     )
-    q, parity = output_pubkey_from_merkle_root(nums, leaf_hash(0xC0, leaf))
+    q, parity = output_pubkey_from_merkle_root_var(nums, leaf_hash(0xC0, leaf))
     control = bytes([0xC0 | parity]) + nums
     prevout = TxOut(1000, ScriptPubKey(serialize(["OP_1", q])))
     tx_in = TxIn(OutPoint(b"\x01" * 32, 0), b"", 1, Witness([*witness, leaf, control]))

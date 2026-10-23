@@ -2,21 +2,21 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""btclib's input coercions and btclib_ecc's copies of them agree.
+"""btclib's input coercions and ecc's copies of them agree.
 
 A value a caller hands to btclib may be read by either package: by
-`btclib.utils` where btclib reads it, by `btclib_ecc._utils` where a
-function of btclib_ecc does (issue #2282). Two copies of one
+`btclib.utils` where btclib reads it, by `ecc._utils` where a
+function of ecc does (issue #2282). Two copies of one
 coercion that answer one input differently would make the same argument
 valid through one import path and refused through the other. So each
 vector below goes through both, and each must come back with the same value,
 or be refused by both with the same message and a class of the same
-built-in family: `BTClibValueError` against `BTClibEccValueError`, and
+built-in family: `BTClibValueError` against `EccValueError`, and
 so on, the two packages' bases being different by design.
 
-`btclib_ecc._utils` is private, and this test reaches it anyway: its
+`ecc._utils` is private, and this test reaches it anyway: its
 subject is the agreement of the two copies, and publishing the coercions
-would make them btclib_ecc API for a test's sake.
+would make them ecc API for a test's sake.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from typing import Any
 import pytest
 
 # private on purpose: two copies' agreement is the subject (issue #2282, Rule 3)
-from btclib_ecc import _utils as btclib_ecc_utils
+from ecc import _utils as ecc_utils
 
 from btclib import utils as btclib_utils
 
@@ -141,7 +141,7 @@ def test_both_copies_answer_alike(
 ) -> None:
     """The same value, or the same refusal, from either package's copy."""
     ours = _outcome(getattr(btclib_utils, name), args())
-    theirs = _outcome(getattr(btclib_ecc_utils, name), args())
+    theirs = _outcome(getattr(ecc_utils, name), args())
     assert ours == theirs
 
 
@@ -155,6 +155,6 @@ def test_every_shared_coercion_has_a_vector() -> None:
     shared = {
         n
         for n in btclib_utils.__all__
-        if isfunction(getattr(btclib_utils, n)) and hasattr(btclib_ecc_utils, n)
+        if isfunction(getattr(btclib_utils, n)) and hasattr(ecc_utils, n)
     }
     assert shared == {name for name, _ in _VECTORS}

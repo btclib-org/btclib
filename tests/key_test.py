@@ -13,8 +13,8 @@ never reaches a repr.
 """
 
 import pytest
-from btclib_ecc.curves import bytes_from_point, mult, secp256k1
-from btclib_ecc.exceptions import BTClibEccValueError
+from ecc.curves import bytes_from_point, mult, secp256k1
+from ecc.exceptions import EccValueError
 
 from btclib.alias import Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -97,7 +97,7 @@ def test_the_lift_is_the_proof() -> None:
     """
     not_a_point = PubKeyData(b"\x02" + b"\x11" * 32)
     assert not_a_point.is_compressed
-    with pytest.raises(BTClibEccValueError, match="invalid x-coordinate"):
+    with pytest.raises(EccValueError, match="invalid x-coordinate"):
         _ = not_a_point.point_var
 
 

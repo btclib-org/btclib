@@ -26,10 +26,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from btclib_ecc.exceptions import (
-    BTClibEccRuntimeError,
-    BTClibEccTypeError,
-    BTClibEccValueError,
+from ecc.exceptions import (
+    EccRuntimeError,
+    EccTypeError,
+    EccValueError,
 )
 
 from btclib.block import Block, BlockHeader, PartialMerkleTree
@@ -84,16 +84,16 @@ from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import public_classes_with
 
 # what btclib promises to raise, and the whole of it: a truncated buffer
-# has to be refused as one of btclib's three classes, or of btclib_ecc's
+# has to be refused as one of btclib's three classes, or of ecc's
 # three where a parser hands a field on to that package (issue #2282), and
 # never as an IndexError or a struct error from underneath the library
 _CONTRACT_EXCEPTIONS = (
     BTClibValueError,
     BTClibRuntimeError,
     BTClibTypeError,
-    BTClibEccValueError,
-    BTClibEccRuntimeError,
-    BTClibEccTypeError,
+    EccValueError,
+    EccRuntimeError,
+    EccTypeError,
 )
 
 _TX_ID = "01" * 32

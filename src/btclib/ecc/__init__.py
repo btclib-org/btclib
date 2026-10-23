@@ -10,9 +10,9 @@ Each is a protocol's rather than a curve's, which is what keeps it in
 btclib. The curve arithmetic and every other scheme -- dsa, ssa, borromean,
 MuSig2, FROST, pedersen commitments, the rangeproof, the Diffie-Hellman key
 agreement, ECIES, the BIP374 discrete logarithm equality proof and the
-nonce derivations -- are the `btclib_ecc` package's, which btclib depends
-on and imports where it needs them: `from btclib_ecc.curves import mult`,
-`from btclib_ecc.ecc import dsa`.
+nonce derivations -- are the `ecc` package's, which btclib depends
+on and imports where it needs them: `from ecc.curves import mult`,
+`from ecc.ecc import dsa`.
 
 **bms is imported on demand, and it is the one module that is.** It reaches
 `b32`, `b58`, `key` and `network`, which `ellswift` does not. Importing
@@ -24,13 +24,14 @@ tests/imports_test.py holds `import btclib.ecc` to what `ellswift` needs,
 with `bms` absent from it.
 
 **Secrets.** This is the package a private key is handed to, and what
-holds around it is conditional. Whether an operation here is one
-libsecp256k1 call is decided by `btclib_ecc.curves.is_libsecp256k1_serving`,
-the curve and the hash function, with the conditions of the call site anded
-onto them; whatever the conjunction declines runs the Python arithmetic,
-which is not constant-time. Nor is a Python object holding a secret
-zeroized, on either path. SECURITY.md's limitations section states each
-condition, and README.md carries the short form.
+holds around it is conditional. `bms` signs with ecc's `dsa`, and
+`ellswift.xdh` is ecc's `decode_var` and `mult`, then BIP324's tagged
+hash. The curve operations run on libsecp256k1 where
+`ecc.curves.is_libsecp256k1_serving()` holds and the curve is secp256k1;
+otherwise the Python arithmetic runs, which is not constant-time. Nor is
+a Python object holding a secret zeroized, on either path. SECURITY.md's
+limitations section states each condition, and README.md carries the
+short form.
 """
 
 from importlib import import_module

@@ -22,7 +22,7 @@ from collections.abc import Callable
 from typing import TypeVar
 
 import pytest
-from btclib_ecc.ecc import ssa
+from ecc.ecc import ssa
 
 from btclib import var_bytes
 from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
@@ -30,7 +30,7 @@ from btclib.hashes import sha256
 from btclib.script import Witness, sig_hash
 from btclib.script.engine import script_op_codes, tapscript, verify_transaction
 from btclib.script.engine.script_op_codes import ConditionStack
-from btclib.script.taproot import leaf_hash, output_pubkey_from_merkle_root
+from btclib.script.taproot import leaf_hash, output_pubkey_from_merkle_root_var
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 _G_X = bytes.fromhex("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
@@ -59,7 +59,7 @@ _T = TypeVar("_T")
 
 def _spend(leaf: bytes, stack: list[bytes] | None = None) -> tuple[TxOut, Tx]:
     """Return a P2TR output committing to `leaf` and the spend of it."""
-    output_key, parity = output_pubkey_from_merkle_root(_G_X, leaf_hash(0xC0, leaf))
+    output_key, parity = output_pubkey_from_merkle_root_var(_G_X, leaf_hash(0xC0, leaf))
     prevout = TxOut(10_000, b"\x51\x20" + output_key)
     control = bytes([0xC0 | parity]) + _G_X
     witness = Witness([*(stack or []), leaf, control])

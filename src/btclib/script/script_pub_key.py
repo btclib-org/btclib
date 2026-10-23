@@ -19,8 +19,8 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from btclib_ecc.curves import point_from_octets_var
-from btclib_ecc.exceptions import BTClibEccValueError
+from ecc.curves import point_from_octets_var
+from ecc.exceptions import EccValueError
 from typing_extensions import override
 
 from btclib import b32, b58, var_bytes
@@ -610,8 +610,8 @@ class ScriptPubKey(Script):
         """
         try:
             return addresses(self.script, self.network)
-        # a p2ms key that is no point is refused by btclib_ecc's class
-        except (BTClibValueError, BTClibEccValueError):
+        # a p2ms key that is no point is refused by ecc's class
+        except (BTClibValueError, EccValueError):
             return [self.address]
 
     @override

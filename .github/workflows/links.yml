@@ -70,8 +70,7 @@ on:
 # usual next step here, and it carries nothing past the failed run's own
 # notification -- a link is noticed the next time somebody follows it.
 # vendored-vectors.yml's header states the other side of that test, a
-# vendored vector being trusted without anybody looking at it again, and
-# py-arm-authority.yml's is answered against it
+# vendored vector being trusted without anybody looking at it again
 permissions:
   contents: read
 

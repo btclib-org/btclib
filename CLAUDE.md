@@ -17,13 +17,13 @@ is what the pull request will be answered against.
 ## Architecture
 
 [ARCHITECTURE.md](./ARCHITECTURE.md) is the design: the curve arithmetic
-btclib_ecc provides, the layers, and the import edges the tests hold.
+ecc provides, the layers, and the import edges the tests hold.
 Read it before touching `src/btclib/ecc/`, which holds `bms` and
 `ellswift` alone, the rest of the curve arithmetic and the schemes being
-`btclib_ecc`'s and imported from it, never re-exported; `xdh`, the script
-engine and `script.taproot` delegate to the bindings only where
-`btclib_ecc.curves.is_libsecp256k1_serving()` and the call site both
-admit it, so a change there has two paths to keep right.
+`ecc`'s and imported from it, never re-exported. btclib calls the
+bindings only through ecc, which runs them where
+`ecc.curves.is_libsecp256k1_serving()` and the call both admit it, so a
+change to an operation has two paths to keep right.
 
 ## The primary checkout is the maintainer's
 

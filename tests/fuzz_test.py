@@ -28,10 +28,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from btclib_ecc.exceptions import (
-    BTClibEccRuntimeError,
-    BTClibEccTypeError,
-    BTClibEccValueError,
+from ecc.exceptions import (
+    EccRuntimeError,
+    EccTypeError,
+    EccValueError,
 )
 from hypothesis import example, given
 from hypothesis import strategies as st
@@ -98,7 +98,7 @@ from btclib.tx.tx_out import TxOut
 from tests import module_names, public_classes_with
 
 # What a btclib parser is allowed to raise: btclib's three classes, and
-# btclib_ecc's three where a parser hands a field on to that package --
+# ecc's three where a parser hands a field on to that package --
 # `bms.Sig.parse` its r and s -- which CONTRIBUTING.md's "Every public
 # function validates its inputs" states (issue #2282). Anything else -- an
 # IndexError off a short slice, an OverflowError off an unchecked size,
@@ -110,9 +110,9 @@ CONTRACT = (
     BTClibValueError,
     BTClibTypeError,
     BTClibRuntimeError,
-    BTClibEccValueError,
-    BTClibEccTypeError,
-    BTClibEccRuntimeError,
+    EccValueError,
+    EccTypeError,
+    EccRuntimeError,
 )
 
 # Bounded because these are parsers, not benchmarks: what a length field
@@ -383,7 +383,7 @@ def test_a_scalar_out_of_range_stays_within_the_contract() -> None:
     """A 65-octet signature with a valid flag and r at zero is refused.
 
     The input the strategies above reach only by chance: every length and
-    flag check passes, and the refusal comes from btclib_ecc, which
+    flag check passes, and the refusal comes from ecc, which
     reads the scalar, so it is that package's class leaving a btclib parser.
     """
     sig = bytes([31]) + bytes(32) + (1).to_bytes(32, "big")
@@ -391,7 +391,7 @@ def test_a_scalar_out_of_range_stays_within_the_contract() -> None:
         (bms.Sig.parse, sig),
         (bms.Sig.b64decode, base64.b64encode(sig).decode("ascii")),
     ):
-        with pytest.raises(BTClibEccValueError, match="scalar r not in 1..n-1"):
+        with pytest.raises(EccValueError, match="scalar r not in 1..n-1"):
             parse(data)
         _assert_contract(parse, data)
 

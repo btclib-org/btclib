@@ -36,13 +36,13 @@ pip3 install --no-deps --no-build-isolation -e .
 # compile_python_fuzzer forwards every extra argument straight to
 # pyinstaller, ahead of the fuzzer's own path (base-builder's own
 # compile_python_fuzzer script). --collect-data is what closes a gap
-# PyInstaller's own analysis does not: btclib.network and btclib_ecc's
+# PyInstaller's own analysis does not: btclib.network and ecc's
 # curves.curve each read a JSON file under their own package's `_data/`
 # directory at import time, from a path built off `__file__`,
 # and a frozen onefile executable bundles no non-Python file
 # PyInstaller cannot trace a reference to -- confirmed against this
 # fuzzer's own import chain (btclib.p2p -> ... -> btclib.network ->
-# btclib_ecc.curves), which crashed a real ClusterFuzzLite run on exactly
+# ecc.curves), which crashed a real ClusterFuzzLite run on exactly
 # this, `FileNotFoundError` on `curves/_data/ec_Brainpool.json` inside
 # a PyInstaller `_MEI` extraction directory. `--collect-data` walks the
 # whole of each package's tree rather than naming a `_data` directory
@@ -62,7 +62,7 @@ pip3 install --no-deps --no-build-isolation -e .
 # .github/workflows/fuzz.yml.
 for fuzzer in $(find "$SRC/btclib/fuzz" -maxdepth 1 -name 'fuzz_*.py'); do
   compile_python_fuzzer "$fuzzer" --collect-data=btclib \
-    --collect-data=btclib_ecc
+    --collect-data=ecc
   name=$(basename "$fuzzer" .py)
   if [ -d "fuzz/corpus/$name" ]; then
     zip -j "$OUT/${name}_seed_corpus.zip" "fuzz/corpus/$name"/*.bin

@@ -81,7 +81,7 @@ from btclib.script.taproot import (
     output_prvkey,
     output_prvkey_from_merkle_root,
     output_pubkey,
-    output_pubkey_from_merkle_root,
+    output_pubkey_from_merkle_root_var,
 )
 from btclib.script.witness import Witness
 
@@ -122,7 +122,7 @@ __all__ = [
     "output_prvkey",
     "output_prvkey_from_merkle_root",
     "output_pubkey",
-    "output_pubkey_from_merkle_root",
+    "output_pubkey_from_merkle_root_var",
     "p2ms_m_and_keys_var",
     "p2sh_sig_op_count",
     "parse",

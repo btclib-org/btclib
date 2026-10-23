@@ -4,7 +4,7 @@
 
 """What says the Python arm is right, other than the bindings.
 
-The suite validates btclib's Python arms *against* libsecp256k1: the
+The suite validates the Python arithmetic *against* libsecp256k1: the
 bindings are the authority on the answer -- they are what bitcoin runs --
 and agreeing with them is what a second implementation owes.
 
@@ -16,16 +16,15 @@ closed one level up rather than broken. So this file is the inventory
 issue #993 asks for: per arm, which vectors of somebody else's making
 reach it.
 
-Two things make the inventory possible to keep true rather than to
-believe. The arms are counted from the source -- a function containing a
-call to `is_libsecp256k1_serving` is an arm, which is the same definition
-issue #968 made by hand -- so one added without an entry here fails.
+The arms are counted from the source -- a function containing a call to
+`is_libsecp256k1_serving` is an arm, which is the same definition issue
+#968 made by hand -- so one added without an entry here fails.
 
-The arms of the curve arithmetic and of every scheme but `bms` are the
-btclib_ecc package's, which keeps this inventory for its own (issue
-#2282). What is here is btclib's: the script engine's two verifications,
-taproot's tweaks, and BIP324's x-only ECDH.
-And the entries were measured, not reasoned:
+Every arm is the ecc package's, which keeps this inventory for its own
+(issue #2282). btclib reaches the bindings only through ecc, so it holds
+no arm of its own and the inventory is empty: what this file keeps is
+the count that fails on an arm added here. Entries are measured, not
+reasoned:
 
     uv run --locked --no-default-groups --group harness \
         pytest <one module> --cov=btclib --cov-report=json --cov-fail-under=0
@@ -39,24 +38,10 @@ every arm of every imported module as reached.
 table's shape -- its keys against the parser, its empty entries against
 the named set, its cited modules against the vector table, its entries
 against that same table -- and none reruns the coverage that produced
-`_AUTHORITY`'s values, because a pull request is not where that question
-belongs: every module `_THIRD_PARTY_VECTORS` names, under coverage, in
-an environment with no bindings, is minutes rather than seconds, and
-nothing here asks a contributor's branch to pay for it.
-
-That re-derivation runs weekly instead, is
-`.github/workflows/py-arm-authority.yml`, calling
-`.github/scripts/check_py_arm_authority.py` -- issue #1003's answer.
-It repeats the measurement above, module by module, and fails loudly on
-any of three disagreements: an entry claims a module that no longer
-reaches the arm (stale, the harmful direction), a module reaches an arm
-its entry does not name (the table understates, still worth knowing), or
-something now reaches an arm in `_WITHOUT_AN_AUTHORITY` (the good news
-this file is written to notice). A sentinel and not a gate: it has no
-branch rule, so between one run and the next -- and on any pull request
-that is not itself about this file, the script or the workflow -- the
-table can go stale exactly as it could before, for up to a month rather
-than forever.
+`_AUTHORITY`'s values. Every module `_THIRD_PARTY_VECTORS` names, under
+coverage, in an environment with no bindings, is minutes rather than
+seconds, and nothing here asks a contributor's branch to pay for it. So
+an entry can go stale between one measurement by hand and the next.
 
 **The attribution is per module, and a module may also hold tests btclib
 wrote.** So an entry says "a module built on third-party vectors reaches
@@ -68,7 +53,10 @@ tests within a module, which no marker in the tree expresses today.
 from __future__ import annotations
 
 import ast
+import sys
 from pathlib import Path
+
+import pytest
 
 _LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 _TESTS = Path(__file__).parent
@@ -79,8 +67,8 @@ _TESTS = Path(__file__).parent
 # Wycheproof, an RFC -- and not btclib, which is why `vectors.json` and
 # `btclib_test_vectors.json` appear nowhere here
 _THIRD_PARTY_VECTORS: dict[str, tuple[str, ...]] = {
-    "ecc/bms_test.py": ("signmessage.json",),
-    "ecc/ellswift_test.py": ("packet_encoding_test_vectors.csv",),
+    "schemes/bms_test.py": ("signmessage.json",),
+    "schemes/ellswift_test.py": ("packet_encoding_test_vectors.csv",),
     "key_io_test.py": ("key_io_valid.json", "key_io_invalid.json"),
     "script/sig_hash_legacy_test.py": ("sig_hash_legacy_test_vectors.json",),
     "script/sig_hash_taproot_test.py": ("taproot_test_vector.json",),
@@ -92,43 +80,15 @@ _THIRD_PARTY_VECTORS: dict[str, tuple[str, ...]] = {
 # arm -> the modules of `_THIRD_PARTY_VECTORS` whose run reaches it. An
 # empty tuple is an arm no third-party vector reaches, and belongs in
 # `_WITHOUT_AN_AUTHORITY` below
-_AUTHORITY: dict[str, tuple[str, ...]] = {
-    "ecc.ellswift.xdh": ("ecc/ellswift_test.py",),
-    "script.engine.script.dsa_verify": (
-        "script/sig_hash_legacy_test.py",
-        "script_engine/script_test.py",
-        "script_engine/transactions_test.py",
-    ),
-    "script.engine.tapscript.ssa_verify": (
-        "script/sig_hash_taproot_test.py",
-        "script_engine/script_test.py",
-        "script_engine/transactions_test.py",
-    ),
-    "script.taproot._tweaked_prvkey": (
-        "script/sig_hash_taproot_test.py",
-        "script/taproot_test.py",
-        "script_engine/script_test.py",
-    ),
-    "script.taproot._tweaked_pubkey": (
-        "script/sig_hash_taproot_test.py",
-        "script/taproot_test.py",
-        "script_engine/script_test.py",
-    ),
-    "script.taproot.check_output_pubkey": (
-        "script/sig_hash_taproot_test.py",
-        "script/taproot_test.py",
-        "script_engine/script_test.py",
-        "script_engine/transactions_test.py",
-    ),
-}
+_AUTHORITY: dict[str, tuple[str, ...]] = {}
 
 # the ones the measurement found nothing for, named so that closing one
 # is a line deleted here rather than a number nobody re-derives
 _WITHOUT_AN_AUTHORITY: frozenset[str] = frozenset()
 
 
-def _arm_locations() -> dict[str, tuple[Path, int, int]]:
-    """Return every Python arm, mapped to where its body runs.
+def _py_arms() -> set[str]:
+    """Return every Python arm, as `module.funcname`.
 
     The definition issue #968 used, applied by the parser rather than by
     hand: a function whose source calls `is_libsecp256k1_serving` has two
@@ -147,16 +107,8 @@ def _arm_locations() -> dict[str, tuple[Path, int, int]]:
     - the key is `module.funcname`, so two same-named methods of two
       classes in one module would collide into one entry and leave one
       arm unexamined.
-
-    The range is the function's own body -- `node.body[0].lineno` through
-    `node.end_lineno`, the `def` line itself excluded on purpose, since it
-    runs at import regardless of whether the function is ever called and
-    would otherwise report every arm of every imported module as reached.
-    `.github/scripts/check_py_arm_authority.py` is what reads this
-    range against a coverage run's `executed_lines` to re-derive
-    `_AUTHORITY`; `_py_arms()` below reads only the keys.
     """
-    found: dict[str, tuple[Path, int, int]] = {}
+    found: set[str] = set()
     for path in sorted(_LIBRARY.rglob("*.py")):
         source = path.read_text(encoding="utf-8")
         module = ".".join(path.relative_to(_LIBRARY).with_suffix("").parts)
@@ -165,22 +117,8 @@ def _arm_locations() -> dict[str, tuple[Path, int, int]]:
                 continue
             segment = ast.get_source_segment(source, node) or ""
             if "is_libsecp256k1_serving(" in segment:
-                assert node.end_lineno is not None  # set by ast.parse always
-                found[f"{module}.{node.name}"] = (
-                    path,
-                    node.body[0].lineno,
-                    node.end_lineno,
-                )
+                found.add(f"{module}.{node.name}")
     return found
-
-
-def _py_arms() -> set[str]:
-    """Return every function of btclib that holds a dispatch to the bindings.
-
-    The keys of `_arm_locations()`, which is where the counting rule --
-    and the collision it can hit -- is written down.
-    """
-    return set(_arm_locations())
 
 
 def test_every_py_arm_is_in_the_inventory() -> None:
@@ -227,8 +165,23 @@ def test_every_named_module_is_in_the_tree_and_reads_its_vectors() -> None:
 
 def test_every_authority_names_a_module_of_the_table() -> None:
     """No entry may cite a module whose vectors are not written down."""
-    for arm, sources in _AUTHORITY.items():
-        for module in sources:
-            assert module in _THIRD_PARTY_VECTORS, (
-                f"{arm} cites {module}, which no line of _THIRD_PARTY_VECTORS covers"
-            )
+    cited = {module for sources in _AUTHORITY.values() for module in sources}
+    uncovered = cited - set(_THIRD_PARTY_VECTORS)
+    assert not uncovered, f"cited and in no line of _THIRD_PARTY_VECTORS: {uncovered}"
+
+
+def test_the_counter_finds_a_planted_arm(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An arm in the library is counted, which the empty inventory cannot show.
+
+    btclib holds no arm, so without a planted module nothing would show
+    that `_py_arms` finds one at all, and an inventory compared
+    with a counter that finds nothing would pass whatever the tree held.
+    """
+    planted = tmp_path / "planted.py"
+    planted.write_text(
+        "def arm():\n    return is_libsecp256k1_serving()\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(sys.modules[__name__], "_LIBRARY", tmp_path)
+    assert _py_arms() == {"planted.arm"}

@@ -14,9 +14,11 @@ name: deps-oldest
 # a caller for rather than states itself: the interpreter, which is
 # requires-python's own floor of 3.11 and not the newest
 # `.python-version` pin, and `pre-suite-script`, this tree's own
-# assertion that the bindings still serve at that floor --
-# `.github/scripts/assert_bindings_serving.py` has the reason it is a
-# step of its own rather than folded into pytest (btclib-org/.github#35)
+# assertion that the bindings serve with ecc at its floor -- they are no
+# direct dependency, so `lowest-direct` resolves them to their newest
+# release. `.github/scripts/assert_bindings_serving.py` has the reason it
+# is a step of its own rather than folded into pytest
+# (btclib-org/.github#35)
 
 on:
   schedule:

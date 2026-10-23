@@ -25,13 +25,13 @@ fix.
 
 ## What belongs here, and what belongs upstream
 
-The elliptic curve arithmetic and the schemes built on it, `ecc.bms` and
-`ecc.ellswift.xdh` excepted, are
-[btclib-ecc](https://github.com/btclib-org/btclib-ecc/security/advisories/new)'s,
+The elliptic curve arithmetic and the schemes built on it, `btclib.ecc.bms` and
+`btclib.ecc.ellswift.xdh` excepted, are
+[ecc](https://github.com/btclib-org/ecc/security/advisories/new)'s,
 the Python arithmetic included: btclib imports them and does not
 re-export them. A flaw in them belongs there.
 
-btclib-ecc delegates secp256k1 arithmetic to
+ecc delegates secp256k1 arithmetic to
 [btclib-secp256k1](https://github.com/btclib-org/btclib-secp256k1/security/advisories/new),
 the Python bindings, and through them to
 [libsecp256k1](https://github.com/bitcoin-core/secp256k1/security/advisories/new)
@@ -48,8 +48,8 @@ What belongs here is everything btclib does around the arithmetic:
     addresses, signatures, scripts, transactions — and the validation
     that decides what is accepted
 - the script engine, and the taproot construction it validates against
-- the Python arm of each operation btclib delegates itself, which is what
-    runs whenever the conditions below are not met
+- `btclib.ecc.bms` and `btclib.ecc.ellswift.xdh`, which btclib builds on that
+    arithmetic
 - the distributions published to PyPI and their provenance
 - a refusal that prints more of a value that may be secret than
     [*A refusal carries no secret*](https://github.com/btclib-org/.github/blob/main/README.md#a-refusal-carries-no-secret)
@@ -140,8 +140,8 @@ written against, and the argument for what this file does promise.
 These are known and inherent. They are worth stating because btclib is
 used to teach and to prototype as much as to build.
 
-The curve arithmetic and the schemes, `ecc.bms` and `ecc.ellswift.xdh`
-excepted, are [btclib_ecc](https://github.com/btclib-org/btclib-ecc)'s,
+The curve arithmetic and the schemes, `btclib.ecc.bms` and `btclib.ecc.ellswift.xdh`
+excepted, are [ecc](https://github.com/btclib-org/ecc)'s,
 which btclib imports and does not re-export, so what follows of them is said
 of that package's code, and a citation into it links its source at the
 commit it was read at:
@@ -156,20 +156,20 @@ commit it was read at:
     `musig_nonce_gen`'s secnonce -- an opaque 132-byte struct the
     header calls "implementation defined and not guaranteed to be
     portable between different platforms or versions" -- into
-    `btclib_ecc.ecc.musig2`'s public API, against `btclib_wallet.psbt.musig2`'s
+    `ecc.ecc.musig2`'s public API, against `btclib_wallet.psbt.musig2`'s
     own decision to hold no session state at all. What it would buy is
     measured rather than assumed: the point-multiplication side has
     been regular since #254, and `sign`'s own line, `s = (k_1_ +
     values.b * k_2_ + values.e * a * d) % secp256k1.n`
-    ([`src/btclib_ecc/ecc/musig2.py:855`](
-    https://github.com/btclib-org/btclib-ecc/blob/3b14ec0bac0fbe1b50cfae4d4ea09cb55002df73/src/btclib_ecc/ecc/musig2.py#L855
+    ([`src/ecc/ecc/musig2.py:858`](
+    https://github.com/btclib-org/ecc/blob/c0eaea6f25b552aba47b1a2d6924b0908ea3f830/src/ecc/ecc/musig2.py#L858
     )), spreads 1.016x over uniform scalars
     in `[1, n-1]` -- the magnitude leak that remains shows only for
     scalars with zero high bits, keys already lost for other reasons.
     The gain left is narrower than that figure suggests: delegating
     would only keep `k_1` and `k_2` from becoming Python `int`s, and
     the bullet above already covers why that does not decide anything
-    -- `btclib_ecc.curves.scalar_from_prv_key` produces an unzeroizable
+    -- `ecc.curves.scalar_from_prv_key` produces an unzeroizable
     `int` from the private key on the delegated path too. `btclib_secp256k1` itself
     takes the equivalent opaque handle for `musig_keyagg_cache` and
     `musig_session` without this reasoning landing on a different
@@ -192,29 +192,22 @@ commit it was read at:
     decision, not an oversight. These call sites read one of those
     straight into a Python `int`: `commit_nonce.commit_nonce_` at
     `int.from_bytes(tweaked, byteorder="big", signed=False)`
-    ([`src/btclib_ecc/ecc/commit_nonce.py:157`](
-    https://github.com/btclib-org/btclib-ecc/blob/2f28aa691d801d6a129216b021f4a589bbcf766d/src/btclib_ecc/ecc/commit_nonce.py#L157
-    )) and `taproot._tweaked_prvkey`
-    at `int.from_bytes(tweaked, "big")`
-    (`src/btclib/script/taproot.py:565`). A caller-owned buffer can be
+    ([`src/ecc/ecc/commit_nonce.py:159`](
+    https://github.com/btclib-org/ecc/blob/c0eaea6f25b552aba47b1a2d6924b0908ea3f830/src/ecc/ecc/commit_nonce.py#L159
+    )) and, under `taproot.output_prvkey`, `ssa.prv_key_tweak_add` at
+    `int.from_bytes(tweaked, byteorder="big", signed=False)`
+    ([`src/ecc/ecc/ssa.py:461`](
+    https://github.com/btclib-org/ecc/blob/c0eaea6f25b552aba47b1a2d6924b0908ea3f830/src/ecc/ecc/ssa.py#L461
+    )). A caller-owned buffer can be
     wiped once the call that filled it returns; the `int` it is read
     into cannot be, and outlives the call regardless, so taking the
     buffer at these call sites would cost a public signature and buy
     nothing, short of btclib no longer
     holding a private key as a Python `int`, which is a change to that
-    representation and not to a call site. `ellswift.xdh`
-    at `return libsecp256k1_ellswift.xdh(ell_a, ell_b, q, party)`
-    (`src/btclib/ecc/ellswift.py:106`) is the one of them that returns
-    octets rather than an `int`, so a caller-owned buffer there would
-    hold what it wiped: taking it means growing `xdh`'s public
-    signature with `into=` and owning the contract that comes with
-    it — a buffer too short, a buffer that is not writable, what the
-    function then returns. btclib declines that too, for the reason
-    the bullet above already gives: no Python object holding a secret
-    is zeroized, on either path, and this one is no exception to it.
+    representation and not to a call site.
     `dsa.Signer.__init__` at `self._q.to_bytes(32, "big")`
-    ([`src/btclib_ecc/ecc/dsa.py:1482`](
-    https://github.com/btclib-org/btclib-ecc/blob/091006c7aca9621545e59db47cd670c047ed8f41/src/btclib_ecc/ecc/dsa.py#L1482
+    ([`src/ecc/ecc/dsa.py:1482`](
+    https://github.com/btclib-org/ecc/blob/c0eaea6f25b552aba47b1a2d6924b0908ea3f830/src/ecc/ecc/dsa.py#L1482
     )) crosses the same boundary the other
     way, once, at construction: the plain `int` `scalar_from_prv_key`
     already produced becomes a transient `bytes` on the way into the
@@ -230,11 +223,11 @@ commit it was read at:
     installs no C at all: signing, verification and key agreement all
     run the Python arithmetic the last bullet describes,
     which is tens of times slower and not constant-time. Nothing raises
-    to say so, and `btclib_ecc.curves.is_libsecp256k1_serving()` is how a
+    to say so, and `ecc.curves.is_libsecp256k1_serving()` is how a
     caller asks which of the two it has.
     The dispatch is a runtime switch besides:
-    `btclib_ecc.curves.set_libsecp256k1_serving(serving=False)` turns it
-    off for the whole process, and `BTCLIB_ECC_NO_LIBSECP256K1` set in
+    `ecc.curves.set_libsecp256k1_serving(serving=False)` turns it
+    off for the whole process, and `ECC_NO_LIBSECP256K1` set in
     the environment makes that the state from the first call — a test
     framework built on btclib wants exactly that, having to check
     libsecp256k1 with something other than libsecp256k1. With the
@@ -242,12 +235,12 @@ commit it was read at:
     operation named below is the Python arithmetic, whichever way the
     library was installed
 - not every operation crosses that boundary, and one predicate decides
-    whether it can: btclib_ecc's `curve._libsecp256k1_serves` asks for
+    whether it can: ecc's `curve._libsecp256k1_serves` asks for
     the switch above, then for secp256k1 as the curve, then for a hash
     function that is sha256 or absent, declining any other —
     `hf is not None and hf is not sha256`
-    ([`src/btclib_ecc/curves/curve.py:697`](
-    https://github.com/btclib-org/btclib-ecc/blob/e0a511c5ed28dfee5325e014a61f9a67063d80e9/src/btclib_ecc/curves/curve.py#L697
+    ([`src/ecc/curves/curve.py:697`](
+    https://github.com/btclib-org/ecc/blob/c0eaea6f25b552aba47b1a2d6924b0908ea3f830/src/ecc/curves/curve.py#L697
     )) — with whatever further
     conditions the call site ands onto it. The hash function is matched
     by identity rather than by what it computes, so
@@ -256,7 +249,7 @@ commit it was read at:
     passed to runs the Python arithmetic — conservative for the
     arithmetic, silent for the caller, unless
     `set_libsecp256k1_serving(serving=True, required=True)` made it
-    raise `BTClibEccRuntimeError` instead. The condition each operation
+    raise `EccRuntimeError` instead. The condition each operation
     below states as sha256 is that identity.
     `mult`, `double_mult_var` and
     `multi_mult_var` reach the bindings for secp256k1 and any point of it,
@@ -285,8 +278,8 @@ commit it was read at:
     `musig_nonce_process` takes a fixed 32-byte `msg32` with no length
     parameter, so a message of any other size runs the Python equation
     below regardless of the bindings, as does a session carrying the
-    adaptor extension `btclib_ecc.ecc.musig2` implements and the bindings do
-    not. `key_agg`, `key_sort` and `nonce_agg` stay Python's alone
+    adaptor extension `ecc.ecc.musig2` implements and the bindings do
+    not. `key_agg_var`, `key_sort` and `nonce_agg_var` stay Python's alone
     either way: measured too close to the delegated arithmetic they
     already call, or run once per session rather than once per signer,
     to earn a second code path. This paragraph is about a secret meeting
@@ -362,7 +355,7 @@ commit it was read at:
     libsecp256k1 through `secp256k1_ecdh`, whose multiplication is
     `secp256k1_ecmult_const`, constant time in its scalar;
     `ecdh.shared_point` of the bindings is that call answering the point
-    rather than a hash of it. The arm `btclib_ecc.curves.curve.mult` shares with
+    rather than a hash of it. The arm `ecc.curves.curve.mult` shares with
     `PreparedPoint.mult` asks for the predicate above, with no hash
     function, so the switch and the curve are the whole of what the
     predicate asks; a zero reduced scalar is multiplied as one and the
@@ -372,16 +365,16 @@ commit it was read at:
     that arm and infinity is not delegated at all —
     `curve._libsecp256k1_mult` at
     `libsecp256k1_shared_point(_sec_from_point(Q), m, False)`
-    ([`src/btclib_ecc/curves/curve.py:969`](
-    https://github.com/btclib-org/btclib-ecc/blob/e0a511c5ed28dfee5325e014a61f9a67063d80e9/src/btclib_ecc/curves/curve.py#L969
+    ([`src/ecc/curves/curve.py:969`](
+    https://github.com/btclib-org/ecc/blob/c0eaea6f25b552aba47b1a2d6924b0908ea3f830/src/ecc/curves/curve.py#L969
     )). `dh.diffie_hellman` at
     `sec = libsecp256k1_shared_point(`
-    ([`src/btclib_ecc/ecc/dh.py:119`](
-    https://github.com/btclib-org/btclib-ecc/blob/3b14ec0bac0fbe1b50cfae4d4ea09cb55002df73/src/btclib_ecc/ecc/dh.py#L119
+    ([`src/ecc/ecc/dh.py:119`](
+    https://github.com/btclib-org/ecc/blob/c0eaea6f25b552aba47b1a2d6924b0908ea3f830/src/ecc/ecc/dh.py#L119
     )) and `sec_point._mult_sec` at
     `libsecp256k1_shared_point(sec, m, False)`
-    ([`src/btclib_ecc/curves/sec_point.py:389`](
-    https://github.com/btclib-org/btclib-ecc/blob/2f28aa691d801d6a129216b021f4a589bbcf766d/src/btclib_ecc/curves/sec_point.py#L389
+    ([`src/ecc/curves/sec_point.py:434`](
+    https://github.com/btclib-org/ecc/blob/c0eaea6f25b552aba47b1a2d6924b0908ea3f830/src/ecc/curves/sec_point.py#L434
     )), under `sec_point.mult_pub_key`
     and `ecies.derive_keys`, make the same call on the octets they
     already hold.
@@ -396,13 +389,13 @@ commit it was read at:
     scalars are secrets, is a `mult` of each and their sum instead —
     `pedersen._commit` at
     `return _add(mult(r, ec.G, ec), mult(v, gen, ec), ec)`
-    ([`src/btclib_ecc/ecc/pedersen.py:382`](
-    https://github.com/btclib-org/btclib-ecc/blob/e0a511c5ed28dfee5325e014a61f9a67063d80e9/src/btclib_ecc/ecc/pedersen.py#L382
+    ([`src/ecc/ecc/pedersen.py:382`](
+    https://github.com/btclib-org/ecc/blob/c0eaea6f25b552aba47b1a2d6924b0908ea3f830/src/ecc/ecc/pedersen.py#L382
     )), under `pedersen.commit`,
     `rangeproof.sign` and `rangeproof.rewind`. The sum is
     `curve._add` at `return _libsecp256k1_sum((P, Q))`
-    ([`src/btclib_ecc/curves/curve.py:1430`](
-    https://github.com/btclib-org/btclib-ecc/blob/e0a511c5ed28dfee5325e014a61f9a67063d80e9/src/btclib_ecc/curves/curve.py#L1430
+    ([`src/ecc/curves/curve.py:1430`](
+    https://github.com/btclib-org/ecc/blob/c0eaea6f25b552aba47b1a2d6924b0908ea3f830/src/ecc/curves/curve.py#L1430
     )): `secp256k1_ec_pubkey_combine`,
     whose group law `secp256k1_gej_add_ge` and whose inversion
     `secp256k1_fe_inv` are constant time. A commitment to a zero value
@@ -413,10 +406,9 @@ commit it was read at:
     factor as secrets, as libsecp256k1-zkp does: its blind*G is `mult`
     and its sums are `_add`, and the map its seed goes through is Python
     on either arm, forming the same roots for every seed.
-    `ellswift.xdh` is delegated to
-    `secp256k1_ellswift_xdh`, which multiplies with
-    `secp256k1_ecmult_const_xonly` — constant time in its scalar, and a
-    different function from `secp256k1_ecmult_const`.
+    `ellswift.xdh` decodes the peer's encoding with `ellswift.decode_var`
+    and multiplies it by the key with `mult`, so through `secp256k1_ecdh`
+    as above.
     The other delegations the bullet above names are different calls:
     a multiple of the generator is `secp256k1_ec_pubkey_create`, which
     runs `secp256k1_ecmult_gen`, and the tweaking of a key is
@@ -429,12 +421,12 @@ commit it was read at:
     twice over one message is safe only because the committed value
     reaches the nonce derivation: that is what keeps two such signatures
     from sharing an untweaked nonce and handing out the key. The
-    derivation is `btclib_ecc.ecc.commit_nonce`, and the property is worth
+    derivation is `ecc.ecc.commit_nonce`, and the property is worth
     knowing about for anyone building the anti-exfil protocol on top,
     which btclib does not yet offer: there, the ordering matters as
     well — the signer must publish its `R` before learning the host's
     randomness, and `sign` alone cannot enforce that
-- **a `btclib_ecc.ecc.borromean` ring signature made before issue #1053's fix
+- **a `ecc.ecc.borromean` ring signature made before issue #1053's fix
     names its own signer.** The real signer's s-value was the only one
     computed rather than drawn, and the only one left unreduced: it ran
     to about twice the bit length of the forged values beside it, so the
@@ -453,7 +445,7 @@ commit it was read at:
     module: the auxiliary randomness of BIP340 signing and the private
     keys of the key generation helpers. Nothing here seeds a generator
     of its own
-- `btclib_ecc.ecc.ecies` ships no block cipher and takes AES-128-CBC as two
+- `ecc.ecc.ecies` ships no block cipher and takes AES-128-CBC as two
     callables, so the cipher's own resistance to timing and side-channel
     attack is whatever the caller passed in — btclib neither provides it
     nor can check it. That is the point of the parameter rather than a gap

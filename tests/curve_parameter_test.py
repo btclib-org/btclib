@@ -33,7 +33,7 @@ and the one key spelling that names a network, and through it a curve,
 is an xpub: `btclib_wallet.bip32` reads it, and the test of that
 mismatch is there.
 
-The functions of the btclib_ecc package take an `ec` too, and that
+The functions of the ecc package take an `ec` too, and that
 package's suite is the table for them: what is here is the `ec` of
 btclib's own code.
 
@@ -65,8 +65,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from btclib_ecc.curves import Curve, CurveGroup, mult, secp256k1
-from btclib_ecc.ecc import ellswift as ecc_ellswift
+from ecc.curves import Curve, CurveGroup, mult, secp256k1
+from ecc.ecc import ellswift as ecc_ellswift
 
 from btclib.consensus import CONSENSUS_PARAMS
 from btclib.ecc import ellswift
@@ -163,7 +163,7 @@ def _curve_parameters() -> set[str]:
     A method counts, `Network.__init__` being one, and a private function
     does not: the guard is what those call.
 
-    The walk reads btclib's own files, so the btclib_ecc package's functions
+    The walk reads btclib's own files, so the ecc package's functions
     are not in it, and that package's own suite drives their `ec`
     parameters.
     """

@@ -46,7 +46,7 @@ command that names the difference.
 
 **The authority is the library's own `src`, not its `include`.**
 Publishing is a different question from having, and a credit raises the
-second: btclib_ecc's `curves.curve` names
+second: ecc's `curves.curve` names
 `secp256k1_ge_x_on_curve_var`, its `curves.curve_group` names
 `secp256k1_ecmult_gen_gej` and its `number_theory` names
 `secp256k1_ctz64_var`, each of them defined in that library's own `src`

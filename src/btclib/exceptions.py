@@ -27,16 +27,16 @@ it came from here, and it catches every failure btclib's own code raises:
 no public function lets a native `KeyError`, `IndexError` or
 `OverflowError` escape uncaught.
 
-What the `btclib_ecc` package raises is not a `BTClibException`. The
+What the `ecc` package raises is not a `BTClibException`. The
 curve arithmetic and the schemes other than `bms` are that package's, and
-it raises its own classes, `btclib_ecc.exceptions.BTClibEccValueError`,
-`BTClibEccTypeError` and `BTClibEccRuntimeError` under
-`BTClibEccException`, built the same way beside the same three
+it raises its own classes, `ecc.exceptions.EccValueError`,
+`EccTypeError` and `EccRuntimeError` under
+`EccException`, built the same way beside the same three
 built-ins. So a failure raised inside it, whichever btclib function
 called in, is caught by `except ValueError` and not by `except
 BTClibValueError`. A caller naming one of those classes, or the two that
 carry a field, `InvalidContributionError` and `BorromeanRingError`,
-imports them from `btclib_ecc.exceptions`.
+imports them from `ecc.exceptions`.
 
 The exception is the few classes below carrying a field: what a peer got
 wrong, the node's rpc error code, an HTTP status. Those are values a

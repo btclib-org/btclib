@@ -8,10 +8,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
-from btclib_ecc.curves import is_libsecp256k1_serving, point_from_octets_var
-from btclib_ecc.ecc import dsa
-from btclib_ecc.ecc.dsa import Sig
-from btclib_ecc.exceptions import BTClibEccRuntimeError, BTClibEccValueError
+from ecc.curves import point_from_octets_var
+from ecc.ecc import dsa
+from ecc.ecc.dsa import Sig
+from ecc.exceptions import EccRuntimeError, EccValueError
 
 from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
 from btclib.script.engine import script_op_codes
@@ -43,17 +43,6 @@ from btclib.script.sig_hash import (
     _SigHashCache,
 )
 from btclib.tx.tx import Tx
-
-# the bindings, imported from their own package; None where they are not
-# installed, which nothing calls: what calls them here is behind
-# `is_libsecp256k1_serving`, False in that configuration. Installed one
-# name short, this import alone falls back to None while btclib_ecc
-# keeps serving, so the call fails rather than degrading: the floor the
-# `secp256k1` extra puts on the bindings is what rules that out
-try:
-    from btclib_secp256k1.dsa import verify as _libsecp256k1_dsa_verify
-except ImportError:  # pragma: no cover -- only an install without them
-    _libsecp256k1_dsa_verify = None  # type: ignore[assignment]
 from btclib.utils import assert_type, bytesio_from_binarydata, encode_num
 
 __all__ = [
@@ -86,10 +75,10 @@ def _assert_bytes_arguments(**arguments: object) -> None:
     """Refuse an argument that is not `bytes`, naming the parameter.
 
     The two signature adapters of this package declare `bytes` exactly
-    and hand it straight to the bindings, whose own message would name a
-    C parameter -- "the message hash must be bytes" is true and is not
-    btclib saying it (issue #814). Keyword arguments, so that what comes
-    out names the one that was wrong.
+    and hand it straight to ecc, whose own message names no parameter --
+    "invalid octets type: float" is true and is not btclib saying it
+    (issue #814). Keyword arguments, so that what comes out names the one
+    that was wrong.
     """
     for what, value in arguments.items():
         assert_type(value, bytes, what)
@@ -98,45 +87,34 @@ def _assert_bytes_arguments(**arguments: object) -> None:
 def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     """Verify an ECDSA signature, returning False if it is malformed.
 
-    The dispatch every delegation in this library makes, and this one has
-    a second implementation to reach when it declines:
-    `btclib_ecc.ecc.dsa` answers the same question in Python, so
-    libsecp256k1 out of reach leaves an arm to take rather than an
-    ImportError to raise.
+    `ecc.ecc.dsa.verify_` answers it, on the bindings for secp256k1 and
+    sha256 where they serve and in Python where they do not.
 
-    `hybrid=True` is what the Python arm needs and the bindings do not:
-    `ec_pubkey_parse` takes the 0x06/0x07 prefixes always (eckey_impl.h)
-    while `point_from_octets_var` takes them only when asked, and consensus
-    wants CHECKSIG to succeed for a hybrid key wherever STRICTENC is off.
-    Both defects of issue #129 were in that arm and neither was a lax
-    function -- one was `Sig.parse` dropping a byte, the other this very
-    prefix -- so what the arm has to agree with the bindings about is the
-    verdict on a whole transaction.
+    `hybrid=True` because consensus wants CHECKSIG to succeed for a
+    hybrid key wherever STRICTENC is off, and `point_from_octets_var`
+    takes the 0x06/0x07 prefixes only when asked. libsecp256k1's
+    `ec_pubkey_parse` takes them always (eckey_impl.h). Both defects of
+    issue #129 were here and neither was a lax function -- one was
+    `Sig.parse` dropping a byte, the other this very prefix -- so what
+    this call has to agree with Core about is the verdict on a whole
+    transaction.
 
-    One try around both arms, because the contract is one: a signature or
-    a public key that cannot be parsed is a failed verification, not an
-    exception the interpreter loop sees. The bindings raise ValueError
-    for it, `point_from_octets_var` raises BTClibEccValueError, which is one,
+    A signature or a public key that cannot be parsed is a failed
+    verification, not an exception the interpreter loop sees:
+    `point_from_octets_var` raises EccValueError, which is a ValueError,
     and `dsa.verify_` catches its own. DER strictness is enforced
-    upstream either way, by fix_signature under the STRICT_DER_FLAGS
-    below -- and so is the lower-s form, which is what keeps the two arms
-    from disagreeing about a high s: the bindings' `dsa.verify` refuses
-    one where `_assert_as_valid_(..., lower_s=False)` accepts it, and by
-    the time either is asked fix_signature has already negated a high s
-    wherever no flag refuses the signature outright, which is Core's own
-    behaviour.
+    upstream, by fix_signature under the STRICT_DER_FLAGS below, and so
+    is the lower-s form: fix_signature negates a high s wherever no flag
+    refuses the signature outright, which is Core's own behaviour.
 
-    `bytes` and nothing wider, which is what the three declare: the
-    bindings would answer a float with "the message hash must be bytes",
-    which is true and is not btclib saying it. Every caller here hands
+    `bytes` and nothing wider, which is what the three declare, refused
+    as `_assert_bytes_arguments` says. Every caller here hands
     stack elements, so the check costs a few nanoseconds of a
     microsecond-scale verification (issue #814).
     """
     _assert_bytes_arguments(msg_hash=msg_hash, pub_key=pub_key, sig=sig)
 
     try:
-        if is_libsecp256k1_serving():
-            return bool(_libsecp256k1_dsa_verify(msg_hash, pub_key, sig))
         return dsa.verify_(msg_hash, point_from_octets_var(pub_key, hybrid=True), sig)
     except ValueError:
         return False
@@ -217,13 +195,13 @@ def _parse_der_lax(der: bytes) -> tuple[int, int]:
 
 
 def fix_signature(signature: bytes, flags: ScriptFlag) -> bytes:
-    """Return the signature the bindings can be asked to verify.
+    """Return the signature `dsa_verify` can be asked to verify.
 
-    The bindings parse strict DER and refuse a high s, which is two rules
-    where Core has none: `CPubKey::Verify` parses laxly and normalizes s
-    before verifying, and it is CheckSignatureEncoding above it that
-    refuses either -- under the flags for it and not otherwise. So both
-    are answered here, each in the direction its flags ask for: a lax
+    `dsa_verify` parses strict DER, a rule Core does not have:
+    `CPubKey::Verify` parses laxly and normalizes s before verifying, and
+    it is CheckSignatureEncoding above it that refuses a lax encoding or
+    a high s -- under the flags for it and not otherwise. So both are
+    answered here, each in the direction its flags ask for: a lax
     encoding, read by Core's own lax parser, is re-serialized strict when
     no flag wants it refused, and a high s is negated when no flag wants
     it refused.
@@ -245,19 +223,18 @@ def fix_signature(signature: bytes, flags: ScriptFlag) -> bytes:
         signature = Sig(*_parse_der_lax(signature)).serialize()
     # strict, so that this is what enforces DER for the three flags above:
     # a lax encoding was normalized already, and one that was not has to be
-    # refused here rather than reach the bindings, which answer a parse
-    # failure the way they answer a wrong signature
+    # refused here rather than reach `dsa_verify`, which answers a parse
+    # failure the way it answers a wrong signature
     try:
         sig = Sig.parse(signature, check_validity=False)
-    except (BTClibEccValueError, BTClibEccRuntimeError) as e:
+    except (EccValueError, EccRuntimeError) as e:
         raise ScriptError(str(e), ScriptErrorCode.SIG_DER) from e
     # high as Core's CheckLowS reads it: its lax parse zeroes a signature
     # whose r or s is not below n, and a zero s is not high
     if sig.r < sig.ec.n and sig.ec.n // 2 < sig.s < sig.ec.n:
         # Core's SCRIPT_ERR_SIG_HIGH_S, an error under LOW_S alone: without
-        # it a high s is not merely tolerated but normalized away, so
-        # leaving it for the bindings to refuse would report a signature
-        # that does not verify where Core reports one that does
+        # it a high s is not merely tolerated but normalized away, as
+        # Core's CPubKey::Verify does
         if ScriptFlag.LOW_S in flags:
             raise ScriptError(f"high s: {hex(sig.s)}", ScriptErrorCode.SIG_HIGH_S)
         sig = Sig(sig.r, sig.ec.n - sig.s, check_validity=False)
@@ -433,11 +410,11 @@ def op_checksig(
     if signature:
         try:
             fixed = fix_signature(signature, flags)
-        except (BTClibValueError, BTClibEccValueError, BTClibEccRuntimeError):
+        except (BTClibValueError, EccValueError, EccRuntimeError):
             # under any of the three flags the refusal is fix_signature's
             # ScriptError, CheckSignatureEncoding having failed, and Core
             # ends the script; under none of them the lax parse failed,
-            # which raises btclib's class or btclib_ecc's two and is a
+            # which raises btclib's class or ecc's two and is a
             # signature that does not verify and nothing more
             if flags & STRICT_DER_FLAGS:
                 raise
@@ -1033,9 +1010,9 @@ def _eval_script(
     except ScriptError as e:
         raise ScriptError(e.args[0], e.code, script_index_ref[0], len(stack)) from e
     # any other refusal is Core's `catch (...)`, UNKNOWN_ERROR: btclib's
-    # class and btclib_ecc's, the one a signature or a key handed to that
+    # class and ecc's, the one a signature or a key handed to that
     # package is refused by
-    except (BTClibValueError, BTClibEccValueError) as e:
+    except (BTClibValueError, EccValueError) as e:
         code = ScriptErrorCode.UNKNOWN_ERROR
         raise ScriptError(str(e), code, script_index_ref[0], len(stack)) from e
     except IndexError as e:

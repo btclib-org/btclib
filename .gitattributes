@@ -13,8 +13,8 @@ tests/_data/siphash.json -text
 tests/block/_data/blockfilters.json -text
 tests/block/_data/checkblock_invalid.json -text
 tests/block/_data/checkblock_valid.json -text
-tests/ecc/_data/packet_encoding_test_vectors.csv -text
-tests/ecc/_data/signmessage.json -text
+tests/schemes/_data/packet_encoding_test_vectors.csv -text
+tests/schemes/_data/signmessage.json -text
 tests/script/_data/bip67_test_vectors.json -text
 tests/script/_data/script_assets_test.json -text
 tests/script/_data/sig_hash_legacy_test_vectors.json -text

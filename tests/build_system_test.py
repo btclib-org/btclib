@@ -124,10 +124,10 @@ def test_the_bindings_extra_and_group_ask_for_the_same_thing() -> None:
     """
     extra, group = _bindings_requirements()
     assert extra == group, f"the extra asks {extra}, the group asks {group}"
-    # the bindings, and btclib_ecc's own extra for them, which is what
-    # puts them behind that package's delegations as well as btclib's
+    # ecc's own extra for the bindings, which is what puts them behind
+    # that package's delegations, the only ones btclib makes
     names = sorted(requirement.split(">=")[0] for requirement in extra)
-    assert names == ["btclib-ecc[secp256k1]", "btclib-secp256k1"], extra
+    assert names == ["ecc[secp256k1]"], extra
 
 
 def test_the_bip324_extra_and_group_ask_for_the_same_thing() -> None:
@@ -252,7 +252,7 @@ def _reaches_outside_the_sdist(tree: ast.Module) -> bool:
 def _missing_source_excludes(tests_dir: Path, excluded: Iterable[str]) -> list[str]:
     """Every `*.py` under `tests_dir`, recursively, unlisted in `excluded`.
 
-    Recursive, `tests/ecc/`, `tests/script/` and the rest of the package's
+    Recursive, `tests/schemes/`, `tests/script/` and the rest of the package's
     own subdirectories being as reachable from an installed test as the
     top level is -- a module there naming `.github` or `fuzz` would be
     just as unrunnable from an unpacked sdist. `source-exclude`'s own

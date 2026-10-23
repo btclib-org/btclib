@@ -11,10 +11,10 @@ scalar, a point or a tuple of them with a network: the canonical form is
 what comes *out* of a conversion and never what goes *in*, so a caller
 that has one has to spell it back for the next call, which parses it
 again. That round trip is what `btclib_wallet.bip32.derive_` and
-`btclib_ecc.curves.sec_point._sec_from_pub_key` work around locally --
+`ecc.curves.sec_point._sec_from_pub_key` work around locally --
 issues 886 and 887. Issue 896 is the same round trip where
-`script.taproot` reads an internal key, and there it is this module that
-answers it.
+`script.taproot` reads an internal key: it takes a `PubKeyData`, and the
+single lift of its x is ecc's `pub_key_tweak_add_var`.
 
 `PubKeyData` and `PrvKeyData` are that cut: the spellings stay at the
 boundary, the parse happens once, and what travels afterwards is an
@@ -23,7 +23,7 @@ object that knows which half it is.
 **Why the SEC octets are the field and the point is derived.** The two
 conversions do not cost the same. Serializing a point is a byte
 concatenation; parsing a compressed one is a modular square root, whose
-cost `btclib_ecc.curves.sec_point.point_from_octets_var` records beside the
+cost `ecc.curves.sec_point.point_from_octets_var` records beside the
 two arms that pay it. A write is cheaper than a lift and a lift than a
 derivation. The first of those two gaps is widest exactly where it
 matters, at the compressed form that bitcoin uses.
@@ -36,7 +36,7 @@ them: one fact in one place, and this is not the place.
 That is not only a cache. **`point_var` is also the proof**: a length and a
 prefix are what the constructor checks, and whether those octets are a
 point of the curve is the question `point_var` answers. It is the contract
-`btclib_ecc.curves.sec_point._sec_from_pub_key` already states -- "the
+`ecc.curves.sec_point._sec_from_pub_key` already states -- "the
 guarantee is the caller's to complete" -- made explicit and paid once,
 rather than left to each caller and paid again at every one.
 
@@ -69,7 +69,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import cached_property
 
-from btclib_ecc.curves import Curve, bytes_from_prv_key_int, point_from_octets_var
+from ecc.curves import Curve, bytes_from_prv_key_int, point_from_octets_var
 from typing_extensions import override
 
 from btclib.alias import Octets, Point
@@ -166,7 +166,7 @@ class PubKeyData:
         prefix, and whether what they frame is a point of the curve is
         what this answers. A key nobody asks this of has never been
         proved one -- deliberately, that being the trade
-        `btclib_ecc.curves.sec_point._sec_from_pub_key` already makes for
+        `ecc.curves.sec_point._sec_from_pub_key` already makes for
         the callers that hand the octets straight to a call which parses
         them anyway.
         """

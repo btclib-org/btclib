@@ -37,7 +37,7 @@ from __future__ import annotations
 import string
 
 import pytest
-from btclib_ecc.curves import bytes_from_point, point_from_octets_var
+from ecc.curves import bytes_from_point, point_from_octets_var
 from hypothesis import given
 from hypothesis import strategies as st
 

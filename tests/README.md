@@ -31,7 +31,7 @@ interpreter `.python-version` pins, coverage.py using `sys.monitoring`
 from 3.12 on.
 
 **A run that selects a subset is not gated.** `fail_under` applies to
-every report coverage writes, so `uv run pytest tests/ecc` would fail
+every report coverage writes, so `uv run pytest tests/schemes` would fail
 on the tree's coverage rather than on anything about that run. A path
 that leaves part of the suite behind, `-k`, `-m`, `--deselect`,
 `--ignore`, `--ignore-glob` or `--lf` therefore drops the threshold to
@@ -365,7 +365,7 @@ the browser's `callers` on the second line.
 
 What to know before reading one:
 
-- **the point arithmetic of btclib_ecc's `curves/curve_group.py`
+- **the point arithmetic of ecc's `curves/curve_group.py`
   dominates the self time**, and it runs where a test asks for the
   arithmetic the bindings do not do: `python_path_test.py` turns the
   delegation off on purpose, and so does every test comparing the two

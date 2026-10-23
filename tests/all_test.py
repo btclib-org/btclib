@@ -91,7 +91,7 @@ def _reexports(*groups: tuple[ModuleType, list[str]]) -> dict[str, ModuleType]:
 #
 # What no entry may name is an object of another distribution:
 # `test_no_module_exports_another_distributions_name` is what holds that,
-# and `btclib_ecc` and `bitcoin_core_rpc` are imported from where they are
+# and `ecc` and `bitcoin_core_rpc` are imported from where they are
 # defined
 REEXPORTED = {
     "btclib.block.limits": _reexports(
@@ -282,7 +282,7 @@ def defined_public_names(module: ModuleType) -> set[str]:
 def test_ecc_exports_the_two_schemes_that_are_bitcoins() -> None:
     """Guards against `bms` and `ellswift` dropping out of the export list.
 
-    The curve arithmetic and every other scheme are `btclib_ecc`'s, and a
+    The curve arithmetic and every other scheme are `ecc`'s, and a
     name added here for one of them is the re-export this package does
     not make.
     """
@@ -434,7 +434,7 @@ def test_no_module_exports_a_name_it_imported() -> None:
 
 
 def test_no_module_exports_another_distributions_name() -> None:
-    """No `__all__` names an object `btclib_ecc` or `bitcoin_core_rpc` owns.
+    """No `__all__` names an object `ecc` or `bitcoin_core_rpc` owns.
 
     `REEXPORTED` records what btclib aliases from itself, and this is the
     half it cannot be: a name whose canonical module is in another
@@ -443,7 +443,7 @@ def test_no_module_exports_another_distributions_name() -> None:
     statement, so an alias spelled `import x as y`, or a name bound in a
     `try`, is caught too.
     """
-    foreign = ("btclib_ecc", "bitcoin_core_rpc")
+    foreign = ("ecc", "bitcoin_core_rpc")
     for module in library_modules():
         for name in module.__all__:
             value = getattr(module, name)

@@ -9,7 +9,7 @@ from dataclasses import fields
 from typing import Any, get_args
 
 import pytest
-from btclib_ecc.curves.curve import CURVES
+from ecc.curves.curve import CURVES
 
 from btclib.alias import NetworkField, NetworkName
 from btclib.consensus import CONSENSUS_PARAMS
