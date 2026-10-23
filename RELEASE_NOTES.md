@@ -19,6 +19,50 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.10.23
+
+- **btclib requires `ecc` 2026.10.23, which replaces btclib-ecc** (issue
+  btclib-org/ecc#306). Act on it if you pin btclib-ecc, import `btclib_ecc`,
+  catch a `BTClibEcc*` exception or set `BTCLIB_ECC_NO_LIBSECP256K1`: `ecc`'s
+  own release notes give the new names, and there is no alias.
+
+### Breaking changes
+
+- **`btclib[secp256k1]` installs `ecc[secp256k1]`** (issue
+  btclib-org/ecc#306). Its btclib-secp256k1 floor is `ecc`'s, 0.8.0.12.
+  btclib no longer imports `btclib_secp256k1`. Act on it if you pin
+  btclib-secp256k1 through btclib: pin it yourself.
+- **`script.taproot.output_pubkey_from_merkle_root` is
+  `output_pubkey_from_merkle_root_var`, and `btclib.script`'s with it; the
+  private `_tweaked_pubkey` is `_tweaked_pubkey_var`** (closes #2726). There is
+  no alias. Act on it if you call either: rename it.
+- **Taproot refuses in other words and in more cases** (closes #2726). An
+  uncompressed internal key whose y is not its x's raises
+  `BTClibValueError("point not on curve")`, where, with the bindings, it raised
+  "invalid internal public key: ...". A tweak that sums to infinity or zero makes
+  `check_output_pubkey`, `output_pubkey` and `output_prvkey` raise
+  `BTClibValueError`; `check_output_pubkey` answered `False`; `output_pubkey`
+  raised "invalid x-coordinate" with the bindings and returned a key without;
+  `output_prvkey` raised the bindings' `ValueError` or returned 0. Act on it if
+  you match the message or catch the old error.
+- **Names that run in variable time take `_var`, with no alias** (closes
+  #2687): `key.PubKeyData.point_var`, `script.script_pub_key.assert_p2pk_var`,
+  `is_p2pk_var`, `assert_p2ms_var`, `is_p2ms_var` and `p2ms_m_and_keys_var`
+  (and `btclib.script`'s), `muhash.MuHash3072.digest_var` and
+  `coinstats.CoinStats.digest_var`. Act on it if you call one: add the suffix.
+- **`BlockContext`'s `bip34_height` field, an `int`, is `consensus`, a
+  `ConsensusParams`, and `block_context.BIP34_HEIGHT` is gone** (issue #2705).
+  Act on it if you build one: pass `consensus=NETWORKS[name].consensus` where
+  you passed `bip34_height=…`, and read `ctx.consensus.bip34_height` for the
+  height and `CONSENSUS_PARAMS["mainnet"].bip34_height` for the constant.
+- **`Block.assert_valid_contextual` refuses blocks it accepted** (issue
+  #2705): an outdated version, a non-final transaction, a witness below the
+  segwit height, a commitment without its nonce, and a block over the weight
+  cap. Act on it if you call it on blocks of those kinds.
+- **bitcoin-core-rpc is no longer a dependency of btclib** (issue #2707).
+  Nothing in btclib imports it. Act on it if you relied on btclib to install
+  it: require it yourself.
+
 ## v2026.10.17
 
 - **btclib requires btclib-ecc 2026.10.17 and bitcoin-core-rpc 2026.10.17, and
