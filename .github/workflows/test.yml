@@ -194,7 +194,7 @@ jobs:
       # yamllint's line-length rule off a line a quoted string on the
       # `prose-pattern:` line itself would put well past it
       prose-pattern: |-
-        ^(AUTHORS|CLAUDE|CONTRIBUTING|RELEASING|REPOSITORY|REVIEWING|SECURITY)\.md$|^\.github/[^/]*\.md$
+        ^(AGENTS|AUTHORS|CONTRIBUTING|RELEASING|REPOSITORY|REVIEWING|SECURITY)\.md$|^\.github/[^/]*\.md$
 
   # the one cell a merge waits for, and the one place coverage is
   # measured: ubuntu-latest on the interpreter below, which is what the
