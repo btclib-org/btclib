@@ -290,15 +290,9 @@ would make a published artifact refuse a version it in fact works with; a
 `<1` ceiling constrains nothing, pre-1.0 semver putting the breaking
 changes in the minor.
 
-**`bitcoin-core-rpc` is required and the bindings are an extra, and that
-was weighed rather than inherited.** Making `bitcoin-core-rpc` an extra
-was considered and refused: an optional dependency whose absence changes
-a *speed* is a different object from one whose absence removes a
-*capability*, and only the first is what an extra is for. The bindings
-are the first — btclib answers without them, on a pure-Python arm that
-is supported, covered by CI and documented. `bitcoin-core-rpc` is the
-second: `btclib.p2p.magic` takes Core's chain names and a signet's
-message start from it, and nothing in btclib stands behind them.
+**The bindings are an extra because their absence changes a speed.**
+btclib answers without them, on a pure-Python arm that is supported,
+covered by CI and documented.
 
 **The `bip324` extra is a capability, and an extra anyway.** Without it
 `btclib.p2p.bip324` cannot be imported, and nothing else in btclib imports

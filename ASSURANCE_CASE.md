@@ -46,19 +46,6 @@ process launcher; `importlib` is there to import btclib's own submodules
 and read its version. btclib reads no environment variable; btclib_ecc
 reads one, as *Trust boundaries* says.
 
-One of those dependencies, `bitcoin_core_rpc`, is an RPC client package,
-and btclib does not load the client in it. `src/btclib/p2p/magic.py` is
-the one module importing it, and it takes two names of the package's
-`chains` vocabulary, `chain_from_network` and `magic_from_chain`; the
-package's `__init__` imports `chains` and `errors` eagerly and its
-`client` and `transport` only when one of their names is asked for,
-which btclib never does, so nothing it loads opens a socket.
-ARCHITECTURE.md's *What sits outside the package* describes that edge,
-and `tests/imports_test.py`'s
-`test_the_codec_does_not_pay_for_the_rpc_package` asserts that asking
-`btclib.p2p` for a message start loads the package without
-`urllib.request`.
-
 ```shell
 python3 - <<'EOF'
 import ast, pathlib
@@ -202,8 +189,7 @@ describes beside them.
   upstream commit it matches, and SECURITY.md states what is not
   defended.
 - **Least privilege.** The library holds no socket and runs no program,
-  as the census under *Threat model* shows, `bitcoin_core_rpc`'s client
-  and transport included, which btclib never loads. `btclib.p2p` and
+  as the census under *Threat model* shows. `btclib.p2p` and
   `btclib.electrum` turn octets into objects and back, and
   `tests/imports_test.py` holds both to import closures without
   `urllib.request`. The one environment variable
@@ -276,8 +262,7 @@ to, and what counters each.
 - **Deserialization of untrusted data (CWE-502).** btclib reads only its
   own binary formats, its text encodings and json, through the parsers
   and `from_dict` above. The census under *Threat model* lists neither
-  `pickle` nor `marshal` nor `shelve`, and of `bitcoin_core_rpc` btclib
-  loads only `chains` and `errors`, which import neither. CodeQL analyses
+  `pickle` nor `marshal` nor `shelve`. CodeQL analyses
   the code and the workflows in `.github/workflows/codeql.yml`.
 - **Type confusion (CWE-843).** mypy runs with `strict = true`
   (`pyproject.toml`) over the library and the suite, as a hook of the

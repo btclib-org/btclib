@@ -140,7 +140,7 @@ def test_the_catalogue_is_read_only() -> None:
     not. A `Network` is an encoding table and every field of one is the
     same for every deployment of that network, so there is nothing left
     for a caller to register: a custom signet differs in its p2p magic,
-    which identifies a node and is `bitcoin_core_rpc`'s.
+    which `btclib.p2p.magic` derives from its challenge.
     """
     mutable: Any = NETWORKS
     with pytest.raises(TypeError, match="does not support item assignment"):
@@ -169,8 +169,8 @@ def test_the_test_networks_differ_from_testnet_in_the_chain_not_the_spelling() -
     which is the whole reason the reverse lookups have an ambiguity to
     answer for; what a network of its own buys them is a chain, which is
     a genesis block and the consensus row that chain is validated by --
-    and, outside this table, a p2p magic, which identifies a *node* and
-    lives in `bitcoin_core_rpc` with the rest of what Core reports.
+    and, outside this table, a p2p magic, which `btclib.p2p.magic`
+    holds.
     """
     testnet = NETWORKS["testnet"].to_dict()
     for name in ("signet", "testnet4", "regtest"):

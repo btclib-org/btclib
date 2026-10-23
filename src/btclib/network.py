@@ -18,10 +18,10 @@ register and the catalogue is a read-only mapping.
 
 What *is* per
 deployment -- a custom signet's p2p magic, which its challenge determines
--- is a fact about a node rather than about an encoding, and lives where
-the node is spoken to: `bitcoin_core_rpc.magic_from_signet_challenge`, and
-the `signet_challenge` argument of the fetchers that reach a Bitcoin Core
-node, over the JSON-RPC server or over `-rest`, for the check it feeds.
+-- is a fact about a node rather than about an encoding:
+`btclib.p2p.magic.magic_from_signet_challenge` derives it. The fetchers
+that reach a Bitcoin Core node, over the JSON-RPC server or over `-rest`,
+take a `signet_challenge` argument for the check it feeds.
 Fixed at import is what lets the reverse lookups below be tables built
 once: a network registered afterwards would be found by a scan and missed
 by a precomputed index, which is the disagreement issue 683 recorded.
@@ -145,12 +145,11 @@ class Network:
     plus the genesis block hash and the consensus row of the chain those
     spell keys for. No consensus parameter is written out here, `consensus`
     being a reference to `btclib.consensus`'s own table; and no p2p one at
-    all: the message start belongs to the code that speaks to a node,
-    `bitcoin_core_rpc.magic_from_chain` being where it is, because a
-    custom signet's is a function of its challenge and therefore not a
-    field any table can hold. NETWORKS holds the built-in instances, and
-    the ``*_from_network`` and ``*_from_xkeyversion`` functions below
-    are the lookups.
+    all: the message start is `btclib.p2p.magic`'s, because a custom
+    signet's is a function of its challenge and therefore not a field
+    any table keyed by network can hold. NETWORKS holds the built-in
+    instances, and the ``*_from_network`` and ``*_from_xkeyversion``
+    functions below are the lookups.
     """
 
     curve: Curve

@@ -48,7 +48,7 @@ claim on: an activation height, the subsidy interval, the easiest target
 the network allows, and the exceptions the chain's own history forces.
 What identifies a *node* rather than a network -- a port, a DNS seed, a
 pruning floor, a custom signet's p2p magic -- is not here, and
-`bitcoin_core_rpc` is where the last of those lives.
+`btclib.p2p.magic` is where the last of those lives.
 
 Every value is transcribed from `src/kernel/chainparams.cpp` at Bitcoin
 Core v31.1 (bitcoin/bitcoin@9be056a8a7), with the line it was read at

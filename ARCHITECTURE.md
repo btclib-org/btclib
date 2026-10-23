@@ -139,12 +139,12 @@ sync, which decides what to ask a peer for and sends nothing itself.
   nothing in btclib imports it: `tests/imports_test.py` holds that edge to
   one direction.
 - **[bitcoin-core-rpc](https://github.com/btclib-org/bitcoin-core-rpc)** is
-  a required dependency. `btclib.p2p.magic` takes the message start of
-  each network from its `chains` module, which depends on nothing beyond
-  the standard library. `btclib.p2p.magic` is the one module that imports
-  that package, and no module loads `urllib.request` on its way to
-  anything else, so a caller who parses messages pays nothing for a
-  client it never uses. `tests/imports_test.py`'s
+  not a runtime dependency: `btclib.p2p.magic` holds the message start
+  of each network. The suite uses the package to drive a bitcoind, to read
+  Core's chain names, and to compare that table with the package's copy.
+  No module loads `urllib.request` on its way to anything else, so a
+  caller who parses messages pays nothing for a client it never uses.
+  `tests/imports_test.py`'s
   `test_the_codec_does_not_pay_for_the_rpc_package` and
   `test_electrum_codec_stays_stdlib_light` hold both codecs to that.
 - **Package data.** The networks are JSON under `src/btclib/_data/`, read

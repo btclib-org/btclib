@@ -47,17 +47,12 @@ license = "MIT"
 license-files = ["LICENSE", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 requires-python = ">=3.11"
-# Required, where the bindings below are an extra, and that asymmetry was
-# weighed rather than inherited (issue #1126). CONTRIBUTING.md's dependency
-# paragraph carries the reasoning, beside the ceiling argument it already
+# Required, where the bindings below are an extra. CONTRIBUTING.md's
+# dependency paragraph carries the reasoning, beside the ceiling argument it
 # makes; the releases themselves are named here and nowhere else, a floor
 # moving whenever this tree starts calling something newer and a second copy
 # of the number being the one that goes stale.
 dependencies = [
-    # `btclib.p2p.magic` calls `chain_from_network` and `magic_from_chain`,
-    # both there since 2026.8.29. The floor is the release this btclib
-    # is cut against, as RELEASING.md's step 1 of *Release to PyPI* asks
-    "bitcoin-core-rpc>=2026.10.17",
     # the curve arithmetic and the schemes built on it, which btclib
     # imports from `btclib_ecc` where it uses them and does not
     # re-export. 2026.10.16 is the first release with the names btclib
@@ -233,6 +228,10 @@ bip324 = ["cryptography>=42.0.0"]
 # second lock file -- uv's `--no-group` suppresses a group that was
 # selected, not one another group includes
 harness = [
+    # the rpc client the integration tests drive a bitcoind with, Core's
+    # chain vocabulary tests/key_io_test.py reads its vectors in, and the
+    # copy of the message start tests/p2p/magic_test.py compares with
+    "bitcoin-core-rpc>=2026.10.17",
     "coverage>=7.16.0",
     "hypothesis>=6.168.0",
     "pytest>=9.1.1",
@@ -1334,15 +1333,12 @@ ignore = [
 # preview mode's undefined-export does not special-case a module-level
 # __getattr__ (astral-sh/ruff#18504, open): these modules publish this
 # way, as each docstring says, and F822 sees no import to bind the name
-# to. btclib, btclib.ecc and btclib.script publish submodules; btclib.p2p
-# publishes a function, so that a codec does not import the rpc
-# package the message start comes from. tests/all_test.py already walks `__all__`
-# with getattr and fails on the same drift this rule would catch, so
-# nothing here goes unchecked while the upstream rule does not know the
-# pattern
+# to. btclib, btclib.ecc and btclib.script publish submodules.
+# tests/all_test.py already walks `__all__` with getattr and fails on the
+# same drift this rule would catch, so nothing here goes unchecked while
+# the upstream rule does not know the pattern
 "src/btclib/__init__.py" = ["F822"]
 "src/btclib/ecc/__init__.py" = ["F822"]
-"src/btclib/p2p/__init__.py" = ["F822"]
 "src/btclib/script/__init__.py" = ["F822"]
 # T20 is selected for the library, which writes to no stream of its own;
 # a script whose caller is a workflow step is the case it is not about.

@@ -215,9 +215,9 @@ chose to leave it". State the choice in the release pull request, next
 to `deps-latest`'s own result.
 
 1. Make sure the newest release of **each btclib-org dependency** —
-   every `btclib-*` and `bitcoin-core-rpc` requirement that
-   `pyproject.toml` declares, in `dependencies` and in the extras — is
-   the one this release should depend on, and that `pyproject.toml`'s pin
+   every `btclib-*` requirement that `pyproject.toml` declares, in
+   `dependencies` and in the extras — is the one this release should
+   depend on, and that `pyproject.toml`'s pin
    says so. Two questions, not one: whether the pin *resolves*, which the
    wheel smoke test of the `dist` job already answers on every pull
    request by failing when only an unreleased version satisfies it, and

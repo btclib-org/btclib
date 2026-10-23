@@ -46,7 +46,6 @@ from dataclasses import FrozenInstanceError, replace
 from io import BytesIO
 
 import pytest
-from bitcoin_core_rpc import magic_from_chain
 from hypothesis import given
 
 from btclib.exceptions import (
@@ -58,6 +57,7 @@ from btclib.exceptions import (
 )
 from btclib.p2p import Message
 from btclib.p2p.limits import MAX_PROTOCOL_MESSAGE_LENGTH
+from btclib.p2p.magic import magic_from_network
 from tests.strategies.p2p import MESSAGES
 
 # The Bitcoin Wiki's Protocol documentation, "version" section: a message
@@ -104,7 +104,7 @@ def test_captured_version_message() -> None:
     assert message.serialize() == _VERSION
 
     # the magic is mainnet's, which is where a caller gets one
-    assert message.magic == magic_from_chain("main")
+    assert message.magic == magic_from_network("mainnet")
 
 
 def test_captured_verack_message() -> None:
@@ -404,10 +404,10 @@ def test_frozen() -> None:
     assert hash(message) == hash(Message(_MAINNET, "verack"))
     assert len({message, copy.copy(message)}) == 1
 
-    regtest = Message(magic_from_chain("regtest"), "verack")
+    regtest = Message(magic_from_network("regtest"), "verack")
     assert regtest != message
     assert regtest.serialize()[4:] == message.serialize()[4:]
-    assert replace(message, magic=magic_from_chain("regtest")) == regtest
+    assert replace(message, magic=magic_from_network("regtest")) == regtest
 
 
 def test_the_flag_still_switches_the_check_off() -> None:

@@ -134,21 +134,13 @@ def test_consensus_imports_nothing_of_btclibs(unimported_btclib: None) -> None:
 
 
 def test_the_codec_does_not_pay_for_the_rpc_package() -> None:
-    """`btclib.p2p` publishes the message start without importing it.
+    """`btclib.p2p` loads neither `bitcoin_core_rpc` nor `urllib.request`.
 
-    The package's whole claim is that it opens no socket, and the module
-    holding the message start reaches `bitcoin_core_rpc` -- but only its
-    `chains` module, which depends on nothing beyond the standard
-    library; `urllib.request`, and `ssl` and `socket` under it, live in
-    `client.py` and `transport.py`, which a message-start lookup never
-    reaches. ARCHITECTURE.md states the property this keeps: "no module
-    loads `urllib.request` on its way to anything else".
-
-    So `src/btclib/p2p/__init__.py` answers the name through PEP 562,
-    as `src/btclib/script/__init__.py` answers `sig_hash` and `engine`, and
-    what is pinned here is both halves: importing the package costs
-    nothing, and asking for a message start costs only
-    `bitcoin_core_rpc` itself -- never `urllib.request`.
+    The package's whole claim is that it opens no socket, and its message
+    start is btclib's own, in `btclib.p2p.magic`. ARCHITECTURE.md states
+    the property this keeps: "no module loads `urllib.request` on its way
+    to anything else". Asking for a message start is in the probe, so that
+    a later import inside `magic_from_network` would show here too.
 
     `socket` is deliberately not asserted absent anywhere here.
     `src/btclib/__init__.py` reads the version with `importlib.metadata`,
@@ -171,27 +163,16 @@ def test_the_codec_does_not_pay_for_the_rpc_package() -> None:
     else -- where `socket.inet_pton`, which is the other way to write the
     same conversion, would put the C library's resolver behind a codec.
     """
-    package_name = "'bitcoin_core_rpc'"
-    transport_cost = "'urllib.request'"
-
-    probe = "import btclib.p2p, sys; print(sorted(sys.modules))"
+    probe = (
+        "import btclib.p2p as p, sys; p.magic_from_network('signet');"
+        " p.magic_from_signet_challenge('51'); print(sorted(sys.modules))"
+    )
     loaded = subprocess.run(  # noqa: S603
         [sys.executable, "-c", probe], check=True, capture_output=True, encoding="utf-8"
     ).stdout
-    assert package_name not in loaded
-    assert transport_cost not in loaded
-
-    # and the other half, so that the first is a property of the codec
-    # and not of a dependency that stopped importing what it imports --
-    # the package is reached the moment a message start is asked for, and
-    # `urllib.request` still is not: `chains.py` is the whole of what
-    # that lookup runs
-    probe = "import btclib.p2p as p; p.magic_from_network; import sys; print(sorted(sys.modules))"
-    loaded = subprocess.run(  # noqa: S603
-        [sys.executable, "-c", probe], check=True, capture_output=True, encoding="utf-8"
-    ).stdout
-    assert package_name in loaded
-    assert transport_cost not in loaded
+    assert "'btclib.p2p.magic'" in loaded
+    assert "'bitcoin_core_rpc'" not in loaded
+    assert "'urllib.request'" not in loaded
 
 
 def test_electrum_codec_stays_stdlib_light() -> None:
