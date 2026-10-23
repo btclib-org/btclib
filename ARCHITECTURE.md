@@ -61,7 +61,7 @@ elsewhere a module reaches up where its subject asks for it, as
 - **networks, keys and addresses**: `network`, `base58`, `bech32`, `key`,
   `b58`, `b32`
 - **the chain**: `script`, `tx`, `block`, `fee`, `policy`, `coinstats`,
-  `muhash`
+  `muhash`, `utreexo`
 - **the wire**: `p2p`, `electrum`
 
 `alias` holds the types the public API accepts, much of it taking anything
