@@ -1727,6 +1727,29 @@ caller goes in the body of the pull request that took it. Two figures
 were found stale in one week by the branch standing on them, and neither
 would have been noticed otherwise (issue #940).
 
+### Facts that waste a session
+
+**`uv run --project <worktree>` does not change the working directory,**
+so `testpaths` in `pyproject.toml` resolves against the primary checkout
+and the tests that run are not the worktree's. Use
+`env -C <worktree> uv run pytest`.
+
+**Ask an index what it serves from outside every checkout of this
+project.** `--isolated --no-project` does not make it so: a cached build
+of an earlier state of the tree can shadow the index and answer with a
+plausible version. Run the question with `env -C <scratchpad>`, and print
+`btclib.__file__` beside the version when the answer decides anything.
+
+**A pin comment names the point release,** or the floating major plus the
+calls that resolve it, as the comment above `fuzz.yml`'s
+`google/clusterfuzzlite` pin does. Prose never copies a pinned value: it
+names the file that holds it. A measurement's stamp and a floor are the
+two exceptions (issues #2046 and #2079).
+
+**Never execute `docs/source/conf.py` from a test.** It imports the
+`docs` group at top level, which the coverage job lacks. Read it as text,
+as `_pyproject_author()` in `tests/copyright_test.py` does (issue #1538).
+
 ### Every change starts with an issue
 
 Open one before the pull request, however small the change is. The
