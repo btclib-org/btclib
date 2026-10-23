@@ -39,15 +39,34 @@ a newcomer need not know in advance which repository to look in.
 
 ## Documentation and comments
 
-[Section 9 of the standard][s9] is the prose style, and it governs the
-prose this tree ships — comments, docstrings and markdown. It is not
-restated here: a second wording is the one that goes stale, which is
-that section's own *One fact in one place*.
+[Section 9 of the standard][s9] is the prose style, after *Write
+plainly* below, and it governs the prose this tree ships — comments,
+docstrings and markdown. It is not restated here: a second wording is
+the one that goes stale, which is that section's own *One fact in one
+place*.
 
 A commit message is prose this tree ships too, though section 9 does not
 say so: [the only merge method the rule accepts][s11] puts it on `main`
 as the landing commit's body, so what is written in one is read there
 long after the branch is gone.
+
+## Working with an LLM
+
+**Development here is LLM-based.** Most issues, code and reviews are
+written by agentic sessions that the maintainer directs and reads.
+Humans are welcome, as long as they are comfortable working that way.
+
+**A contribution is yours, whoever wrote it.** Read every line before
+you open the pull request, understand it, and be ready to answer a
+review without the model. Text or code you have not read, or cannot
+explain, is closed without review.
+
+**Write plainly**, in the tree and on the forge: the point first, plain
+words, one fact per sentence. On the forge, the title and the first
+sentence carry the point; a body is at most two short paragraphs before
+any code block or template section; a comment is about 200 words, and
+never more than 250, with no list and no heading; a review's summary
+takes the shape `REVIEWING.md`'s *The verdict* gives it.
 
 ## Pull requests
 
@@ -1705,10 +1724,11 @@ measured how, and what is left.
 
 ### Prose in this tree
 
-[Section 9 of the standard][s9] is the whole of the prose style, and
-*Documentation and comments* above says why it is not restated. What
-follows is what this tree adds to it, and it holds for docstrings,
-comments, the sphinx pages and a pull request reply alike.
+[Section 9 of the standard][s9], after *Write plainly* above, is the
+whole of the prose style, and *Documentation and comments* above says
+why it is not restated. What follows is what this tree adds to it, and
+it holds for docstrings, comments, the sphinx pages and a pull request
+reply alike.
 
 **Most readers of a docstring here are new to btclib: write for them.**
 

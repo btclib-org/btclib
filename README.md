@@ -258,6 +258,13 @@ python -m pip install --upgrade btclib
 On Windows the second line is `venv_btclib\Scripts\activate` in CMD and
 PowerShell, `source venv_btclib/Scripts/activate` in Git bash.
 
+## Contributing
+
+Development is LLM-based: humans are welcome, as long as they are
+comfortable with agentic development ;-). A contribution must have been
+read and understood by the person who submits it.
+[`CONTRIBUTING.md`](./CONTRIBUTING.md#working-with-an-llm) has the rules.
+
 [CONTRIBUTING](./CONTRIBUTING.md) is for development,
 [REVIEWING](./REVIEWING.md) for what a pull request is answered against,
 [SECURITY](./SECURITY.md) for reporting a vulnerability.
