@@ -1,7 +1,7 @@
 # Repository configuration
 
 Read this before changing a workflow, a branch rule or a repository
-setting; writing code does not need it. `CLAUDE.md` points here rather
+setting; writing code does not need it. `AGENTS.md` points here rather
 than carrying it, so that a session fixing a bug in `ecc/` does not hold
 it in context.
 

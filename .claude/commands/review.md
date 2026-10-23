@@ -19,8 +19,7 @@ Two files it leans on, worth loading with it:
 
 - `CONTRIBUTING.md` for the rules a finding cites and, in its last
   section, for the gates of this tree;
-- `CLAUDE.md` for what a session has to know before it touches the
-  tree.
+- `AGENTS.md` for the repository guidance that applies to every agent.
 
 Run the gates on the sha under review before writing the verdict, unless
 they have already been run on it and that run is on the record — which is

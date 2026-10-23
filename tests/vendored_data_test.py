@@ -16,7 +16,7 @@ So the number goes, the lists stay -- they are the fact the number
 summarized -- and the Summary carries the `git ls-files` command that
 derives it on demand.
 
-CLAUDE.md states the rule this module enforces: "Never state how many of
+AGENTS.md states the rule this module enforces: "Never state how many of
 anything a file holds." Its exception is "a count of what upstream published".
 Everything below is an application of that sentence, not a paraphrase of
 it: a numeral -- a digit run, or a spelled-out numeral as a word -- is
@@ -114,7 +114,7 @@ _NOT_A_COUNT = re.compile(
 )
 
 # the reason an exempted line carries, named once and reused: what reaches
-# _EXEMPT is CLAUDE.md's own exception, "a count of what upstream
+# _EXEMPT is AGENTS.md's own exception, "a count of what upstream
 # published", and a numeral that is not one is a numeral the README drops
 _UPSTREAM_FACT = (
     "a fact of the upstream specification or vendored artefact,"
@@ -218,11 +218,11 @@ def _prose_lines() -> list[str]:
 
 
 def test_every_numeral_outside_the_allowlist_is_a_count_of_this_tree() -> None:
-    """Enforces CLAUDE.md's "Never state how many of anything a file holds".
+    """Enforces AGENTS.md's "Never state how many of anything a file holds".
 
     A numeral on a line `_EXEMPT` does not name is either a count of what
     this tree holds -- drop it, the way "the eight BIP327 files" became
-    "the BIP327 files" -- or it is CLAUDE.md's own exception, "a count of
+    "the BIP327 files" -- or it is AGENTS.md's own exception, "a count of
     what upstream published", and belongs in `_EXEMPT` with the reason
     beside it.
     """
@@ -234,7 +234,7 @@ def test_every_numeral_outside_the_allowlist_is_a_count_of_this_tree() -> None:
         }
     )
     assert not offenders, (
-        "tests/_data/README.md states a numeral CLAUDE.md's"
+        "tests/_data/README.md states a numeral AGENTS.md's"
         ' "Never state how many of anything a file holds" forbids,'
         f" on a line _EXEMPT does not name: {offenders!r}"
     )

@@ -154,17 +154,27 @@ whose).
 
 CI is read once, and this is where: on the head that lands. `main` does
 not ask that head to be up to date with it, and [section 11][s-branch]
-says why. So a branch is rebased only where it conflicts with `main`, or
-where its checks ran on a `main` that has since been repaired, because
-re-running its checks would test the same merge commit. A rebase that
-moved nothing but the base leaves the ack standing; one that resolved a
-conflict does not, that resolution being a change no reviewer has seen.
+says why. So a branch is rebased only where it conflicts with `main`. A
+rebase that moved nothing but the base leaves the ack standing; one that
+resolved a conflict does not, that resolution being a change no reviewer
+has seen.
 
-When `main`'s CI is red after a merge, its repair lands before any other
-pull request, and no `--auto` below stays armed until then: what lands
-meanwhile is merged onto a tree known to be broken, and `main`'s next run
-cannot tell a new failure from the one already there. An armed pull
-request whose checks ran before the break merges on them all the same.
+When `main`'s CI is red after a merge, its repair takes priority over
+every other pull request, because until it lands `main`'s runs cannot
+tell a new failure from the one already there. A pull request armed with
+`--auto` (below) stays armed, and others keep landing meanwhile. Holding
+every landing for a repair costs more than the break it guards against,
+so the risk of landing on a red `main` is accepted
+(btclib-org/.github#1777).
+
+A pull request whose required check is red only because `main` was red
+is closed and reopened once the repair lands (`gh pr close <n>`, then
+`gh pr reopen <n>`). GitHub then runs its checks on a fresh merge with
+the repaired `main`, where a re-run would test the old merge commit. No
+push is made, so its approvals and its ack of record stand. `--auto`,
+where closing dropped it, is armed again once the checks are green. The
+reopen also runs the review bot again, and changes that review requests
+are answered like any other review's.
 
 Then squash, [the only method the rule accepts][s11].
 
@@ -236,6 +246,23 @@ settings and why they are what they are.
 [governance]: https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md
 [roadmap]: https://github.com/btclib-org/.github/blob/main/ROADMAP.md
 [good-first]: https://github.com/search?q=org%3Abtclib-org+label%3A%22good+first+issue%22+is%3Aopen&type=issues
+
+## Worktrees
+
+Run `git fetch origin` in the primary checkout, then check that
+`git status --porcelain` is empty and `git branch --show-current` is
+`main`. Run `git pull --ff-only` only when both checks pass, then verify
+`git rev-parse HEAD origin/main` prints the same sha twice. Create a separate
+worktree for each task with
+`git worktree add <path> origin/main -b <branch>`. After committing,
+remove it with `git worktree remove <path>`. If initialized submodules
+make that fail,
+check for uncommitted, untracked, and ignored files in the worktree and
+its initialized submodules. Preserve anything needed before retrying with
+`git worktree remove --force <path>`; it can delete those files. Keep the
+primary checkout clean and on `main`; do not
+switch branches or stash there. Hooks can fix files in place, and the local
+`main` and `refs/stash` are shared by all worktrees.
 
 ## This repository in particular
 
@@ -1699,6 +1726,29 @@ as fast, flat in n, no crossover" — and the matrix per size or per
 caller goes in the body of the pull request that took it. Two figures
 were found stale in one week by the branch standing on them, and neither
 would have been noticed otherwise (issue #940).
+
+### Facts that waste a session
+
+**`uv run --project <worktree>` does not change the working directory,**
+so `testpaths` in `pyproject.toml` resolves against the primary checkout
+and the tests that run are not the worktree's. Use
+`env -C <worktree> uv run pytest`.
+
+**Ask an index what it serves from outside every checkout of this
+project.** `--isolated --no-project` does not make it so: a cached build
+of an earlier state of the tree can shadow the index and answer with a
+plausible version. Run the question with `env -C <scratchpad>`, and print
+`btclib.__file__` beside the version when the answer decides anything.
+
+**A pin comment names the point release,** or the floating major plus the
+calls that resolve it, as the comment above `fuzz.yml`'s
+`google/clusterfuzzlite` pin does. Prose never copies a pinned value: it
+names the file that holds it. A measurement's stamp and a floor are the
+two exceptions (issues #2046 and #2079).
+
+**Never execute `docs/source/conf.py` from a test.** It imports the
+`docs` group at top level, which the coverage job lacks. Read it as text,
+as `_pyproject_author()` in `tests/copyright_test.py` does (issue #1538).
 
 ### Every change starts with an issue
 
