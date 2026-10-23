@@ -194,7 +194,8 @@ def replace_unchecked(instance: Any, **changes: Any) -> Any:
     dataclass in this project takes `check_validity` the same
     keyword-only way (`CONTRIBUTING.md`'s "The public surface"), so this
     is the one helper any of them can use in place of the direct field
-    mutation a frozen instance now refuses.
+    mutation a frozen instance now refuses. Witness is the exception: its
+    field is its serialization, which its constructor does not take.
     """
     current = {field.name: getattr(instance, field.name) for field in fields(instance)}
     current.update(changes)
