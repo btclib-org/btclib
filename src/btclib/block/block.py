@@ -31,6 +31,8 @@ from btclib.hashes import (
 from btclib.script.script import op_int
 from btclib.script.script import serialize as serialize_script
 from btclib.tx import Tx, TxOut
+from btclib.tx.limits import LOCKTIME_THRESHOLD
+from btclib.tx.tx_context import is_final
 from btclib.utils import (
     _message_text,
     assert_no_trailing,
@@ -461,6 +463,10 @@ class Block:
         segwit's design leave every witness out: without this check the
         witnesses of a block can be replaced wholesale, header and root
         untouched, and the signatures they carry are worth nothing.
+
+        This is the check without a height. A block with no witness at
+        all passes, so a block whose witnesses were stripped still
+        parses. `assert_valid_contextual` is Core's height-aware check.
         """
         if not self.is_segwit:
             # Nothing to commit to, and nothing to check it against: this
@@ -479,6 +485,14 @@ class Block:
             # does not commit to it is unverifiable, hence not allowed.
             raise BTClibValueError("unexpected witness")
 
+        self._assert_valid_committed_witness(commitment)
+
+    def _assert_valid_committed_witness(self, commitment: bytes) -> None:
+        """Assert the coinbase nonce and the commitment it completes.
+
+        Core's `CheckWitnessMalleation` once a commitment is found:
+        bad-witness-nonce-size, then bad-witness-merkle-match.
+        """
         # The other half of the commitment preimage, a 32-byte nonce the
         # miner chooses, lives in the coinbase witness. Core checks the
         # size (bad-witness-nonce-size) because a shorter one would make
@@ -527,38 +541,15 @@ class Block:
             err_msg += f" instead of: {expected.hex()}"
             raise BTClibValueError(err_msg)
 
-    def assert_valid_contextual(self, context: BlockContext) -> None:
-        """Assert the rules a block cannot be checked against on its own.
+    def _assert_valid_contextual_header(self, context: BlockContext) -> None:
+        """Assert Core's ContextualCheckBlockHeader, the timewarp rule apart.
 
-        Bitcoin Core's ContextualCheckBlockHeader and
-        ContextualCheckBlock, as far as a height and a clock reach:
-        bad-diffbits and time-too-old wherever the caller has walked the
-        chain for them, time-too-new always, and bad-cb-height wherever
-        BIP34 is in force. In that order, which is Core's -- the header
-        is checked before the block it heads, and within the header
-        proof-of-work before the clock.
-
-        Separate from assert_valid, which is CheckBlock: what the bytes
-        answer for themselves, and therefore what Block.parse can ask.
-        Both are asked of a block being accepted, and by whoever has the
-        context; neither implies the other.
-
-        bad-diffbits and time-too-old are the two rules
-        `BlockContext.median_time_past` and `.required_bits` answer for,
-        and each is skipped where the field is None -- a caller that has
-        not walked the chain for it, most of them until now. The rest of
-        Core's two functions still needs more than a context: bad-version
-        the activation heights of BIP34, BIP66 and BIP65, bad-txns-nonfinal
-        every transaction's lock time against the same median time past.
-        Each becomes a field of BlockContext once the chain state it reads
-        is there to put in one.
+        bad-diffbits and time-too-old where the context carries what they
+        read, then time-too-new, then bad-version. Core asks
+        time-timewarp-attack between time-too-old and time-too-new; it
+        needs the parent's timestamp, and `header_context.assert_not_timewarp`
+        is that rule.
         """
-        # the context is an object a caller builds, and `now` reaches
-        # datetime arithmetic below: unasked, a str for it raised
-        # AttributeError, which is no ValueError and flies past the handler
-        # the contract asks for
-        context.assert_valid()
-
         if (
             context.required_bits is not None
             and self.header.bits != context.required_bits
@@ -577,8 +568,88 @@ class Block:
 
         self.header.assert_valid_time(context.now)
 
+        if self.header.version < context.min_version:
+            # Core prints nVersion as a uint32, so a negative version
+            # reads as its two's complement
+            version = f"0x{self.header.version & 0xFFFFFFFF:08x}"
+            err_msg = f"invalid version (outdated): {version} < {context.min_version}"
+            raise BTClibValueError(err_msg)
+
+    def _assert_final_transactions(self, context: BlockContext) -> None:
+        """Assert Core's bad-txns-nonfinal at the context's height.
+
+        A time lock is compared against the parent's median time past
+        where BIP113 binds, and against the block's own timestamp before
+        it. Where BIP113 binds and the context has no median time past,
+        time-locked transactions are skipped; height locks are still
+        checked.
+        """
+        time_cutoff = (
+            context.median_time_past
+            if context.is_bip113_active
+            else int(self.header.time.timestamp())
+        )
+        for tx in self.transactions:
+            if time_cutoff is None and tx.lock_time >= LOCKTIME_THRESHOLD:
+                continue
+            # where time_cutoff is None only height locks get here, and
+            # is_final does not read the time for them
+            if not is_final(tx, context.height, time_cutoff or 0):
+                raise BTClibValueError(f"non-final transaction: {tx.id.hex()}")
+
+    def _assert_valid_contextual_witness(self, context: BlockContext) -> None:
+        """Assert Core's CheckWitnessMalleation at the context's height.
+
+        Where segwit binds and the coinbase carries a commitment, the
+        nonce and the commitment are checked, whether or not any
+        transaction has a witness. Otherwise no witness is allowed:
+        Core's unexpected-witness.
+        """
+        commitment = self.witness_commitment if context.is_segwit_active else None
+        if commitment is not None:
+            self._assert_valid_committed_witness(commitment)
+        elif self.is_segwit:
+            raise BTClibValueError("unexpected witness")
+
+    def assert_valid_contextual(self, context: BlockContext) -> None:
+        """Assert the rules a block cannot be checked against on its own.
+
+        Bitcoin Core's ContextualCheckBlockHeader and ContextualCheckBlock,
+        in Core's order. The header first: bad-diffbits and time-too-old
+        where the context carries what they read, time-too-new, and
+        bad-version. Then the block: bad-txns-nonfinal, bad-cb-height
+        where BIP34 binds, the witness rules at the context's height, and
+        the weight.
+
+        Separate from assert_valid, which is CheckBlock: what the bytes
+        answer for themselves, and therefore what Block.parse can ask.
+        Both are asked of a block being accepted; neither implies the
+        other.
+
+        bad-diffbits is skipped where `BlockContext.required_bits` is
+        None. time-too-old is skipped where `.median_time_past` is None,
+        and so is bad-txns-nonfinal for a time-locked transaction where
+        BIP113 binds, since its cutoff is that same median time.
+        time-timewarp-attack is not asked here:
+        `header_context.assert_not_timewarp` is that rule.
+        """
+        # the context is an object a caller builds, and `now` reaches
+        # datetime arithmetic below: unchecked, a str for it would raise
+        # AttributeError, which is no ValueError and flies past the handler
+        # the contract asks for
+        context.assert_valid()
+
+        self._assert_valid_contextual_header(context)
+
+        self._assert_final_transactions(context)
+
         if context.is_bip34_active:
             self.assert_valid_coinbase_height(context.height)
+
+        self._assert_coinbase()
+        self._assert_valid_contextual_witness(context)
+        # after the witness rules, as assert_valid_weight's docstring says
+        self.assert_valid_weight()
 
     def assert_valid_structure(self) -> None:
         """Refuse what Core's CheckBlock refuses, proof-of-work excepted.

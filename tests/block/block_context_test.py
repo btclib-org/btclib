@@ -4,36 +4,42 @@
 
 """The block rules that need something the block does not carry.
 
-`Block.assert_valid` is Bitcoin Core's `CheckBlock`, and these are the
-reachable part of `ContextualCheckBlockHeader` and `ContextualCheckBlock`:
-`time-too-new`, which needs a clock; `bad-cb-height`, which needs the
-height the block is being accepted at and the height BIP34 binds from;
-and, where the caller has walked the chain for them,
-`bad-diffbits` and `time-too-old`. `BlockContext` is what carries all
-five, and each rule but the last two is also a method taking the datum
-it reads, so a caller holding half a context asks the half it can
-answer -- `bad-diffbits` and `time-too-old` are read directly off the
-context instead, `median_time_past` and `required_bits` already being
-the answer rather than something to compute from a height.
+`Block.assert_valid` is Bitcoin Core's `CheckBlock`, and these are
+`ContextualCheckBlockHeader` and `ContextualCheckBlock`, the timewarp
+rule apart: `time-too-new`, which needs a clock; `bad-version`,
+`bad-txns-nonfinal`, `bad-cb-height` and the witness rules, which need
+the height and the chain's activation heights; and, where the caller has
+walked the chain for them, `bad-diffbits` and `time-too-old`.
+`BlockContext` carries all of it.
 
 The blocks are the vendored ones, which is what makes these vectors and
 not fixtures: block 481,824 is a mainnet block above BIP34's activation
 height, so its coinbase commitment is one the whole network agreed on.
 """
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
-from btclib.block import Block, BlockContext, bip34_commitment
-from btclib.block.block_context import BIP34_HEIGHT
-from btclib.block.limits import MAX_FUTURE_BLOCK_TIME
+from btclib.block import (
+    Block,
+    BlockContext,
+    bip34_commitment,
+    witness_commitment_output,
+)
+from btclib.block.limits import MAX_BLOCK_WEIGHT, MAX_FUTURE_BLOCK_TIME
+from btclib.consensus import CONSENSUS_PARAMS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import serialize
+from btclib.script.witness import Witness
 from btclib.tx import TxIn
 
+_MAINNET = CONSENSUS_PARAMS["mainnet"]
 _MAINNET_BIP34_HEIGHT = 227_931
+_MAINNET_SEGWIT_HEIGHT = 481_824
+_COMMITMENT_PREFIX = bytes.fromhex("6a24aa21a9ed")
 
 
 def block_of(fname: str) -> Block:
@@ -44,16 +50,16 @@ def block_of(fname: str) -> Block:
 
 
 def test_the_activation_height_is_cores() -> None:
-    """The default is mainnet's, and mainnet's is 227,931.
+    """The default chain is mainnet's, whose BIP34 height is 227,931.
 
-    `BlockContext` defaults to it because everything else in btclib
-    defaults to mainnet; testnet3 is 21,111 and testnet4, signet and
-    regtest are 1, which a caller passes. Written out here rather than
-    only imported, so that the number is asserted and not merely reused.
+    `BlockContext` defaults to mainnet because everything else in btclib
+    does; another chain is its own `CONSENSUS_PARAMS` row, which a caller
+    passes. Written out here rather than only imported, so that the
+    number is asserted and not merely reused.
     """
-    assert BIP34_HEIGHT == _MAINNET_BIP34_HEIGHT
     now = datetime.now(UTC)
-    assert BlockContext(height=0, now=now).bip34_height == _MAINNET_BIP34_HEIGHT
+    assert BlockContext(height=0, now=now).consensus is _MAINNET
+    assert _MAINNET.bip34_height == _MAINNET_BIP34_HEIGHT
 
     # the gate is a comparison, and the activation height is the first
     # height it lets through
@@ -67,7 +73,8 @@ def test_the_activation_height_is_cores() -> None:
 
     # regtest has BIP34 in force from its first block, which is why the
     # one-byte encodings below are the mainline case and not an edge
-    assert BlockContext(height=1, now=now, bip34_height=1).is_bip34_active
+    regtest = CONSENSUS_PARAMS["regtest"]
+    assert BlockContext(height=1, now=now, consensus=regtest).is_bip34_active
 
 
 def test_a_context_is_a_height_and_an_instant() -> None:
@@ -84,16 +91,14 @@ def test_a_context_is_a_height_and_an_instant() -> None:
     # a height is a position in a chain: there is no negative one
     with pytest.raises(BTClibValueError, match="invalid height: -1"):
         BlockContext(height=-1, now=now)
-    with pytest.raises(BTClibValueError, match="invalid bip34_height: -1"):
-        BlockContext(height=0, now=now, bip34_height=-1)
 
     # a float would compare fine and read as a height, so it is reported
     # rather than coerced
     with pytest.raises(BTClibTypeError, match="invalid height type: float"):
         BlockContext(height=1.0, now=now)  # type: ignore[arg-type]
-    err_msg = "invalid bip34_height type: float"
-    with pytest.raises(BTClibTypeError, match=err_msg):
-        BlockContext(height=0, now=now, bip34_height=1.0)  # type: ignore[arg-type]
+    # a chain is its parameter row, not its name
+    with pytest.raises(BTClibTypeError, match="invalid consensus type: str"):
+        BlockContext(height=0, now=now, consensus="mainnet")  # type: ignore[arg-type]
 
     with pytest.raises(BTClibTypeError, match="invalid now type: int"):
         BlockContext(height=0, now=0)  # type: ignore[arg-type]
@@ -219,8 +224,11 @@ def test_the_commitment_is_only_asked_where_bip34_binds() -> None:
     # and a height that is not this block's is not asked about either
     early.assert_valid_contextual(BlockContext(height=1, now=now))
     # unless the chain enforces BIP34 from the start, as regtest does
+    bip34_at_1 = replace(_MAINNET, bip34_height=1)
     with pytest.raises(BTClibValueError, match="invalid coinbase height: "):
-        early.assert_valid_contextual(BlockContext(height=1, now=now, bip34_height=1))
+        early.assert_valid_contextual(
+            BlockContext(height=1, now=now, consensus=bip34_at_1)
+        )
 
     block = block_of("block_481824_complete.bin")
     now = block.header.time
@@ -378,3 +386,199 @@ def test_the_contextual_rules_are_not_asked_by_assert_valid() -> None:
             empty.assert_valid_coinbase_height(1)
         with pytest.raises(BTClibValueError, match=err_msg):
             _ = empty.height
+
+
+def test_the_activation_gates_are_comparisons_on_the_height() -> None:
+    """Each rule binds from its activation height on, as Core's buried ones do.
+
+    `DeploymentActiveAfter` for a buried deployment is the height being
+    at or above the deployment's: the first height a gate lets through is
+    the activation height itself.
+    """
+    now = datetime.now(UTC)
+    for name, field in (
+        ("is_bip113_active", "csv_height"),
+        ("is_segwit_active", "segwit_height"),
+    ):
+        activation = getattr(_MAINNET, field)
+        for height, active in ((activation - 1, False), (activation, True)):
+            context = BlockContext(height=height, now=now)
+            assert getattr(context, name) is active
+
+    # version 2 from BIP34's height, 3 from BIP66's, 4 from BIP65's
+    for height, least in (
+        (0, 1),
+        (_MAINNET.bip34_height - 1, 1),
+        (_MAINNET.bip34_height, 2),
+        (_MAINNET.bip66_height - 1, 2),
+        (_MAINNET.bip66_height, 3),
+        (_MAINNET.bip65_height - 1, 3),
+        (_MAINNET.bip65_height, 4),
+    ):
+        assert BlockContext(height=height, now=now).min_version == least
+
+    # regtest's genesis is below every one of them, its block 1 above all
+    regtest = CONSENSUS_PARAMS["regtest"]
+    assert BlockContext(height=0, now=now, consensus=regtest).min_version == 1
+    assert BlockContext(height=1, now=now, consensus=regtest).min_version == 4
+
+
+def test_bad_version_refuses_a_version_the_chain_has_outgrown() -> None:
+    """Core's bad-version, a header rule, asked before every block rule.
+
+    Block 1 is version 1, which mainnet accepts below BIP34's height and
+    refuses from it on. At that height its coinbase does not commit to the
+    height either, and bad-version is what answers: the header comes
+    first.
+    """
+    block = block_of("block_1.bin")
+    now = block.header.time
+    block.assert_valid_contextual(
+        BlockContext(height=_MAINNET_BIP34_HEIGHT - 1, now=now)
+    )
+
+    err_msg = "invalid version \\(outdated\\): 0x00000001 < 2"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_contextual(
+            BlockContext(height=_MAINNET_BIP34_HEIGHT, now=now)
+        )
+
+    # the version is a signed int32, and Core prints it unsigned
+    block.header.version = -1
+    err_msg = "invalid version \\(outdated\\): 0xffffffff < 4"
+    regtest = CONSENSUS_PARAMS["regtest"]
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_contextual(
+            BlockContext(height=1, now=now, consensus=regtest)
+        )
+
+
+def test_a_transaction_must_be_final_at_the_height() -> None:
+    """Core's bad-txns-nonfinal, by height and by time.
+
+    Block 481,824's second transaction is locked to height 481,823 and
+    does not opt out of it, so it is final in block 481,824 and in no
+    block before. At 481,823 the coinbase's height is wrong too, and
+    finality is what answers: Core asks it first.
+    """
+    block = block_of("block_481824_complete.bin")
+    now = block.header.time
+    tx = block.transactions[1]
+    assert tx.lock_time == _MAINNET_SEGWIT_HEIGHT - 1
+    block.assert_valid_contextual(BlockContext(height=_MAINNET_SEGWIT_HEIGHT, now=now))
+    err_msg = f"non-final transaction: {tx.id.hex()}"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_contextual(
+            BlockContext(height=_MAINNET_SEGWIT_HEIGHT - 1, now=now)
+        )
+
+    # a time lock, below BIP113's height: the block's own timestamp is
+    # the cutoff, and the lock must be strictly before it
+    block = block_of("block_1.bin")
+    now = block.header.time
+    time = int(block.header.time.timestamp())
+    coinbase = block.transactions[0]
+    coinbase.vin[0].sequence = 0
+    coinbase.lock_time = time - 1
+    block.assert_valid_contextual(BlockContext(height=1, now=now))
+    coinbase.lock_time = time
+    err_msg = "non-final transaction: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_contextual(BlockContext(height=1, now=now))
+
+    # from BIP113's height the cutoff is the median time past instead,
+    # and a time lock is not checked where the context has none
+    bip113_at_1 = replace(_MAINNET, csv_height=1)
+    context = BlockContext(height=1, now=now, consensus=bip113_at_1)
+    block.assert_valid_contextual(context)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_contextual(
+            BlockContext(
+                height=1, now=now, consensus=bip113_at_1, median_time_past=time - 1
+            )
+        )
+    coinbase.lock_time = time - 2
+    block.assert_valid_contextual(
+        BlockContext(
+            height=1, now=now, consensus=bip113_at_1, median_time_past=time - 1
+        )
+    )
+
+
+def test_the_witness_rules_depend_on_the_segwit_height() -> None:
+    """Core's CheckWitnessMalleation, either side of the segwit height.
+
+    Block 481,824 is mainnet's first segwit block. At its height the
+    commitment is checked; on a chain where segwit binds one block
+    later, its witnesses are unexpected.
+    """
+    block = block_of("block_481824_complete.bin")
+    now = block.header.time
+    context = BlockContext(height=_MAINNET_SEGWIT_HEIGHT, now=now)
+    assert context.is_segwit_active
+    block.assert_valid_contextual(context)
+
+    later = replace(_MAINNET, segwit_height=_MAINNET_SEGWIT_HEIGHT + 1)
+    early = BlockContext(height=_MAINNET_SEGWIT_HEIGHT, now=now, consensus=later)
+    with pytest.raises(BTClibValueError, match="unexpected witness"):
+        block.assert_valid_contextual(early)
+
+    # a nonce other than the one committed to
+    coinbase_in = block.transactions[0].vin[0]
+    coinbase_in.script_witness = Witness([b"\x01" * 32])
+    with pytest.raises(BTClibValueError, match="invalid witness commitment: "):
+        block.assert_valid_contextual(context)
+
+
+def test_a_stripped_block_is_refused_where_segwit_binds() -> None:
+    """The defect `assert_valid` cannot see: a commitment with no nonce.
+
+    A block serialized without witnesses parses, since `assert_valid` has
+    no height and a legacy node's block has no witness to check. Above
+    the segwit height the coinbase still commits, so Core asks for the
+    nonce, which stripping removed. Below the segwit height the same
+    bytes pass.
+    """
+    block = block_of("block_481824_complete.bin")
+    stripped = Block.parse(block.serialize(include_witness=False))
+    assert not stripped.is_segwit
+    assert stripped.witness_commitment is not None
+    now = block.header.time
+
+    err_msg = "invalid witness nonce: \\[\\] stack element size\\(s\\)"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        stripped.assert_valid_contextual(
+            BlockContext(height=_MAINNET_SEGWIT_HEIGHT, now=now)
+        )
+
+    later = replace(_MAINNET, segwit_height=_MAINNET_SEGWIT_HEIGHT + 1)
+    stripped.assert_valid_contextual(
+        BlockContext(height=_MAINNET_SEGWIT_HEIGHT, now=now, consensus=later)
+    )
+
+
+def test_the_weight_is_asked_after_the_witness_rules() -> None:
+    """Core's bad-blk-weight closes ContextualCheckBlock.
+
+    46,000 witness bytes on block 481,824's second transaction take it
+    over the cap. Its commitment is rewritten to match, so the witness
+    rules pass and the weight is what answers.
+    """
+    block = block_of("block_481824_complete.bin")
+    now = block.header.time
+    block.transactions[1].vin[0].script_witness = Witness([b"\x00" * 46_000])
+    context = BlockContext(height=_MAINNET_SEGWIT_HEIGHT, now=now)
+    with pytest.raises(BTClibValueError, match="invalid witness commitment: "):
+        block.assert_valid_contextual(context)
+
+    coinbase = block.transactions[0]
+    nonce = coinbase.vin[0].script_witness.stack[0]
+    position = max(
+        i
+        for i, out in enumerate(coinbase.vout)
+        if out.script_pub_key.script.startswith(_COMMITMENT_PREFIX)
+    )
+    coinbase.vout[position] = witness_commitment_output(block.transactions, nonce)
+    assert block.weight > MAX_BLOCK_WEIGHT
+    with pytest.raises(BTClibValueError, match="invalid weight: "):
+        block.assert_valid_contextual(context)

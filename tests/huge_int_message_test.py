@@ -176,8 +176,7 @@ _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
     ("subsidy height", -_HUGE, subsidy),
     ("halving interval", -_HUGE, lambda v: subsidy(0, v)),
     ("block height", -_HUGE, lambda v: BlockContext(v, _NOW)),
-    ("bip34 height", -_HUGE, lambda v: BlockContext(1, _NOW, v)),
-    ("median time past", -_HUGE, lambda v: BlockContext(1, _NOW, 0, v)),
+    ("median time past", -_HUGE, lambda v: BlockContext(1, _NOW, median_time_past=v)),
     (
         "median time past height",
         -_HUGE,

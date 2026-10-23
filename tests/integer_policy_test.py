@@ -94,7 +94,6 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("header version", _header),
     ("header nonce", lambda v: _header(nonce=v)),
     ("block height", lambda v: BlockContext(v, _NOW)),
-    ("bip34 height", lambda v: BlockContext(1, _NOW, v)),
     ("private key scalar", PrvKeyData),
     ("dust threshold", lambda v: valid_sats_amount(1, dust=v)),
     ("output size", lambda v: bytes_from_octets(b"x", v)),
