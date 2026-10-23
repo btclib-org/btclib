@@ -13,12 +13,12 @@ different messages, one per position.
 import itertools
 
 import pytest
-from btclib_ecc.ecc import ssa
+from ecc.ecc import ssa
 
 from btclib.exceptions import ScriptError, ScriptErrorCode
 from btclib.script import Witness, sig_hash
 from btclib.script.engine import verify_transaction
-from btclib.script.taproot import leaf_hash, output_pubkey_from_merkle_root
+from btclib.script.taproot import leaf_hash, output_pubkey_from_merkle_root_var
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 _OP_TUCK = b"\x7d"
@@ -46,7 +46,7 @@ _LEAF = (
 # marks with 0xFFFFFFFF.
 _CODESEP_POSITIONS = [0xFFFFFFFF, 3, 6]
 
-_OUTPUT_KEY, _PARITY = output_pubkey_from_merkle_root(
+_OUTPUT_KEY, _PARITY = output_pubkey_from_merkle_root_var(
     _INTERNAL_KEY, leaf_hash(_LEAF_VERSION, _LEAF)
 )
 _PREVOUT = TxOut(10_000, b"\x51\x20" + _OUTPUT_KEY)
