@@ -20,7 +20,8 @@ checked there may be missing here.
 Names and bit positions are Bitcoin Core's `SCRIPT_VERIFY_*` of
 src/script/interpreter.h, so a flag means here what it means there, and
 Core's vectors -- `script_tests.json` and `tx_valid.json` carry theirs as
-a comma-separated string -- can be passed as they are written.
+a comma-separated string -- can be passed as they are written. The one
+member that is not Core's is `MINIMALIF_ALL`, and no vector names it.
 """
 
 from __future__ import annotations
@@ -47,6 +48,16 @@ class ScriptFlag(Flag):
     quietly ignored, which is the failure mode this enum exists to
     remove. So every `SCRIPT_VERIFY_*` Core spells is a member here, bit
     for bit and with no holes in the positions below.
+
+    `MINIMALIF_ALL` is not a Core flag. BIP322's verification process
+    (step 3) requires MINIMALIF for every script a message can be signed
+    for, legacy and P2SH ones included, while Core's `MINIMALIF` reaches
+    segwit v0 alone, and so a verifier of BIP322 signatures has no flag
+    to ask for it. Set, `MINIMALIF_ALL` refuses an OP_IF or OP_NOTIF
+    whose argument is not the empty vector or 0x01 in any script, with
+    the error Core's `MINIMALIF` raises in segwit v0. It does not need
+    `MINIMALIF` and is off in `ALL_FLAGS`. In tapscript the rule is
+    consensus (BIP342), so it changes nothing there.
     """
 
     # consensus: what a node must enforce to stay on the chain, and what
@@ -63,7 +74,7 @@ class ScriptFlag(Flag):
     # that outlived it. A block breaking one of these is valid, so
     # ALL_FLAGS leaves them off and only a caller asking a policy question
     # turns them on. Where a BIP made one of them consensus for a script
-    # version -- cleanstack and minimalif under segwit, minimalif under
+    # version -- cleanstack under segwit, minimalif under
     # tapscript -- the engine enforces that part whatever the flags say,
     # which is why these are still off by default
     STRICTENC = 1 << 1
@@ -86,13 +97,18 @@ class ScriptFlag(Flag):
     DISCOURAGE_OP_SUCCESS = 1 << 19
     DISCOURAGE_UPGRADABLE_TAPROOT_VERSION = 1 << 20
 
+    # not Core's: set well above Core's positions, which end at 1 << 20, so
+    # that the flags Core adds next do not reach it. The class docstring
+    # says what it is for
+    MINIMALIF_ALL = 1 << 32
+
 
 # no rule at all, which is not the same as "the default rules": `None`
 # against `NO_FLAGS` is what tells the two apart
 NO_FLAGS = ScriptFlag(0)
 
 # what the engine enforces when a caller names nothing: the consensus soft
-# forks, i.e. seven of the twenty-one members and not all of them
+# forks, not every member
 ALL_FLAGS = (
     ScriptFlag.P2SH
     | ScriptFlag.DERSIG
