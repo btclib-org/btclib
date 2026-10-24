@@ -132,6 +132,8 @@ def _message(command: bytes, payload: bytes) -> bytes:
         ("btclib.tx.tx:Tx.parse", b"\x00", "refused"),
         ("btclib.var_int:parse", b"\x01", "accepted"),
         ("btclib.var_bytes:parse", b"\x01\x02", "accepted"),
+        ("btclib.var_bytes:parse", b"\x01\x02\x03", "refused"),
+        ("btclib.var_int:parse", b"\x01\x02", "refused"),
         ("btclib.script.script:parse", b"", "unsupported"),
         ("btclib.p2p.message:Message.parse", _message(b"verack", b""), "accepted"),
         (
@@ -239,6 +241,12 @@ def _addrv2(*entries: tuple[str, str, str]) -> str:
 _IPV4 = ("00", "01", "7f000001")
 _I2P = ("00", "05", "00" * 32)
 _UNKNOWN = ("00", "09", "ab")
+_TORV2_EMPTY = ("00", "03", "")
+_TORV2_OK = ("00", "03", "00" * 10)
+_IPV4_LONG = ("00", "01", "00" * 5)
+_I2P_SHORT = ("00", "05", "00" * 5)
+_CJDNS_SHORT = ("00", "06", "00" * 5)
+_INVALID_SIZE = ("refused", "invalid address size")
 _VERSION = "62ea0000" + "00" * 90
 
 
@@ -316,6 +324,36 @@ _VERSION = "62ea0000" + "00" * 90
             None,
         ),
         ("addrv2", ("accepted", "01"), ("accepted", "00"), "", None),
+        (
+            "addrv2",
+            ("accepted", "00"),
+            _INVALID_SIZE,
+            _addrv2(_IPV4, _TORV2_EMPTY),
+            "addrv2-torv2-size",
+        ),
+        ("addrv2", ("accepted", "00"), _INVALID_SIZE, _addrv2(_TORV2_OK), None),
+        ("addrv2", ("accepted", "00"), _INVALID_SIZE, _addrv2(_IPV4_LONG), None),
+        (
+            "addrv2",
+            ("accepted", "00"),
+            _INVALID_SIZE,
+            _addrv2(_TORV2_EMPTY, _IPV4_LONG),
+            None,
+        ),
+        (
+            "addrv2",
+            ("accepted", "00"),
+            _INVALID_SIZE,
+            _addrv2(_TORV2_EMPTY, _I2P_SHORT),
+            None,
+        ),
+        (
+            "addrv2",
+            ("accepted", "00"),
+            _INVALID_SIZE,
+            _addrv2(_TORV2_EMPTY, _CJDNS_SHORT),
+            None,
+        ),
         ("tx", ("refused", "x"), ("accepted", "00"), "", None),
         (
             "message",
