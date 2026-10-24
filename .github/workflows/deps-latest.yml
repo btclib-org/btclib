@@ -181,41 +181,25 @@ jobs:
         # suite-latest job runs the same matrix above (issue #1148)
         shell: bash
         run: uv lock --upgrade-package btclib-secp256k1
-      # test.yml's no-bindings job, with the sense reversed, and here for
-      # the mirror image of its reason: asked before the suite, and asked
-      # of the interpreter rather than of the resolver, because the step
-      # above resolves and installs whatever the newest release is
-      # whether or not this tree can import it. Only a missing
-      # `btclib_secp256k1` sets ecc's `INSTALLED = False`; a release
-      # missing a name ecc imports -- issue #1116, where the name was
-      # `musig` -- fails at import. Where the bindings are missing, the
-      # suite below answers on the Python arithmetic, tests/conftest.py's
-      # `pytest_collection_modifyitems` skipping every `bindings`-marked
-      # test, and the run answers the one question this job exists to
-      # ask as a coverage shortfall against the 100% ratchet -- the whole
-      # bindings half of the suite having skipped itself. Reproduce it
-      # with the bindings out of reach and read what it says:
-      #
-      #   UV_PROJECT_ENVIRONMENT=.venv-nobind uv run --locked \
-      #       --no-default-groups --group harness pytest
-      #
-      # Red, so nothing shipped on it, but only by accident and saying
-      # nothing -- and RELEASING.md reads this workflow per job, where a
-      # coverage shortfall is the shape of "a dependency moved and this
-      # tree has not caught up", which does not block a release, while
-      # what happened is the one shape that does (issue #1136).
-      # The ratchet is not what is wrong and is deliberately untouched:
-      # it measures a suite that really did skip those tests, and
-      # lowering it would turn this failure green. What was missing is a
-      # step in front of it that says which suite ran.
+      # test.yml's no-bindings job, with the sense reversed: asked before
+      # the suite, and asked of the interpreter rather than of the
+      # resolver, because the step above resolves and installs whatever
+      # the newest release is whether or not this tree can import it.
+      # Only a missing `btclib_secp256k1` sets ecc's `INSTALLED = False`;
+      # a release missing a name ecc imports fails at import. Run first
+      # and by name, this step makes that failure land in a step named
+      # for the question, before the suite, where RELEASING.md's per-job
+      # reading of this workflow tells it from drift (issue #1136).
       # `is_libsecp256k1_serving` and not the installation: serving is
       # installed and not refused, so it implies the other, and it is the
       # public reading of the seam every dispatch consults -- the name
       # the wheel smoke tests assert (issue #1117) and the one
       # `no-bindings` asserts the negative of. Nothing here sets
-      # ECC_NO_LIBSECP256K1, so refusal is not reachable and False leaves
-      # only the import, which is what the message says rather than the
-      # bare failure of an assertion without one
+      # ECC_NO_LIBSECP256K1 and `--group test` installs the bindings, so
+      # an import failure ends the step before the assertion, which is
+      # left asking only whether ecc serves what it imported, as the
+      # message says rather than the bare failure of an assertion without
+      # one
       - name: Assert the bindings are serving
         # see the callee's suite-latest job above; this one folds a
         # python -c onto the uv invocation, closer to the shape of ISS
@@ -225,7 +209,7 @@ jobs:
           uv run --locked --no-default-groups --group test
           python -c "from ecc.curves import is_libsecp256k1_serving;
           assert is_libsecp256k1_serving(),
-          'the newest btclib_secp256k1 does not import'"
+          'ecc does not serve the newest btclib_secp256k1'"
       - name: Run pytest
         shell: bash
         run: uv run --locked --no-default-groups --group test pytest

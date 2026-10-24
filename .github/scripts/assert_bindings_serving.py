@@ -12,12 +12,9 @@ that resolution puts ecc at its floor and the bindings at their newest
 release.
 
 Only a missing `btclib_secp256k1` sets ecc's `INSTALLED = False`; a
-release missing a name ecc imports fails at import. Where the bindings
-are missing, `tests/conftest.py`'s `pytest_collection_modifyitems` skips
-every `bindings`-marked test. A bare pytest run over that skip reports
-green, `--no-cov` giving up the one ratchet that would otherwise notice
-the shortfall, which is why this step runs ahead of it and by name
-rather than folded into it.
+release missing a name ecc imports fails at import. Run before the
+suite and by name, this step makes that failure land in a step of its
+own, named for the question, and not inside pytest's collection.
 
 This asks `is_libsecp256k1_serving` and not whether the bindings are
 installed: serving means installed and not refused, and nothing here sets

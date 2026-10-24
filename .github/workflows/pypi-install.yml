@@ -366,8 +366,8 @@ jobs:
       # question and asks it before the signature, which is what gives
       # that signature its meaning: verified by libsecp256k1 rather than,
       # unnoticed, by the Python arithmetic it would otherwise silently
-      # be -- issue #1116, live on main once already, is exactly the
-      # failure a passing signature alone cannot distinguish from this
+      # be -- bindings absent or refused is exactly the state a passing
+      # signature alone cannot distinguish from this
       - name: Verify the bindings serve, with a signature round tripped
         shell: bash
         run: |

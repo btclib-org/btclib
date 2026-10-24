@@ -411,17 +411,10 @@ jobs:
   # gating only that report would let such a line pass in silence, which
   # is not the question issue #1002 asks: the question is what line no
   # test anywhere reaches, not which configuration reaches which.
-  # This is why no `# pragma: no cover` in the tree became removable the
-  # day this job was added, despite what #995 and #1002 both hoped:
-  # `tests/conftest.py`'s `_skip_what_needs_the_bindings` is reached by
-  # this job's own run and would make the union 100% without its
-  # pragma, and is unreachable in the `coverage` job's single run by
-  # construction all the same -- so removing that pragma fails that
-  # job's own gate, which stands exactly as it did before this job
-  # existed. What this job protects instead is every line beside those:
-  # new dead code in either configuration, or a `needs_bindings` marker
-  # drawn wider than it should be, now shows up as a line neither run
-  # covers rather than as nothing.
+  # What this job protects is every line of the tree in either
+  # configuration: new dead code, or a `needs_bindings` marker drawn
+  # wider than it should be, shows up as a line neither run covers
+  # rather than as nothing.
   # What it costs: a third job, an artifact round trip in each direction,
   # and coverage.py's own combine step, which is the same trade the
   # `coverage` job already makes for the number it gates, applied once
@@ -700,9 +693,9 @@ jobs:
       # that arm being supported is what the `no-bindings` job above
       # exists for -- so it would pass unnoticed. (A btclib-secp256k1
       # the lock pins that this tree cannot import fails at import, which
-      # needs no assertion.) Both are the tree's
-      # own state and not the index's, which is what makes the assertion
-      # fit for a required check: what it cannot say is whether the
+      # needs no assertion.) The wheel's declaration and the lock's pin are
+      # the tree's own state and not the index's, which is what makes the
+      # assertion fit for a required check: what it cannot say is whether the
       # *newest* bindings serve, which is the step below and deps-latest.yml's
       # job.
       # `is_libsecp256k1_serving` and not `INSTALLED`: serving is

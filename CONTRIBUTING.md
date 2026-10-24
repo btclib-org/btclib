@@ -1021,17 +1021,17 @@ the bindings and re-running the suite — narrower than the upgrade above,
 which moves every dependency, so a red run here names the one responsible
 instead of burying it behind a dozen others. That the newest release
 then *serves* is asserted before the suite rather than assumed: a release
-this tree cannot import leaves btclib on the Python arithmetic, the
-suite skipping every `bindings`-marked test, and the run failing on
-coverage — which reads as a dependency this tree has not caught up with
-rather than as the answer the job was asked for:
+this tree cannot import fails that step at import, by name and before the
+suite, which is how RELEASING.md's per-job reading of the run tells a
+dependency this tree has not caught up with from the answer the job was
+asked for:
 
 ```shell
 uv lock --upgrade-package btclib-secp256k1
 uv run --locked --no-default-groups --group test python -c \
     "from ecc.curves import is_libsecp256k1_serving; \
      assert is_libsecp256k1_serving(), \
-       'the newest btclib_secp256k1 does not import'"
+       'ecc does not serve the newest btclib_secp256k1'"
 uv run --locked --no-default-groups --group test pytest
 ```
 
@@ -1064,9 +1064,9 @@ wheels only for both `btclib` and `btclib-secp256k1`, so a wheel the
 index does not have for a platform fails the job rather than falling
 back to a source build that answers a different question. Naming the
 extra is what entitles it to the assertion the other job cannot make: a
-resolution that installs and imports but does not serve — issue #1116,
-live on `main` once already — is invisible to a signature check alone,
-so this one asks `is_libsecp256k1_serving()` first, and the signature
+resolution that leaves the bindings absent or refused is invisible to a
+signature check alone, the Python arithmetic answering it correctly, so
+this one asks `is_libsecp256k1_serving()` first, and the signature
 after it is meaningful because of that:
 
 ```shell
