@@ -411,7 +411,7 @@ jobs:
   # gating only that report would let such a line pass in silence, which
   # is not the question issue #1002 asks: the question is what line no
   # test anywhere reaches, not which configuration reaches which.
-  # What this job protects is every line coverage measures in either
+  # What this job protects is every line of the tree in either
   # configuration: new dead code, or a `needs_bindings` marker drawn
   # wider than it should be, shows up as a line neither run covers
   # rather than as nothing.
