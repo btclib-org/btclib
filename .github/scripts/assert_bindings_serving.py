@@ -14,7 +14,7 @@ release.
 Only a missing `btclib_secp256k1` sets ecc's `INSTALLED = False`; a
 release missing a name ecc imports fails at import. Run before the
 suite and by name, this step makes that failure land in a step of its
-own, named for the question, and not inside pytest's collection.
+own, and not inside pytest's collection.
 
 This asks `is_libsecp256k1_serving` and not whether the bindings are
 installed: serving means installed and not refused, and nothing here sets
