@@ -183,11 +183,9 @@ dependency moved and this tree has not caught up" or "the bindings are
 broken against it", and only the second is a reason to stop — so which
 job failed is the question, and a run that is red overall while
 `bindings at latest` is green on every runner is saying the pin is
-sound. The second says which it is now (issue #1136): a newest release
+sound. The second says which it is (issue #1136): a newest release
 this tree cannot import fails that job's **Assert the bindings are
-serving** step, by name and before the suite, where it used to reach you
-as a coverage shortfall under a suite that passed — the shape of the
-first, and the reading that does not stop a release. Red on a test
+serving** step, by name and before the suite. Red on a test
 below that step is the other blocking shape, the bindings importing and
 answering differently. Open the failure rather than inferring it from a
 sibling: on v2026.8.7 seven jobs were red, six tests and the lint one,
