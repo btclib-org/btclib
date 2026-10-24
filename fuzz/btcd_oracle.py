@@ -22,6 +22,10 @@ artifacts are both given as they are. Every file below such a directory
 is an input, and a `.tar` is unpacked first, which is how `gh run download`
 leaves an artifact.
 
+`var_int.parse` and `var_bytes.parse` read a stream and leave what follows
+to the caller, so a refusal of unread octets is the comparison's: it asks
+them to read the whole input, as btcd's decoder does.
+
 An entry point btcd has no decoder for, and a message command that either
 library does not know, are counted and not compared.
 
@@ -38,6 +42,7 @@ import argparse
 import ast
 import importlib
 import inspect
+import io
 import json
 import subprocess
 import sys
@@ -50,13 +55,17 @@ from pathlib import Path
 from typing import Any
 
 from btclib import var_int
-from btclib.exceptions import BTClibException
+from btclib.exceptions import BTClibException, BTClibValueError
 from btclib.p2p.message import Message
 from btclib.tx.tx import Tx
 
 _FUZZ = Path(__file__).resolve().parent
 _DECODER_SOURCE = _FUZZ / "btcd_decode"
 _ARTIFACT_PREFIX = "cifuzz-corpus-"
+_TORV2 = 3  # BIP155's network id
+_TORV2_SIZE = 10  # the length BIP155's table gives it
+# the ids whose length btclib and btcd both check
+_CHECKED_SIZES = {1: 4, 2: 16, 4: 32, 5: 32, 6: 16}
 _SHOWN = 160  # characters of a serialization or a reason printed per outcome
 
 # Each entry point of the harnesses that btcd decodes, and the kind
@@ -97,6 +106,10 @@ KINDS = {
     "btclib.var_bytes:parse": "var_bytes",
 }
 
+# Core's Unserialize leaves what follows to the caller (serialize.h lines
+# 918-930).
+_STREAM_KINDS = ("var_int", "var_bytes")
+
 ACCEPTED = "accepted"
 REFUSED = "refused"
 UNSUPPORTED = "unsupported"
@@ -131,14 +144,14 @@ def _read_var_int(octets: bytes, at: int) -> tuple[int, int]:
     return value, at + 1 + width
 
 
-def _without_unknown_networks(serialized: str) -> str:
-    """Return an addrv2 serialization without the entries of ids outside 1-6.
+def _addrv2_entries(octets: bytes) -> list[tuple[bytes, int, int]] | None:
+    """Return the entries of an addrv2 serialization, or None if it is not one.
 
     An entry is the time, the services as a CompactSize, the network id,
-    the address as var_bytes and the port.
+    the address as var_bytes and the port. Each is returned as its octets,
+    its network id and its address size.
     """
-    octets = bytes.fromhex(serialized)
-    kept = []
+    entries = []
     try:
         count, at = _read_var_int(octets, 0)
         for _ in range(count):
@@ -147,11 +160,33 @@ def _without_unknown_networks(serialized: str) -> str:
             network = octets[at]
             size, at = _read_var_int(octets, at + 1)
             at += size + 2
-            if 1 <= network <= 6:
-                kept.append(octets[start:at])
+            entries.append((octets[start:at], network, size))
     except (IndexError, KeyError):
+        return None
+    return entries
+
+
+def _without_unknown_networks(serialized: str) -> str:
+    """Return an addrv2 serialization without the entries of ids outside 1-6."""
+    entries = _addrv2_entries(bytes.fromhex(serialized))
+    if entries is None:
         return ""  # not an addrv2 serialization: equal to nothing
+    kept = [octets for octets, network, _ in entries if 1 <= network <= 6]
     return (var_int.serialize(len(kept)) + b"".join(kept)).hex()
+
+
+def _only_torv2_has_wrong_size(data: bytes) -> bool:
+    """Return whether addrv2 `data` has an id 3 address not 10 octets long.
+
+    Every other id both libraries check must have its size, so that the
+    one wrong TORV2 does not explain a refusal that another entry caused.
+    """
+    entries = _addrv2_entries(data)
+    return (
+        entries is not None
+        and any(n == _TORV2 and size != _TORV2_SIZE for _, n, size in entries)
+        and all(_CHECKED_SIZES.get(n, size) == size for _, n, size in entries)
+    )
 
 
 # Triaged against Bitcoin Core at a8b69bdeaf. A disagreement one of these
@@ -216,6 +251,21 @@ KNOWN = (
         lambda ours, theirs, _: (
             ours.status == theirs.status == ACCEPTED
             and theirs.detail == _without_unknown_networks(ours.detail)
+        ),
+    ),
+    Rule(
+        "addrv2-torv2-size",
+        ("addrv2",),
+        "btcd refuses a TORV2 address that is not 10 octets long; Core has no"
+        " case for id 3 in SetNetFromBIP155Network (netaddress.cpp lines 52-97)"
+        " and so reads an address of any size up to 512 and ignores it"
+        " (netaddress.h lines 304, 432-435, 468-470); btclib accepts it too,"
+        " and keeps its octets",
+        lambda ours, theirs, data: (
+            ours.status == ACCEPTED
+            and theirs.status == REFUSED
+            and theirs.detail == "invalid address size"
+            and _only_torv2_has_wrong_size(data)
         ),
     ),
 )
@@ -304,6 +354,16 @@ def _structural(function: Any, *args: Any) -> Any:
     return function(*args)
 
 
+def _read_whole(parse: Callable[[Any], Any], data: bytes) -> Any:
+    """Return what `parse` reads from `data`, refusing octets left unread."""
+    stream = io.BytesIO(data)
+    parsed = parse(stream)
+    if left := len(data) - stream.tell():
+        err_msg = f"{left} trailing octets"
+        raise BTClibValueError(err_msg)
+    return parsed
+
+
 def read_with_btclib(entry: str, data: bytes, commands: dict[str, Any]) -> Outcome:
     """Return what btclib makes of `data` through `entry`."""
     kind = KINDS.get(entry)
@@ -323,7 +383,11 @@ def read_with_btclib(entry: str, data: bytes, commands: dict[str, Any]) -> Outco
                 Message(message.magic, message.command, payload).serialize().hex(),
             )
         parse = _resolve(entry)
-        parsed = _structural(parse, data)
+        parsed = (
+            _read_whole(parse, data)
+            if kind in _STREAM_KINDS
+            else _structural(parse, data)
+        )
         if kind == "var_int":
             out = _resolve("btclib.var_int:serialize")(parsed)
         elif kind == "var_bytes":
