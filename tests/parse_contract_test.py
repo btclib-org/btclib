@@ -2,13 +2,13 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Tests for the parse contract every `parse` in btclib owes its caller.
+"""The parse contract a public class's `parse` owes, or is excused from.
 
 One file rather than a case per module, because the rule is one and
 `src/btclib/utils.py` states it: a field is as long as its encoding says, a
 complete octet string is one whole object, and a caller's stream is the
-caller's. What the tests hold every parser to is that none of the three
-depends on `check_validity`, which is an opinion about what the bytes
+caller's. What the tests hold each covered parser to is that none of the
+three depends on `check_validity`, which is an opinion about what the bytes
 mean and not about where they end.
 
 The inventory at the top is what those tests run over, and the last test

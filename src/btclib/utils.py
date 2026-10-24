@@ -8,9 +8,8 @@ Most conversions from SEC 1 v.2 2.3 are included.
 
 https://www.secg.org/sec1-v2.pdf
 
-`read_exactly` and `assert_no_trailing` are the two halves of what every
-`parse` in this library owes its caller, and they live here because all of
-them owe it:
+`read_exactly` and `assert_no_trailing` are the two halves of what the
+`parse` of a whole object owes its caller, which is why they live here:
 
 - a field is as long as its encoding says it is, so a short read is an
   error and not a value. That is structural rather than semantic, so
@@ -20,6 +19,11 @@ them owe it:
 - octets are one whole object, so bytes after it are refused; a caller's
   stream is not, so parsing consumes the object and leaves the stream on
   the byte after it, which is how a transaction is read out of a block
+
+`var_int.parse` and `var_bytes.parse` read one element and not a whole
+object, so they leave what follows in octets as they do in a stream:
+`Block.height` reads `var_bytes.parse` from the start of a coinbase
+script_sig and ignores the rest.
 
 A fixed-size object read whole -- a 78-byte bip32 key, a 65-byte bms
 signature, an 80-byte block header -- reports its own decoded length
