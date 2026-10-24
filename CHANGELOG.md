@@ -69,7 +69,8 @@ through `ecc`'s `dsa.verify_` and `ssa.verify_`.
 ### Taproot follows `ecc`'s names and refusals
 
 `output_pubkey_from_merkle_root` and `_tweaked_pubkey` take `_var`. A point not
-on the curve and a tweak that sums to infinity or zero raise `BTClibValueError`.
+on the curve is refused as `point not on curve`, and a tweak that sums to
+infinity or zero raises `BTClibValueError`.
 
 ### Names that run in variable time take `_var`
 

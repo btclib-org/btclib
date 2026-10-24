@@ -334,12 +334,11 @@ floor wherever pyproject.toml states it, with the reason written beside it.
 **The bindings' floor is ecc's.** btclib declares no `btclib-secp256k1`
 requirement and calls none of its functions: the `secp256k1` extra is
 `ecc[secp256k1]`, and the release of the bindings it resolves is the one
-ecc's own extra names. That floor carries weight the specifier alone does
-not show: ecc imports the bindings' surface in a single `try`. Only a missing
-`btclib_secp256k1` sets `INSTALLED = False`, and with it every delegation goes
-quietly on to the Python arithmetic that SECURITY.md publishes as slower and
-not constant-time. An install that resolves one release short of what ecc
-imports fails at import.
+ecc's own extra names. That floor carries weight: an install one release
+short of what ecc imports fails at import. ecc imports the bindings' surface
+in a single `try`, and only a missing `btclib_secp256k1` sets
+`INSTALLED = False`, sending every delegation to the Python arithmetic that
+SECURITY.md publishes as slower and not constant-time.
 
 **The jobs that do not pass `--locked`** are deliberate exceptions.
 `uv build`, `uv run --no-project` and, on a rehearsal, the `dev-version`
@@ -913,12 +912,12 @@ unconstrained and release-only, asking instead whether the *newest* published
 bindings still satisfy the wheel, which is what a user installing it resolves —
 no pull request waits on it, only `release.yml`'s call sets the input that
 turns it on. That the bindings then *serve* is asserted rather than assumed in
-both: with the extra resolving to nothing, or to a release this tree cannot
-import, btclib falls back to the Python arithmetic and answers the version and
-the signature correctly — the supported configuration `no-bindings` runs the
-whole suite in — so the assertion is the only thing between that resolution and
-a green check. They run from an empty directory, or the import finds the source
-tree instead of the wheel:
+both: with the extra resolving to nothing, btclib falls back to the Python
+arithmetic and answers the version and the signature correctly — the supported
+configuration `no-bindings` runs the whole suite in — so the assertion is the
+only thing between that resolution and a green check. A release this tree
+cannot import fails at import instead. They run from an empty directory, or
+the import finds the source tree instead of the wheel:
 
 ```shell
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)

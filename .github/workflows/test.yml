@@ -413,12 +413,10 @@ jobs:
   # test anywhere reaches, not which configuration reaches which.
   # This is why no `# pragma: no cover` in the tree became removable the
   # day this job was added, despite what #995 and #1002 both hoped:
-  # the `except ImportError:` around each import of the bindings under
-  # `src/btclib/`, and `tests/conftest.py`'s
-  # `_skip_what_needs_the_bindings`, are reached by this job's own run
-  # and would make the union 100% without their pragmas, and are
-  # unreachable in the `coverage` job's single run by construction all
-  # the same -- so removing any of those pragmas fails that
+  # `tests/conftest.py`'s `_skip_what_needs_the_bindings` is reached by
+  # this job's own run and would make the union 100% without its
+  # pragma, and is unreachable in the `coverage` job's single run by
+  # construction all the same -- so removing that pragma fails that
   # job's own gate, which stands exactly as it did before this job
   # existed. What this job protects instead is every line beside those:
   # new dead code in either configuration, or a `needs_bindings` marker
@@ -697,12 +695,12 @@ jobs:
       # bind a version and request no package, so the only thing that
       # installs the bindings at all is the wheel's own `Requires-Dist`
       # for the extra: a wheel that stopped declaring it resolves
-      # nothing, and a btclib-secp256k1 the lock pins that this tree
-      # cannot import lands in `_libsecp256k1`'s `except ImportError`.
-      # Either way `is_libsecp256k1_serving` is False while the Python
+      # nothing. Then `is_libsecp256k1_serving` is False while the Python
       # arithmetic answers the version and the signature correctly --
       # that arm being supported is what the `no-bindings` job above
-      # exists for -- so both would pass unnoticed. Both are the tree's
+      # exists for -- so it would pass unnoticed. (A btclib-secp256k1
+      # the lock pins that this tree cannot import fails at import, which
+      # needs no assertion.) Both are the tree's
       # own state and not the index's, which is what makes the assertion
       # fit for a required check: what it cannot say is whether the
       # *newest* bindings serve, which is the step below and deps-latest.yml's

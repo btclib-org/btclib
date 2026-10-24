@@ -11,14 +11,13 @@ before the suite. The bindings are no direct dependency of btclib, so
 that resolution puts ecc at its floor and the bindings at their newest
 release.
 
-ecc imports the bindings' whole surface in one `try` whose
-`except ImportError` sets `INSTALLED = False`, so a release of
-`btclib_secp256k1` short of one name ecc imports loses every delegation
-rather than that one, and `tests/conftest.py`'s
-`pytest_collection_modifyitems` then skips every `bindings`-marked test.
-A bare pytest run over that skip reports green, `--no-cov` giving up the
-one ratchet that would otherwise notice the shortfall, which is why this
-step runs ahead of it and by name rather than folded into it.
+Only a missing `btclib_secp256k1` sets ecc's `INSTALLED = False`; a
+release missing a name ecc imports fails at import. Where the bindings
+are missing, `tests/conftest.py`'s `pytest_collection_modifyitems` skips
+every `bindings`-marked test. A bare pytest run over that skip reports
+green, `--no-cov` giving up the one ratchet that would otherwise notice
+the shortfall, which is why this step runs ahead of it and by name
+rather than folded into it.
 
 This asks `is_libsecp256k1_serving` and not whether the bindings are
 installed: serving means installed and not refused, and nothing here sets
