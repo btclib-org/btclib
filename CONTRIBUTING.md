@@ -335,12 +335,11 @@ floor wherever pyproject.toml states it, with the reason written beside it.
 requirement and calls none of its functions: the `secp256k1` extra is
 `ecc[secp256k1]`, and the release of the bindings it resolves is the one
 ecc's own extra names. That floor carries weight the specifier alone does
-not show: ecc imports the bindings' surface in a single `try` whose
-`except ImportError` sets `INSTALLED = False`, so an install that resolves
-one release short of what ecc imports does not lose the entry point it is
-missing — it loses every delegation, quietly, on to the Python arithmetic
-that SECURITY.md publishes as slower and not constant-time.
-btclib-org/ecc#343 asks ecc to raise it.
+not show: ecc imports the bindings' surface in a single `try`. Only a missing
+`btclib_secp256k1` sets `INSTALLED = False`, and with it every delegation goes
+quietly on to the Python arithmetic that SECURITY.md publishes as slower and
+not constant-time. An install that resolves one release short of what ecc
+imports fails at import.
 
 **The jobs that do not pass `--locked`** are deliberate exceptions.
 `uv build`, `uv run --no-project` and, on a rehearsal, the `dev-version`
