@@ -30,9 +30,10 @@ module-path = [
 # rather than a directory of unit tests, and each one answers a class of
 # mutant the first three cannot:
 #
-# - parse_contract_test.py holds every parse in btclib to the truncation,
-#   trailing-bytes and caller's-stream rules, under check_validity both
-#   ways, so it is what a mutated field boundary has to get past
+# - parse_contract_test.py holds the parse of every public class it does
+#   not exclude to the truncation, trailing-bytes and caller's-stream
+#   rules, under check_validity both ways, so it is what a mutated field
+#   boundary has to get past
 # - integer_policy_test.py is the type half of the same surface, refusing
 #   a bool as a satoshi amount, an index or a sequence (#326): without it
 #   those statements run in no test of this command

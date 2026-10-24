@@ -35,10 +35,11 @@ things, both of them consequences of a last field that may not be there.
 
 A prefix of one `Version` encoding *is* another `Version`, so the generic
 "no prefix of an encoding is an object" property that
-`tests/parse_contract_test.py` holds every parser to is false of this one
-by construction. What that property is *for* -- two buffers decoding to
-one object that serializes back to only one of them -- is not: the two
-buffers are two objects, each writing back the octets it came from.
+`tests/parse_contract_test.py` holds the parsers it covers to is false
+of this one by construction. What that property is *for* -- two buffers
+decoding to one object that serializes back to only one of them -- is
+not: the two buffers are two objects, each writing back the octets it
+came from.
 `tests/p2p/handshake_test.py` drives that, and the exclusion in
 `parse_contract_test.py` names it.
 
