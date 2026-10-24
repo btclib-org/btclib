@@ -363,9 +363,9 @@ to `deps-latest`'s own result.
 1. Run each dependent's suite with this release in place of its PyPI
    version, whether or not the notes declare a break. Section 12 of the
    [organization standard](https://github.com/btclib-org/.github#12-releasing)
-   has the rule. The dependents of `btclib` are `bitcoin-node-tests`,
-   `btclib-benchmarks`, `btclib-mnemonics`, `btclib-node` and
-   `btclib-wallet`. Re-derive them with the loop in that section
+   has the rule. The dependents of `btclib` are `base58-bech32`,
+   `bip39-slip39`, `bitcoin-node-tests`, `btclib-benchmarks`, `btclib-node`
+   and `btclib-wallet`. Re-derive them with the loop in that section
    before each release rather than carry this list.
 
    From a throwaway checkout of each dependent's default branch, with the
