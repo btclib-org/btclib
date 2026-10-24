@@ -1236,7 +1236,6 @@ ignore = [
     "invalid-function-name",
     "invalid-argument-name",
     "non-lowercase-variable-in-function",
-    "constant-imported-as-non-constant",
     "mixed-case-variable-in-global-scope",
     # Perflint's try-except-in-loop alone, matching this tree's own retry
     # loops -- rfc6979's grinding, a nonce collision's re-derivation --
