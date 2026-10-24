@@ -47,11 +47,12 @@ name: pypi-install
 # installs and works; it has not asked the index for the bindings and
 # cannot ask whether they serve. install-published-secp256k1 names the
 # extra a user who wants the bindings actually types, and is the one this
-# workflow lacked until issue #1143: ecc answers a resolution
-# of the bindings it cannot import with `INSTALLED = False`, no error and no
-# warning, so a pair broken on the index degrades silently to the Python
-# arithmetic -- tens of times slower, not constant-time -- rather than
-# failing here. An axis over the base matrix would ask that question on
+# workflow lacked until issue #1143: only a missing
+# `btclib_secp256k1` sets ecc's `INSTALLED = False`, with no error and no
+# warning, so an extra that resolves to nothing degrades silently to the
+# Python arithmetic -- tens of times slower, not constant-time -- rather
+# than failing here. A release missing a name ecc imports fails at import.
+# An axis over the base matrix would ask that question on
 # every (os, python) cell the no-bindings question already uses; a job of
 # its own asks it on the cells that actually vary for it instead, which
 # is argued where that job's own matrix is
@@ -365,8 +366,8 @@ jobs:
       # question and asks it before the signature, which is what gives
       # that signature its meaning: verified by libsecp256k1 rather than,
       # unnoticed, by the Python arithmetic it would otherwise silently
-      # be -- issue #1116, live on main once already, is exactly the
-      # failure a passing signature alone cannot distinguish from this
+      # be -- bindings absent or refused is exactly the state a passing
+      # signature alone cannot distinguish from this
       - name: Verify the bindings serve, with a signature round tripped
         shell: bash
         run: |

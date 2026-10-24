@@ -334,13 +334,11 @@ floor wherever pyproject.toml states it, with the reason written beside it.
 **The bindings' floor is ecc's.** btclib declares no `btclib-secp256k1`
 requirement and calls none of its functions: the `secp256k1` extra is
 `ecc[secp256k1]`, and the release of the bindings it resolves is the one
-ecc's own extra names. That floor carries weight the specifier alone does
-not show: ecc imports the bindings' surface in a single `try` whose
-`except ImportError` sets `INSTALLED = False`, so an install that resolves
-one release short of what ecc imports does not lose the entry point it is
-missing — it loses every delegation, quietly, on to the Python arithmetic
-that SECURITY.md publishes as slower and not constant-time.
-btclib-org/ecc#343 asks ecc to raise it.
+ecc's own extra names. That floor carries weight: an install one release
+short of what ecc imports fails at import. ecc imports the bindings' surface
+in a single `try`, and only a missing `btclib_secp256k1` sets
+`INSTALLED = False`, sending every delegation to the Python arithmetic that
+SECURITY.md publishes as slower and not constant-time.
 
 **The jobs that do not pass `--locked`** are deliberate exceptions.
 `uv build`, `uv run --no-project` and, on a rehearsal, the `dev-version`
@@ -914,12 +912,12 @@ unconstrained and release-only, asking instead whether the *newest* published
 bindings still satisfy the wheel, which is what a user installing it resolves —
 no pull request waits on it, only `release.yml`'s call sets the input that
 turns it on. That the bindings then *serve* is asserted rather than assumed in
-both: with the extra resolving to nothing, or to a release this tree cannot
-import, btclib falls back to the Python arithmetic and answers the version and
-the signature correctly — the supported configuration `no-bindings` runs the
-whole suite in — so the assertion is the only thing between that resolution and
-a green check. They run from an empty directory, or the import finds the source
-tree instead of the wheel:
+both: with the extra resolving to nothing, btclib falls back to the Python
+arithmetic and answers the version and the signature correctly — the supported
+configuration `no-bindings` runs the whole suite in — so the assertion is the
+only thing between that resolution and a green check. A release this tree
+cannot import fails at import instead. They run from an empty directory, or
+the import finds the source tree instead of the wheel:
 
 ```shell
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
@@ -1023,17 +1021,17 @@ the bindings and re-running the suite — narrower than the upgrade above,
 which moves every dependency, so a red run here names the one responsible
 instead of burying it behind a dozen others. That the newest release
 then *serves* is asserted before the suite rather than assumed: a release
-this tree cannot import leaves btclib on the Python arithmetic, the
-suite skipping every `bindings`-marked test, and the run failing on
-coverage — which reads as a dependency this tree has not caught up with
-rather than as the answer the job was asked for:
+this tree cannot import fails that step at import, by name and before the
+suite, which is how RELEASING.md's per-job reading of the run tells a
+dependency this tree has not caught up with from the answer the job was
+asked for:
 
 ```shell
 uv lock --upgrade-package btclib-secp256k1
 uv run --locked --no-default-groups --group test python -c \
     "from ecc.curves import is_libsecp256k1_serving; \
      assert is_libsecp256k1_serving(), \
-       'the newest btclib_secp256k1 does not import'"
+       'ecc does not serve the newest btclib_secp256k1'"
 uv run --locked --no-default-groups --group test pytest
 ```
 
@@ -1066,9 +1064,9 @@ wheels only for both `btclib` and `btclib-secp256k1`, so a wheel the
 index does not have for a platform fails the job rather than falling
 back to a source build that answers a different question. Naming the
 extra is what entitles it to the assertion the other job cannot make: a
-resolution that installs and imports but does not serve — issue #1116,
-live on `main` once already — is invisible to a signature check alone,
-so this one asks `is_libsecp256k1_serving()` first, and the signature
+resolution that leaves the bindings absent or refused is invisible to a
+signature check alone, the Python arithmetic answering it correctly, so
+this one asks `is_libsecp256k1_serving()` first, and the signature
 after it is meaningful because of that:
 
 ```shell
