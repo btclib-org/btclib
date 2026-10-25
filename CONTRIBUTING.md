@@ -39,7 +39,7 @@ a newcomer need not know in advance which repository to look in.
 
 ## Documentation and comments
 
-[Section 9 of the standard][s9] is the prose style, after *Write
+[Section 9 of the standard][s9] is the prose style beyond *Write
 plainly* below, and it governs the prose this tree ships — comments,
 docstrings and markdown. It is not restated here: a second wording is
 the one that goes stale, which is that section's own *One fact in one
