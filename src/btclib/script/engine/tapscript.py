@@ -366,7 +366,8 @@ def _run_ops(  # noqa: C901, PLR0912
     script.py's `_run_ops` for the reasoning, shared rather than
     repeated. `script_index_ref` is how the failing index still reaches
     that except: set at the top of every iteration, before anything the
-    iteration does that could raise.
+    iteration does that could raise. The stack size is checked before
+    the index moves on, as script.py's `_run_ops` says.
     """
     codesep_pos = 0xFFFFFFFF
     script_index = -1
@@ -375,12 +376,13 @@ def _run_ops(  # noqa: C901, PLR0912
     tapleaf_hash = leaf_hash(0xC0, script_bytes)
     input_hashes = _TaprootInputHashes()
     while True:
+        if script_index >= 0:
+            script_op_codes.assert_stack_size(stack, altstack)
+
         script_index += 1
         script_index_ref[0] = script_index
 
         skip_execution = not condition_stack.is_executing
-
-        script_op_codes.assert_stack_size(stack, altstack)
 
         b = s.read(1)
         if not b:

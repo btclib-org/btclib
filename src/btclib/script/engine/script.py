@@ -703,6 +703,12 @@ def _run_ops(  # noqa: C901, PLR0912
     make it smaller. `script_index_ref` is how the failing index still
     reaches that except: set at the top of every iteration, before
     anything the iteration does that could raise.
+
+    Core checks the stack size at the end of every command. Here the
+    check runs at the top of the next iteration, before the index moves
+    on, because an iteration can end at any of its `continue`s. A
+    refusal therefore names the command that grew the stack. Nothing is
+    checked before the first command, as in Core.
     """
     segwit_version = 0 if segwit else -1
     op_code_num = 0
@@ -710,10 +716,11 @@ def _run_ops(  # noqa: C901, PLR0912
     script_index = -1
     s = bytesio_from_binarydata(script_bytes)
     while True:
+        if script_index >= 0:
+            script_op_codes.assert_stack_size(stack, altstack)
+
         script_index += 1
         script_index_ref[0] = script_index
-
-        script_op_codes.assert_stack_size(stack, altstack)
 
         skip_execution = not condition_stack.is_executing
 
@@ -1024,7 +1031,6 @@ def _eval_script(
             "stack underflow", code, script_index_ref[0], len(stack)
         ) from e
 
-    script_op_codes.assert_stack_size(stack, altstack)
     script_op_codes.assert_balanced_if(condition_stack)
 
     if final:

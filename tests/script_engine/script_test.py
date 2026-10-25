@@ -2009,6 +2009,20 @@ def test_a_tapscript_fault_is_answered_where_core_answers_it(
     assert exc_info.value.code is ScriptErrorCode[code]
 
 
+@pytest.mark.parametrize(
+    "leaf", [b"\x51" * 1001, b"\x01\x01" * 1001], ids=["op code", "push"]
+)
+def test_a_tapscript_stack_size_refusal_names_the_command_that_grew_it(
+    leaf: bytes,
+) -> None:
+    """Core sizes the stacks at the end of each command, as the legacy loop."""
+    prevouts, tx = _raw_tapscript_spend(leaf, [])
+    with pytest.raises(ScriptError) as exc_info:
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+    assert exc_info.value.code is ScriptErrorCode.STACK_SIZE
+    assert exc_info.value.index == 1000
+
+
 def test_an_unexecuted_invalid_op_code_spends_a_tapscript() -> None:
     """OP_0 OP_IF OP_INVALIDOPCODE OP_ENDIF OP_1 is valid, as in Core.
 

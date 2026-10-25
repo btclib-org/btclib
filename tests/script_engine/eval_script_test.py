@@ -285,6 +285,25 @@ _CASES: dict[str, _Case] = {
     "a branch never closed": _Case(
         b"\x51\x63\x51", [b"\x01"], NO_FLAGS, _CODE.UNBALANCED_CONDITIONAL, None, "1235"
     ),
+    # sized at the end of each command: the refusal is the one that grew
+    # the stack, and the stack the script starts on is not sized
+    "an op code past the stack size": _Case(
+        b"\x51" * 1001, [b"\x01"] * 1001, NO_FLAGS, _CODE.STACK_SIZE, 1000, "1221-1223"
+    ),
+    "a push past the stack size": _Case(
+        b"\x01\x01" * 1001,
+        [b"\x01"] * 1001,
+        NO_FLAGS,
+        _CODE.STACK_SIZE,
+        1000,
+        "1221-1223",
+    ),
+    "a stack past its size, brought back": _Case(
+        b"\x6d", [b""] * 999, NO_FLAGS, None, None, "1221-1223", (b"",) * 1001
+    ),
+    "a stack past its size, no command": _Case(
+        b"", [b""] * 1001, NO_FLAGS, None, None, "439", (b"",) * 1001
+    ),
     "a script too long": _Case(
         b"\x61" * 10001, [], NO_FLAGS, _CODE.SCRIPT_SIZE, None, "428-430"
     ),
