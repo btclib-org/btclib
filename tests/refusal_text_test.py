@@ -18,6 +18,7 @@ from typing_extensions import override
 from btclib.b58 import prv_key_data_from_wif, wif_from_prv_key
 from btclib.base58 import decode
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.hashes import hash256
 from btclib.key import PrvKeyData
 from btclib.network import NETWORKS, validated_network_name
 from btclib.utils import str_from_string
@@ -90,6 +91,16 @@ def test_non_ascii_wif_chain_holds_no_key() -> None:
     )
     assert_secret_free(refusal.value, [WIF, bad])
     assert_secret_free(refusal.value, [WIF[:20]])
+
+
+def test_bad_checksum_does_not_quote_the_expected_one() -> None:
+    """A WIF mistyped in its last character does not confirm a guess."""
+    bad = WIF[:-1] + ("2" if WIF[-1] != "2" else "3")
+    with pytest.raises(BTClibValueError) as refusal:
+        decode(bad)
+    assert str(refusal.value) == "invalid checksum"
+    expected = hash256(decode(WIF))[:4]
+    assert_secret_free(refusal.value, [expected, "0x" + expected.hex(), expected.hex()])
 
 
 def test_non_ascii_bytes_chain_nothing() -> None:

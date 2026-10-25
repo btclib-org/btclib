@@ -199,35 +199,12 @@ def decode(v: String, out_size: int | None = None) -> bytes:
 
     Optionally, it also ensures required output size.
 
-    A checksum mismatch quotes both checksums.
+    A checksum mismatch quotes neither checksum: the expected one is a hash
+    of the payload, which can be a key.
 
     Capped at `MAX_LENGTH` characters, unlike `encode`: a string `encode`
     wrote from a payload of roughly 80 bytes or more is refused here
     (issue #2296).
-    """
-    return _decode(v, out_size, quote_checksum=True)
-
-
-def _ascii_bytes(v: str) -> bytes:
-    """Return the ascii octets of a string, or refuse a character outside.
-
-    The refusal names the position and never the character: the string
-    can be a WIF.
-    """
-    try:
-        return v.encode("ascii")
-    except UnicodeEncodeError as e:
-        err_msg = f"non-ascii character in base58 string at position {e.start}"
-    # raised outside the `except`: the Unicode error holds the whole
-    # string, and must not be left as the new error's context
-    raise BTClibValueError(err_msg)
-
-
-def _decode(v: String, out_size: int | None, *, quote_checksum: bool) -> bytes:
-    """Decode as `decode` does, quoting the checksums only if asked.
-
-    The expected checksum is a hash of the payload, so a caller whose
-    payload is secret must not publish it.
     """
     if isinstance(v, str):
         # do not trim spaces.
@@ -267,10 +244,7 @@ def _decode(v: String, out_size: int | None, *, quote_checksum: bool) -> bytes:
     result, checksum = result[:-4], result[-4:]
     h256 = hash256(result)
     if checksum != h256[:4]:
-        err_msg = "invalid checksum"
-        if quote_checksum:
-            err_msg += f": 0x{checksum.hex()} instead of 0x{h256[:4].hex()}"
-        raise BTClibValueError(err_msg)
+        raise BTClibValueError("invalid checksum")
 
     # the size policy of btclib/utils.py, at the boundary that does its own
     # comparison rather than going through bytes_from_octets: a bool would
@@ -284,4 +258,19 @@ def _decode(v: String, out_size: int | None, *, quote_checksum: bool) -> bytes:
 
     err_msg = "valid checksum, invalid decoded size: "
     err_msg += f"{len(result)} bytes instead of {_message_text(out_size)}"
+    raise BTClibValueError(err_msg)
+
+
+def _ascii_bytes(v: str) -> bytes:
+    """Return the ascii octets of a string, or refuse a character outside.
+
+    The refusal names the position and never the character: the string
+    can be a WIF.
+    """
+    try:
+        return v.encode("ascii")
+    except UnicodeEncodeError as e:
+        err_msg = f"non-ascii character in base58 string at position {e.start}"
+    # raised outside the `except`: the Unicode error holds the whole
+    # string, and must not be left as the new error's context
     raise BTClibValueError(err_msg)
