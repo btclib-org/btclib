@@ -1,7 +1,7 @@
 ---
 rules:
-  # the reusable workflows of btclib-org/.github are called at @main, not at
-  # a commit: section 10 of that repository's README.md gives the reason
+  # claude-review.yml's call of btclib-org/.github is at @main until its own
+  # pull request pins it, and the file goes with that one
   unpinned-uses:
     config:
       policies:

@@ -7,18 +7,16 @@ name: deps-oldest
 # resolution direction.
 #
 # The resolution, the lock it writes and the suite run over that lock are
-# btclib-org/.github's: reusable-deps-oldest.yml, called at @main so a
-# fix there reaches this tree in one landing (section 10 of its
-# README.md). What stays here is the trigger, the concurrency group, the
-# workflow-level permissions, and the two facts the called workflow asks
-# a caller for rather than states itself: the interpreter, which is
-# requires-python's own floor of 3.11 and not the newest
-# `.python-version` pin, and `pre-suite-script`, this tree's own
-# assertion that the bindings serve with ecc at its floor -- they are no
-# direct dependency, so `lowest-direct` resolves them to their newest
-# release. `.github/scripts/assert_bindings_serving.py` has the reason it
-# is a step of its own rather than folded into pytest
-# (btclib-org/.github#35)
+# btclib-org/.github's: reusable-deps-oldest.yml, called at a tagged commit
+# (section 10 of btclib-org/.github's README.md). What stays here is the
+# trigger, the concurrency group, the workflow-level permissions, and the two
+# facts the called workflow asks a caller for rather than states itself: the
+# interpreter, which is requires-python's own floor of 3.11 and not the newest
+# `.python-version` pin, and `pre-suite-script`, this tree's own assertion that
+# the bindings serve with ecc at its floor -- they are no direct dependency, so
+# `lowest-direct` resolves them to their newest release.
+# `.github/scripts/assert_bindings_serving.py` has the reason it is a step of
+# its own rather than folded into pytest (btclib-org/.github#35)
 
 on:
   schedule:
@@ -48,7 +46,7 @@ concurrency:
 
 jobs:
   suite-oldest:
-    uses: btclib-org/.github/.github/workflows/reusable-deps-oldest.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-deps-oldest.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     with:
       python-version: "3.11"
       pre-suite-script: .github/scripts/assert_bindings_serving.py

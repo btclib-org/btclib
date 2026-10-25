@@ -3,14 +3,13 @@ name: scorecard
 
 # OpenSSF Scorecard: a third-party, external audit of this repository's
 # supply-chain posture, run independently rather than by anything this
-# organization asked itself. btclib-org/.github#339 is where this
-# sentinel and its permissions were decided; the analysis job itself --
-# its checkout, the scan, the artifact and the SARIF upload, permissions
-# included -- is btclib-org/.github's reusable-scorecard.yml, called at
-# @main so a fix there reaches this tree in one landing
-# (btclib-org/.github#35). What stays here is the trigger, the cron
-# minute, the workflow-level permissions and the concurrency group,
-# which the callee does not carry and says so in its own header.
+# organization asked itself. btclib-org/.github#339 is where this sentinel and
+# its permissions were decided; the analysis job itself -- its checkout, the
+# scan, the artifact and the SARIF upload, permissions included -- is
+# btclib-org/.github's reusable-scorecard.yml, called at a tagged commit
+# (section 10 of btclib-org/.github's README.md). What stays here is the
+# trigger, the cron minute, the workflow-level permissions and the concurrency
+# group, which the callee does not carry and says so in its own header.
 #
 # This repository is public and is not a fork, which is the property
 # section 10 of the standard keys the sentinel on:
@@ -56,7 +55,7 @@ concurrency:
 
 jobs:
   analysis:
-    uses: btclib-org/.github/.github/workflows/reusable-scorecard.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-scorecard.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     # a called workflow's own permissions: block can only downgrade, not
     # restore, what this calling job grants -- GitHub's own docs on
     # reusing workflow configurations -- so every scope the callee's job

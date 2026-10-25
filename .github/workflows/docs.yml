@@ -76,12 +76,12 @@ concurrency:
 
 jobs:
   # the checkout, the uv setup, the build and the unresolved-link check are
-  # btclib-org/.github's: reusable-docs.yml, called at @main so a fix there
-  # reaches this tree in one landing (section 10 of its README.md). What
-  # stays here is the trigger, the concurrency group and the workflow-level
-  # permissions; the draft and closed declines are the called workflow's
-  # own, reading github.event.pull_request.draft and github.event.action off
-  # this caller's trigger (btclib-org/.github#35).
+  # btclib-org/.github's: reusable-docs.yml, called at a tagged commit (section
+  # 10 of btclib-org/.github's README.md). What stays here is the trigger, the
+  # concurrency group and the workflow-level permissions; the draft and closed
+  # declines are the called workflow's own, reading
+  # github.event.pull_request.draft and github.event.action off this caller's
+  # trigger (btclib-org/.github#35).
   #
   # This tree has no git submodule for the build to check out, so
   # `submodules` is left at its default; and no script of its own to run
@@ -100,4 +100,4 @@ jobs:
   # defense is ever weakened. Reported rather than compensated for
   # locally, per btclib-org/.github#35.
   docs:
-    uses: btclib-org/.github/.github/workflows/reusable-docs.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-docs.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25

@@ -120,13 +120,7 @@ jobs:
     # above what either takes
     timeout-minutes: 90
     steps:
-      # every action pinned to a commit SHA. The tag is a comment above
-      # rather than the usual trailing one: `google/clusterfuzzlite/
-      # actions/build_fuzzers` and its sha already fill the 100-column
-      # budget .yamllint.yaml sets for a pin, and appending " # v1" would
-      # cross it -- the disable-line escape hatch that comment describes
-      # cannot carry the tag text too, its own regex admitting nothing
-      # else on the line
+      # every action pinned to a commit SHA, its tag trailing the pin.
       #
       # `v1` is the whole of what that comment can name: it is the only
       # tag google/clusterfuzzlite publishes, so there is no point release
@@ -146,8 +140,7 @@ jobs:
       # where `git/ref/tags/v1` answers the tag object's own sha and pins
       # nothing that exists in the action's history
       - name: Build fuzzers
-        # v1
-        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
         with:
           language: python
           sanitizer: address
@@ -194,8 +187,7 @@ jobs:
           done
         working-directory: ${{ github.workspace }}
       - name: Run fuzzers
-        # v1
-        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fuzz-seconds: 3600

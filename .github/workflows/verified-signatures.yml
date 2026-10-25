@@ -43,7 +43,7 @@ concurrency:
 
 jobs:
   verified-signatures:
-    uses: btclib-org/.github/.github/workflows/reusable-verified-signatures.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-verified-signatures.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     with:
       before: ${{ inputs.before }}
       after: ${{ inputs.after }}

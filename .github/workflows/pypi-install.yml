@@ -1,20 +1,19 @@
 ---
 name: pypi-install
 
-# checks whether what is already on PyPI actually works, not merely
-# installs -- which no pull request asks, checking out the tree it is
-# testing being the whole point of one. No checkout of this repository
-# in the jobs that install, on purpose: nothing from it takes part in
-# them, which is what guarantees the checks below resolve to what was
-# installed from the index and not to a source tree. The checkouts there
-# are btclib-org/.github's, sparse on .github/scripts: each install job's
-# under `path:`, so that the repository root cone mode always adds with it
-# stays out of the directory the cell runs in, and wait-for-index's, which
-# installs nothing. Neither puts a src/btclib on the runner for a check to
-# answer from. The wait-for-index job -- the checkout, the uv setup and
-# the wait script itself -- is btclib-org/.github's
-# reusable-wait-for-index.yml, called at @main so a fix there reaches this
-# tree in one landing (issue btclib-org/.github#35).
+# checks whether what is already on PyPI actually works, not merely installs --
+# which no pull request asks, checking out the tree it is testing being the
+# whole point of one. No checkout of this repository in the jobs that install,
+# on purpose: nothing from it takes part in them, which is what guarantees the
+# checks below resolve to what was installed from the index and not to a source
+# tree. The checkouts there are btclib-org/.github's, sparse on .github/scripts:
+# each install job's under `path:`, so that the repository root cone mode always
+# adds with it stays out of the directory the cell runs in, and
+# wait-for-index's, which installs nothing. Neither puts a src/btclib on the
+# runner for a check to answer from. The wait-for-index job -- the checkout, the
+# uv setup and the wait script itself -- is btclib-org/.github's
+# reusable-wait-for-index.yml, called at a tagged commit (section 10 of
+# btclib-org/.github's README.md).
 #
 # `import btclib` runs __init__.py alone, and the data files under
 # btclib/ -- `git ls-files | grep '^src/btclib/.*_data/'` is which -- are
@@ -122,7 +121,7 @@ jobs:
   # ships with that release -- which has already happened to this wait,
   # in more than one of these repositories
   wait-for-index:
-    uses: btclib-org/.github/.github/workflows/reusable-wait-for-index.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-wait-for-index.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     with:
       package: btclib
       version: ${{ inputs.version }}

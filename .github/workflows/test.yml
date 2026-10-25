@@ -158,13 +158,12 @@ jobs:
   #   undefined in an expression unless the job is named in its own
   #   `needs`
   # - the event handling, the pagination and the decision are
-  #   btclib-org/.github's own, called at @main so a fix there reaches
-  #   this tree in one landing (section 10 of its README.md); what stays
-  #   here is which files are this tree's own prose, below
-  #   (issue btclib-org/.github#35)
+  #   btclib-org/.github's own, called at a tagged commit (section 10 of
+  #   btclib-org/.github's README.md); what stays here is which files are
+  #   this tree's own prose, below (issue btclib-org/.github#35)
   changes:
     name: Decide whether the jobs below have anything to check
-    uses: btclib-org/.github/.github/workflows/reusable-changes.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-changes.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     # A job's permissions replace the workflow's rather than adding to
     # them, so contents: read is named here too, alongside
     # pull-requests: read, which the callee's own job needs to list a
@@ -189,10 +188,8 @@ jobs:
       # tags: both halves of the allowlist below are anchored, at the
       # root and at .github, so a path under changelog/ is outside it
       # without being named
-      # a literal block scalar rather than a quoted one on the key's own
-      # line: the pattern has no space in it, which is what keeps
-      # yamllint's line-length rule off a line a quoted string on the
-      # `prose-pattern:` line itself would put well past it
+      # a literal block scalar rather than a quoted one, which keeps the
+      # pattern off the key's own line
       prose-pattern: |-
         ^(AGENTS|AUTHORS|CONTRIBUTING|RELEASING|REPOSITORY|REVIEWING|SECURITY)\.md$|^\.github/[^/]*\.md$
 
@@ -652,9 +649,9 @@ jobs:
       # The extra is named on both sides for that reason: its requirement
       # is `ecc[secp256k1]`, `Requires-Dist ... ; extra == "secp256k1"`,
       # so a wheel installed without it declares nothing to resolve and
-      # the question goes unasked. `--extra secp256k1` on the export is what puts the
-      # bindings in the constraints, at the version uv.lock resolved: a
-      # version and not a git commit, pyproject.toml carrying no source
+      # the question goes unasked. `--extra secp256k1` on the export is what
+      # puts the bindings in the constraints, at the version uv.lock resolved:
+      # a version and not a git commit, pyproject.toml carrying no source
       # table, which is what makes the bindings this step installs the
       # published ones its own name claims (issue #1116)
       # The lock arrives as constraints and not as requirements: a

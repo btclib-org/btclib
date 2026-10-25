@@ -405,7 +405,7 @@ repos:
   # ahead of markdownlint-cli2 below on purpose: that hook's `--fix`
   # repairs the very seam this hook exists to name (btclib-org/.github#1293)
   - repo: https://github.com/btclib-org/.github
-    rev: 0e359a9b5ae51cf1e17b8f59a650b2f2b58e38e9
+    rev: c77894642d8f3d1228a68cc5ff6203e61ee43512 # frozen: v2026.10.25
     hooks:
       - id: check-changelog
         args: [--grandfathered, "23"]
@@ -506,7 +506,7 @@ repos:
         language: pygrep
         # one line, and no literal space in it -- "\x20" is the space the
         # reference branch allows -- so yamllint reads the value as a
-        # single unbreakable word and its 100-column rule exempts it. A
+        # single unbreakable word, which its line-length rule exempts. A
         # block scalar rather than a quoted one for the same reason a
         # folded scalar was rejected: folding joins lines with a space,
         # which would land inside the regex.
@@ -550,8 +550,8 @@ repos:
       # `CHANGELOG.md` and `RELEASE_NOTES.md` are out of reach because
       # nothing already written in either is rewritten: a refused shape
       # in an entry that has landed has no repair, and there would be no
-      # green state to reach. `exclude:` selects files and pygrep reads whole ones,
-      # so an exclusion keyed on the older entries alone cannot be
+      # green state to reach. `exclude:` selects files and pygrep reads whole
+      # ones, so an exclusion keyed on the older entries alone cannot be
       # written; and check-useless-excludes asks the pattern to match
       # some file the hook selects rather than each name in it, which is
       # what lets a tree with no release notes carry the same line.
