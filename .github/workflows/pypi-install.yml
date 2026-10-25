@@ -121,7 +121,7 @@ jobs:
   # ships with that release -- which has already happened to this wait,
   # in more than one of these repositories
   wait-for-index:
-    uses: btclib-org/.github/.github/workflows/reusable-wait-for-index.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
+    uses: btclib-org/.github/.github/workflows/reusable-wait-for-index.yml@eb3b0c28476b98694ab3a3c3a9dce7e8e26ab4f5 # v2026.10.26
     with:
       package: btclib
       version: ${{ inputs.version }}
