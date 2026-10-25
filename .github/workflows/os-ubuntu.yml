@@ -77,7 +77,7 @@ concurrency:
 
 jobs:
   suite-ubuntu:
-    uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     with:
       runners: '["ubuntu-latest", "ubuntu-24.04-arm"]'
       python-versions: '["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t", "pypy3.11"]'

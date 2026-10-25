@@ -84,7 +84,7 @@ them:
 ```shell
 repo=btclib-org/btclib
 workflows=btclib-org/.github/.github/workflows
-signer=$workflows/reusable-build.yml@refs/heads/main
+signer=$workflows/reusable-build.yml
 gh attestation verify --repo "$repo" --signer-workflow "$signer" \
   --source-ref refs/tags/v<version> \
   <a distribution file from the release>

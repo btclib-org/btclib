@@ -72,10 +72,8 @@ goes, and not before: it would cost the build, the union pair, the
 `no-bindings` `pytest` and the bindings assertion, which that issue
 does not move. Following the commands out instead -- comparing
 `CONTRIBUTING.md` against the reusable workflows themselves -- is
-refused by what this suite is: it reads only this tree, the suite that
-reads across repositories is `btclib-org/.github`'s own `tests/`, and
-the callers name `@main`, so a red here would arrive from a landing no
-pull request of this tree makes.
+refused by what this suite is: it reads only this tree, and the suite
+that reads across repositories is `btclib-org/.github`'s own `tests/`.
 
 `docs/Makefile` and `docs/make.bat` are not sites of the build.
 `docs/README.rst` says they drive the same build "without the flags", and

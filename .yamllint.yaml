@@ -24,7 +24,7 @@
 # exceptions included, is a question for the tree that is asking:
 #
 #   git ls-files '*.yml' '*.yaml' | xargs uvx yamllint -f parsable \
-#     -d '{extends: default, rules: {line-length: {max: 100}}}'
+#     -d '{extends: default, rules: {line-length: {max: 140}}}'
 extends: default
 
 rules:
@@ -37,21 +37,23 @@ rules:
   # Actions requires, one per workflow by construction
   truthy: disable
   line-length:
-    # 100, where markdown is held to 80 and any Python beside it to the
-    # same, and the difference is the pinning convention. An action
-    # pinned to a 40-character commit SHA with its tag in a trailing
-    # comment has spent most of an 80-column line before the name of the
-    # action is written, so a limit of 80 reports the pins and buys its
-    # 80 with a "yamllint disable-line" on each. A width rule does not
-    # get to break a security one. 100 clears today's longest pin with
-    # room for an action whose name is longer, so a dependabot pull
-    # request cannot go red for having no defect in it; what the rule is
-    # left guarding is prose, the one thing here that can be rewrapped.
-    # What 80 would cost, in the tree that is asking:
+    # 140, where markdown is held to 80 and any Python beside it to the
+    # same, and the difference is the pinning convention. The longest pin
+    # section 10 of the standard asks for is a call into a reusable
+    # workflow of btclib-org/.github, its path pinned to a 40-character
+    # commit SHA with its tag in the trailing comment that section asks
+    # for. A width rule does not get to break a security one.
+    # 140 clears the longest such call with room for a workflow whose
+    # name is longer, so a dependabot pull request cannot go red for
+    # having no defect in it; what the rule is left guarding is prose,
+    # the one thing here that can be rewrapped. The longest pin, and what
+    # 100 would cost, in the tree that is asking:
     #
+    #   grep -hE 'uses: [^ ]+@[0-9a-f]{40}' .github/workflows/*.yml \
+    #     | awk '{ print length }' | sort -n | tail -1
     #   git ls-files '*.yml' '*.yaml' | xargs uvx yamllint -f parsable \
-    #     -d '{rules: {line-length: {max: 80}}}'
-    max: 100
+    #     -d '{rules: {line-length: {max: 100}}}'
+    max: 140
     # allow-non-breakable-words stays at its default, true: a line that
     # is one long token has nowhere to break
   # the "---" every yaml file here opens with, one line each. What it buys

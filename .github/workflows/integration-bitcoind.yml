@@ -14,12 +14,11 @@ name: integration-bitcoind
 # `testmempoolaccept`.
 #
 # The checkout, the node install, the test run and the report upload are
-# btclib-org/.github's: reusable-integration-bitcoind.yml, called at
-# @main so a fix there reaches this tree in one landing (section 10 of
-# its README.md). What stays here is the trigger, the cron minute, the
-# concurrency group, the pinned release and its sha256, the two
-# environment-variable names tests/integration/conftest.py reads, and the
-# prefix that exempts qa_assets_test.py's skips.
+# btclib-org/.github's: reusable-integration-bitcoind.yml, called at a tagged
+# commit (section 10 of btclib-org/.github's README.md). What stays here is the
+# trigger, the cron minute, the concurrency group, the pinned release and its
+# sha256, the two environment-variable names tests/integration/conftest.py
+# reads, and the prefix that exempts qa_assets_test.py's skips.
 #
 # `regtest / Regtest against Bitcoin Core` is a required check on main:
 # what it asks is whether Core accepts what this branch built, and the
@@ -145,7 +144,7 @@ concurrency:
 
 jobs:
   regtest:
-    uses: btclib-org/.github/.github/workflows/reusable-integration-bitcoind.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-integration-bitcoind.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     # permissions do not inherit through a call: the called job reads the
     # tree and writes nothing, so this is what caps what it may be
     # granted -- refusing rather than trimming what the called workflow

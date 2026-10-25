@@ -49,13 +49,12 @@ name: deps-latest
 # job that needs nothing but read; a failed scheduled run notifies the
 # last person to have touched the cron below, and that is the signal
 #
-# The upgrade, the lint hooks and the suite run over it are
-# btclib-org/.github's reusable-deps-latest.yml, called at @main so a fix
-# there reaches this tree in one landing (issue btclib-org/.github#35).
-# suite-bindings-latest and dist-latest stay here -- the callee holds
-# neither the bindings-only upgrade nor the packaging checks, and says so
-# in its own header -- and so do the trigger, the schedule, the
-# concurrency group and the workflow-level permissions
+# The upgrade, the lint hooks and the suite run over it are btclib-org/.github's
+# reusable-deps-latest.yml, called at a tagged commit (section 10 of
+# btclib-org/.github's README.md). suite-bindings-latest and dist-latest stay
+# here -- the callee holds neither the bindings-only upgrade nor the packaging
+# checks, and says so in its own header -- and so do the trigger, the schedule,
+# the concurrency group and the workflow-level permissions
 
 on:
   schedule:
@@ -85,12 +84,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # the checkout, the uv setup, the hook cache, the upgrade and the lint
-  # and suite runs over it are btclib-org/.github's
-  # reusable-deps-latest.yml, called at @main so a fix there reaches
-  # this tree in one landing (issue btclib-org/.github#35). It runs as
-  # this job's own `lint-latest` and `suite-latest`, both keyed by name
-  # in the run rather than by this file's job id.
+  # the checkout, the uv setup, the hook cache, the upgrade and the lint and
+  # suite runs over it are btclib-org/.github's reusable-deps-latest.yml, called
+  # at a tagged commit (section 10 of btclib-org/.github's README.md). It runs
+  # as this job's own `lint-latest` and `suite-latest`, both keyed by name in
+  # the run rather than by this file's job id.
   #
   # runners and python-versions are this tree's matrix as it ran before
   # the call: three images, and the two ends of the interpreter range
@@ -118,7 +116,7 @@ jobs:
   # -- suite-bindings-latest's own checkout comment below gives the
   # 99.93%, one file, every runner, every week this produced without it
   deps-latest:
-    uses: btclib-org/.github/.github/workflows/reusable-deps-latest.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-deps-latest.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     with:
       runners: '["ubuntu-latest", "macos-latest", "windows-latest"]'
       python-versions: '["3.11", "3.15"]'

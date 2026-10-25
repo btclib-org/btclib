@@ -89,11 +89,10 @@ concurrency:
   cancel-in-progress: ${{ !(github.event.action == 'closed' && github.event.pull_request.merged) }}
 
 jobs:
-  # the job itself is btclib-org/.github's, called at @main so a fix there
-  # reaches this tree in one landing (section 10 of its README.md); what
-  # stays here is the trigger, the schedule and which files are this
-  # tree's documentation
+  # the job itself is btclib-org/.github's, called at a tagged commit (section
+  # 10 of btclib-org/.github's README.md); what stays here is the trigger, the
+  # schedule and which files are this tree's documentation
   links:
-    uses: btclib-org/.github/.github/workflows/reusable-links.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-links.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     with:
       targets: '"**/*.md" ".github/**/*.md" ".claude/**/*.md" "docs/**/*.rst"'

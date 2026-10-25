@@ -11,11 +11,11 @@ name: vendored vectors
 # ledger's and with upstream's at the pinned commit; a mismatch fails
 # the run.
 #
-# The checkout, the optional interpreter setup and the re-check itself
-# are btclib-org/.github's: reusable-vendored-vectors.yml, called at
-# @main so a fix there reaches this tree in one landing (section 10 of
-# its README.md). What stays here is the trigger, the cron minute, the
-# concurrency group and the ledger this tree checks.
+# The checkout, the optional interpreter setup and the re-check itself are
+# btclib-org/.github's: reusable-vendored-vectors.yml, called at a tagged commit
+# (section 10 of btclib-org/.github's README.md). What stays here is the
+# trigger, the cron minute, the concurrency group and the ledger this tree
+# checks.
 #
 # issues: write here is granted by no other workflow in this tree, and
 # three decline it in as many words, each for its own reason: links.yml,
@@ -75,7 +75,7 @@ concurrency:
 
 jobs:
   vectors:
-    uses: btclib-org/.github/.github/workflows/reusable-vendored-vectors.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-vendored-vectors.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     # permissions do not inherit through a call: the check job the
     # reusable workflow runs wants issues: write for its gh issue
     # create/edit/close calls, so the calling job declares it here,

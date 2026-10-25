@@ -8,14 +8,13 @@ name: mutation
 # them in the transaction parsers -- and a surviving mutant names one line
 # of it at a time.
 #
-# The baseline check, the session loop, the restore guard, the counts and
-# the upload are btclib-org/.github's reusable-mutation.yml, called at
-# @main so a fix there reaches this tree in one landing (section 10 of
-# that repository's README.md, btclib-org/.github#35). What stays here is
-# this tree's own subject matter -- the profiles below, their budgets and
-# their ceilings -- and the trigger, the schedule, the dispatch dropdown,
-# the concurrency group and the permissions, none of which a reader of
-# the callee could write for this tree.
+# The baseline check, the session loop, the restore guard, the counts and the
+# upload are btclib-org/.github's reusable-mutation.yml, called at a tagged
+# commit (section 10 of btclib-org/.github's README.md). What stays here is this
+# tree's own subject matter -- the profiles below, their budgets and their
+# ceilings -- and the trigger, the schedule, the dispatch dropdown, the
+# concurrency group and the permissions, none of which a reader of the callee
+# could write for this tree.
 #
 # It gates nothing, and that is the design rather than a caution. A gate
 # needs a number nobody has measured yet, and a survival rate is not a
@@ -103,7 +102,7 @@ concurrency:
 
 jobs:
   mutation:
-    uses: btclib-org/.github/.github/workflows/reusable-mutation.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-mutation.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     with:
       # One object per profile, and every value in it is this tree's own:
       # the phrase the job is named for, the slug the dropdown above and
@@ -192,9 +191,9 @@ jobs:
       # runner's margin.
       #
       # `p2p-connection` and `p2p-relay`: `src/btclib/p2p`, less bip324.py,
-      # is two jobs because one session over it takes about two hours on the machine
-      # that measured it, longer than one runner is worth. The budgets
-      # are sized from a twenty-minute sample of the package, not from a
+      # is two jobs because one session over it takes about two hours on the
+      # machine that measured it, longer than one runner is worth. The
+      # budgets are sized from a twenty-minute sample of the package, not from a
       # finished session, so the first scheduled run says whether either
       # completes, and one that is cut reports a sample.
       profiles: >-

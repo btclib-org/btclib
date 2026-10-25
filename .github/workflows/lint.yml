@@ -6,14 +6,13 @@ name: lint
 # badges and two lines in the checks list, so a lint failure does not
 # read as "the build is red".
 #
-# The checkout, the uv setup, the runner-image step, the hook cache and
-# the pre-commit run are btclib-org/.github's: reusable-lint.yml, called
-# at @main so a fix there reaches this tree in one landing (section 10 of
-# its README.md). What runs is still .pre-commit-config.yaml itself
-# rather than a second list of the same tools, the called job checking
-# this tree out before it runs pre-commit against it: CI therefore
-# enforces exactly what a local run of it enforces, every hook included,
-# and no hook is gated by pre-commit.ci alone (btclib-org/.github#35)
+# The checkout, the uv setup, the runner-image step, the hook cache and the
+# pre-commit run are btclib-org/.github's: reusable-lint.yml, called at a tagged
+# commit (section 10 of btclib-org/.github's README.md). What runs is still
+# .pre-commit-config.yaml itself rather than a second list of the same tools,
+# the called job checking this tree out before it runs pre-commit against it: CI
+# therefore enforces exactly what a local run of it enforces, every hook
+# included, and no hook is gated by pre-commit.ci alone (btclib-org/.github#35)
 
 on:
   push:
@@ -101,4 +100,4 @@ jobs:
   # is one of its own hooks -- and needs no history beyond the tip, so
   # `submodules` and `fetch-depth` are left at their defaults
   lint:
-    uses: btclib-org/.github/.github/workflows/reusable-lint.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-lint.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25

@@ -1,20 +1,18 @@
 ---
 name: sdist-rebuild
 
-# the sentinel on what the attestation vouches for: the tag of the
-# latest release, rebuilt the way RELEASING.md's *Rebuild a release from
-# its tag* rebuilds it, and `gh attestation verify` over the rebuilt
-# sdist, which passes only where its digest is one btclib-org/.github's
-# `reusable-build.yml` signed (`reusable-attest.yml` for a release made
-# before this tree's `release.yml` called it) -- an attestation made
-# inside a called workflow names the callee as its signer (issue
-# btclib-org/.github#1301).
-# The release lookup, the checkout, the build, the normalizer and the
-# verification are btclib-org/.github's own: reusable-sdist-rebuild.yml,
-# called at @main so a fix there reaches this tree in one landing (issue
-# btclib-org/.github#35). What stays here is the trigger, the cron
-# minute, the workflow-level permissions, the concurrency group and the
-# calling job's own `if:`, none of which the callee carries.
+# the sentinel on what the attestation vouches for: the tag of the latest
+# release, rebuilt the way RELEASING.md's *Rebuild a release from its tag*
+# rebuilds it, and `gh attestation verify` over the rebuilt sdist, which passes
+# only where its digest is one btclib-org/.github's `reusable-build.yml` signed
+# (`reusable-attest.yml` for a release made before this tree's `release.yml`
+# called it) -- an attestation made inside a called workflow names the callee as
+# its signer (issue btclib-org/.github#1301). The release lookup, the checkout,
+# the build, the normalizer and the verification are btclib-org/.github's own:
+# reusable-sdist-rebuild.yml, called at a tagged commit (section 10 of
+# btclib-org/.github's README.md). What stays here is the trigger, the cron
+# minute, the workflow-level permissions, the concurrency group and the calling
+# job's own `if:`, none of which the callee carries.
 #
 # The sdist alone: section 10 of btclib-org/.github's README.md makes the
 # row the sdist's. A red run is an issue against this tree. It gates
@@ -64,4 +62,4 @@ jobs:
     # defaults -- "uv", "" and false -- which is exactly what this file
     # built before this conversion: `uv build --sdist`, no submodules and
     # no setup-python step
-    uses: btclib-org/.github/.github/workflows/reusable-sdist-rebuild.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-sdist-rebuild.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
