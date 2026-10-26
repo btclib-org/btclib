@@ -20,8 +20,10 @@ lives; this module is the walk that feeds it a period's first header and the
 two chain-wide readings that do not need the whole retarget.
 
 Bitcoin Core v31.1 (bitcoin/bitcoin@9be056a8a7) is the reference for
-every rule, `src/chain.h`, `src/pow.cpp` and `src/validation.cpp`'s
-`ContextualCheckBlockHeader`, cited beside the code that transcribes it.
+every rule but BIP54's, `src/chain.h`, `src/pow.cpp` and
+`src/validation.cpp`'s `ContextualCheckBlockHeader`, cited beside the
+code that transcribes it. `assert_bip54_timestamps` follows BIP54, as
+`btclib.tx.tx_context`'s docstring explains.
 """
 
 from __future__ import annotations
@@ -29,7 +31,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from btclib.block.block_header import BlockHeader
-from btclib.block.limits import MAX_TIMEWARP
+from btclib.block.limits import MAX_TIMEWARP, MAX_TIMEWARP_BIP54
 from btclib.block.proof_of_work import next_bits
 from btclib.consensus import ConsensusParams
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -38,6 +40,7 @@ from btclib.utils import _message_text, is_integer
 __all__ = [
     "MEDIAN_TIME_SPAN",
     "ParentOf",
+    "assert_bip54_timestamps",
     "assert_not_timewarp",
     "header_at_height",
     "median_time_past",
@@ -178,6 +181,44 @@ def assert_not_timewarp(
         err_msg = "invalid timestamp (timewarp attack): "
         err_msg += f"{_block_time(header)} < {_block_time(parent)} - {MAX_TIMEWARP}"
         raise BTClibValueError(err_msg)
+
+
+def assert_bip54_timestamps(
+    header: BlockHeader,
+    parent: BlockHeader,
+    parent_height: int,
+    parent_of: ParentOf,
+    consensus: ConsensusParams,
+) -> None:
+    """Refuse a header breaking BIP54's timestamp rules at a retarget boundary.
+
+    Where `header` opens a difficulty period, it must not be timestamped
+    more than `MAX_TIMEWARP_BIP54` seconds before `parent`: the timewarp
+    fix, refused with `time-timewarp-attack`. Where it closes one, it must
+    not be timestamped before the period's first header, walked back to
+    through `parent_of`: the Murch-Zawy fix, refused with
+    `time-negative-interval`. Any other header passes.
+
+    The rules apply whatever `consensus.enforce_bip94` says: BIP94's
+    tighter bound on a period's first header is `assert_not_timewarp`.
+    """
+    _assert_valid_parent_height(parent_height)
+
+    interval = consensus.difficulty_adjustment_interval
+    height = parent_height + 1
+    time = _block_time(header)
+
+    if height % interval == 0 and time < _block_time(parent) - MAX_TIMEWARP_BIP54:
+        err_msg = "time-timewarp-attack: "
+        err_msg += f"{time} < {_block_time(parent)} - {MAX_TIMEWARP_BIP54}"
+        raise BTClibValueError(err_msg)
+
+    if height % interval == interval - 1:
+        first_height = height - (interval - 1)
+        first = header_at_height(parent, parent_height, first_height, parent_of)
+        if time < _block_time(first):
+            err_msg = f"time-negative-interval: {time} < {_block_time(first)}"
+            raise BTClibValueError(err_msg)
 
 
 def next_bits_required(

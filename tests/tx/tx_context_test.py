@@ -4,31 +4,46 @@
 
 """Tests for the `btclib.tx.tx_context` module.
 
-Every case is synthetic and hand-computed against Bitcoin Core v31.1's
-own `src/consensus/tx_verify.cpp` (bitcoin/bitcoin@9be056a8a7): the four
-rules under test each need a chain around the transaction that no vector
-file carries, and Core's own coverage of them lives in the functional
-suite (`feature_cltv.py`, `feature_csv_activation.py`), which drives a
-running node rather than a table of inputs and outputs.
+The cases of the rules Core v31.1 enforces are synthetic and
+hand-computed against its own `src/consensus/tx_verify.cpp`
+(bitcoin/bitcoin@9be056a8a7): each needs a chain around the transaction
+that no vector file carries, and Core's own coverage of them lives in the
+functional suite (`feature_cltv.py`, `feature_csv_activation.py`), which
+drives a running node rather than a table of inputs and outputs.
+
+The BIP54 rules are held to bip-0054's own vectors, `sigops.json`,
+`txsize.json` and `coinbases.json` under `tests/tx/_data/`, which
+`tests/_data/README.md` pins; the synthetic cases beside them are the
+edges the vectors do not reach.
 """
+
+import re
+from typing import Any
 
 import pytest
 
+from btclib.block import Block
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import ScriptPubKey
 from btclib.tx import Coin, OutPoint, Tx, TxIn, TxOut
 from btclib.tx.limits import (
+    INVALID_TX_NONWITNESS_SIZE,
     LOCKTIME_THRESHOLD,
+    MAX_TX_LEGACY_SIGOPS,
     SEQUENCE_FINAL,
     SEQUENCE_LOCKTIME_DISABLE_FLAG,
     SEQUENCE_LOCKTIME_TYPE_FLAG,
 )
 from btclib.tx.tx_context import (
+    assert_bip54_coinbase,
+    assert_bip54_sig_ops,
+    assert_bip54_tx_size,
     assert_coinbase_maturity,
     assert_coinbase_value,
     assert_sequence_locks,
     is_final,
 )
+from tests import load, vector_id
 
 A_SCRIPT_PUB_KEY = ScriptPubKey(b"")
 A_PREV_OUT = OutPoint(b"\x11" * 32, 0)
@@ -259,3 +274,155 @@ def test_assert_sequence_locks_refuses_a_non_integer_height_or_time() -> None:
             tip_median_time_past="0",  # type: ignore[arg-type]
             ancestor_median_time_past=lambda h: 0,
         )
+
+
+def _bip54_vectors(name: str) -> list[Any]:
+    """Return one parameter per case of a bip-0054 vector file."""
+    cases: list[dict[str, Any]] = load("tx", "_data", name)
+    return [
+        pytest.param(case, id=vector_id(i, case["comment"]))
+        for i, case in enumerate(cases)
+    ]
+
+
+@pytest.mark.parametrize("case", _bip54_vectors("sigops.json"))
+def test_bip54_sig_ops_vectors(case: dict[str, Any]) -> None:
+    """Each bip-0054 sigops case is refused exactly where it is invalid.
+
+    Some of upstream's pathological cases break `CheckTransaction` as
+    well, so the transaction is parsed without that check: the rule
+    asked here is the sigop limit alone.
+    """
+    tx = Tx.parse(case["tx"], check_validity=False)
+    prevouts = [TxOut.parse(spent) for spent in case["spent_outputs"]]
+    if case["valid"]:
+        assert_bip54_sig_ops(tx, prevouts)
+    else:
+        with pytest.raises(BTClibValueError, match="bad-txns-legacy-sigops"):
+            assert_bip54_sig_ops(tx, prevouts)
+
+
+def _bare_checksigs(count: int) -> ScriptPubKey:
+    """Return a script_pub_key of `count` OP_CHECKSIG, one legacy check each."""
+    return ScriptPubKey(b"\xac" * count)
+
+
+def test_bip54_sig_ops_limit_is_inclusive() -> None:
+    """`MAX_TX_LEGACY_SIGOPS` checks pass and one more is refused."""
+    prevouts = [TxOut(1_000, _bare_checksigs(MAX_TX_LEGACY_SIGOPS - 1))]
+    script_sig = b"\xac"  # one more check, counted in the spending input
+    tx = Tx(2, 0, [TxIn(A_PREV_OUT, script_sig=script_sig)], [_tx_out()])
+    assert_bip54_sig_ops(tx, prevouts)
+    prevouts = [TxOut(1_000, _bare_checksigs(MAX_TX_LEGACY_SIGOPS))]
+    with pytest.raises(BTClibValueError, match="bad-txns-legacy-sigops"):
+        assert_bip54_sig_ops(tx, prevouts)
+
+
+def test_bip54_sig_ops_skips_a_coinbase() -> None:
+    """A coinbase is not limited, and its prevouts are not read."""
+    assert_bip54_sig_ops(_coinbase(script_sig=b"\xac" * 99), [])
+
+
+def test_assert_bip54_sig_ops_refuses_what_cannot_be_checked() -> None:
+    """A wrong type, or a prevout count that is not the input count."""
+    tx = _tx()
+    with pytest.raises(BTClibTypeError, match="tx"):
+        assert_bip54_sig_ops("tx", [_tx_out()])  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="prevouts"):
+        assert_bip54_sig_ops(tx, 1)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="prevout"):
+        assert_bip54_sig_ops(tx, ["a"])  # type: ignore[list-item]
+    with pytest.raises(BTClibValueError, match="prevouts for"):
+        assert_bip54_sig_ops(tx, [])
+
+
+@pytest.mark.parametrize("case", _bip54_vectors("txsize.json"))
+def test_bip54_tx_size_vectors(case: dict[str, Any]) -> None:
+    """Each bip-0054 txsize case is refused exactly where it is invalid."""
+    tx = Tx.parse(case["tx"])
+    if case["valid"]:
+        assert_bip54_tx_size(tx)
+    else:
+        assert len(tx.serialize(include_witness=False)) == INVALID_TX_NONWITNESS_SIZE
+        with pytest.raises(BTClibValueError, match="bad-txns-size"):
+            assert_bip54_tx_size(tx)
+
+
+def test_assert_bip54_tx_size_refuses_a_non_tx() -> None:
+    """Anything but a Tx is a type error."""
+    with pytest.raises(BTClibTypeError, match="tx"):
+        assert_bip54_tx_size(b"")  # type: ignore[arg-type]
+
+
+def _bip54_coinbase_chains() -> list[Any]:
+    """Return one parameter per chain of `coinbases.json`."""
+    cases: list[dict[str, Any]] = load("tx", "_data", "coinbases.json")
+    return [
+        pytest.param(case, id=vector_id(i, case["comment"]))
+        for i, case in enumerate(cases)
+    ]
+
+
+def _expected_coinbase_refusal(comment: str) -> tuple[int, str]:
+    """Read the height and the reason an invalid case's comment states.
+
+    Each comment names the block's height, and a final sequence where
+    that is what breaks the rule; any other invalid case breaks the lock.
+    """
+    match = re.match(r"Block at height (\d+) ", comment)
+    assert match, comment
+    reason = "bad-cb-locktime"
+    if " final nSequence" in comment and "non-final nSequence" not in comment:
+        reason = "bad-cb-sequence"
+    return int(match[1]), reason
+
+
+@pytest.mark.parametrize("case", _bip54_coinbase_chains())
+def test_bip54_coinbase_vectors(case: dict[str, Any]) -> None:
+    """A chain is valid exactly where every coinbase of it passes.
+
+    The chain starts at genesis, so a block's position is its height. An
+    invalid chain is refused once, at the height and for the reason its
+    comment states.
+    """
+    refused = []
+    for height, serialized in enumerate(case["block_chain"]):
+        coinbase = Block.parse(serialized).transactions[0]
+        try:
+            assert_bip54_coinbase(coinbase, height)
+        except BTClibValueError as e:
+            refused.append((height, str(e).split(":")[0]))
+    if case["valid"]:
+        assert not refused
+    else:
+        assert refused == [_expected_coinbase_refusal(case["comment"])]
+
+
+def _coinbase_at(lock_time: int, sequence: int) -> Tx:
+    """Return a coinbase with the given lock_time and input sequence."""
+    tx_in = TxIn(OutPoint(), script_sig=b"\x02\x00\x00", sequence=sequence)
+    return Tx(2, lock_time, [tx_in], [_tx_out()])
+
+
+def test_bip54_coinbase_locks_to_the_height_before() -> None:
+    """lock_time must be height - 1, and the sequence must not be final."""
+    assert_bip54_coinbase(_coinbase_at(lock_time=9, sequence=0), 10)
+    with pytest.raises(BTClibValueError, match="bad-cb-locktime"):
+        assert_bip54_coinbase(_coinbase_at(lock_time=10, sequence=0), 10)
+    with pytest.raises(BTClibValueError, match="bad-cb-sequence"):
+        assert_bip54_coinbase(_coinbase_at(lock_time=9, sequence=SEQUENCE_FINAL), 10)
+    # the genesis block is not checked
+    assert_bip54_coinbase(_coinbase_at(lock_time=0, sequence=SEQUENCE_FINAL), 0)
+
+
+def test_assert_bip54_coinbase_refuses_what_cannot_be_checked() -> None:
+    """A wrong type, a negative height, or a transaction that is no coinbase."""
+    coinbase = _coinbase_at(lock_time=0, sequence=0)
+    with pytest.raises(BTClibTypeError, match="coinbase"):
+        assert_bip54_coinbase("tx", 1)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid height type"):
+        assert_bip54_coinbase(coinbase, "1")  # type: ignore[arg-type]
+    with pytest.raises(BTClibValueError, match="invalid height"):
+        assert_bip54_coinbase(coinbase, -1)
+    with pytest.raises(BTClibValueError, match="not a coinbase"):
+        assert_bip54_coinbase(_tx(), 1)

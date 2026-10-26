@@ -33,14 +33,22 @@ created on" -- and that reasoning is what put it here instead: a
 the rule is a function of its arguments and belongs beside the module
 that reads it rather than beside `block/limits.py`'s header rules, which
 `btclib.tx` cannot import.
+
+`MAX_TX_LEGACY_SIGOPS` and `INVALID_TX_NONWITNESS_SIZE` are BIP54's
+bounds on a transaction, read by `btclib.tx.tx_context`'s
+`assert_bip54_*` rules. Core v31.1 declares the first in
+`src/policy/policy.h`, as a relay limit, and `btclib.policy` re-exports
+it.
 """
 
 from btclib.consensus import MAX_BLOCK_WEIGHT, WITNESS_SCALE_FACTOR
 
 __all__ = [
     "COINBASE_MATURITY",
+    "INVALID_TX_NONWITNESS_SIZE",
     "LOCKTIME_THRESHOLD",
     "MAX_TX_IN_COUNT",
+    "MAX_TX_LEGACY_SIGOPS",
     "MAX_TX_OUT_COUNT",
     "MIN_TX_IN_SIZE",
     "MIN_TX_OUT_SIZE",
@@ -91,3 +99,10 @@ SEQUENCE_LOCKTIME_GRANULARITY = 9
 # regtest included -- unlike the heights and limits `btclib.consensus`
 # tabulates per network, nothing in chainparams.cpp relaxes this one
 COINBASE_MATURITY = 100
+
+# BIP54: the most legacy signature checks a transaction may run, those of
+# each script_sig and of the script_pub_key or redeem script it spends
+MAX_TX_LEGACY_SIGOPS = 2_500
+
+# BIP54: the size without witness no transaction may have
+INVALID_TX_NONWITNESS_SIZE = 64

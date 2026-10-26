@@ -13,6 +13,10 @@ heights the vector names -- `next_bits_required` reads only the parent
 and the period's first header, so what sits between them cannot change
 the answer, only the cost of the walk to it.
 
+The BIP54 timestamp rules are held to bip-0054's own `timestamps.json`,
+under `tests/block/_data/` and pinned in `tests/_data/README.md`: mainnet
+header chains from genesis, each valid or not under BIP54.
+
 Every other test is synthetic, over headers built with
 `check_validity=False`: the proof-of-work these rules read from a header
 is the timestamp and the `bits`, and Core's own algorithm is checked
@@ -21,9 +25,11 @@ against a real one.
 """
 
 import dataclasses
+import re
 import secrets
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 
@@ -31,15 +37,17 @@ from btclib.block.block_header import BlockHeader
 from btclib.block.header_context import (
     MEDIAN_TIME_SPAN,
     ParentOf,
+    assert_bip54_timestamps,
     assert_not_timewarp,
     header_at_height,
     median_time_past,
     next_bits_required,
 )
-from btclib.block.limits import MAX_TIMEWARP
+from btclib.block.limits import MAX_TIMEWARP, MAX_TIMEWARP_BIP54
 from btclib.block.proof_of_work import next_bits
 from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from tests import load, vector_id
 
 MAIN = CONSENSUS_PARAMS["mainnet"]
 TESTNET = CONSENSUS_PARAMS["testnet"]
@@ -528,6 +536,118 @@ def test_assert_not_timewarp_refuses_a_bad_parent_height() -> None:
         assert_not_timewarp(candidate, candidate, "1", REGTEST)  # type: ignore[arg-type]
     with pytest.raises(BTClibValueError, match="invalid parent height: -1"):
         assert_not_timewarp(candidate, candidate, -1, REGTEST)
+
+
+# ---------------------------------------------------------------------------
+# assert_bip54_timestamps
+
+
+def _bip54_header_chains(
+    node: dict[str, Any], prefix: list[str]
+) -> Iterator[tuple[list[str], bool, str]]:
+    """Walk `timestamps.json` to its leaves, one header chain per leaf.
+
+    Each object's headers follow its parent's, and a leaf carries the
+    verdict: the format bip-0054's `test_vectors/README.md` describes.
+    """
+    headers = prefix + node["block_headers"]
+    if "extensions" in node:
+        for child in node["extensions"]:
+            yield from _bip54_header_chains(child, headers)
+    else:
+        yield headers, node["valid"], node["comment"]
+
+
+def _bip54_timestamp_cases() -> list[Any]:
+    root: dict[str, Any] = load("block", "_data", "timestamps.json")
+    return [
+        pytest.param(headers, valid, comment, id=vector_id(i, comment))
+        for i, (headers, valid, comment) in enumerate(_bip54_header_chains(root, []))
+    ]
+
+
+def _expected_timestamp_refusal(comment: str) -> tuple[int, str]:
+    """Read the height and the reason an invalid case's comment states.
+
+    A comment saying the block is "more than 2 hours before" its parent
+    is the timewarp rule; one saying it has "a lower timestamp than" the
+    period's first block is the Murch-Zawy rule.
+    """
+    match = re.match(r"Block at height (\d+) ", comment)
+    assert match, comment
+    if "more than 2 hours before" in comment:
+        return int(match[1]), "time-timewarp-attack"
+    assert "a lower timestamp than" in comment, comment
+    return int(match[1]), "time-negative-interval"
+
+
+@pytest.mark.parametrize("chain, valid, comment", _bip54_timestamp_cases())
+def test_bip54_timestamps_vectors(chain: list[str], valid: bool, comment: str) -> None:
+    """A chain is valid exactly where no header of it is refused.
+
+    The chain starts at genesis, so a header's position is its height. An
+    invalid chain is refused once, at the height and for the reason its
+    comment states.
+    """
+    headers = [BlockHeader.parse(header) for header in chain]
+    parent_by_hash = {headers[i].hash: headers[i - 1] for i in range(1, len(headers))}
+
+    def parent_of(header: BlockHeader) -> BlockHeader:
+        return parent_by_hash[header.hash]
+
+    refused = []
+    for height in range(1, len(headers)):
+        try:
+            assert_bip54_timestamps(
+                headers[height], headers[height - 1], height - 1, parent_of, MAIN
+            )
+        except BTClibValueError as e:
+            refused.append((height, str(e).split(":")[0]))
+    if valid:
+        assert not refused
+    else:
+        assert refused == [_expected_timestamp_refusal(comment)]
+
+
+def test_bip54_timestamps_bounds_are_inclusive() -> None:
+    """Both rules accept a timestamp exactly at their bound."""
+    consensus = _small_interval(enforce_bip94=False, pow_no_retargeting=False)
+    interval = consensus.difficulty_adjustment_interval
+    times = [EPOCH + timedelta(seconds=600 * h) for h in range(interval)]
+    headers, parent_of = a_chain(times, [HARD] * interval)
+    parent = headers[-1]
+
+    # the first header of the second period, behind its parent
+    at_bound = parent.time - timedelta(seconds=MAX_TIMEWARP_BIP54)
+    candidate = _header(parent.hash, at_bound, HARD)
+    assert_bip54_timestamps(candidate, parent, interval - 1, parent_of, consensus)
+    candidate = _header(parent.hash, at_bound - timedelta(seconds=1), HARD)
+    with pytest.raises(BTClibValueError, match="time-timewarp-attack"):
+        assert_bip54_timestamps(candidate, parent, interval - 1, parent_of, consensus)
+
+    # the last header of the first period, against its first header
+    parent = headers[-2]
+    candidate = _header(parent.hash, headers[0].time, HARD)
+    assert_bip54_timestamps(candidate, parent, interval - 2, parent_of, consensus)
+    candidate = _header(parent.hash, headers[0].time - timedelta(seconds=1), HARD)
+    with pytest.raises(BTClibValueError, match="time-negative-interval"):
+        assert_bip54_timestamps(candidate, parent, interval - 2, parent_of, consensus)
+
+    # BIP94's tighter bound is not applied, even where the network enforces it
+    bip94 = _small_interval(enforce_bip94=True, pow_no_retargeting=False)
+    parent = headers[-1]
+    too_early_for_bip94 = parent.time - timedelta(seconds=MAX_TIMEWARP + 1)
+    candidate = _header(parent.hash, too_early_for_bip94, HARD)
+    assert_bip54_timestamps(candidate, parent, interval - 1, parent_of, bip94)
+
+
+def test_assert_bip54_timestamps_refuses_a_bad_parent_height() -> None:
+    """A non-integer or negative parent height is refused up front."""
+    candidate = _header(b"\x00" * 32, EPOCH, HARD)
+    with pytest.raises(BTClibTypeError, match="invalid parent height type: str"):
+        assert_bip54_timestamps(candidate, candidate, "1", lambda h: h, MAIN)  # type: ignore[arg-type]
+    with pytest.raises(BTClibValueError, match="invalid parent height: -1"):
+        assert_bip54_timestamps(candidate, candidate, -1, lambda h: h, MAIN)
 
 
 # ---------------------------------------------------------------------------
