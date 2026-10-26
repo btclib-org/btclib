@@ -188,8 +188,8 @@ CHILD_MODULES = {
         "unpublished": ["flags", "script", "script_op_codes", "tapscript"],
     },
     "btclib.testing": {
-        "groups": ["blocks", "strategies"],
-        "unpublished": [],
+        "groups": ["blocks"],
+        "unpublished": ["strategies"],
     },
     "btclib.tx": {
         "groups": [],

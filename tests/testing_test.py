@@ -5,13 +5,13 @@
 """Tests for the `btclib.testing` package and its `blocks` module.
 
 `tests/block/block_test.py` checks each block's hash and contents, read
-through `blocks`. What is left here is the refusals, and how the package
-publishes `strategies`.
+through `blocks`. What is left here is the refusals.
+`tests/imports_test.py` holds that `from btclib.testing import *` works
+without hypothesis.
 """
 
 import pytest
 
-import btclib.testing
 from btclib.block import Block
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.testing.blocks import NAMES, read_bytes
@@ -38,19 +38,3 @@ def test_a_name_that_is_not_text_is_refused() -> None:
     for name in (b"block_170.bin", 170, None):
         with pytest.raises(BTClibTypeError, match="invalid block file name type: "):
             read_bytes(name)  # type: ignore[arg-type]
-
-
-def test_strategies_are_imported_on_demand(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The package answers `strategies` through its `__getattr__`.
-
-    The suite has imported the module already, which binds it as an
-    attribute of the package; without that attribute the package's
-    `__getattr__` answers. `tests/imports_test.py` holds the other half:
-    the package imports no hypothesis until asked.
-    """
-    strategies = btclib.testing.strategies
-    monkeypatch.delattr(btclib.testing, "strategies")
-    assert btclib.testing.strategies is strategies
-    assert set(btclib.testing.__all__) <= set(dir(btclib.testing))
-    with pytest.raises(AttributeError, match="has no attribute 'strategy'"):
-        _ = btclib.testing.strategy
