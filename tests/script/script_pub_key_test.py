@@ -54,8 +54,8 @@ from btclib.script.script_pub_key import (
     p2ms_m_and_keys_var,
     script_from_script_pub_key,
 )
+from btclib.testing.strategies import SCRIPT_PUB_KEYS
 from tests import load, vector_id
-from tests.strategies import SCRIPT_PUB_KEYS
 
 
 def test_eq() -> None:

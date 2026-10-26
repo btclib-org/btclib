@@ -60,7 +60,10 @@ _TESTS_DIR = Path(__file__).parent
 # of the library where that dependency is not installed: it cannot be
 # imported there, and a btclib without the extra answers as before.
 # `tests/build_system_test.py` holds each entry to the extra it names
-NEEDS_AN_EXTRA = {"btclib.p2p.bip324": "cryptography"}
+NEEDS_AN_EXTRA = {
+    "btclib.p2p.bip324": "cryptography",
+    "btclib.testing.strategies": "hypothesis",
+}
 
 
 def importable(name: str) -> bool:
@@ -158,6 +161,23 @@ def load_bin(*relative_path: str) -> bytes:
     """
     with _TESTS_DIR.joinpath(*relative_path).open("rb") as file_:
         return file_.read()
+
+
+def vendored_block(name: str) -> bytes:
+    """Read a vendored block by its file name, wherever it is vendored.
+
+    `btclib.testing.blocks` ships the blocks its `NAMES` lists, so that
+    the tests of btclib's callers read them too. The others are under
+    `tests/block/_data/`.
+
+    The import is inside the function for the reason
+    `key_pair_spellings` below gives.
+    """
+    from btclib.testing import blocks  # noqa: PLC0415
+
+    if name in blocks.NAMES:
+        return blocks.read_bytes(name)
+    return load_bin("block", "_data", name)
 
 
 # what makes an id unreadable in a report and unusable in a -k expression:

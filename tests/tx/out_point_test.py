@@ -11,9 +11,9 @@ import pytest
 from hypothesis import given
 
 from btclib.exceptions import BTClibValueError
+from btclib.testing.strategies import OUT_POINTS
 from btclib.tx import OutPoint, Tx
 from tests.conftest import JsonGolden
-from tests.strategies import OUT_POINTS
 
 
 def test_out_point() -> None:

@@ -146,8 +146,11 @@ sends nothing itself.
   `test_the_codec_does_not_pay_for_the_rpc_package` holds the codec to
   that.
 - **Package data.** The networks are JSON under `src/btclib/_data/`, read
-  once at import by `src/btclib/network.py`; the catalogued curves are
-  ecc's package data.
+  once at import by `src/btclib/network.py`. The blocks
+  `block_170.bin`, `block_200000.bin` and `block_481824_complete.bin` are
+  under `src/btclib/testing/_data/`, read by
+  `btclib.testing.blocks.read_bytes`. The catalogued curves are ecc's
+  package data.
 
 ## The public surface
 

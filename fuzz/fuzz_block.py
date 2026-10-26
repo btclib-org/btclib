@@ -33,10 +33,10 @@ refusal, so the whole of the parse is exercised whatever the header
 declares. An `IndexError`, a `RecursionError` or an uncaught assertion is
 not caught below, and propagates to atheris as the finding it is.
 
-The seed corpus is the two smallest vendored blocks `tests/block/_data`
-holds, whose own hashes `tests/_data/README.md` records: the block after
-genesis, whose only transaction is its coinbase, and block 170, which
-carries one that is not.
+The seed corpus is the two smallest vendored blocks, whose own hashes
+`tests/_data/README.md` records: `tests/block/_data/block_1.bin`, the
+block after genesis, whose only transaction is its coinbase, and
+`btclib.testing.blocks`' `block_170.bin`, which carries one that is not.
 
 The format has one encoding, so what `parse` accepts must `serialize` back
 to `data` itself. An input that does not was misread by `parse` or
