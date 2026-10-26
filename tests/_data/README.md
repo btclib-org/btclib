@@ -250,17 +250,17 @@ the way in; the content is Core's `sighash.json` untouched.
 ```text
 repo    bitcoin/bitcoin
 path    src/test/data/script_tests.json
-commit  6b8a5524f7e7d49afb9a602d7b77d9507f2cf154  2026-10-07
-blob    3b807f24f9cdf6ad7b066ab295fbd8921ff28f0c
-pulled  2023-07-08, refreshed 2026-09-02, 2026-10-07 and 2026-10-11
+commit  de96f3ae6d163e97a2cf29bbd7c2bf2d56e11019  2026-10-21
+blob    89141dd7b8850f8072ca951368db98c192a2eb74
+pulled  2023-07-08, refreshed 2026-09-02, 2026-10-07, 2026-10-11 and 2026-10-26
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical**. 1318 entries, 1258 vectors once the comment lines
-are dropped: eleven cases added since the previous pin, six of them DERSIG
-cases on how a signature is encoded.
+Verdict: **identical**. 1323 entries, 1263 vectors once the comment lines
+are dropped: five cases added since the previous pin, Core's P2SH
+scriptSig stack-size boundary tests.
 
-Seven of the 1258 are TAPSCRIPT cases whose witness and output script are
+Seven of the 1263 are TAPSCRIPT cases whose witness and output script are
 placeholders — `#SCRIPT#`, `#CONTROLBLOCK#`, `#TAPROOTOUTPUT#` — that
 Core's `script_tests.cpp` generates at run time. `taproot_placeholders`
 in `tests/script_engine/script_test.py` generates them here, from the
