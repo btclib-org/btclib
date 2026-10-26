@@ -571,11 +571,11 @@ def normalized_network_name(network: Any) -> Any:
     `validated_network_name` below applies it between its type check and
     its membership test, so every name that function returns or refuses has
     been through here. A frozen class that keeps a `network` field reaches
-    for it directly, in whichever of `__init__` or `__post_init__` builds
-    it, and what it buys differs by how the class compares and hashes that
-    field. `key.PubKeyData` and `key.PrvKeyData` compare and hash the
-    field itself, so two spellings of one network would build objects that
-    are neither equal nor hashed alike;
+    for it in whichever of `__init__` or `__post_init__` builds it, and
+    what it buys differs by how the class compares and hashes that field.
+    `key.PubKeyData` and `key.PrvKeyData` compare and hash the field
+    itself, so two spellings of one network would build objects that are
+    neither equal nor hashed alike;
     `btclib_wallet.descriptors.Descriptor` and its fragment subclasses
     share that reason, `network` being a plain dataclass field there too,
     and none of them defining its own `__init__` is why the coercion sits

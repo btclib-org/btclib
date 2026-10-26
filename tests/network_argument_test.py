@@ -237,6 +237,18 @@ def test_a_Network_is_not_shown_by_the_private_key_repr() -> None:
     )
 
 
+def test_a_Network_is_not_shown_by_the_mixed_networks_error() -> None:
+    """A p2ms with keys of two networks names a Network without its repr."""
+    mainnet_key = PubKeyData(b"\x02" + bytes(range(1, 33)))
+    other_key = PubKeyData(mainnet_key.sec, OTHER)
+    with pytest.raises(BTClibValueError) as excinfo:
+        ScriptPubKey.p2ms(1, [mainnet_key, other_key])
+    assert str(excinfo.value) == "mixed networks in m-of-n: mainnet and a given network"
+    with pytest.raises(BTClibValueError) as excinfo:
+        ScriptPubKey.p2ms(1, [other_key, mainnet_key])
+    assert str(excinfo.value) == "mixed networks in m-of-n: a given network and mainnet"
+
+
 def test_the_other_chain_is_written_as_json_and_read_back() -> None:
     """A TxOut on a Network NETWORKS lacks round-trips through json."""
     addr = b32._address_from_witness(0, H160, OTHER.hrp)

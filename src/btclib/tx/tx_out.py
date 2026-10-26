@@ -128,14 +128,13 @@ class TxOut:
         # transactions that are in blocks -- bitcoin/bitcoin#320, and issue
         # #123. What the object is asked is what ScriptPubKey asks itself,
         # the network (a name, or a valid Network) and that the script is
-        # bytes, neither of which
-        # is a property of anything on chain. Here as well as in the
-        # constructor, so that deferring the check and making it later
-        # answer the same question: `check_validity=False` followed by
-        # `assert_valid()` is the spelling every caller that builds a
-        # TxOut by hand and validates it afterwards uses, and without this
-        # that pair passed what the constructor alone refuses. The class is
-        # frozen, so a field reassigned behind it is not the reason
+        # bytes, neither of which is a property of anything on chain. Here
+        # as well as in the constructor, so that deferring the check and
+        # making it later answer the same question: `check_validity=False`
+        # followed by `assert_valid()` is the spelling every caller that
+        # builds a TxOut by hand and validates it afterwards uses, and
+        # without this that pair passed what the constructor alone refuses.
+        # The class is frozen, so a field reassigned behind it is not why
         self.script_pub_key.assert_valid()
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:

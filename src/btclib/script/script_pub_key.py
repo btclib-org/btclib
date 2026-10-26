@@ -856,7 +856,13 @@ class ScriptPubKey(Script):
         network = keys[0].network
         for key in keys[1:]:
             if key.network != network:
-                err_msg = f"mixed networks in m-of-n: {network} and {key.network}"
+                # a Network's repr runs to its curve parameters, so it is
+                # not quoted
+                labels = [
+                    net if isinstance(net, str) else "a given network"
+                    for net in (network, key.network)
+                ]
+                err_msg = f"mixed networks in m-of-n: {labels[0]} and {labels[1]}"
                 raise BTClibValueError(err_msg)
         pub_keys = [key.sec for key in keys]
         if lexicographic_sorting:
