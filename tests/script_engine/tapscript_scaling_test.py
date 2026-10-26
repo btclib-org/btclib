@@ -5,8 +5,9 @@
 """The work validating a tapscript does grows with its size, not its square.
 
 BIP342 lifted the 201 op code and 10,000 byte limits, so a leaf can nest
-OP_IF as deep as the weight limit allows, repeat an OP_EQUALVERIFY as often,
-and hold as many signature checks as its sigops budget pays for. Each test
+OP_IF as deep as the weight limit allows, repeat an OP_EQUALVERIFY, an
+OP_PICK or an OP_ROLL as often, and hold as many signature checks as its
+sigops budget pays for. Each test
 spends a real P2TR output through `verify_transaction`, on a leaf that is
 consensus-valid, and fails by timing out where the work per op code is
 proportional to what came before it (GHSA-9fr5-46w5-5f9r).
@@ -30,6 +31,7 @@ from btclib.hashes import sha256
 from btclib.script import Witness, sig_hash
 from btclib.script.engine import script_op_codes, tapscript, verify_transaction
 from btclib.script.engine.script_op_codes import ConditionStack
+from btclib.script.limits import MAX_STACK_SIZE
 from btclib.script.taproot import leaf_hash, output_pubkey_from_merkle_root_var
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
@@ -43,6 +45,9 @@ _OP_EQUALVERIFY = b"\x88"
 _OP_2DUP = b"\x6e"
 _OP_CHECKSIGVERIFY = b"\xad"
 _OP_2DROP = b"\x6d"
+_OP_DROP = b"\x75"
+_OP_PICK = b"\x79"
+_OP_ROLL = b"\x7a"
 
 # a hundred times what 201 op codes let a leaf nest, and enough that the
 # quadratic version needs minutes where this one needs seconds. The bound
@@ -106,6 +111,25 @@ def _equalverifies(count: int) -> bytes:
     return (_OP_1 + _OP_1 + _OP_EQUALVERIFY) * count + _OP_1
 
 
+# pushing the depth onto this many elements fills the stack to its limit
+_FULL = MAX_STACK_SIZE - 1
+# a push of the depth of the bottom element
+_BOTTOM = b"\x02" + (_FULL - 1).to_bytes(2, "little")
+
+
+def _on_a_full_stack(moves: bytes) -> bytes:
+    """Run `moves` on `_FULL` elements, then drop all of them but one."""
+    return _OP_1 * _FULL + moves + _OP_2DROP * (_FULL // 2)
+
+
+def _picks(count: int) -> bytes:
+    return _on_a_full_stack((_BOTTOM + _OP_PICK + _OP_DROP) * count)
+
+
+def _rolls(count: int) -> bytes:
+    return _on_a_full_stack((_BOTTOM + _OP_ROLL) * count)
+
+
 @pytest.mark.timeout(_BOUND)
 def test_a_deeply_nested_if_is_validated_in_time() -> None:
     """`(OP_1 OP_IF)*n OP_1 OP_ENDIF*n`, the reproduction of the advisory."""
@@ -159,7 +183,7 @@ def _seconds_of(prevout: TxOut, tx: Tx) -> float:
 
 
 @pytest.mark.timeout(_BOUND * 5)
-@pytest.mark.parametrize("make", [_nested_if, _equalverifies])
+@pytest.mark.parametrize("make", [_nested_if, _equalverifies, _picks, _rolls])
 def test_the_script_takes_time_in_proportion_to_its_size(
     make: Callable[[int], bytes],
 ) -> None:
