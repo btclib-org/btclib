@@ -1087,6 +1087,64 @@ def test_lax_der_verifies_without_dersig(name: str) -> None:
     assert exc_info.value.code is ScriptErrorCode.SIG_DER
 
 
+# mainnet, block 140493: a p2pkh spend whose input 0 carries an s of 32
+# octets with its top bit set and no leading zero
+NEGATIVE_S_TX_ID = "70f7c15c6f62139cc41afa858894650344eda9975b46656d893ee59df8914a3d"
+NEGATIVE_S_TX = (
+    "0100000001289eb02e8ddc1ee3486aadc1cd1335fba22a8e3e87e3f41b7c5bbe7fb4391d"
+    "81010000008a47304402206b5c3b1c86748dcf328b9f3a65e10085afcf5d1af5b40970d8"
+    "ce3a9355e06b5b0220cdbdc23e6d3618e47056fccc60c5f73d1a542186705197e5791e97"
+    "f0e6582a32014104f25ec495fa21ad14d69f45bf277129488cfb1a339aba1fed3c5099bb"
+    "6d8e9716491a14050fbc0b2fed2963dc1e56264b3adf52a81b953222a2180d48b54d1e18"
+    "ffffffff0140420f00000000001976a914e6ba8cc407375ce1623ec17b2f1a59f2503afc"
+    "6788ac00000000"
+)
+# the transaction whose output 1 that input spends
+NEGATIVE_S_PREV_TX_ID = (
+    "811d39b47fbe5b7c1bf4e3873e8e2aa2fb3513cdc1ad6a48e31edc8d2eb09e28"
+)
+NEGATIVE_S_PREV_TX = (
+    "01000000014213d2fe8f942dd7a72df14e656baab0e8b2b7f59571771ddf170b588379a2"
+    "b6010000008b483045022037183e3e47b23634eeebe6fd155f0adbde756bf00a6843a131"
+    "7b6548a03f3cfe0221009f96bec8759837f844478a35e102618918662869188f99d32dff"
+    "e6ef7f81427e014104a7d3b0dda6d4d0a44b137a65105cdfed890b09ce2d283d5683029f"
+    "46a00e531bff1deb3ad3862e0648dca953a4250b83610c4f20861555a2f5638bd3d7aff9"
+    "3dffffffff02ddfb1100000000001976a9142256ff6b9b9fea32bfa8e64aed10ee695ffe"
+    "100988ac40420f00000000001976a914c62301ef02dfeec757fb8dedb8a45eda5fb5ee4d"
+    "88ac00000000"
+)
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [
+        pytest.param(None, id="ALL_FLAGS"),
+        # the passing run's flags, and the one BIP66's activation adds to
+        # them in Core's GetBlockScriptFlags
+        pytest.param(["P2SH", "DERSIG"], id="P2SH and DERSIG"),
+    ],
+)
+def test_a_negative_der_s_verifies_without_dersig(flags: list[str] | None) -> None:
+    """A mainnet signature whose s strict DER reads as negative.
+
+    Core's lax parser reads s unsigned, so the spend verified in a block
+    below BIP66's height. Under DERSIG, IsValidSignatureEncoding refuses
+    it with SIG_DER. The txid asserts below check the bytes against the chain.
+    """
+    tx = Tx.parse(NEGATIVE_S_TX)
+    prev_tx = Tx.parse(NEGATIVE_S_PREV_TX)
+    assert tx.id.hex() == NEGATIVE_S_TX_ID
+    assert prev_tx.id.hex() == NEGATIVE_S_PREV_TX_ID
+    assert tx.vin[0].prev_out == OutPoint(prev_tx.id, 1)
+    prevouts = [prev_tx.vout[1]]
+    assert prevouts[0].value == 1_000_000
+
+    verify_input(prevouts, tx, 0, ["P2SH"])
+    with pytest.raises(ScriptError, match="invalid negative scalar") as exc_info:
+        verify_input(prevouts, tx, 0, flags)
+    assert exc_info.value.code is ScriptErrorCode.SIG_DER
+
+
 def test_p2wsh_codeseparator_cut_is_what_the_signature_commits_to() -> None:
     """The invalid twin BIP143's second rule never had (issue #221).
 
