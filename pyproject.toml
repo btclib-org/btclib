@@ -148,6 +148,12 @@ secp256k1 = [
 # floor is the oldest release BIP324's packet vectors were run against,
 # and they pass at it
 bip324 = ["cryptography>=42.0.0"]
+# `btclib.testing.strategies`, the hypothesis strategies btclib's own
+# tests draw from and its callers' tests can import, `pip install
+# "btclib[testing]"`. An extra so that an installation which runs no
+# tests has no hypothesis. The floor is the `testing` group's below,
+# which deps-oldest.yml installs through `test`
+testing = ["hypothesis>=6.168.0"]
 
 [project.urls]
 homepage = "https://btclib.readthedocs.io/"
@@ -212,6 +218,10 @@ bindings = ["ecc[secp256k1]>=2026.10.30"]
 # and `tests/build_system_test.py` holds the two declarations equal.
 # `harness` alone has no `cryptography`, and the tests of the module skip
 bip324 = ["cryptography>=42.0.0"]
+# the `testing` extra again, for the reason `bindings` is a group: the
+# suite and the docs build import `btclib.testing.strategies`, and
+# `tests/build_system_test.py` holds the two declarations equal
+testing = ["hypothesis>=6.168.0"]
 # what runs the suite, without what the suite delegates to: `test` is the
 # two together and is what every documented command asks for, while
 # `harness` alone is the environment the no-bindings job of test.yml
@@ -219,12 +229,12 @@ bip324 = ["cryptography>=42.0.0"]
 # second lock file -- uv's `--no-group` suppresses a group that was
 # selected, not one another group includes
 harness = [
+    { include-group = "testing" },
     # the rpc client the integration tests drive a bitcoind with, Core's
     # chain vocabulary tests/key_io_test.py reads its vectors in, and the
     # copy of the message start tests/p2p/magic_test.py compares with
     "bitcoin-core-rpc>=2026.10.17",
     "coverage>=7.16.0",
-    "hypothesis>=6.168.0",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pytest-randomly>=5.0.0",
@@ -277,6 +287,7 @@ mutation = ["cosmic-ray>=8.7.0"]
 docs = [
     { include-group = "bindings" },
     { include-group = "bip324" },
+    { include-group = "testing" },
     "furo>=2025.12.19; python_full_version >= '3.12'",
     "myst-parser>=5.1.0; python_full_version >= '3.12'",
     "sphinx>=9.1.0; python_full_version >= '3.12'",
@@ -1321,13 +1332,14 @@ ignore = [
 # preview mode's undefined-export does not special-case a module-level
 # __getattr__ (astral-sh/ruff#18504, open): these modules publish this
 # way, as each docstring says, and F822 sees no import to bind the name
-# to. btclib, btclib.ecc and btclib.script publish submodules.
-# tests/all_test.py already walks `__all__` with getattr and fails on the
-# same drift this rule would catch, so nothing here goes unchecked while
-# the upstream rule does not know the pattern
+# to. btclib, btclib.ecc, btclib.script and btclib.testing publish
+# submodules. tests/all_test.py already walks `__all__` with getattr and
+# fails on the same drift this rule would catch, so nothing here goes
+# unchecked while the upstream rule does not know the pattern
 "src/btclib/__init__.py" = ["F822"]
 "src/btclib/ecc/__init__.py" = ["F822"]
 "src/btclib/script/__init__.py" = ["F822"]
+"src/btclib/testing/__init__.py" = ["F822"]
 # T20 is selected for the library, which writes to no stream of its own;
 # a script whose caller is a workflow step is the case it is not about.
 # The vendored-vector checker: BEHIND, SKIPPED and the all-clear line

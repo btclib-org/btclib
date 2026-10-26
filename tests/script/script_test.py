@@ -33,10 +33,10 @@ from btclib.script.script import (
     op_code_spans,
     read_op_code,
 )
+from btclib.testing.strategies import COMMAND_LISTS, MIXED_COMMAND_LISTS, SCRIPTS
 from btclib.utils import encode_num, hex_string
 from tests import load, vector_id
 from tests.script import serialize_non_canonical
-from tests.strategies import COMMAND_LISTS, MIXED_COMMAND_LISTS, SCRIPTS
 
 
 def test_operators() -> None:
