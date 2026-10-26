@@ -308,9 +308,9 @@ def test_a_conversion_width_is_at_most_64(
 ) -> None:
     """A width above 64 is refused before the conversion starts.
 
-    A width of 2**64 would otherwise raise `MemoryError` or, from Python
-    3.14, `OverflowError`, and one near 2**33 would build a list of about
-    1.7 billion digits.
+    A width of 2**64 would otherwise raise `MemoryError` or `OverflowError`,
+    depending on the interpreter, and one near 2**33 would build a list of
+    about 1.7 billion digits.
     """
     with pytest.raises(BTClibValueError, match=err_msg):
         b32.power_of_2_base_conversion([1], from_bits, to_bits)
