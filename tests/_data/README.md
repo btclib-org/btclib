@@ -250,7 +250,7 @@ the way in; the content is Core's `sighash.json` untouched.
 ```text
 repo    bitcoin/bitcoin
 path    src/test/data/script_tests.json
-commit  de96f3ae6d163e97a2cf29bbd7c2bf2d56e11019  2026-10-21
+commit  5a4cd70547096af6247167d8dde6145a1b548642  2026-10-11
 blob    89141dd7b8850f8072ca951368db98c192a2eb74
 pulled  2023-07-08, refreshed 2026-09-02, 2026-10-07, 2026-10-11 and 2026-10-26
 behind  0 revisions; that commit is the tip of the path
