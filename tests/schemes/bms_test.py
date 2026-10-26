@@ -726,7 +726,9 @@ def test_sign_strippable_message() -> None:
 # report a regression at all
 PYTHON_BITCOINLIB_VECTORS = [
     pytest.param(vector, id=vector_id(index, vector["address"]))
-    for index, vector in enumerate(load("schemes", "_data", "signmessage.json"))
+    for index, vector in enumerate(
+        load("schemes", "_data", "python-bitcoinlib", "signmessage.json")
+    )
 ]
 
 
@@ -794,7 +796,7 @@ def test_the_file_carries_the_high_s_vectors_the_case_rests_on() -> None:
     200 of these, and these 88 are the ones btclib refused.
     """
     high_s = 0
-    for vector in load("schemes", "_data", "signmessage.json"):
+    for vector in load("schemes", "_data", "python-bitcoinlib", "signmessage.json"):
         sig = bms.Sig.b64decode(vector["signature"])
         high_s += sig.dsa_sig.s > ec.n - sig.dsa_sig.s
     assert high_s == 88

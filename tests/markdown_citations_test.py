@@ -199,11 +199,16 @@ _GIT = shutil.which("git") or "git"
 # three is a path `git ls-files` could answer for
 _CITED_PATH = re.compile(r"`([A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+\.[A-Za-z0-9]+)`")
 
-# a path both halves of the rule accept and this tree does not own, with
-# what makes it somebody else's beside it. Empty, the tree having no such
-# path: an entry here records a decision about one citation, where
-# widening the rule to excuse it would excuse the next real defect with it
-_EXEMPT: dict[str, str] = {}
+# a path both halves of the rule accept and this tree does not have, with
+# the reason beside it, as the module docstring says. An entry here
+# records a decision about one citation, where widening the rule to excuse
+# it would excuse the next real defect with it
+_EXEMPT: dict[str, str] = {
+    "tests/block/_data/checkblock_valid.json": (
+        "changelog/v2026.8.7.md cites it, released before the file moved"
+        " to tests/block/_data/python-bitcoinlib/"
+    ),
+}
 
 # a link's own target, which is a path, a `#fragment` on one, or a
 # fragment standing alone. It holds neither a bracket nor a space, a link
@@ -404,8 +409,8 @@ def test_every_path_a_markdown_file_cites_of_this_tree_is_one_this_tree_has() ->
 
     # an exemption outlives the citation it was written for, and a dead one
     # excuses nothing while reading as though it did. Set arithmetic rather
-    # than a loop over `_EXEMPT`, which is empty: a loop body no run enters
-    # is uncovered, and the floor is 100%
+    # than a loop over `_EXEMPT`, which can be empty: a loop body no run
+    # enters is uncovered, and the floor is 100%
     unexempted = {
         path
         for text in texts.values()

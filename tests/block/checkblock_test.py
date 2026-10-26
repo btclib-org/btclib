@@ -76,7 +76,9 @@ def check_block_vectors(file_name: str) -> list[tuple[int, str, bool, int, str]]
     counted, so an id names the line to go and read.
     """
     vectors = []
-    for index, vector in enumerate(load("block", "_data", file_name)):
+    for index, vector in enumerate(
+        load("block", "_data", "python-bitcoinlib", file_name)
+    ):
         if len(vector) == 1:  # a comment, which upstream's loader skips too
             continue
         comment, is_header, check_pow, cur_time, serialization = vector
