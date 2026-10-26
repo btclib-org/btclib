@@ -35,6 +35,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.script import (
     ScriptPubKey,
+    TaprootLeaf,
     TaprootScriptTree,
     Witness,
     check_output_pubkey,
@@ -52,8 +53,11 @@ from btclib.script.taproot import (
     MAX_TREE_DEPTH,
     assert_valid_control_block,
     leaf_hash,
+    merkle_root_from_control_block,
     parse,
     serialize,
+    tap_tweak,
+    tree_from_weights,
     tree_helper,
 )
 from btclib.tx import TxOut
@@ -1092,6 +1096,9 @@ def test_tweak_above_group_order(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         check_output_pubkey(q, "51", control)
 
+    with pytest.raises(BTClibValueError, match=err_msg):
+        tap_tweak(bytes(32))
+
 
 def test_the_element_size_limit_is_reachable_not_only_crossable() -> None:
     """520 bytes is an element a tapscript may push; 521 is one too many.
@@ -1147,3 +1154,186 @@ def test_the_control_block_commits_to_the_output_key_parity(internal_key: int) -
     with python_arithmetic():
         assert check_output_pubkey(q, script_bytes, control)
         assert not check_output_pubkey(q, script_bytes, flipped)
+
+
+def _leaf(op_code: str) -> TaprootLeaf:
+    return (0xC0, [op_code])
+
+
+def test_a_heavier_leaf_sits_higher() -> None:
+    """rust-bitcoin's `build_huffman_tree` case, and the key it gives.
+
+    rust-bitcoin's test (bitcoin/src/taproot/mod.rs) weighs `51` to `55`
+    10, 20, 20, 30 and 19, and asserts the depths 3, 2, 2, 2 and 3 and
+    a control block that proves each leaf. It asserts no output key.
+    The `assert tree ==` below pins btclib's tie order. The key is the
+    one these weights give whatever the tie order, because the tied
+    leaves are siblings and TapBranch sorts them.
+    """
+    internal_key = PubKeyData(
+        "02 93c7378d96518a75448821c4f7c8f4bae7ce60f804d03d1f0628dd5dd0f5de51"
+    )
+    weights = [10, 20, 20, 30, 19]
+    op_codes = ["OP_1", "OP_2", "OP_3", "OP_4", "OP_5"]
+    tree = tree_from_weights(
+        [(weight, _leaf(op)) for weight, op in zip(weights, op_codes, strict=True)]
+    )
+    assert tree == [
+        [[_leaf("OP_2")], [_leaf("OP_3")]],
+        [[[_leaf("OP_1")], [_leaf("OP_5")]], [_leaf("OP_4")]],
+    ]
+
+    q, _ = output_pubkey(internal_key, tree)
+    assert q.hex() == (
+        "48491c5ec148ab7080824666fd715a4f9bc3d944180d51cf0720d769b365aa3b"
+    )
+    leaves, root = tree_helper(tree)
+    depths = {}
+    for index, ((_, script), path) in enumerate(leaves):
+        depths[script[0]] = len(path) // 32
+        script_, control = input_script_sig(internal_key, tree, index)
+        assert check_output_pubkey(q, serialize(script_), control)
+        tap_leaf_hash = leaf_hash(0xC0, serialize(script_))
+        assert merkle_root_from_control_block(tap_leaf_hash, control) == root
+    assert [depths[op] for op in op_codes] == [3, 2, 2, 2, 3]
+
+
+def test_equal_weights_are_taken_lowest_index_first() -> None:
+    """A leaf by its place in the list, a branch by when it was built."""
+    leaves = [_leaf(op) for op in ("OP_1", "OP_2", "OP_3", "OP_4")]
+    tree = tree_from_weights([(1, leaf) for leaf in leaves])
+    assert tree == [[[leaves[0]], [leaves[1]]], [[leaves[2]], [leaves[3]]]]
+
+    # the branch of the first two weighs 2 as the third leaf does, and is
+    # numbered after it
+    tree = tree_from_weights([(1, leaves[0]), (1, leaves[1]), (2, leaves[2])])
+    assert tree == [[leaves[2]], [[leaves[0]], [leaves[1]]]]
+
+    assert tree_from_weights([(7, leaves[0])]) == [leaves[0]]
+
+
+def test_a_weighted_tree_is_no_deeper_than_max_tree_depth() -> None:
+    """Doubling weights put the first two leaves one level deeper each time.
+
+    n leaves weighing 1, 1, 2, 4 and so on make a tree of depth n - 1.
+    """
+    weights = [1] + [2**i for i in range(MAX_TREE_DEPTH)]
+    tree = tree_from_weights([(weight, _leaf("OP_1")) for weight in weights])
+    q, _ = output_pubkey(None, tree)
+    # each new branch ties with the next leaf and is numbered after it,
+    # so it is the second node of the next branch: the two deepest
+    # leaves come last in tree order
+    script, control = input_script_sig(None, tree, len(weights) - 1)
+    assert len(control) == 33 + 32 * MAX_TREE_DEPTH
+    assert check_output_pubkey(q, serialize(script), control)
+
+    weights.append(2**MAX_TREE_DEPTH)
+    err_msg = f"script tree deeper than {MAX_TREE_DEPTH}"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        tree_from_weights([(weight, _leaf("OP_1")) for weight in weights])
+
+
+@pytest.mark.parametrize(
+    "weighted_leaves, error, err_msg",
+    [
+        pytest.param([], BTClibValueError, "no leaves to build", id="empty"),
+        pytest.param(None, BTClibTypeError, "invalid weighted leaves type", id="None"),
+        pytest.param(
+            ((1, (0xC0, ["OP_1"])),),
+            BTClibTypeError,
+            "invalid weighted leaves type: tuple",
+            id="a tuple of pairs",
+        ),
+        pytest.param(
+            [[1, (0xC0, ["OP_1"])]],
+            BTClibTypeError,
+            "invalid weighted leaf type: list",
+            id="a list for a pair",
+        ),
+        pytest.param(
+            [(1, (0xC0, ["OP_1"]), 2)],
+            BTClibTypeError,
+            "invalid weighted leaf: 3-tuple",
+            id="a triple",
+        ),
+        pytest.param(
+            [(True, (0xC0, ["OP_1"]))],
+            BTClibTypeError,
+            "invalid leaf weight type: bool",
+            id="a bool weight",
+        ),
+        pytest.param(
+            [(1.5, (0xC0, ["OP_1"]))],
+            BTClibTypeError,
+            "invalid leaf weight type: float",
+            id="a float weight",
+        ),
+        pytest.param(
+            [(0, (0xC0, ["OP_1"]))],
+            BTClibValueError,
+            "invalid leaf weight: 0",
+            id="a zero weight",
+        ),
+        pytest.param(
+            [(1, (0xC0, ["OP_1"])), (-1, (0xC0, ["OP_2"]))],
+            BTClibValueError,
+            "invalid leaf weight: -1",
+            id="a negative weight",
+        ),
+        pytest.param(
+            [(1, [0xC0, ["OP_1"]])],
+            BTClibTypeError,
+            "invalid script tree leaf type: list",
+            id="a leaf tree_helper refuses as a type",
+        ),
+        pytest.param(
+            [(1, (0x100, ["OP_1"]))],
+            BTClibValueError,
+            "invalid leaf version: ",
+            id="a leaf tree_helper refuses as a value",
+        ),
+    ],
+)
+def test_tree_from_weights_refuses(
+    weighted_leaves: Any, error: type[Exception], err_msg: str
+) -> None:
+    """Each refusal on its own, the leaf's being tree_helper's."""
+    with pytest.raises(error, match=err_msg):
+        tree_from_weights(weighted_leaves)
+
+
+def test_tap_tweak_is_the_tweak_of_the_output_key() -> None:
+    """The tweak the output private key adds to the even-y internal one.
+
+    For the key path, the empty root, and for a tree's root.
+    """
+    prv_key = 0xBADC0DE
+    sec = PrvKeyData(prv_key).pub.sec
+    even_prv_key = prv_key if sec[0] == 2 else secp256k1.n - prv_key
+    script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
+    for merkle_root in (b"", tree_helper(script_tree)[1]):
+        t = int.from_bytes(tap_tweak(sec[1:], merkle_root), "big")
+        tweaked = output_prvkey_from_merkle_root(prv_key, merkle_root)
+        assert tweaked == (even_prv_key + t) % secp256k1.n
+
+    with pytest.raises(BTClibValueError, match="invalid size: 33 bytes instead of 32"):
+        tap_tweak(sec)
+
+
+def test_merkle_root_from_control_block_refuses() -> None:
+    """A leaf hash that is not 32 bytes, and check_output_pubkey's sizes."""
+    with pytest.raises(BTClibValueError, match="invalid size: 31 bytes"):
+        merkle_root_from_control_block(bytes(31), bytes(33))
+    with pytest.raises(BTClibValueError, match="control block too long"):
+        merkle_root_from_control_block(bytes(32), bytes(33 + 32 * 129))
+    with pytest.raises(BTClibValueError, match="invalid control block length"):
+        merkle_root_from_control_block(bytes(32), bytes(100))
+    # one byte is 33 + 32 * -1, and no control block
+    for call in (
+        lambda: merkle_root_from_control_block(bytes(32), bytes(1)),
+        lambda: check_output_pubkey(bytes(32), b"\x51", b"\xc0"),
+    ):
+        with pytest.raises(BTClibValueError, match="invalid control block length"):
+            call()
+    # a control block of no merkle path proves the leaf hash is the root
+    assert merkle_root_from_control_block(bytes(32), bytes(33)) == bytes(32)
