@@ -476,8 +476,8 @@ def test_a_path_of_this_tree_is_told_from_a_path_of_another_project() -> None:
 def test_an_exempt_path_is_excused_and_the_rule_is_left_as_it_is() -> None:
     """What the guard does with the path both halves accept.
 
-    The tree carries no such path, so this is what says the exemption
-    works on the day one arrives, and it is measured against the same
+    It works on paths of its own rather than on `_EXEMPT`'s entries, so it
+    holds whatever that table carries. It is measured against the same
     citation unexempted rather than against an empty list, which an
     exemption that suppressed everything would also answer with.
     """
