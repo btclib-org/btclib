@@ -82,10 +82,10 @@ The hypothesis strategies of ``btclib.testing.strategies``, for the tests
 of code built on btclib, need the ``testing`` extra (``pip install
 "btclib[testing]"``), which installs ``hypothesis``.
 
-secp256k1 arithmetic is delegated to those bindings, and the delegation
-can be turned off. Setting ``ECC_NO_LIBSECP256K1`` to a
-non-empty value in the environment, before btclib is imported, makes
-*off* the state the process starts in:
+secp256k1 arithmetic is delegated to ``btclib-secp256k1`` where it is
+installed, and the delegation can be turned off. Setting
+``ECC_NO_LIBSECP256K1`` to a non-empty value in the environment, before
+btclib is imported, makes *off* the state the process starts in:
 
 .. code-block:: shell
 
