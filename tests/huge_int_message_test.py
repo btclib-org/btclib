@@ -68,7 +68,7 @@ from btclib.script.script import op_int
 from btclib.script.taproot import tree_helper
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.tx.coin import Coin
-from btclib.tx.tx_context import assert_coinbase_value
+from btclib.tx.tx_context import assert_bip54_coinbase, assert_coinbase_value
 from btclib.utils import bytes_from_octets, encode_num
 
 # an int past the default digit limit, and its negation: 16610 bits
@@ -89,6 +89,11 @@ def _tx(version: Any = 1, lock_time: Any = 0) -> Tx:
         [TxIn(OutPoint(_TX_ID, 0), b"", 0xFFFFFFFF)],
         [TxOut(1, b"")],
     )
+
+
+def _unchecked_coinbase(lock_time: int) -> Tx:
+    """Return a coinbase whose lock time was not checked."""
+    return Tx(1, lock_time, [TxIn()], [TxOut(1, b"")], check_validity=False)
 
 
 def _header(version: Any = 1, nonce: Any = 1) -> BlockHeader:
@@ -169,6 +174,21 @@ _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
         "coinbase value ceiling",
         -_HUGE,
         lambda v: assert_coinbase_value(_tx(), subsidy=0, fees=v),
+    ),
+    (
+        "bip54 coinbase lock time",
+        _HUGE,
+        lambda v: assert_bip54_coinbase(_unchecked_coinbase(v), 1),
+    ),
+    (
+        "bip54 coinbase height",
+        _HUGE,
+        lambda v: assert_bip54_coinbase(_unchecked_coinbase(0), v),
+    ),
+    (
+        "negative bip54 coinbase height",
+        -_HUGE,
+        lambda v: assert_bip54_coinbase(_unchecked_coinbase(0), v),
     ),
     ("header version", _HUGE, _header),
     ("negative header version", -_HUGE, _header),

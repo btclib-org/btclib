@@ -325,12 +325,12 @@ def assert_bip54_coinbase(coinbase: Tx, height: int) -> None:
     if height < 0:
         raise BTClibValueError(f"invalid height: {_message_text(height)}")
     if not coinbase.is_coinbase:
-        raise BTClibValueError(f"not a coinbase: {coinbase.id.hex()}")
+        raise BTClibValueError("not a coinbase")
 
     if height == 0:
         return
     if coinbase.lock_time != height - 1:
-        err_msg = f"bad-cb-locktime: {coinbase.lock_time}"
+        err_msg = f"bad-cb-locktime: {_message_text(coinbase.lock_time)}"
         err_msg += f" instead of {_message_text(height - 1)}"
         raise BTClibValueError(err_msg)
     if coinbase.vin[0].sequence == SEQUENCE_FINAL:

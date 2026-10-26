@@ -319,8 +319,21 @@ def test_bip54_sig_ops_limit_is_inclusive() -> None:
 
 
 def test_bip54_sig_ops_skips_a_coinbase() -> None:
-    """A coinbase is not limited, and its prevouts are not read."""
-    assert_bip54_sig_ops(_coinbase(script_sig=b"\xac" * 99), [])
+    """A coinbase is not limited, and its prevouts are not counted.
+
+    Built unchecked: a coinbase script_sig this long is refused by
+    `CheckTransaction`, which this rule does not ask.
+    """
+    script_sig = b"\xac" * (MAX_TX_LEGACY_SIGOPS + 1)
+    coinbase = Tx(
+        2,
+        0,
+        [TxIn(OutPoint(), script_sig=script_sig, check_validity=False)],
+        [_tx_out()],
+        check_validity=False,
+    )
+    assert coinbase.is_coinbase
+    assert_bip54_sig_ops(coinbase, [])
 
 
 def test_assert_bip54_sig_ops_refuses_what_cannot_be_checked() -> None:

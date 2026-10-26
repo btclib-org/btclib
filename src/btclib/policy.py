@@ -15,7 +15,7 @@ options that tune them. `MIN_STANDARD_TX_NONWITNESS_SIZE` and
 functions. The mining defaults and the mempool's package limits are not
 here. Core's `DUST_RELAY_TX_FEE` is
 `btclib.fee.DUST_RELAY_FEE_RATE`, a `FeeRate`. `MAX_TX_LEGACY_SIGOPS` is
-`btclib.tx.limits`'s, re-exported here: BIP54 makes it a consensus bound.
+`btclib.tx.limits`'s, re-exported here.
 
 Where Core reads the spent outputs from a coins view, the functions here
 take them as a list in input order, as `btclib.script.engine` does.
