@@ -2152,6 +2152,52 @@ def test_checksigadd_reads_its_number_first(
     assert exc_info.value.code is ScriptErrorCode[code]
 
 
+_INVALID_STACK = "INVALID_STACK_OPERATION"
+
+
+@pytest.mark.parametrize(
+    "leaf, witness, code, depth, message",
+    [
+        (
+            b"\x20" + _X_ONLY_G + b"\xac",
+            [b"\x11" * 64],
+            "SCHNORR_SIG",
+            2,
+            "^invalid signature for the taproot script path",
+        ),
+        (
+            b"\x00\x20" + _X_ONLY_G + b"\xba",
+            [b"\x11"],
+            "SCHNORR_SIG_SIZE",
+            3,
+            "^taproot signature of 1 bytes",
+        ),
+        (b"\xac", [b"\x11" * 64], _INVALID_STACK, 1, "^OP_CHECKSIG on a stack"),
+        (b"\xad", [b"\x11" * 64], _INVALID_STACK, 1, "^OP_CHECKSIGVERIFY on a stack"),
+    ],
+    ids=[
+        "OP_CHECKSIG",
+        "OP_CHECKSIGADD",
+        "OP_CHECKSIG on one element",
+        "OP_CHECKSIGVERIFY on one element",
+    ],
+)
+def test_a_refused_tapscript_signature_check_pops_nothing(
+    leaf: bytes, witness: list[bytes], code: str, depth: int, message: str
+) -> None:
+    """A refused OP_CHECKSIG or OP_CHECKSIGADD leaves its operands.
+
+    Core's EvalScript reads them with stacktop and pops them only once
+    EvalChecksig has passed, so a refusal stops on Core's stack depth. A
+    stack too short is refused under the name of the op code that runs.
+    """
+    prevouts, tx = _raw_tapscript_spend(leaf, witness)
+    with pytest.raises(ScriptError, match=message) as exc_info:
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+    assert exc_info.value.code is ScriptErrorCode[code]
+    assert exc_info.value.stack_depth == depth
+
+
 def test_a_tapscript_op_code_on_an_empty_stack_is_refused() -> None:
     """OP_DROP with nothing to drop is INVALID_STACK_OPERATION, as in Core."""
     prevouts, tx = _raw_tapscript_spend(b"\x75", [])

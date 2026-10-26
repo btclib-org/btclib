@@ -174,8 +174,9 @@ def verify_key_path(
     )
 
 
-def op_checksig(
-    stack: list[bytes],
+def _eval_checksig(
+    signature: bytes,
+    pub_key: bytes,
     tapleaf_hash: bytes,
     codesep_pos: int,
     tx: Tx,
@@ -184,30 +185,15 @@ def op_checksig(
     annex: bytes,
     budget: int,
     flags: ScriptFlag,
-    precomputed: PrecomputedTxData | None = None,
-    hash_types: list[int] | None = None,
-    input_hashes: _TaprootInputHashes | None = None,
+    precomputed: PrecomputedTxData | None,
+    hash_types: list[int] | None,
+    input_hashes: _TaprootInputHashes | None,
 ) -> int:
-    """Verify one BIP340 signature in a script path: BIP342's OP_CHECKSIG.
+    """Check a script-path BIP340 signature: Core's EvalChecksigTapscript.
 
-    Pops public key and signature, pushes the result, and returns what
-    is left of the sigops budget, every non-empty signature costing 50
-    whether or not it verifies. The refusals are BIP342's, in the order
-    of Core's EvalChecksigTapscript: an exhausted budget, an empty
-    public key, and a non-empty signature that does not verify -- where
-    the legacy op code pushes False, tapscript fails the script, its
-    NULLFAIL being consensus. A key neither empty nor 32 bytes verifies
-    nothing and succeeds, which is the upgrade room, refused only under
-    DISCOURAGE_UPGRADABLE_PUBKEYTYPE. The message hash commits to
-    `tapleaf_hash` and to the last executed OP_CODESEPARATOR, through the
-    BIP341 extension.
-
-    `hash_types` is `verify_input`'s collector, appended to where the
-    hash type is read: an empty signature is not one, and neither is
-    anything popped beside a public key BIP342 left upgradable.
+    Returns what is left of the sigops budget. `op_checksig` has the
+    refusals; the caller pops its operands only once this returns.
     """
-    pub_key = stack.pop()
-    signature = stack.pop()
     if signature:
         budget -= 50
         if budget < 0:
@@ -238,6 +224,65 @@ def op_checksig(
     elif ScriptFlag.DISCOURAGE_UPGRADABLE_PUBKEYTYPE in flags:
         err_msg = f"upgradable public key type: {len(pub_key)} bytes"
         raise ScriptError(err_msg, ScriptErrorCode.DISCOURAGE_UPGRADABLE_PUBKEYTYPE)
+    return budget
+
+
+def op_checksig(
+    stack: list[bytes],
+    tapleaf_hash: bytes,
+    codesep_pos: int,
+    tx: Tx,
+    i: int,
+    prevouts: list[TxOut],
+    annex: bytes,
+    budget: int,
+    flags: ScriptFlag,
+    precomputed: PrecomputedTxData | None = None,
+    hash_types: list[int] | None = None,
+    input_hashes: _TaprootInputHashes | None = None,
+    op: str = "OP_CHECKSIG",
+) -> int:
+    """Verify one BIP340 signature in a script path: BIP342's OP_CHECKSIG.
+
+    Reads signature and public key, checks them, then pops them and
+    pushes the result, as Core's EvalScript does: a refusal leaves both
+    on the stack. Returns what is left of the sigops budget, every
+    non-empty signature costing 50 whether or not it verifies. The
+    refusals are BIP342's, in the order of Core's EvalChecksigTapscript:
+    an exhausted budget, an empty public key, and a non-empty signature
+    that does not verify -- where the legacy op code pushes False,
+    tapscript fails the script, its NULLFAIL being consensus. A key
+    neither empty nor 32 bytes verifies nothing and succeeds, which is
+    the upgrade room, refused only under
+    DISCOURAGE_UPGRADABLE_PUBKEYTYPE. The message hash commits to
+    `tapleaf_hash` and to the last executed OP_CODESEPARATOR, through the
+    BIP341 extension.
+
+    `hash_types` is `verify_input`'s collector, appended to where the
+    hash type is read: an empty signature is not one, and neither is a
+    signature beside a public key BIP342 left upgradable.
+
+    `op` is the op code that runs, OP_CHECKSIGVERIFY included, named in
+    the refusal of a stack too short.
+    """
+    _assert_operands(stack, 2, op)
+    signature = stack[-2]
+    budget = _eval_checksig(
+        signature,
+        stack[-1],
+        tapleaf_hash,
+        codesep_pos,
+        tx,
+        i,
+        prevouts,
+        annex,
+        budget,
+        flags,
+        precomputed,
+        hash_types,
+        input_hashes,
+    )
+    del stack[-2:]
     stack.append(encode_num(int(bool(signature))))
     return budget
 
@@ -258,18 +303,20 @@ def op_checksigadd(
 ) -> int:
     """Run BIP342's OP_CHECKSIGADD as one op code, as Core's EvalScript does.
 
-    Pops signature, n and public key, and pushes n plus the result of
-    `op_checksig` on the signature and key. Returns what is left of the
-    sigops budget.
+    Reads signature, n and public key, checks the signature and key as
+    `op_checksig` does, then pops all three and pushes n plus the
+    result: a refusal leaves them on the stack. Returns what is left of
+    the sigops budget.
 
     The number is read first, as Core builds it before the check: a bad
     one is SCRIPTNUM whatever the signature and key would answer.
     """
     _assert_operands(stack, 3, "OP_CHECKSIGADD")
+    signature = stack[-3]
     n = _to_num(stack[-2], flags, _MAX_NUM_SIZE)
-    del stack[-2]
-    budget = op_checksig(
-        stack,
+    budget = _eval_checksig(
+        signature,
+        stack[-1],
         tapleaf_hash,
         codesep_pos,
         tx,
@@ -282,7 +329,8 @@ def op_checksigadd(
         hash_types,
         input_hashes,
     )
-    stack.append(encode_num(n + (1 if stack.pop() else 0)))
+    del stack[-3:]
+    stack.append(encode_num(n + (1 if signature else 0)))
     return budget
 
 
@@ -418,6 +466,7 @@ def _run_ops(  # noqa: C901, PLR0912
                 precomputed,
                 hash_types,
                 input_hashes,
+                op,
             )
 
         elif op == "OP_CHECKSIGADD":
