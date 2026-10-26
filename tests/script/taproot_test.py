@@ -693,12 +693,10 @@ def test_a_tree_of_the_wrong_shape_is_refused_as_a_value(
 ) -> None:
     """A list of a length no node has, and a leaf version BIP341 rules out.
 
-    The first was taken for no tree at all by `output_pubkey`, and an
-    IndexError from `tree_helper`; the third subtree was dropped from
-    the root with no error; and the mask read 0x100 as leaf version 0x00
-    and -2 as 0xFE. An odd version was masked to the even one below it,
-    and 0x50, which BIP341 rules out for its ambiguity with the annex,
-    built a leaf (issue #2766).
+    A node holds one leaf or two subtrees, so neither an empty list nor
+    three subtrees is a node. A leaf version is a byte, and BIP341 rules
+    out an odd one and 0x50, the second for its ambiguity with the annex
+    (issue #2766).
     """
     for call in (
         lambda: tree_helper(tree),
