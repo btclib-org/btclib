@@ -655,17 +655,14 @@ def check_output_pubkey(q: Octets, script: Octets, control: Octets) -> bool:
 
 
 def assert_valid_control_block(control_block: Octets) -> None:
-    """Refuse a control block whose size no leaf depth can produce.
+    """Refuse a control block whose size is not one byte plus a multiple of 32.
 
-    Size only, and only its residue: one leading byte plus a multiple
-    of 32, which BIP341's 33 + 32m sizes all satisfy. Proving the
-    block against an output key is check_output_pubkey's.
+    Size only: BIP341's 33 + 32m sizes all pass. Proving the block
+    against an output key is check_output_pubkey's.
 
-    The octets first, as check_output_pubkey takes them: `len` of the
-    text spelling counts characters, so "e" * 33 -- 33 characters and
-    the 66 octets of a hex string -- was a size this accepted, and
-    "é" * 33, 33 characters and 66 octets of UTF-8, was a size it
-    accepted for no reason at all.
+    The size is counted in octets, as check_output_pubkey takes them,
+    not in characters: "ee" * 33 is 33 octets and passes, while "e" * 33
+    and "é" * 33 are not valid hex and are refused.
     """
     if (len(bytes_from_octets(control_block)) - 1) % 32 != 0:
         raise BTClibValueError("invalid control block size")

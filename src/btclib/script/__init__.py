@@ -12,7 +12,7 @@ Three submodules are named beside it, being the three subgroups a caller
 reaches by name -- `sig_hash` for what a signature commits to, `taproot`
 for the tree and the control block, `engine` for the verifier -- and
 btclib-org/.github#1235 promises each as a command group. `taproot` is
-imported above for the four names re-exported flat; `sig_hash` and
+imported above for the names re-exported flat from it; `sig_hash` and
 `engine` are imported on demand by the `__getattr__` at the bottom of this
 file, and that is not a choice about speed: both reach the transaction
 stack -- `sig_hash` needs `btclib.tx`, whose `tx_in` and `tx_out` import
