@@ -252,7 +252,7 @@ repo    bitcoin/bitcoin
 path    src/test/data/script_tests.json
 commit  5a4cd70547096af6247167d8dde6145a1b548642  2026-10-11
 blob    89141dd7b8850f8072ca951368db98c192a2eb74
-pulled  2023-07-08, refreshed 2026-09-02, 2026-10-07, 2026-10-11 and 2026-10-26
+pulled  2023-07-08, refreshed 2026-09-02, 2026-10-07, 2026-10-12 and 2026-10-27
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -742,7 +742,7 @@ commit   d6ca7e4b9f02d076d0f968ae5ed4389627ecca27  2022-11-01
 blob     34aec3a8febe78db4292b50373f42fe815d87610
 ours     ea59fbca3937c4dfcdf9476330ce0938decf5c19
 licence  CC0-1.0
-pulled   2026-10-11
+pulled   2026-10-12
 behind   0 revisions; that commit is the only one to touch the path
 size     500,142 bytes, vsize 125,109, 1 input, 1 output
 txid     73be398c4bdc43709db7398106609eea2a7841aaf3a4fa2000dc18184faa2a7e
