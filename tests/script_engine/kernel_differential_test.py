@@ -26,6 +26,7 @@ from typing import Any, NamedTuple
 import pytest
 from ecc.curves import bytes_from_point, mult
 from ecc.ecc import dsa, ssa
+from ecc.hashes import tagged_hash
 from hypothesis import given
 from hypothesis import strategies as st
 from typing_extensions import override
@@ -291,20 +292,40 @@ def _taproot_template(
         # a key that does not sign is answered with the empty signature
         signers = prv_keys[:m]
     else:
-        script = [draw(_scripts(max_size=8))]
-        signers = []
+        leaf = draw(_scripts(max_size=8))
+        output, control = _free_leaf(internal.sec[1:], leaf_version, leaf)
+        # a wrong control block would make both engines refuse, and agree
+        assert taproot.check_output_pubkey(output, leaf, control)
+        items = draw(_pushes())
+        return _Template(
+            serialize(["OP_1", output]),
+            lambda _: (b"", (*items, leaf, control, *tail)),
+            [],
+            True,
+        )
     tree: TaprootScriptTree = [[(leaf_version, script)], [(0xC0, ["OP_2"])]]
     output = taproot.output_pubkey(internal, tree)[0]
     leaf_script, control = taproot.input_script_sig(internal, tree, 0)
-    items = draw(_pushes()) if kind == "p2tr_free" else []
     absent = len(prv_keys) - len(signers) if kind == "p2tr_multi_a" else 0
 
     def fill(sigs: list[bytes]) -> tuple[bytes, tuple[bytes, ...]]:
-        stack = [*items, *([b""] * absent), *reversed(sigs)]
-        script_bytes = serialize(leaf_script)
-        return b"", (*stack, script_bytes, control, *tail)
+        stack = [*([b""] * absent), *reversed(sigs)]
+        return b"", (*stack, serialize(leaf_script), control, *tail)
 
     return _Template(serialize(["OP_1", output]), fill, signers, True)
+
+
+def _free_leaf(internal: bytes, leaf_version: int, leaf: bytes) -> tuple[bytes, bytes]:
+    """Return the output key and the control block of a leaf beside OP_2.
+
+    The leaf is the drawn bytes, hashed as they are: taproot.serialize
+    has no spelling for 0xFF, which _scripts draws.
+    """
+    sibling = taproot.leaf_hash(0xC0, serialize(["OP_2"]))
+    own = taproot.leaf_hash(leaf_version, leaf)
+    root = tagged_hash(b"TapBranch", min(own, sibling) + max(own, sibling))
+    output, parity = taproot.output_pubkey_from_merkle_root_var(internal, root)
+    return output, bytes([leaf_version | parity]) + internal + sibling
 
 
 _KINDS = [
