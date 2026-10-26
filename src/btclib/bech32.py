@@ -64,6 +64,7 @@ from btclib.utils import is_integer, str_from_string
 __all__ = [
     "BECH32_1_CONST",
     "BECH32_M_CONST",
+    "assert_valid_hrp",
     "decode",
     "encode",
 ]
@@ -204,6 +205,21 @@ def decode(bech: String, m: int | None = None) -> tuple[str, list[int]]:
     raise BTClibValueError("invalid checksum")
 
 
+def assert_valid_hrp(hrp: str) -> None:
+    """Validate a human-readable part (HRP).
+
+    Refuses a non-str, empty, out-of-range, or non-lowercase HRP.
+    """
+    if not isinstance(hrp, str):
+        raise BTClibTypeError(f"invalid HRP type: {type(hrp).__name__}")
+    if not hrp:
+        raise BTClibValueError("empty HRP")
+    if not _hrp_in_range(hrp):
+        raise BTClibValueError(f"HRP character out of range: {hrp}")
+    if hrp != hrp.lower():
+        raise BTClibValueError(f"HRP is not lowercase: {hrp}")
+
+
 def encode(hrp: str, data: list[int], m: int | None = None) -> bytes:
     """Compute a bech32 string given HRP and data values.
 
@@ -234,14 +250,7 @@ def encode(hrp: str, data: list[int], m: int | None = None) -> bytes:
     key derivation that produced them -- an address is encoded once,
     never in an inner loop.
     """
-    if not isinstance(hrp, str):
-        raise BTClibTypeError(f"invalid HRP type: {type(hrp).__name__}")
-    if not hrp:
-        raise BTClibValueError("empty HRP")
-    if not _hrp_in_range(hrp):
-        raise BTClibValueError(f"HRP character out of range: {hrp}")
-    if hrp != hrp.lower():
-        raise BTClibValueError(f"HRP is not lowercase: {hrp}")
+    assert_valid_hrp(hrp)
 
     for d in data:
         if not is_integer(d):

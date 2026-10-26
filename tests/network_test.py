@@ -378,6 +378,26 @@ def test_a_non_str_hrp_is_a_type_error() -> None:
         Network.from_dict({**mainnet, "hrp": 0})
 
 
+def test_an_invalid_hrp_is_refused() -> None:
+    """The hrp must be accepted by the bech32 encoder.
+
+    A Network whose hrp is not lowercase, is empty, or has characters
+    outside BIP173's range is refused by assert_valid.
+    """
+    mainnet = NETWORKS["mainnet"].to_dict()
+    with pytest.raises(BTClibValueError, match="HRP is not lowercase: XYZ"):
+        Network.from_dict({**mainnet, "hrp": "XYZ"})
+
+    with pytest.raises(BTClibValueError, match="HRP is not lowercase: XYZ"):
+        replace_unchecked(NETWORKS["mainnet"], hrp="XYZ").assert_valid()
+
+    with pytest.raises(BTClibValueError, match="empty HRP"):
+        Network.from_dict({**mainnet, "hrp": ""})
+
+    with pytest.raises(BTClibValueError, match="HRP character out of range: bc "):
+        Network.from_dict({**mainnet, "hrp": "bc "})
+
+
 def test_a_non_str_network_type_is_a_type_error() -> None:
     """The network type is a str, whatever the json says.
 
