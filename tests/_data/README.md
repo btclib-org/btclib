@@ -124,8 +124,8 @@ followed on 2026-08-03, at the tip of its path too, and Core's
 `muhash_vectors.json`, both transcribed from `crypto_tests.cpp`, on
 2026-09-03, at the tip of that path, and
 bitcoin-core/secp256k1's `src` for `secp256k1_symbols.txt` on 2026-09-10,
-refreshed again on 2026-09-14, 2026-09-29 and 2026-10-07, at the tip of its
-path each time.
+refreshed again on 2026-09-14, 2026-09-29, 2026-10-07 and 2026-10-26, at the
+tip of its path each time.
 BIP324's `packet_encoding_test_vectors.csv` followed on 2026-09-27, at the
 tip of its path.
 
@@ -570,9 +570,9 @@ re-check should compare.
 ```text
 repo    bitcoin-core/secp256k1
 path    src
-commit  186eec1c1b93d71d2131cd228ca16b4b97738f60  2026-10-02
-ours    633cb36fc1c9f08d0069a510277dccac1835492c
-pulled  2026-09-10, refreshed 2026-09-14, 2026-09-29 and 2026-10-07
+commit  32099110d63a1dec1a7d27067450fd97d20ea30f  2026-10-20
+ours    a8f306732166cf782473ecbd2b90030616953689
+pulled  2026-09-10, refreshed 2026-09-14, 2026-09-29, 2026-10-07 and 2026-10-26
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -589,7 +589,7 @@ commit=<the pin this entry gives>
 
 ```shell
 git grep -ohP '(?<![A-Za-z0-9_])secp256k1_[a-z0-9_]+' "${commit:?}" -- src \
-    | sort -u
+    | LC_ALL=C sort -u
 ```
 
 The names and not the headers holding them, because what reads the file
