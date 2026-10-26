@@ -247,6 +247,11 @@ def test_a_Network_is_not_shown_by_the_mixed_networks_error() -> None:
     with pytest.raises(BTClibValueError) as excinfo:
         ScriptPubKey.p2ms(1, [other_key, mainnet_key])
     assert str(excinfo.value) == "mixed networks in m-of-n: a given network and mainnet"
+    # two Networks NETWORKS does not hold
+    third_key = PubKeyData(mainnet_key.sec, dataclasses.replace(OTHER, hrp="xyw"))
+    with pytest.raises(BTClibValueError) as excinfo:
+        ScriptPubKey.p2ms(1, [other_key, third_key])
+    assert str(excinfo.value) == "mixed networks in m-of-n: two given networks"
 
 
 def test_the_other_chain_is_written_as_json_and_read_back() -> None:

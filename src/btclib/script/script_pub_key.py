@@ -862,8 +862,12 @@ class ScriptPubKey(Script):
                     net if isinstance(net, str) else "a given network"
                     for net in (network, key.network)
                 ]
-                err_msg = f"mixed networks in m-of-n: {labels[0]} and {labels[1]}"
-                raise BTClibValueError(err_msg)
+                mixed = (
+                    f"{labels[0]} and {labels[1]}"
+                    if isinstance(network, str) or isinstance(key.network, str)
+                    else "two given networks"
+                )
+                raise BTClibValueError(f"mixed networks in m-of-n: {mixed}")
         pub_keys = [key.sec for key in keys]
         if lexicographic_sorting:
             # btclib_secp256k1's keys.pubkey_sort is not called here:
