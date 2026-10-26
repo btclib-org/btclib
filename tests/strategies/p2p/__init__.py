@@ -86,7 +86,7 @@ from btclib.p2p.limits import (
     MIN_FEATUREID_LENGTH,
     PROTOCOL_VERSION,
 )
-from tests.strategies import BLOCK_HEADERS, BLOCKS, TX_IDS, TXS
+from btclib.testing.strategies import BLOCK_HEADERS, BLOCKS, TX_IDS, TXS
 
 
 def _unsigned(bits: int) -> st.SearchStrategy[int]:

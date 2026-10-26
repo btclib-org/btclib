@@ -63,6 +63,7 @@ elsewhere a module reaches up where its subject asks for it, as
 - **the chain**: `script`, `tx`, `block`, `fee`, `policy`, `coinstats`,
   `muhash`
 - **the wire**: `p2p`, `electrum`
+- **fixtures for tests**: `testing`
 
 `alias` holds the types the public API accepts, much of it taking anything
 convertible rather than one type, and `exceptions` the errors it raises.
