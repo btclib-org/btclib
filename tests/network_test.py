@@ -5,7 +5,7 @@
 """Tests for the `btclib.network` module."""
 
 import string
-from dataclasses import fields
+from dataclasses import fields, replace
 from typing import Any, get_args
 
 import pytest
@@ -376,6 +376,12 @@ def test_a_non_str_hrp_is_a_type_error() -> None:
         Network.from_dict({**mainnet, "hrp": b"bc"})
     with pytest.raises(BTClibTypeError, match="invalid hrp type: int"):
         Network.from_dict({**mainnet, "hrp": 0})
+
+
+def test_an_uppercase_hrp_is_a_value_error() -> None:
+    """The network HRP must be accepted by the Bech32 encoder."""
+    with pytest.raises(BTClibValueError, match="invalid hrp: XYZ"):
+        replace(NETWORKS["mainnet"], hrp="XYZ").assert_valid()
 
 
 def test_a_non_str_network_type_is_a_type_error() -> None:
