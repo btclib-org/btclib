@@ -11,11 +11,13 @@ tests/_data/muhash_vectors.json -text
 tests/_data/secp256k1_symbols.txt -text
 tests/_data/siphash.json -text
 tests/block/_data/blockfilters.json -text
-tests/block/_data/checkblock_invalid.json -text
-tests/block/_data/checkblock_valid.json -text
+tests/block/_data/python-bitcoinlib/COPYING -text
+tests/block/_data/python-bitcoinlib/checkblock_invalid.json -text
+tests/block/_data/python-bitcoinlib/checkblock_valid.json -text
 tests/block/_data/timestamps.json -text
 tests/schemes/_data/packet_encoding_test_vectors.csv -text
-tests/schemes/_data/signmessage.json -text
+tests/schemes/_data/python-bitcoinlib/LICENSE -text
+tests/schemes/_data/python-bitcoinlib/signmessage.json -text
 tests/script/_data/bip67_test_vectors.json -text
 tests/script/_data/script_assets_test.json -text
 tests/script/_data/sig_hash_legacy_test_vectors.json -text
