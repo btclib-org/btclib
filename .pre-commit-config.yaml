@@ -250,7 +250,7 @@ repos:
       - id: pretty-format-json
         name: pretty-format-json (in place fixes)
         args: [--autofix, --indent=4, --no-sort-keys]
-        # tests/**/_data/ is the vendored directory, as tests/_data/
+        # tests/**/_data/ holds the vendored json, as tests/_data/
         # README.md declares it: most files that do not conform are
         # vectors that file gives a blob SHA and the verdict "identical"
         # to, and a reformat voids the pin and the verdict together.

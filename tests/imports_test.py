@@ -226,8 +226,8 @@ def test_btclib_works_without_the_testing_extra() -> None:
     The probe runs where hypothesis cannot be imported, as in an install
     without the `testing` extra: a `None` in `sys.modules` makes an import
     of that name raise `ImportError`. `import btclib`, `from btclib import
-    *` and the blocks of `btclib.testing` work there, and the strategies
-    raise.
+    *`, `from btclib.testing import *` and the blocks work there, and the
+    strategies raise.
 
     A subprocess for the reason the p2p test above gives: this suite has
     already imported hypothesis.
@@ -235,7 +235,7 @@ def test_btclib_works_without_the_testing_extra() -> None:
     probe = (
         "import sys; sys.modules['hypothesis'] = None\n"
         "from btclib import *\n"
-        "from btclib.testing import blocks\n"
+        "from btclib.testing import *\n"
         "blocks.read_bytes(blocks.NAMES[0])\n"
         "try:\n"
         "    from btclib.testing import strategies\n"
