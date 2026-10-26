@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""A fuzz/corpus/ seed is still a valid serialization of what it parses.
+"""A fuzz/corpus/ seed still passes the checks its harness declares.
 
 This module reads `fuzz/fuzz_<name>.py` with `ast` and never executes it.
 It resolves what a harness *names* against the installed btclib.
@@ -17,12 +17,18 @@ module-level literal assigned to it above. `.github/scripts/compare_release.py`
 calls the entry points as this declaration says.
 `test_entry_points_are_declared` below finds it with `ast.literal_eval`;
 `test_entry_points_match_the_calls` cross-checks it, arguments included,
-against the `.parse`, `.b64decode`, `.message_from_contents` and
-`.*_response` calls `fuzz_target`'s own body makes, walked with `ast`
-rather than matched with a regex -- a character class for the callee,
-`[A-Za-z_]+.parse`, would still have to answer which import a bare name
-resolves to, and one reaching for the whole dotted call loses
-`AddrV2.parse` to a class that excludes the digit.
+against the `.parse`, `.b64decode`, `.message_from_contents`,
+`.*_response` and `.eval_script` calls `fuzz_target`'s own body makes,
+walked with `ast` rather than matched with a regex -- a character class
+for the callee, `[A-Za-z_]+.parse`, would still have to answer which
+import a bare name resolves to, and one reaching for the whole dotted
+call loses `AddrV2.parse` to a class that excludes the digit.
+
+An `.eval_script` call takes nothing from `ENTRY_POINTS`: its harness
+splits the input into a script and a stack, and chooses the flags. This
+module does not execute the harness, so it gives `eval_script` the seed
+whole, as a script on an empty stack. `fuzz_harness_test.py` runs the
+harness's own split.
 
 A harness that tries several classes calls `cls.parse(data)` inside a
 `for cls in (A, B, ...):` loop rather than naming a callee directly, so
@@ -240,11 +246,13 @@ def _called_specs(
     bindings: dict[str, tuple[str, str]],
     values: dict[str, Any],
 ) -> dict[str, list[tuple[Any, ...]]]:
-    """Every .parse, .b64decode, .message_from_contents and .*_response call.
+    """Every entry point call `func` makes.
 
-    The calls are the ones `func` makes. Each spec maps to what its calls
+    An entry point call is a .parse, .b64decode, .message_from_contents,
+    .*_response or .eval_script call. Each spec maps to what its calls
     pass after the input, one tuple per call, a name read as the value
-    `values` gives it.
+    `values` gives it. An .eval_script call maps to the empty tuple, as
+    the module docstring says.
     """
     expansions = _loop_expansions(func)
     specs: dict[str, list[tuple[Any, ...]]] = {}
@@ -258,6 +266,7 @@ def _called_specs(
             "parse",
             "b64decode",
             "message_from_contents",
+            "eval_script",
         ) and not callee.attr.endswith("_response"):
             continue
         if not isinstance(callee.value, ast.Name):
@@ -265,7 +274,11 @@ def _called_specs(
         if node.keywords:
             msg = f"{ast.unparse(node)} passes a keyword, which ENTRY_POINTS cannot say"
             raise AssertionError(msg)
-        arguments = tuple(_literal(arg, values) for arg in node.args[1:])
+        arguments = (
+            ()
+            if callee.attr == "eval_script"
+            else tuple(_literal(arg, values) for arg in node.args[1:])
+        )
         for name in expansions.get(callee.value.id, [callee.value.id]):
             if name not in bindings:
                 msg = f"{name!r} is called with .{callee.attr} and imported nowhere"

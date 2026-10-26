@@ -243,8 +243,8 @@ def test_kind(cmp: Any, was: str, now: str, kind: str | None) -> None:
     assert cmp._kind(was, now) == kind
 
 
-def test_compare_lists_an_absent_parser_once(cmp: Any) -> None:
-    """A parser the release lacks is one row, not one per input."""
+def test_compare_lists_an_absent_entry_point_once(cmp: Any) -> None:
+    """An entry point the release lacks is one row, not one per input."""
     release = _run(
         cmp, ("h", "m:f", "a", "absent"), ("h", "m:f", "b", "absent"),
         ("h", "m:g", "a", "refused"),

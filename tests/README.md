@@ -228,12 +228,11 @@ python3 oss-fuzz/infra/helper.py reproduce \
 ```
 
 What to do with the minimized input from there is `fuzz.yml`'s own
-comment and `fuzz/fuzz_*.py`'s: a regression test naming it and the
-exception the parser is expected to raise on it.
+comment.
 
 Not `fuzz/corpus/<name>/`, which is a seed corpus checked into the
-tree and asserted still valid by `tests/fuzz_corpus_test.py`; `fuzz.yml`'s
-own comment is where the reason a crash cannot live there is argued. The
+tree and asserted still accepted by `tests/fuzz_corpus_test.py`; `fuzz.yml`'s
+own comment is where the reason a crash does not go there is argued. The
 corpus
 a batch run accumulates lives the same way a crash does, a GitHub
 Actions artifact named `cifuzz-corpus-<fuzzer>`, `fuzz.yml` naming no

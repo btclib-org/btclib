@@ -2,24 +2,24 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""List the inputs on which this tree's parsers and the last release's differ.
+"""List the inputs on which this tree and the last release answer differently.
 
-Every `fuzz/fuzz_*.py` names the parsers it fuzzes in `ENTRY_POINTS`, with
+Every `fuzz/fuzz_*.py` names the functions it fuzzes in `ENTRY_POINTS`, with
 what each takes after the input, in the form `tests/fuzz_corpus_test.py`'s
 docstring gives. It is read here with `ast` and never imported. Each
-parser is run on every input of its harness in two interpreters, one
+entry point is run on every input of its harness in two interpreters, one
 with this tree installed and one with the release from the index, and the
 two answers are compared. An answer is one of:
 
-- `refused`: the parser raised `BTClibException`;
+- `refused`: the entry point raised `BTClibException`;
 - `accepted <description>`: it returned an object, described by the hex of
   what `serialize()` writes, by `repr` where it is a plain value or a
   dataclass, and by its type name alone otherwise;
 - `unserializable <name>`: it returned an object whose description raised;
 - `crashed <name>`: it raised anything else;
-- `absent`: the parser is not importable.
+- `absent`: the entry point is not importable.
 
-A difference is a parser that accepts on one side only, accepts and
+A difference is an entry point that accepts on one side only, accepts and
 serializes differently, refuses where the other crashes, crashes
 differently, or is absent from one side.
 
@@ -71,7 +71,7 @@ _CONTEXT = 8
 _PLAIN = (type(None), bool, int, float, str, bytes, list, tuple, dict)
 
 ABSENT = "absent"
-# the first word of an outcome where the parser returned an object
+# the first word of an outcome where the entry point returned an object
 _ACCEPTED = ("accepted", "unserializable")
 # one record of a probe: (harness, entry point, input name, outcome)
 Record = tuple[str, str, str, str]
@@ -165,7 +165,7 @@ class Run:
 
 @dataclass(frozen=True)
 class Difference:
-    """One parser and input on which the release and this tree differ."""
+    """One entry point and input on which the release and this tree differ."""
 
     kind: str
     harness: str
@@ -355,11 +355,11 @@ def render(release: Run, current: Run, differences: list[Difference]) -> str:
     seeds = sum(name.startswith("corpus/") for _, name in inputs)
     artifacts = len(inputs) - seeds
     lines = [
-        "## Parsers: this tree against the last release",
+        "## Entry points: this tree against the last release",
         "",
         f"Release: btclib {release.version}, from `{release.file}`.",
         f"This tree: btclib {current.version}, from `{current.file}`.",
-        f"Parser and input pairs run on each side: {len(current.records)}.",
+        f"Entry point and input pairs run on each side: {len(current.records)}.",
         f"Inputs: {seeds} from `fuzz/corpus/`, {artifacts} from the fuzz artifacts.",
         "",
     ]
@@ -370,7 +370,7 @@ def render(release: Run, current: Run, differences: list[Difference]) -> str:
         f"Differences: {len(differences)}. A difference that is intended is",
         "named in the pull request that causes it.",
         "",
-        "| kind | harness | parser | input | release | this tree |",
+        "| kind | harness | entry point | input | release | this tree |",
         "| --- | --- | --- | --- | --- | --- |",
     ]
     for d in differences[:_MAX_ROWS]:

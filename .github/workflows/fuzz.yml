@@ -1,16 +1,37 @@
 ---
 name: fuzz
 
-# ClusterFuzzLite over the parsers of this library that read octets
-# nobody signed first. Reached from the network ahead of any signature
-# check: the wire-format envelope parser `btclib.p2p.message.Message.parse`,
-# the payload deserializers it hands off to once a caller has read
-# `message.command` -- `handshake`, `addrv2`, `inventory`,
-# `compact_blocks`, `block_filters`, `keepalive`, `negotiation`,
-# `address`, `data` and `merkleblock` -- and the response decoders of
-# `btclib.electrum`. Reached only once a transaction, a script or a
-# signature is already being handled: `Tx`, `Block`, `Witness`,
-# `var_int`, `var_bytes`, and the script and tapscript decoders.
+# ClusterFuzzLite over the parsers, the v2 transport's packet cipher and
+# the script interpreter of this library, which read octets nobody signed
+# first.
+#
+# Reached from the network ahead of any signature check:
+#
+# - the packet cipher of the v2 transport, `btclib.p2p.bip324`, and the
+#   contents parser behind it;
+# - the wire-format envelope parser `btclib.p2p.message.Message.parse`;
+# - the payload deserializers it hands off to once a caller has read
+#   `message.command`, by module:
+#   - `handshake`
+#   - `addrv2`
+#   - `inventory`
+#   - `compact_blocks`
+#   - `block_filters`
+#   - `keepalive`
+#   - `negotiation`
+#   - `address`
+#   - `data`
+#   - `merkleblock`
+#   - `reject`
+# - the response decoders of `btclib.electrum`.
+#
+# Reached only once a transaction, a script or a signature is already
+# being handled:
+#
+# - `Tx`, `Block`, `Witness`, `var_int` and `var_bytes`;
+# - the script and tapscript decoders;
+# - the script interpreter, `eval_script`.
+#
 # btclib-org/.github#342 is where that distinction, and the choice of
 # `atheris` under ClusterFuzzLite rather than an OSS-Fuzz application,
 # are argued;
@@ -42,17 +63,21 @@ name: fuzz
 #
 # The half a pull request does owe is the regression, and it is an
 # ordinary test of the suite: it names the input this fuzzer crashed on
-# and what `parse` is expected to do with it now, which is usually to
-# refuse it in this library's own exception.
+# and what the entry point is expected to do with it now, which for a
+# parser is usually to refuse it in this library's own exception.
 #
 # Not `fuzz/corpus/`, which is a seed corpus and answers the opposite
-# question. `tests/fuzz_corpus_test.py` asserts that every seed there is
-# still a valid serialization of what it parses, so a crash input added
-# to it is refused by the very hardening that fixed the crash, and the
-# only way back to green would be to delete the regression. What that
-# gate is for is keeping this fuzzer's own starting point honest as the
-# parsers move under it, in milliseconds and with no container to
-# build -- which is a different service, and a real one.
+# question. `tests/fuzz_corpus_test.py` asserts that every seed of a
+# parser's corpus is still a valid serialization of what it parses, so a
+# crash input added to it is refused by the very hardening that fixed the
+# crash, and the only way back to green would be to delete the
+# regression. An interpreter seed is only run, since `eval_script`
+# returns its refusal as a `ScriptError`. A crash input there would pass
+# once fixed, but it would not say what the interpreter now answers,
+# which the regression test does. What that gate is for is keeping this
+# fuzzer's own starting point honest as the code moves under it, in
+# milliseconds and with no container to build -- which is a different
+# service, and a real one.
 #
 # The schedule below is section 10's own grid for `fuzz`. Not
 # `push: branches: [main]` either, unlike `scorecard.yml`: `fuzz-seconds:
