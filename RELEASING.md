@@ -541,6 +541,44 @@ to `deps-latest`'s own result.
      --jq '.verification.verified'
    ```
 
+1. Open the next cycle's version as soon as `version-check` is green,
+   without waiting for the publish: every commit above the release fails
+   `tests/declared_version_test.py` until it lands. Set
+   `pyproject.toml`'s `version` to the placeholder of the month the next
+   release is expected to fall in, through a pull request like any other.
+   The release commit has to declare the release's version, which
+   `version-check` reads on the tag with `uv version --short`. It waits
+   for `version-check` to be green because a tag that check refuses may
+   need a new commit on `main`, and a bump already there would make that
+   commit declare the next cycle's number.
+   Where a tag deleted after this step is pushed again on a new commit,
+   as *If something goes wrong* says, that commit sets `pyproject.toml`
+   back to the release's version, and this step runs again once
+   `version-check` is green.
+
+   **The placeholder is the month the next release is expected to fall in, not
+   the cycle of the release just cut.** After `2026.9.3`, expecting the next
+   release in October, it is `2026.10` and not `2026.9`. The two readings
+   coincide only when the next release is expected in the same month just cut,
+   which is what a cycle shipping more than once looks like. A further release
+   in the month already left behind sets `pyproject.toml` to its own
+   three-component version on release day, and this step then sets the fresh
+   placeholder.
+
+   `2026.10` sorts above `2026.9.3` under PEP 440, which is a cost of naming the
+   month ahead rather than a defect of this step: a placeholder
+   names the month the tree expects to release in next, and releases are ordered
+   by their tags regardless of what `pyproject.toml` declares on `main` —
+   `version-check` refuses a tag on the placeholder shape either way (*Which
+   version string is which* above), so nothing confuses the two. What a reader
+   can trip on is that such a checkout declares a version above the release
+   just cut, so `pip install --upgrade btclib` in an environment holding it
+   reports the requirement already satisfied and does nothing — the reverse of
+   the rescue a placeholder sorting below that release would give, and it
+   leaves a reader on a version PyPI never served. A placeholder naming the
+   month just cut sorts below it and does give that rescue, which is the
+   coincidence above rather than the rule.
+
 1. The workflow builds the full matrix and the distribution files, then
    pauses at the `pypi` environment for the review "One-time setup"
    describes. Approve it. That approval is not the point of no return:
@@ -602,6 +640,10 @@ to `deps-latest`'s own result.
    [the builds page](https://app.readthedocs.org/projects/btclib/builds/)
    says why: nothing about the publication depends on it, so the fix is a
    build on their side and never a moved tag.
+   Read the Docs builds a tag on its first push only: a deleted and
+   re-pushed tag is rebuilt by hand from the builds page. `documented`
+   asks only that `/en/<tag>/` is served, so it passes on the first
+   push's build where that one succeeded.
 
 1. Install what was just published into an environment of its own,
    then exercise something that touches the shipped data rather than
@@ -687,36 +729,6 @@ to `deps-latest`'s own result.
    it fixed, signed tags and assets, attestation names. Then refresh the saved
    answers again. An advisory this repository publishes is owed the same
    review.
-
-1. Open the next cycle's version: set `pyproject.toml`'s `version` to
-   the placeholder of the month the next release is expected to fall in,
-   through a pull request like any other. It cannot be set any earlier:
-   `version-check` reads `uv version --short` at tag time, and a
-   pyproject.toml already bumped would offer it the next cycle's number
-   instead of the one being released.
-
-   **The placeholder is the month the next release is expected to fall in, not
-   the cycle of the release just cut.** After `2026.9.3`, expecting the next
-   release in October, it is `2026.10` and not `2026.9`. The two readings
-   coincide only when the next release is expected in the same month just cut,
-   which is what a cycle shipping more than once looks like. A further release
-   in the month already left behind sets `pyproject.toml` to its own
-   three-component version on release day, and this step then sets the fresh
-   placeholder.
-
-   `2026.10` sorts above `2026.9.3` under PEP 440, which is a cost of naming the
-   month ahead rather than a defect of this step: a placeholder
-   names the month the tree expects to release in next, and releases are ordered
-   by their tags regardless of what `pyproject.toml` declares on `main` —
-   `version-check` refuses a tag on the placeholder shape either way (*Which
-   version string is which* above), so nothing confuses the two. What a reader
-   can trip on is that such a checkout declares a version above the release
-   just cut, so `pip install --upgrade btclib` in an environment holding it
-   reports the requirement already satisfied and does nothing — the reverse of
-   the rescue a placeholder sorting below that release would give, and it
-   leaves a reader on a version PyPI never served. A placeholder naming the
-   month just cut sorts below it and does give that rescue, which is the
-   coincidence above rather than the rule.
 
 ## Rebuild a release from its tag
 
@@ -864,6 +876,8 @@ bytes.
   worktree leaves it in every other, and the `git tag -s` that follows
   answers `fatal: tag 'v2026.8.4' already exists` — from a checkout that
   looks uninvolved. Delete locally wherever it is, then re-create.
+  Where the fix is a new commit made after *Open the next cycle's
+  version*, it sets the release's version back first, as that step says.
 
 - `publish-pypi` itself ran and failed at the token exchange
   (`invalid-publisher`), after the matrix had already built everything:
