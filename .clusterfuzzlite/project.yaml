@@ -9,9 +9,10 @@ language: python
 
 # AddressSanitizer and UndefinedBehaviorSanitizer are the two Python
 # fuzzing supports (docs/build-integration/python_lang.md). This
-# integration fuzzes pure Python -- Message.parse touches no C extension
-# of its own -- so the default `address` .github/workflows/fuzz.yml
-# selects is the only sanitizer in play; naming the list here is what a
-# second one would extend.
+# integration fuzzes Python code, and `cryptography`, which
+# fuzz_bip324.py reaches, is a wheel built without a sanitizer. The
+# default `address` .github/workflows/fuzz.yml selects is the only
+# sanitizer in play; naming the list here is what a second one would
+# extend.
 sanitizers:
   - address

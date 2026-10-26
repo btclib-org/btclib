@@ -17,11 +17,12 @@ module-level literal assigned to it above. `.github/scripts/compare_release.py`
 calls the entry points as this declaration says.
 `test_entry_points_are_declared` below finds it with `ast.literal_eval`;
 `test_entry_points_match_the_calls` cross-checks it, arguments included,
-against the `.parse`, `.b64decode` and `.*_response` calls `fuzz_target`'s
-own body makes, walked with `ast` rather than matched with a regex -- a
-character class for the callee, `[A-Za-z_]+.parse`, would still have to
-answer which import a bare name resolves to, and one reaching for the
-whole dotted call loses `AddrV2.parse` to a class that excludes the digit.
+against the `.parse`, `.b64decode`, `.message_from_contents` and
+`.*_response` calls `fuzz_target`'s own body makes, walked with `ast`
+rather than matched with a regex -- a character class for the callee,
+`[A-Za-z_]+.parse`, would still have to answer which import a bare name
+resolves to, and one reaching for the whole dotted call loses
+`AddrV2.parse` to a class that excludes the digit.
 
 A harness that tries several classes calls `cls.parse(data)` inside a
 `for cls in (A, B, ...):` loop rather than naming a callee directly, so
@@ -44,6 +45,17 @@ harnesses assert, since a script has several encodings of one value: the
 octets written parse back to the same commands. An Electrum answer is
 JSON, which has no serialization to compare with, so that seed is
 accepted parse-only and nothing else is asked of it.
+`message_from_contents` returns a tuple and has no writer here, so its
+seeds are accepted parse-only too; `fuzz_harness_test.py` runs the
+harness's own round trip on them.
+
+`test_every_seed_is_accepted` does not ask an entry point to accept a
+seed a harness names in `STATEFUL_SEEDS`: only an object the harness
+builds reads it, as `fuzz_bip324`'s `Cipher` reads its packets.
+`test_accepted_seed_round_trips` still tries those seeds, and checks only
+what an entry point accepts. A harness whose module needs more than
+btclib's dependencies names those modules in `REQUIRES`, and the tests
+here and in `fuzz_harness_test.py` skip it where one is missing.
 
 **Trying every declared entry point rather than picking one by filename
 convention buys the manifest's simplicity at a stated price: where a
@@ -151,6 +163,21 @@ def _entry_points(tree: ast.Module) -> dict[str, tuple[Any, ...]] | None:
     return value
 
 
+def _skip_without_requirements(tree: ast.Module) -> None:
+    """Skip where a module the harness's `REQUIRES` names is not installed."""
+    for module in _literals(tree).get("REQUIRES", ()):
+        pytest.importorskip(module)
+
+
+def _stateful_seeds(tree: ast.Module) -> tuple[str, ...]:
+    """Return the `STATEFUL_SEEDS` of a harness, or the empty tuple.
+
+    The harness reads those seeds only through an object it builds, so no
+    entry point is asked to accept them.
+    """
+    return tuple(_literals(tree).get("STATEFUL_SEEDS", ()))
+
+
 def _fuzz_target(tree: ast.Module) -> ast.FunctionDef | None:
     """Return the module-level `def fuzz_target(...)`, or None."""
     for node in tree.body:
@@ -213,10 +240,11 @@ def _called_specs(
     bindings: dict[str, tuple[str, str]],
     values: dict[str, Any],
 ) -> dict[str, list[tuple[Any, ...]]]:
-    """Every .parse, .b64decode and .*_response call `func` makes.
+    """Every .parse, .b64decode, .message_from_contents and .*_response call.
 
-    Each spec maps to what its calls pass after the input, one tuple per
-    call, a name read as the value `values` gives it.
+    The calls are the ones `func` makes. Each spec maps to what its calls
+    pass after the input, one tuple per call, a name read as the value
+    `values` gives it.
     """
     expansions = _loop_expansions(func)
     specs: dict[str, list[tuple[Any, ...]]] = {}
@@ -226,9 +254,11 @@ def _called_specs(
         callee = node.func
         if not isinstance(callee, ast.Attribute):
             continue
-        if callee.attr not in ("parse", "b64decode") and not callee.attr.endswith(
-            "_response"
-        ):
+        if callee.attr not in (
+            "parse",
+            "b64decode",
+            "message_from_contents",
+        ) and not callee.attr.endswith("_response"):
             continue
         if not isinstance(callee.value, ast.Name):
             continue
@@ -374,6 +404,7 @@ def test_entry_points_are_declared(path: Path) -> None:
 def test_entry_points_resolve(path: Path) -> None:
     """Each declared entry point imports against the installed btclib."""
     tree = _parse_module(path.read_text(encoding="utf-8"), str(path))
+    _skip_without_requirements(tree)
     declared = _entry_points(tree)
     assert declared
     for spec in declared:
@@ -386,6 +417,7 @@ def test_entry_points_resolve(path: Path) -> None:
 def test_entry_points_match_the_calls(path: Path) -> None:
     """ENTRY_POINTS is exactly what fuzz_target's own body calls."""
     tree = _parse_module(path.read_text(encoding="utf-8"), str(path))
+    _skip_without_requirements(tree)
     declared = _entry_points(tree)
     assert declared
     func = _fuzz_target(tree)
@@ -401,6 +433,14 @@ def test_entry_points_match_the_calls(path: Path) -> None:
             f"{path.name} calls {spec} with {called[spec]} after the input,"
             f" and its ENTRY_POINTS says {arguments}"
         )
+
+
+@pytest.mark.parametrize("path", _HARNESSES, ids=lambda p: p.stem)
+def test_stateful_seeds_exist(path: Path) -> None:
+    """Each name in a harness's STATEFUL_SEEDS is one of its seeds."""
+    tree = _parse_module(path.read_text(encoding="utf-8"), str(path))
+    missing = set(_stateful_seeds(tree)) - {s.name for s in _seed_paths(path.stem)}
+    assert not missing, f"{path.name}'s STATEFUL_SEEDS names no seed: {missing}"
 
 
 @pytest.mark.parametrize("path", _HARNESSES, ids=lambda p: p.stem)
@@ -427,6 +467,9 @@ def test_seed_has_no_trailing_newline(seed: Path) -> None:
 def test_every_seed_is_accepted(harness: str, seed: Path) -> None:
     """At least one of the harness's declared entry points accepts the seed."""
     tree = _parse_module((_FUZZ / f"{harness}.py").read_text(encoding="utf-8"), harness)
+    _skip_without_requirements(tree)
+    if seed.name in _stateful_seeds(tree):
+        pytest.skip(f"{harness}'s STATEFUL_SEEDS names {seed.name}")
     declared = _entry_points(tree)
     assert declared
     data = seed.read_bytes()
@@ -442,6 +485,7 @@ def test_every_seed_is_accepted(harness: str, seed: Path) -> None:
 def test_accepted_seed_round_trips(harness: str, seed: Path) -> None:
     """Where a round trip is checkable, the seed passes its harness's."""
     tree = _parse_module((_FUZZ / f"{harness}.py").read_text(encoding="utf-8"), harness)
+    _skip_without_requirements(tree)
     declared = _entry_points(tree)
     assert declared
     data = seed.read_bytes()
