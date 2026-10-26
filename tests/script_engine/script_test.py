@@ -1129,8 +1129,7 @@ def test_a_negative_der_s_verifies_without_dersig(flags: list[str] | None) -> No
 
     Core's lax parser reads s unsigned, so the spend verified in a block
     below BIP66's height. Under DERSIG, IsValidSignatureEncoding refuses
-    it with SIG_DER. `Tx.parse` recomputes both txids, so the bytes check
-    themselves.
+    it with SIG_DER. The txid asserts below check the bytes against the chain.
     """
     tx = Tx.parse(NEGATIVE_S_TX)
     prev_tx = Tx.parse(NEGATIVE_S_PREV_TX)
