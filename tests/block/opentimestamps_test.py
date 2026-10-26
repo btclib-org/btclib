@@ -246,6 +246,40 @@ def test_one_changed_byte_of_a_header_is_refused(name: str, height: int) -> None
     assert kept == []
 
 
+# A block 1 mined on the real genesis at nBits 1d00ffff, which is not
+# block 1, built to check opentimestamps/opentimestamps-client#164
+_NOT_BLOCK_1 = bytes.fromhex(
+    "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000"
+    "bb4cf72d2a4d02fa1a292d1243895bda6551bac7f836a5bdf11e70fa2ec8e44a"
+    "b0bd6649ffff001d68311c21"
+)
+
+
+def test_a_header_with_valid_proof_of_work_off_the_chain_is_refused() -> None:
+    """The recorded hash, not the proof of work, binds the header to its height.
+
+    The proof is built here: its digest is the header's merkle root, and
+    it is attested at height 1.
+    """
+    header = BlockHeader.parse(_NOT_BLOCK_1)
+    header.assert_valid_pow()
+    proof = (
+        _MAGIC
+        + bytes([_MAJOR_VERSION, 0x08])
+        + header.merkle_root[::-1]
+        + bytes([_ATTESTATION])
+        + _BITCOIN
+        + bytes([1, 1])
+    )
+    own_hash = {"1": {"hash": header.hash.hex(), "header": _NOT_BLOCK_1.hex()}}
+    assert _verify(proof, own_hash) == [1]
+
+    block_1 = BlockHeader.parse(load_bin("block", "_data", "block_1.bin")[:80])
+    on_chain = {"1": {"hash": block_1.hash.hex(), "header": _NOT_BLOCK_1.hex()}}
+    with pytest.raises(ValueError, match="not the block at height 1"):
+        _verify(proof, on_chain)
+
+
 def test_a_proof_cut_short_or_running_on_is_refused() -> None:
     """A proof is read to its last byte and no further."""
     proof = _proof("hello-world.txt.ots")
