@@ -246,8 +246,8 @@ def test_one_changed_byte_of_a_header_is_refused(name: str, height: int) -> None
     assert kept == []
 
 
-# A block 1 mined on the real genesis at nBits 1d00ffff, which is not
-# block 1, built to check opentimestamps/opentimestamps-client#164
+# A header with valid proof of work on the real genesis at nBits 1d00ffff
+# that is not block 1, built to check opentimestamps/opentimestamps-client#164
 _NOT_BLOCK_1 = bytes.fromhex(
     "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000"
     "bb4cf72d2a4d02fa1a292d1243895bda6551bac7f836a5bdf11e70fa2ec8e44a"
@@ -255,15 +255,9 @@ _NOT_BLOCK_1 = bytes.fromhex(
 )
 
 
-def test_a_header_with_valid_proof_of_work_off_the_chain_is_refused() -> None:
-    """The recorded hash, not the proof of work, binds the header to its height.
-
-    The proof is built here: its digest is the header's merkle root, and
-    it is attested at height 1.
-    """
-    header = BlockHeader.parse(_NOT_BLOCK_1)
-    header.assert_valid_pow()
-    proof = (
+def _stamped_at_1(header: BlockHeader) -> bytes:
+    """Return a proof whose digest is `header`'s merkle root, at height 1."""
+    return (
         _MAGIC
         + bytes([_MAJOR_VERSION, 0x08])
         + header.merkle_root[::-1]
@@ -271,6 +265,13 @@ def test_a_header_with_valid_proof_of_work_off_the_chain_is_refused() -> None:
         + _BITCOIN
         + bytes([1, 1])
     )
+
+
+def test_a_header_with_valid_proof_of_work_off_the_chain_is_refused() -> None:
+    """The recorded hash, not proof of work, binds the header to its height."""
+    header = BlockHeader.parse(_NOT_BLOCK_1)
+    header.assert_valid_pow()
+    proof = _stamped_at_1(header)
     own_hash = {"1": {"hash": header.hash.hex(), "header": _NOT_BLOCK_1.hex()}}
     assert _verify(proof, own_hash) == [1]
 
@@ -278,6 +279,16 @@ def test_a_header_with_valid_proof_of_work_off_the_chain_is_refused() -> None:
     on_chain = {"1": {"hash": block_1.hash.hex(), "header": _NOT_BLOCK_1.hex()}}
     with pytest.raises(ValueError, match="not the block at height 1"):
         _verify(proof, on_chain)
+
+
+def test_a_header_recorded_under_its_own_hash_needs_proof_of_work() -> None:
+    """The recorded hash does not stand in for the proof of work."""
+    # the last byte of the nonce, changed, takes the hash above the target
+    no_work = _flipped(_NOT_BLOCK_1, 79)
+    header = BlockHeader.parse(no_work)
+    own_hash = {"1": {"hash": header.hash.hex(), "header": no_work.hex()}}
+    with pytest.raises(ValueError, match="invalid proof-of-work"):
+        _verify(_stamped_at_1(header), own_hash)
 
 
 def test_a_proof_cut_short_or_running_on_is_refused() -> None:
