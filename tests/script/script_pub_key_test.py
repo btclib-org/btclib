@@ -805,7 +805,7 @@ def test_non_standard_script_in_p2wsh() -> None:
 
 
 def test_p2tr() -> None:
-    """Round-trip p2tr script and address; refuse a bad length marker."""
+    """Round-trip p2tr script and address; refuse a bad shape."""
     # 32 octets are a scalar and no public key: what the spelling walk
     # used to reach by falling through is the derivation a caller writes
     # (issue #1188)
@@ -827,6 +827,23 @@ def test_p2tr() -> None:
     err_msg = "invalid redeem script hash length marker: "
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2tr(script_pub_key[:1] + b"\x00" + script_pub_key[2:])
+
+    err_msg = "invalid witness version: 0 instead of 1"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2tr(b"\x00" + script_pub_key[1:])
+
+    err_msg = "invalid witness version: 82 instead of 1"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2tr(b"\x52" + script_pub_key[1:])
+
+    # OP_1 0x20 and one octet too many, bitcoin/bitcoin#36360's case
+    err_msg = "invalid size: 35 bytes instead of 34"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2tr(script_pub_key + b"\x00")
+
+    err_msg = "invalid size: 33 bytes instead of 34"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2tr(script_pub_key[:-1])
 
 
 _G = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"

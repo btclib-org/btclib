@@ -444,7 +444,7 @@ def assert_p2tr(script_pub_key: Octets) -> None:
     # 0x0120{32-byte redeem_script hash}
     if script_pub_key[0] != 0x51:  # OP_1 = b"\x51",
         err_msg = f"invalid witness version: {script_pub_key[0]}"
-        err_msg += " instead of 0"
+        err_msg += " instead of 1"
         raise BTClibValueError(err_msg)
     if script_pub_key[1] != 0x20:
         err_msg = f"invalid redeem script hash length marker: {script_pub_key[1]}"
