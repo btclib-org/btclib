@@ -177,8 +177,8 @@ NetworkField = Literal[
 # keeps this list equal to the data
 NetworkName = Literal["mainnet", "testnet", "regtest", "signet", "testnet4"]
 
-# A one-shot digest: hf(data) returns the digest, where a
-# ecc.alias.HashF returns an object to update. The merkle functions
+# A one-shot digest: hf(data) returns the digest, where an
+# `ecc.alias.HashF` returns an object to update. The merkle functions
 # of btclib.hashes take this one -- hash256, not hashlib.sha256.
 #
 # Naming it makes a swap a type error rather than a runtime one, and the
