@@ -8,8 +8,9 @@ review is not about.
 This is the reviewer's half of [CONTRIBUTING.md](./CONTRIBUTING.md),
 which is the author's. It does not restate the rules a review cites —
 most are in the organization's standard, the rest in that file, in
-REPOSITORY.md and in AGENTS.md — and a finding names the line that
-states them rather than a copy kept here.
+REPOSITORY.md, in AGENTS.md, or here where no other document holds
+them — and a finding names the line that states them rather than a copy
+kept here.
 
 **This file is the same in every repository of the organization**, and
 deliberately so: a review that means one thing here and another there is
@@ -246,6 +247,12 @@ more": each is one command's worth of evidence, and each is the reason
 the change is offered as safe. Settle it. Where it is false, the finding
 is not the code but the reason given for it.
 
+**One case is the reviewer's to build.** Where a pull request adds a
+test together with rows excusing its failure, such as `BACKLOG` in
+`tests/__init__.py` of btclib-org/.github, run the assertion by hand
+against one tree in the shape the rows wait for. A row cannot tell a
+tree that has not converged from a wrong test.
+
 What this is not:
 
 - **A run of the gates.** They run what the rest of the tree already
@@ -323,9 +330,8 @@ either way.
 
 ## What every review here also checks
 
-Each of these is a question the organization asks of every tree, and the
-document that answers it is named because that document, and not this
-one, is where the rule lives.
+Each of these is a question the organization asks of every tree. Where
+another document holds the rule, the question names it.
 
 - Does the diff **state a count or a measurement** that nothing
   re-derives — files, entries, seconds, a size, a percentage, a figure
@@ -351,6 +357,14 @@ one, is where the rule lives.
 - A new or changed workflow: section 10 of the standard, and
   `REPOSITORY.md` before any rule or setting is touched. A renamed job
   is a required check renamed out of existence.
+- Does a call of a reusable workflow **reproduce what the tree's own job
+  ran on `main`**, its command and the configuration that command reads
+  (`addopts`, `fail_under`) included? Each difference is closed by an
+  input the call names, or stated in the pull request as a change of
+  behaviour. A job turned into a call takes the callee's defaults, and
+  the diff shows only a replacement. An input is not required, because a
+  tree may take a difference on purpose: section 10's sentinel cells pass
+  `--no-cov`.
 - Is a reference to another repository **qualified**? Section 9 of the
   standard has the rule and its one exemption, and a bare number is the
   shape that breaks it.
