@@ -357,6 +357,9 @@ one, is where the rule lives.
 - Does the pull request's **title** say what it closes, and does its
   description close what the title says? Section 11 has the rule, and it
   is the one most often found broken after the fact.
+- Can the author **answer the review without the model**?
+  `CONTRIBUTING.md`'s *Working with an LLM* says what becomes of a
+  contribution its author cannot explain.
 
 **What this tree checks beyond these is the last section of this file**,
 which is that repository's own. A repository whose last section names
