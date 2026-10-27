@@ -1760,11 +1760,10 @@ as `_pyproject_author()` in `tests/copyright_test.py` does (issue #1538).
 ahead of a `.venv` in the working directory. A session's shell started
 with the primary checkout's `.venv` active inherits it. An install of
 btclib meant for a scratch venv then replaces that checkout's editable
-btclib, and `git status` there shows nothing. Run a project-less uv
-command under `env -u VIRTUAL_ENV`, or give `--python` the target
-environment's path, as the wheel smoke test's `--python .venv` does. A
-version such as `--python 3.15` still finds the `VIRTUAL_ENV`
-environment first.
+btclib, and `git status` there shows nothing. Run `uv pip install`
+under `env -u VIRTUAL_ENV`, or give `--python` the target environment's
+path, as the wheel smoke test's `--python .venv` does. A version such as
+`--python 3.15` still finds the `VIRTUAL_ENV` environment first.
 
 **Read a `ruff --unsafe-fixes` batch line by line before trusting the
 suite.** Preview's `FURB113` folded two appends, the second reading the
@@ -1772,9 +1771,8 @@ first, into one `extend` that filled a point table wrongly (pull
 request #474).
 
 **`RUF100` removes a `# noqa` for a preview rule that `pyproject.toml`
-does not name exactly,** when the hooks' `ruff check --fix` runs. A rule
-named by its code or its name keeps its `noqa`; one reached only through
-its family does not.
+reaches only through its family,** when the hooks' `ruff check --fix`
+runs.
 
 ### Every change starts with an issue
 
