@@ -98,21 +98,24 @@ class BlockContext:
         return self.height >= self.consensus.segwit_height
 
     @property
-    def min_version(self) -> int:
+    def min_version(self) -> int | None:
         """Return the least header version the chain accepts at this height.
 
         Core's `bad-version` in `ContextualCheckBlockHeader`: version 2
-        from the BIP34 height on, 3 from BIP66's, 4 from BIP65's.
+        from the BIP34 height on, 3 from BIP66's, 4 from BIP65's. Below
+        all three no floor binds, and this is None: any version is
+        accepted, zero and negative ones included.
         """
-        least = 1
-        for version, activation in (
-            (2, self.consensus.bip34_height),
-            (3, self.consensus.bip66_height),
-            (4, self.consensus.bip65_height),
-        ):
-            if self.height >= activation:
-                least = max(least, version)
-        return least
+        floors = (
+            version
+            for version, activation in (
+                (2, self.consensus.bip34_height),
+                (3, self.consensus.bip66_height),
+                (4, self.consensus.bip65_height),
+            )
+            if self.height >= activation
+        )
+        return max(floors, default=None)
 
     # frozen, as Script and Witness are: a context is a value, nothing
     # serializes it, and the rules that read it must not see it change

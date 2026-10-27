@@ -568,11 +568,12 @@ class Block:
 
         self.header.assert_valid_time(context.now)
 
-        if self.header.version < context.min_version:
+        min_version = context.min_version
+        if min_version is not None and self.header.version < min_version:
             # Core prints nVersion as a uint32, so a negative version
             # reads as its two's complement
             version = f"0x{self.header.version & 0xFFFFFFFF:08x}"
-            err_msg = f"invalid version (outdated): {version} < {context.min_version}"
+            err_msg = f"invalid version (outdated): {version} < {min_version}"
             raise BTClibValueError(err_msg)
 
     def _assert_final_transactions(self, context: BlockContext) -> None:

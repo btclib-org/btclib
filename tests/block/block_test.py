@@ -119,8 +119,9 @@ def test_exceptions() -> None:
     header.version = -0x80000000 - 1
     with pytest.raises(BTClibValueError, match="invalid version: -0x80000001"):
         header.assert_valid()
-    # zero and below are Core's contextual bad-version, not a range check
-    # (issue #2309): each round-trips through the signed four bytes
+    # refusing zero and below is Core's contextual bad-version, where an
+    # activation height sets a floor, not a range check (issue #2309):
+    # each round-trips through the signed four bytes
     for version in (0x7FFFFFFF, -0x80000000, 0, -1):
         header.version = version
         header.assert_valid()

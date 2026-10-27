@@ -405,10 +405,11 @@ def test_the_activation_gates_are_comparisons_on_the_height() -> None:
             context = BlockContext(height=height, now=now)
             assert getattr(context, name) is active
 
-    # version 2 from BIP34's height, 3 from BIP66's, 4 from BIP65's
+    # no floor below BIP34's height, then version 2, 3 from BIP66's, 4
+    # from BIP65's
     for height, least in (
-        (0, 1),
-        (_MAINNET.bip34_height - 1, 1),
+        (0, None),
+        (_MAINNET.bip34_height - 1, None),
         (_MAINNET.bip34_height, 2),
         (_MAINNET.bip66_height - 1, 2),
         (_MAINNET.bip66_height, 3),
@@ -419,7 +420,7 @@ def test_the_activation_gates_are_comparisons_on_the_height() -> None:
 
     # regtest's genesis is below every one of them, its block 1 above all
     regtest = CONSENSUS_PARAMS["regtest"]
-    assert BlockContext(height=0, now=now, consensus=regtest).min_version == 1
+    assert BlockContext(height=0, now=now, consensus=regtest).min_version is None
     assert BlockContext(height=1, now=now, consensus=regtest).min_version == 4
 
 
@@ -451,6 +452,26 @@ def test_bad_version_refuses_a_version_the_chain_has_outgrown() -> None:
         block.assert_valid_contextual(
             BlockContext(height=1, now=now, consensus=regtest)
         )
+
+
+def test_bad_version_sets_no_floor_below_bip34() -> None:
+    """Below BIP34's height any version passes, zero and negative included.
+
+    Core's `bad-version` refuses a version only once BIP34, BIP66 or
+    BIP65 is active (issue #2833).
+    """
+    block = block_of("block_1.bin")
+    now = block.header.time
+    below = BlockContext(height=_MAINNET_BIP34_HEIGHT - 1, now=now)
+    at = BlockContext(height=_MAINNET_BIP34_HEIGHT, now=now)
+    above = BlockContext(height=_MAINNET.bip65_height, now=now)
+    for version, printed in ((0, "0x00000000"), (-1, "0xffffffff")):
+        block.header.version = version
+        block.assert_valid_contextual(below)
+        for context, least in ((at, 2), (above, 4)):
+            err_msg = f"invalid version \\(outdated\\): {printed} < {least}"
+            with pytest.raises(BTClibValueError, match=err_msg):
+                block.assert_valid_contextual(context)
 
 
 def test_a_transaction_must_be_final_at_the_height() -> None:
