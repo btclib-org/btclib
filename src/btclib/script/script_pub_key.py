@@ -734,6 +734,13 @@ class ScriptPubKey(Script):
     ) -> ScriptPubKey:
         """Return the m-of-n multi-sig ScriptPubKey of the provided keys.
 
+        m is the threshold, and consensus enforces it: every node
+        validating a spend runs OP_CHECKMULTISIG, which needs m valid
+        signatures.
+        MuSig2 and FROST enforce a threshold off-chain instead. ecc's
+        documentation compares the two at
+        https://btclib-ecc.readthedocs.io/en/latest/where-the-threshold-lives.html
+
         n runs to MAX_PUBKEYS_PER_MULTISIG, OP_CHECKMULTISIG's own limit,
         with a count past 16 pushed as Core's CScript writes it. That is
         every m-of-n the op code executes, not every one standard where
