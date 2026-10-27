@@ -1138,17 +1138,17 @@ A test added to kill a surviving mutant is evidence only once the mutant
 is re-applied to the repaired tree, in a `git archive` copy, and that
 test is seen to fail (issue #1927).
 
-Know this before running a session. The session mutates the source
-file in place and restores it afterwards, so nothing else may read the
-tree while it runs — no second session, no `pytest` in another shell, and
-a `git status` in the middle is a working tree with a mutant in it.
-`exec` is resumable, running whatever the session still has pending, so
-interrupting one costs only the mutant it was on. Remove `__pycache__`
-before any verification run that follows a mutation apply-and-restore
-cycle. Python checks only a source's size and mtime, so a `.pyc`
-compiled from the mutant can survive the restore. And the `.sqlite`
-sessions are the artifact the workflow uploads: `cr-report`, `cr-html` and
-`cr-rate` all read one, and a downloaded one can be finished locally.
+The session mutates the source file in place and restores it
+afterwards, so nothing else may read the tree while it runs — no second
+session, no `pytest` in another shell, and a `git status` in the middle
+is a working tree with a mutant in it. Remove `__pycache__` before any
+verification run that follows a mutation apply-and-restore cycle. Python
+checks only a source's size and mtime, so a `.pyc` compiled from the
+mutant can survive the restore. `exec` is resumable, running whatever
+the session still has pending, so interrupting one costs only the mutant
+it was on. And the `.sqlite` sessions are the artifact the workflow
+uploads: `cr-report`, `cr-html` and `cr-rate` all read one, and a
+downloaded one can be finished locally.
 
 For the counts, read the session with the workflow's own script —
 `btclib-org/.github`'s `mutation_counts.py`, checked out beside this tree
@@ -1758,19 +1758,23 @@ as `_pyproject_author()` in `tests/copyright_test.py` does (issue #1538).
 
 **`uv pip install` installs into the environment `VIRTUAL_ENV` names,**
 ahead of a `.venv` in the working directory. A session's shell started
-with the primary checkout's `.venv` active inherits it. There, the
-`dist` job's `uv pip install`, as `test.yml` writes it, replaces that
-checkout's editable btclib with the built wheel. `git status` in that
-checkout shows nothing. Run a project-less uv command under
-`env -u VIRTUAL_ENV`, or give `--python` the target environment's path,
-as the wheel smoke test's `--python .venv` does. A version such as
-`--python 3.15` still finds the `VIRTUAL_ENV` environment first.
+with the primary checkout's `.venv` active inherits it. An install of
+btclib meant for a scratch venv then replaces that checkout's editable
+btclib, and `git status` there shows nothing. Run a project-less uv
+command under `env -u VIRTUAL_ENV`, or give `--python` the target
+environment's path, as the wheel smoke test's `--python .venv` does. A
+version such as `--python 3.15` still finds the `VIRTUAL_ENV`
+environment first.
 
 **Read a `ruff --unsafe-fixes` batch line by line before trusting the
 suite.** Preview's `FURB113` folded two appends, the second reading the
 first, into one `extend` that filled a point table wrongly (pull
-request #474). The hooks' `ruff check --fix` also lets `RUF100` remove a
-`# noqa` for a preview rule that `pyproject.toml` does not name exactly.
+request #474).
+
+**`RUF100` removes a `# noqa` for a preview rule that `pyproject.toml`
+does not name exactly,** when the hooks' `ruff check --fix` runs. A rule
+named by its code or its name keeps its `noqa`; one reached only through
+its family does not.
 
 ### Every change starts with an issue
 

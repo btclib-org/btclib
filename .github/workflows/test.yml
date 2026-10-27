@@ -716,6 +716,8 @@ jobs:
           # pasted. The positional parameters are sh, bash and zsh alike,
           # so the two stay one string, and a second wheel is `$2`
           set -- "$GITHUB_WORKSPACE"/dist/*.whl
+          # --python .venv, because a set VIRTUAL_ENV wins over the .venv
+          # here: CONTRIBUTING.md's "Facts that waste a session"
           uv pip install --python .venv --constraints constraints.txt \
             "$1[secp256k1]"
           .venv/bin/python -c "import btclib; \
