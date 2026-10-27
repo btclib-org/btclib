@@ -55,6 +55,7 @@ from btclib.utils import (
 __all__ = [
     "ConditionStack",
     "ScriptOp",
+    "ScriptStep",
     "assert_balanced_if",
     "assert_minimal_push",
     "assert_stack_size",
@@ -168,6 +169,61 @@ def _to_bool(element: bytes) -> bool:
 # The op codes taking anything else, op_if and its condition stack among
 # them, are driven by those modules directly instead.
 ScriptOp = Callable[[list[bytes], list[bytes], ScriptFlag], None]
+
+
+# what verify_input's `step` is: called with the command's position, its
+# op code, whether it executes, and copies of the stack and the altstack.
+# verify_input's docstring says when, and what `executing` is at the end
+ScriptStep = Callable[
+    [int, int | None, bool, tuple[bytes, ...], tuple[bytes, ...]], None
+]
+
+
+class _StepError(Exception):
+    """An exception of a `step` callback, carried out of the loop.
+
+    The interpreter's except clauses turn an IndexError, a
+    BTClibValueError or an EccValueError into a refusal. An observer must
+    not refuse anything, so the clause catching this keeps `error`, the
+    callback's own exception, and the caller raises it after its try,
+    with its `__cause__`.
+    """
+
+    def __init__(self, error: BaseException) -> None:
+        super().__init__(error)
+        self.error = error
+
+
+def _call_step(
+    step: ScriptStep,
+    index: int,
+    op_code: int,
+    executing: bool,
+    stack: list[bytes],
+    altstack: list[bytes],
+) -> None:
+    """Call `step` on copies of the stacks, its exceptions as _StepError."""
+    try:
+        step(index, op_code, executing, tuple(stack), tuple(altstack))
+    # a KeyboardInterrupt too, so that nothing is called after it either
+    except BaseException as e:
+        raise _StepError(e) from e
+
+
+def _end_step(
+    step: ScriptStep | None,
+    index: int,
+    condition_stack: ConditionStack,
+    stack: list[bytes],
+    altstack: list[bytes],
+) -> None:
+    """Make the end call where there is a `step`.
+
+    Outside the interpreter's except clauses, so nothing is wrapped.
+    """
+    if step is not None:
+        executing = condition_stack.is_executing
+        step(index, None, executing, tuple(stack), tuple(altstack))
 
 
 # What the two interpreter loops check as they go, as functions rather

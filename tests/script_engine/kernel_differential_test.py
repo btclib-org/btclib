@@ -7,8 +7,14 @@
 Hypothesis draws a spend: a script type, signatures valid or corrupted,
 the consensus flags, and the other inputs of the transaction. `verify_input`
 and Core's own `VerifyScript`, reached through the kernel, then answer
-whether it is valid, and the two answers must be the same. Only the
-verdict is compared: the kernel reports no script error code.
+whether it is valid, and the two answers must be the same.
+
+Where the kernel has the script tracer of bitcoin/bitcoin#35641, the
+`trace` tests also compare every script the two run: before each command,
+its position, its op code, whether it executes, and both stacks; where
+the script stops, its position and both stacks. Without the tracer they
+skip, and only the verdict is compared. The script error code is not
+compared.
 
 The kernel takes the consensus flags and no policy flag, so the policy
 flags are not drawn. tests/README.md says how to run the module.
@@ -19,8 +25,10 @@ the exception btclib raised.
 
 from __future__ import annotations
 
+import ctypes
 from collections.abc import Callable
 from dataclasses import dataclass
+from itertools import zip_longest
 from typing import Any, NamedTuple
 
 import pytest
@@ -41,6 +49,65 @@ from btclib.script.witness import Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 pbk = pytest.importorskip("pbk")
+
+# what verify_input's `step` reports, and what a kernel frame is read into:
+# position, op code (None where the script stops), executing, stack, altstack
+Frame = tuple[int, int | None, bool, tuple[bytes, ...], tuple[bytes, ...]]
+
+_FRAME_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_void_p)
+_WRITE_BYTES = ctypes.CFUNCTYPE(
+    ctypes.c_int, ctypes.c_void_p, ctypes.c_size_t, ctypes.c_void_p
+)
+
+# the tracer's C API, bitcoinkernel.h at bitcoin/bitcoin@0161ebdbf6
+_TRACER_API = {
+    "btck_script_trace_register_callback": (
+        ctypes.c_int,
+        [_FRAME_CALLBACK, ctypes.c_void_p, ctypes.c_void_p],
+    ),
+    "btck_script_trace_unregister_callback": (None, []),
+    "btck_script_trace_frame_get_kind": (ctypes.c_uint8, [ctypes.c_void_p]),
+    "btck_script_trace_frame_get_stack": (ctypes.c_void_p, [ctypes.c_void_p]),
+    "btck_script_trace_frame_get_altstack": (ctypes.c_void_p, [ctypes.c_void_p]),
+    "btck_script_trace_frame_get_opcode_pos": (ctypes.c_uint32, [ctypes.c_void_p]),
+    "btck_script_trace_frame_get_exec": (ctypes.c_int, [ctypes.c_void_p]),
+    "btck_script_trace_frame_get_opcode": (ctypes.c_uint8, [ctypes.c_void_p]),
+    "btck_script_eval_stack_count_items": (ctypes.c_size_t, [ctypes.c_void_p]),
+    "btck_script_eval_stack_get_item_at": (
+        ctypes.c_void_p,
+        [ctypes.c_void_p, ctypes.c_size_t],
+    ),
+    "btck_script_eval_stack_item_to_bytes": (
+        ctypes.c_int,
+        [ctypes.c_void_p, _WRITE_BYTES, ctypes.c_void_p],
+    ),
+}
+_BEGIN, _STEP = 0, 1
+
+
+def _kernel_tracer() -> Any:
+    """Return the kernel library where it has the script tracer, else None.
+
+    The functions are missing from a kernel built without the tracer, and
+    registering a callback fails where it was compiled out.
+    """
+    lib = pbk.capi.library.BITCOINKERNEL_LIB
+    if not all(hasattr(lib, name) for name in _TRACER_API):
+        return None
+    for name, (restype, argtypes) in _TRACER_API.items():
+        function = getattr(lib, name)
+        function.restype, function.argtypes = restype, argtypes
+    no_op = _FRAME_CALLBACK(lambda _, __: None)
+    available = lib.btck_script_trace_register_callback(no_op, None, None) == 0
+    lib.btck_script_trace_unregister_callback()
+    return lib if available else None
+
+
+_TRACER = _kernel_tracer()
+needs_tracer = pytest.mark.skipif(
+    _TRACER is None,
+    reason="the kernel has no script tracer (bitcoin/bitcoin#35641)",
+)
 
 _CONSENSUS_FLAGS = [
     ScriptFlag.P2SH,
@@ -486,6 +553,129 @@ def kernel_accepts(spend: Spend) -> bool:
     )
 
 
+def btclib_trace(spend: Spend) -> tuple[bool, list[Frame]]:
+    """Return btclib's verdict and the frames its `step` reported."""
+    frames: list[Frame] = []
+
+    def step(
+        index: int,
+        op_code: int | None,
+        executing: bool,
+        stack: tuple[bytes, ...],
+        altstack: tuple[bytes, ...],
+    ) -> None:
+        frames.append((index, op_code, executing, stack, altstack))
+
+    try:
+        verify_input(spend.prevouts, spend.tx, spend.index, spend.flags, step=step)
+    except ScriptError:
+        return False, frames
+    return True, frames
+
+
+def _kernel_stack(stack: int) -> tuple[bytes, ...]:
+    """Copy a stack out of a kernel frame."""
+    items = []
+    for j in range(_TRACER.btck_script_eval_stack_count_items(stack)):
+        chunks: list[bytes] = []
+
+        def write(data: int, size: int, _: int, chunks: list[bytes] = chunks) -> int:
+            chunks.append(ctypes.string_at(data, size) if size else b"")
+            return 0
+
+        item = _TRACER.btck_script_eval_stack_get_item_at(stack, j)
+        writer = _WRITE_BYTES(write)
+        if _TRACER.btck_script_eval_stack_item_to_bytes(item, writer, None):
+            raise RuntimeError("the kernel did not write a stack item")
+        items.append(b"".join(chunks))
+    return tuple(items)
+
+
+def kernel_trace(spend: Spend) -> tuple[bool, list[Frame]]:
+    """Return the kernel's verdict and its tracer's frames, as Frames.
+
+    The begin frames are dropped, a script's frames ending on its end
+    frame, as btclib's do. An end frame reports executing as true.
+    """
+    frames: list[Frame] = []
+    errors: list[Exception] = []
+
+    def on_frame(_: int, frame: int) -> None:
+        # an exception does not cross back into C: it is kept for later
+        try:
+            kind = _TRACER.btck_script_trace_frame_get_kind(frame)
+            if kind == _BEGIN:
+                return
+            index = _TRACER.btck_script_trace_frame_get_opcode_pos(frame)
+            stack = _kernel_stack(_TRACER.btck_script_trace_frame_get_stack(frame))
+            altstack = _kernel_stack(
+                _TRACER.btck_script_trace_frame_get_altstack(frame)
+            )
+            if kind == _STEP:
+                op_code = _TRACER.btck_script_trace_frame_get_opcode(frame)
+                executing = bool(_TRACER.btck_script_trace_frame_get_exec(frame))
+                frames.append((index, op_code, executing, stack, altstack))
+            else:
+                frames.append((index, None, True, stack, altstack))
+        except Exception as error:  # noqa: BLE001
+            errors.append(error)
+
+    callback = _FRAME_CALLBACK(on_frame)
+    if _TRACER.btck_script_trace_register_callback(callback, None, None):
+        raise RuntimeError("the kernel refused the trace callback")
+    try:
+        verdict = kernel_accepts(spend)
+    finally:
+        _TRACER.btck_script_trace_unregister_callback()
+    if errors:
+        raise errors[0]
+    return verdict, frames
+
+
+def _by_script(frames: list[Frame]) -> list[list[Frame]]:
+    """Split the frames into one list per script, each ending on its end."""
+    scripts: list[list[Frame]] = []
+    current: list[Frame] = []
+    for frame in frames:
+        current.append(frame)
+        if frame[1] is None:
+            scripts.append(current)
+            current = []
+    assert not current, f"frames after the last end frame: {current}"
+    return scripts
+
+
+def _aligned(ours: list[Frame], theirs: list[Frame]) -> list[Frame]:
+    """Return btclib's frames of a script in the shape the kernel reports.
+
+    The kernel's end frame reports executing as true. Core reads a whole
+    command before its step frame, so a push running past the end of the
+    script stops it with no step frame for that command; btclib reports
+    one, having read the op code.
+    """
+    *steps, end = ours
+    end = (end[0], None, True, end[3], end[4])
+    their_end_has_a_step = len(theirs) > 1 and theirs[-2][0] == theirs[-1][0]
+    if steps and steps[-1][0] == end[0] and not their_end_has_a_step:
+        steps.pop()
+    return [*steps, end]
+
+
+def assert_same_trace(spend: Spend) -> None:
+    """Fail unless btclib and the kernel agree on the verdict and the frames."""
+    ours, our_frames = btclib_trace(spend)
+    theirs, their_frames = kernel_trace(spend)
+    assert ours == theirs, f"btclib {ours}, kernel {theirs}\n{spend}"
+    our_scripts, their_scripts = _by_script(our_frames), _by_script(their_frames)
+    assert len(our_scripts) == len(their_scripts), (
+        f"btclib ran {len(our_scripts)} scripts, the kernel "
+        f"{len(their_scripts)}\n{spend}"
+    )
+    for n, (mine, core) in enumerate(zip(our_scripts, their_scripts, strict=True)):
+        for a, b in zip_longest(_aligned(mine, core), core):
+            assert a == b, f"script {n}: btclib {a}, kernel {b}\n{spend}"
+
+
 def assert_same_verdict(spend: Spend) -> bool:
     """Fail unless btclib and the kernel agree; return their verdict."""
     ours, reason = btclib_verdict(spend)
@@ -533,3 +723,17 @@ def test_signed_spends_agree(spend: Spend) -> None:
 def test_free_scripts_agree(spend: Spend) -> None:
     """A script drawn from opcodes, with no signature in it."""
     assert_same_verdict(spend)
+
+
+@needs_tracer
+@given(spend=spends(_KINDS))
+def test_signed_spends_trace_alike(spend: Spend) -> None:
+    """A signed spend, edited or not: the same frames in every script."""
+    assert_same_trace(spend)
+
+
+@needs_tracer
+@given(spend=spends(_FREE_KINDS))
+def test_free_scripts_trace_alike(spend: Spend) -> None:
+    """A script drawn from opcodes: the same frames in every script."""
+    assert_same_trace(spend)

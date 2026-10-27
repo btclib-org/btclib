@@ -20,7 +20,11 @@ from btclib.script.engine.script_op_codes import (
     _MAX_NUM_SIZE,
     ConditionStack,
     ScriptOp,
+    ScriptStep,
     _assert_operands,
+    _call_step,
+    _end_step,
+    _StepError,
     _to_num,
 )
 from btclib.script.limits import (
@@ -693,6 +697,7 @@ def _run_ops(  # noqa: C901, PLR0912
     hash_types: list[int] | None,
     sighash_cache: _SigHashCache | None,
     signatures: list[tuple[bytes, bytes]] | None,
+    step: ScriptStep | None,
 ) -> None:
     """Run verify_script's opcode dispatch loop.
 
@@ -709,6 +714,9 @@ def _run_ops(  # noqa: C901, PLR0912
     on, because an iteration can end at any of its `continue`s. A
     refusal therefore names the command that grew the stack. Nothing is
     checked before the first command, as in Core.
+
+    `step` is `verify_input`'s, called here once per command; the caller
+    makes the call where the script stops.
     """
     segwit_version = 0 if segwit else -1
     op_code_num = 0
@@ -728,6 +736,8 @@ def _run_ops(  # noqa: C901, PLR0912
         if not b:
             break
         t = b[0]
+        if step is not None:
+            _call_step(step, script_index, t, not skip_execution, stack, altstack)
         if 0 < t <= 78:  # pushdata
             script_op_codes.read_push_data(
                 t, s, stack, skip_execution, flags, serialize_script
@@ -879,6 +889,7 @@ def verify_script(
     hash_types: list[int] | None = None,
     sighash_cache: _SigHashCache | None = None,
     signatures: list[tuple[bytes, bytes]] | None = None,
+    step: ScriptStep | None = None,
 ) -> None:
     """Execute the script over the caller's stack, as Core's EvalScript.
 
@@ -899,7 +910,8 @@ def verify_script(
     for all the scripts of an input.
 
     `signatures` is `verify_input`'s other collector, of the ECDSA
-    pairs accepted here, chained over the scripts the same way.
+    pairs accepted here, chained over the scripts the same way. `step`
+    is `verify_input`'s too.
     """
     _eval_script(
         script_bytes,
@@ -914,6 +926,7 @@ def verify_script(
         hash_types,
         sighash_cache,
         signatures,
+        step,
     )
 
 
@@ -962,6 +975,7 @@ def eval_script(
             None,
             None,
             None,
+            None,
         )
     except ScriptError as error:
         return result, error
@@ -981,6 +995,7 @@ def _eval_script(
     hash_types: list[int] | None,
     sighash_cache: _SigHashCache | None,
     signatures: list[tuple[bytes, bytes]] | None,
+    step: ScriptStep | None,
 ) -> None:
     """`verify_script`'s body, with the transaction optional.
 
@@ -997,6 +1012,7 @@ def _eval_script(
     condition_stack = ConditionStack()
 
     script_index_ref = [-1]
+    step_error: BaseException | None = None
     try:
         _run_ops(
             script_bytes,
@@ -1013,7 +1029,12 @@ def _eval_script(
             hash_types,
             sighash_cache,
             signatures,
+            step,
         )
+    except _StepError as e:
+        step_error = e.error
+        # nothing is called after the callback raised
+        step = None
     except ScriptError as e:
         raise ScriptError(e.args[0], e.code, script_index_ref[0], len(stack)) from e
     # any other refusal is Core's `catch (...)`, UNKNOWN_ERROR: btclib's
@@ -1030,6 +1051,11 @@ def _eval_script(
         raise ScriptError(
             "stack underflow", code, script_index_ref[0], len(stack)
         ) from e
+    finally:
+        _end_step(step, script_index_ref[0], condition_stack, stack, altstack)
+    # the callback's own exception, raised outside the except clauses
+    if step_error is not None:
+        raise step_error
 
     script_op_codes.assert_balanced_if(condition_stack)
 

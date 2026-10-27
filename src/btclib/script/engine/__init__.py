@@ -20,7 +20,12 @@ from btclib.script.engine.flags import (
     to_script_flags,
 )
 from btclib.script.engine.script import verify_script as verify_script_legacy
-from btclib.script.engine.script_op_codes import _MAX_NUM_SIZE, _to_num, op_verify
+from btclib.script.engine.script_op_codes import (
+    _MAX_NUM_SIZE,
+    ScriptStep,
+    _to_num,
+    op_verify,
+)
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.script import op_code_spans, serialize
 from btclib.script.script_pub_key import is_p2sh, is_segwit, type_and_payload
@@ -170,6 +175,7 @@ def _verify_taproot(
     script_flags: ScriptFlag,
     precomputed: PrecomputedTxData | None,
     hash_types: list[int] | None,
+    step: ScriptStep | None,
 ) -> None:
     """Verify a p2tr spend: the v1 arm of Core's VerifyWitnessProgram.
 
@@ -211,6 +217,7 @@ def _verify_taproot(
         script_flags,
         precomputed,
         hash_types,
+        step,
     )
 
 
@@ -226,6 +233,7 @@ def _verify_witness_v0(
     hash_types: list[int] | None,
     sighash_cache: _SigHashCache,
     signatures: list[tuple[bytes, bytes]] | None,
+    step: ScriptStep | None,
 ) -> None:
     """Verify a v0 spend: the v0 arm of Core's VerifyWitnessProgram.
 
@@ -282,6 +290,7 @@ def _verify_witness_v0(
         hash_types,
         sighash_cache,
         signatures,
+        step,
     )
     # the size first, as Core has it, so an empty stack is CLEANSTACK
     # and not EVAL_FALSE
@@ -305,6 +314,7 @@ def _verify_witness_program(
     hash_types: list[int] | None,
     sighash_cache: _SigHashCache,
     signatures: list[tuple[bytes, bytes]] | None,
+    step: ScriptStep | None,
 ) -> None:
     """Dispatch a witness program: Core's VerifyWitnessProgram.
 
@@ -340,6 +350,7 @@ def _verify_witness_program(
             hash_types,
             sighash_cache,
             signatures,
+            step,
         )
         return
 
@@ -357,6 +368,7 @@ def _verify_witness_program(
                 script_flags,
                 precomputed,
                 hash_types,
+                step,
             )
         return
 
@@ -386,6 +398,7 @@ def verify_input(
     precomputed: PrecomputedTxData | None = None,
     hash_types: list[int] | None = None,
     signatures: list[tuple[bytes, bytes]] | None = None,
+    step: ScriptStep | None = None,
 ) -> None:
     """Verify one input of a transaction against the output it spends.
 
@@ -422,6 +435,23 @@ def verify_input(
     reported twice, where Core keeps the first. The tapscript checks are
     Schnorr and are not reported.
 
+    `step` is called by every script the interpreter runs, once per
+    command and once more where the script stops, as
+    `step(index, op_code, executing, stack, altstack)`. Per command it is
+    called once the op code is read and before the command runs: `index`
+    is the command's position in the script, `op_code` its first byte,
+    and `executing` False in a branch not taken. Where the script stops,
+    `op_code` is None and `index` is the position of the command that
+    refused, or one past the last command. In the end call, `executing`
+    is whether the script stopped outside a branch not taken. `stack`
+    and `altstack` are copies. An exception the callback raises leaves
+    verify_input as the same object, with its `__cause__`, never
+    converted into a refusal, and nothing is called after it, the end
+    call included. One raised in the end call of a refused script
+    carries the refusal as its `__context__`. `None`, the default, calls
+    nothing. A script the interpreter does not start makes no call, for
+    example a tapscript holding an OP_SUCCESSx.
+
     The split is Core's: this function is VerifyScript -- the two legacy
     runs on one stack, the p2sh unwrap, the malleation checks, the
     CLEANSTACK check -- and the witness arms live behind
@@ -453,6 +483,7 @@ def verify_input(
         hash_types=hash_types,
         sighash_cache=sighash_cache,
         signatures=signatures,
+        step=step,
     )
     p2sh_script = stack[-1] if stack else b"\x00"
 
@@ -469,6 +500,7 @@ def verify_input(
         hash_types=hash_types,
         sighash_cache=sighash_cache,
         signatures=signatures,
+        step=step,
     )
 
     script_type, payload = type_and_payload(script)
@@ -490,6 +522,7 @@ def verify_input(
             hash_types=hash_types,
             sighash_cache=sighash_cache,
             signatures=signatures,
+            step=step,
         )
         script_type, payload = type_and_payload(script)
 
@@ -528,6 +561,7 @@ def verify_input(
             hash_types,
             sighash_cache,
             signatures,
+            step,
         )
         # Core's stack.resize(1) after VerifyWitnessProgram: a witness
         # spend leaves nothing for CLEANSTACK to see, and v0's own

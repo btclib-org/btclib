@@ -23,7 +23,11 @@ from btclib.script.engine.script_op_codes import (
     _MAX_NUM_SIZE,
     ConditionStack,
     ScriptOp,
+    ScriptStep,
     _assert_operands,
+    _call_step,
+    _end_step,
+    _StepError,
     _to_num,
 )
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
@@ -406,6 +410,7 @@ def _run_ops(  # noqa: C901, PLR0912
     precomputed: PrecomputedTxData | None,
     script_index_ref: list[int],
     hash_types: list[int] | None,
+    step: ScriptStep | None,
 ) -> None:
     """Run verify_script_path_vc0's opcode dispatch loop.
 
@@ -436,6 +441,8 @@ def _run_ops(  # noqa: C901, PLR0912
         if not b:
             break
         t = b[0]
+        if step is not None:
+            _call_step(step, script_index, t, not skip_execution, stack, altstack)
         if 0 < t <= 78:  # pushdata
             script_op_codes.read_push_data(
                 t, s, stack, skip_execution, flags, serialize_script
@@ -553,6 +560,7 @@ def verify_script_path_vc0(
     flags: ScriptFlag,
     precomputed: PrecomputedTxData | None = None,
     hash_types: list[int] | None = None,
+    step: ScriptStep | None = None,
 ) -> None:
     """Execute a leaf-version-0xc0 tapscript, per BIP342.
 
@@ -566,7 +574,8 @@ def verify_script_path_vc0(
     and after the loop are Core's ExecuteWitnessScript, in its order.
 
     `hash_types` is `verify_input`'s collector, threaded to
-    `op_checksig` as the legacy loop threads it to its own.
+    `op_checksig` as the legacy loop threads it to its own. `step` is
+    `verify_input`'s too.
     """
     if _has_op_success(script_bytes):
         # the op code BIP342 reserved for a future soft fork, and until
@@ -586,6 +595,7 @@ def verify_script_path_vc0(
     condition_stack = ConditionStack()
 
     script_index_ref = [-1]
+    step_error: BaseException | None = None
     try:
         _run_ops(
             script_bytes,
@@ -601,8 +611,13 @@ def verify_script_path_vc0(
             precomputed,
             script_index_ref,
             hash_types,
+            step,
         )
-    # the three arms are script.py's verify_script's, and so is the reason
+    # the arms are script.py's verify_script's, and so is the reason
+    except _StepError as e:
+        step_error = e.error
+        # nothing is called after the callback raised
+        step = None
     except ScriptError as e:
         raise ScriptError(e.args[0], e.code, script_index_ref[0], len(stack)) from e
     except (BTClibValueError, EccValueError) as e:
@@ -613,6 +628,11 @@ def verify_script_path_vc0(
         raise ScriptError(
             "stack underflow", code, script_index_ref[0], len(stack)
         ) from e
+    finally:
+        _end_step(step, script_index_ref[0], condition_stack, stack, altstack)
+    # the callback's own exception, raised outside the except clauses
+    if step_error is not None:
+        raise step_error
 
     script_op_codes.assert_balanced_if(condition_stack)
 
