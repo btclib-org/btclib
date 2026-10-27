@@ -967,7 +967,8 @@ uv export --locked --no-dev --extra secp256k1 --no-emit-project \
     --no-hashes -o "$tmp"/constraints.txt
 cd "$tmp" && uv venv &&
     set -- "$OLDPWD"/dist/*.whl &&
-    uv pip install --constraints constraints.txt "$1[secp256k1]" &&
+    uv pip install --python .venv --constraints constraints.txt \
+        "$1[secp256k1]" &&
     .venv/bin/python -c "import btclib; \
       from ecc.curves import is_libsecp256k1_serving; \
       from ecc.ecc import dsa; \
@@ -1159,14 +1160,21 @@ grow past. The report is `--surviving-only`, which is the whole of what
 anybody acts on: a killed mutant is the suite doing its job, and printing
 every one of them buries the handful that are not.
 
-Three things to know before starting one. The session mutates the source
-file in place and restores it afterwards, so nothing else may read the
-tree while it runs — no second session, no `pytest` in another shell, and
-a `git status` in the middle is a working tree with a mutant in it.
-`exec` is resumable, running whatever the session still has pending, so
-interrupting one costs only the mutant it was on. And the `.sqlite`
-sessions are the artifact the workflow uploads: `cr-report`, `cr-html` and
-`cr-rate` all read one, and a downloaded one can be finished locally.
+A test added to kill a surviving mutant is evidence only once the mutant
+is re-applied to the repaired tree, in a `git archive` copy, and that
+test is seen to fail (issue #1927).
+
+The session mutates the source file in place and restores it
+afterwards, so nothing else may read the tree while it runs — no second
+session, no `pytest` in another shell, and a `git status` in the middle
+is a working tree with a mutant in it. Remove `__pycache__` before any
+verification run that follows a mutation apply-and-restore cycle. Python
+checks only a source's size and mtime, so a `.pyc` compiled from the
+mutant can survive the restore. `exec` is resumable, running whatever
+the session still has pending, so interrupting one costs only the mutant
+it was on. And the `.sqlite` sessions are the artifact the workflow
+uploads: `cr-report`, `cr-html` and `cr-rate` all read one, and a
+downloaded one can be finished locally.
 
 For the counts, read the session with the workflow's own script —
 `btclib-org/.github`'s `mutation_counts.py`, checked out beside this tree
@@ -1774,6 +1782,24 @@ two exceptions (issues #2046 and #2079).
 **Never execute `docs/source/conf.py` from a test.** It imports the
 `docs` group at top level, which the coverage job lacks. Read it as text,
 as `_pyproject_author()` in `tests/copyright_test.py` does (issue #1538).
+
+**`uv pip install` installs into the environment `VIRTUAL_ENV` names,**
+ahead of a `.venv` in the working directory. A session's shell started
+with the primary checkout's `.venv` active inherits it. An install of
+btclib meant for a scratch venv then replaces that checkout's editable
+btclib, and `git status` there shows nothing. Run `uv pip install`
+under `env -u VIRTUAL_ENV`, or give `--python` the target environment's
+path, as the wheel smoke test's `--python .venv` does. A version such as
+`--python 3.15` still finds the `VIRTUAL_ENV` environment first.
+
+**Read a `ruff --unsafe-fixes` batch line by line before trusting the
+suite.** Preview's `FURB113` folded two appends, the second reading the
+first, into one `extend` that filled a point table wrongly (pull
+request #474).
+
+**`RUF100` removes a `# noqa` for a preview rule that `pyproject.toml`
+does not name by its code or its name,** when the hooks'
+`ruff check --fix` runs.
 
 ### Every change starts with an issue
 
