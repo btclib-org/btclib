@@ -24,6 +24,7 @@ This module reads `fuzz/`, which an unpacked sdist does not carry, so
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import sys
 import types
@@ -41,10 +42,25 @@ _SEEDS = tuple(
 )
 
 
+def _requires(path: Path) -> tuple[str, ...]:
+    """Return the harness's `REQUIRES`, read without importing it."""
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.Assign) and [
+            ast.unparse(target) for target in node.targets
+        ] == ["REQUIRES"]:
+            return tuple(ast.literal_eval(node.value))
+    return ()
+
+
 def _fuzz_target(
     path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> Callable[[bytes], None]:
-    """Import the harness with a stand-in atheris; return its fuzz_target."""
+    """Import the harness with a stand-in atheris; return its fuzz_target.
+
+    Skip where a module its `REQUIRES` names is not installed.
+    """
+    for name in _requires(path):
+        pytest.importorskip(name)
     stand_in = types.ModuleType("atheris")
     monkeypatch.setitem(sys.modules, "atheris", stand_in)
     spec = importlib.util.spec_from_file_location(f"_harness_{path.stem}", path)

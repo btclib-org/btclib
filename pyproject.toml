@@ -267,8 +267,11 @@ check = [
 # fuzz container and non-isolated, so that the backend is a hashed entry of
 # .clusterfuzzlite/requirements.txt -- this lock exported -- rather than
 # whatever an isolated build resolves off the index. [build-system]'s own
-# specifier, the way `check`'s is
-fuzz = ["uv_build>=0.12.0,<0.14"]
+# specifier, the way `check`'s is.
+#
+# `bip324` because fuzz/fuzz_bip324.py imports `btclib.p2p.bip324`, which
+# needs `cryptography`
+fuzz = [{ include-group = "bip324" }, "uv_build>=0.12.0,<0.14"]
 mutation = ["cosmic-ray>=8.7.0"]
 docs = [
     { include-group = "bindings" },

@@ -409,6 +409,7 @@ docs = [
     { name = "sphinx", marker = "python_full_version >= '3.12'" },
 ]
 fuzz = [
+    { name = "cryptography" },
     { name = "uv-build" },
 ]
 harness = [
@@ -494,7 +495,10 @@ docs = [
     { name = "myst-parser", marker = "python_full_version >= '3.12'", specifier = ">=5.1.0" },
     { name = "sphinx", marker = "python_full_version >= '3.12'", specifier = ">=9.1.0" },
 ]
-fuzz = [{ name = "uv-build", specifier = ">=0.12.0,<0.14" }]
+fuzz = [
+    { name = "cryptography", specifier = ">=42.0.0" },
+    { name = "uv-build", specifier = ">=0.12.0,<0.14" },
+]
 harness = [
     { name = "bitcoin-core-rpc", specifier = ">=2026.10.17" },
     { name = "coverage", specifier = ">=7.16.0" },

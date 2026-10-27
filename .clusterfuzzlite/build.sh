@@ -17,8 +17,8 @@
 #
 # What the install takes is uv.lock's and not the index's.
 # requirements.txt beside this file is the lock exported -- btclib's
-# runtime dependencies and the `fuzz` dependency group's build backend,
-# each with its hashes -- and the uv-export hook of
+# runtime dependencies and the `fuzz` dependency group, the build backend
+# and `cryptography`, each with its hashes -- and the uv-export hook of
 # .pre-commit-config.yaml rewrites it whenever uv.lock moves.
 # --require-hashes refuses a file the lock does not name. btclib itself
 # follows with --no-deps, and --no-build-isolation builds it with the
@@ -47,7 +47,8 @@ pip3 install --no-deps --no-build-isolation -e .
 # a PyInstaller `_MEI` extraction directory. `--collect-data` walks the
 # whole of each package's tree rather than naming a `_data` directory
 # alone, so a `_data/` directory the next harness reaches is bundled
-# with no edit here.
+# with no edit here. `cryptography`'s compiled extension needs no flag:
+# PyInstaller finds it by following fuzz_bip324.py's imports.
 #
 # The same loop also zips each target's own seed corpus, one
 # fuzz/corpus/<name>/ directory per fuzzer (google/fuzzing's glossary,
