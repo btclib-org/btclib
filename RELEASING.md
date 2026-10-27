@@ -731,11 +731,7 @@ the digests agree. A release whose
 assets carry `<tag>.intoto.jsonl` has the signed statement on disk
 too, so `--bundle <that file>` asks the same question of it without
 reaching the attestations API — which is the form for whoever mirrors the
-releases page rather than trusting it live. `--signer-workflow` is the
-flag that makes either form say *which* workflow signed: without it a
-valid attestation from any workflow of the organization passes.
-`--source-ref` names the tag, which is what stops a rehearsal dispatched
-from a branch from verifying as the release.
+releases page rather than trusting it live.
 
 A worktree and not `git checkout`, so a rebuild has a tree of its own.
 
@@ -799,16 +795,10 @@ gh attestation verify "sbom/btclib-${version:?}.cdx.json" \
   grep -qx "${id:?}"
 ```
 
-Each verification is SECURITY.md's command, and SECURITY.md says why it
-checks the repository's id and not its name.
-
-`signer` is the workflow that signed the tag's attestation,
-`reusable-build.yml`. A tag from v2026.9.24 on, made before this
-repository called `reusable-build.yml`, was signed by
-`reusable-attest.yml`, named the same way. A tag through v2026.9.13
-was signed by `release.yml` itself, and for one of those `signer` is
-`"$repo/.github/workflows/release.yml"`. Each path verifies only the
-releases its own workflow signed.
+Each verification is SECURITY.md's command, and SECURITY.md says what
+each flag checks and why the repository is named by its id. `signer` is
+the workflow that signed the tag's attestation, which SECURITY.md names
+for each release.
 
 `python` is the interpreter the tag's own `.python-version` pins, its
 comment lines dropped, and not the one `main` pins: `normalize_sdist.py`
