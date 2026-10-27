@@ -79,31 +79,40 @@ the commit it was built from.
 
 The same files are attached to the GitHub release, and those copies carry
 a build provenance attestation of their own, signed in the run that built
-them:
+them. The command names the signing workflow and the tag, and compares
+the source repository's id with this repository's, not its name, because
+`--repo` refuses every release signed before a rename:
 
 ```shell
-repo=btclib-org/btclib
-workflows=btclib-org/.github/.github/workflows
-signer=$workflows/reusable-build.yml
-gh attestation verify --repo "$repo" --signer-workflow "$signer" \
-  --source-ref refs/tags/v<version> \
-  <a distribution file from the release>
+signer=btclib-org/.github/.github/workflows/reusable-build.yml
+id=$(gh api repos/btclib-org/btclib --jq .id)
+cert='.[].verificationResult.signature.certificate'
 ```
+
+```shell
+gh attestation verify <file> --owner btclib-org \
+  --signer-workflow "${signer:?}" \
+  --source-ref refs/tags/v<version> --format json \
+  --jq "${cert:?}.sourceRepositoryIdentifier" | grep -qx "${id:?}"
+```
+
+The exit code is `0` only where a verified attestation names this
+repository.
+
+`<file>` is a distribution file from the release.
 
 `--signer-workflow` names the workflow that signed. For a release built by
 the organization's `reusable-build.yml`, which `release.yml` calls, that
 is that workflow: an attestation made inside a called workflow names the
-callee as its signer, while `--repo` still names this repository as the
-source. The flag is required rather than a narrowing, the command
-refusing a genuine release without it, and `--source-ref` is what keeps a
-build of a branch from passing as the release. A release from v2026.9.24
-on, made before this repository called `reusable-build.yml`, was signed
-by `reusable-attest.yml`, named the same way. Through v2026.9.13 the
-signer is `release.yml` itself, so for those releases `signer` is
-`"$repo/.github/workflows/release.yml"`, and there `--signer-workflow`
-narrows what passes: without it an attestation from any workflow in this
-repository is accepted. All three take `--source-ref refs/tags/v<version>`.
-No path verifies a release another signed. The PEP 740 attestations on
+callee as its signer. `--owner` accepts a signer from any repository of
+the organization, and the flag narrows that to the one named.
+`--source-ref` is what keeps a build of a branch from passing as the
+release. A release from v2026.9.24 on, made before this repository called
+`reusable-build.yml`, was signed by `reusable-attest.yml`, named the same
+way. Through v2026.9.13 the signer is `release.yml` itself, so for those
+releases `signer` is `btclib-org/btclib/.github/workflows/release.yml`.
+All three take `--source-ref refs/tags/v<version>`. No path verifies a
+release another signed. The PEP 740 attestations on
 PyPI name `release.yml`, the job that uploads there being its own rather
 than a called workflow's. The signed statement for the GitHub release is
 attached to it as well, as `<tag>.intoto.jsonl`, or as
