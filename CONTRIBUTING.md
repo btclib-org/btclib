@@ -1314,14 +1314,10 @@ The one thing this does not license is a break nobody can act on. An
 entry says the old spelling, the new one, and what a caller does about
 it; a rename with no note is the defect, not the rename.
 
-**There is no deprecation window.** Versions are calendar-based
-(`YYYY.M.D`), a checkout of `main` is a release cycle in progress with no
-promise attached to any name in it, and a source-breaking change is
-announced by its [RELEASE_NOTES.md](./RELEASE_NOTES.md) breaking-changes
-entry and by nothing earlier — a warning-then-removal mechanism, a
-deprecated alias kept alongside its replacement, a `DeprecationWarning`,
-is deliberately not provided. What the promise covers where it applies at
-all is *The public surface* below: `__all__`, at every depth.
+**There is no deprecation window**, as [section 12][s12] of the standard
+says for every published package, with its reason. Where a release
+promises anything here, the promise covers *The public surface* below:
+`__all__`, at every depth.
 
 **A security fix is exempt from all of the above.** It may break
 anything this section otherwise asks for, on the same terms as any other
