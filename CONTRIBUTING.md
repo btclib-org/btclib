@@ -589,7 +589,8 @@ read by every checkout of this repository.
 
 ### A Dependabot `uv` pull request
 
-Dependabot's `uv` ecosystem rewrites `uv.lock` alone. Where a bump moves a
+Dependabot's `uv` ecosystem rewrites `uv.lock`, and `pyproject.toml` too
+where a bump goes past a ceiling that file declares. Where a bump moves a
 package that `.clusterfuzzlite/requirements.txt` pins, the `uv-export`
 hook fails the lint job. An owner, as [`GOVERNANCE.md`][governance] names
 them, then commits the hook's output to the pull request's branch before it
@@ -604,6 +605,12 @@ git push origin HEAD:<branch>
 
 The hook exits 1 when it rewrites the file. The push is a plain one, never
 a force, so a branch that moved meanwhile refuses it.
+
+Where the bump moves `uv_build`'s range in `pyproject.toml`, the same
+pull request moves the check-sdist hook's `additional_dependencies` in
+`.pre-commit-config.yaml` to that range, in a commit made the same way.
+Dependabot does not rewrite that file, and the hook stays green when
+`requires` widens past it: the hook's comment says why.
 
 The commit is made by hand, not by a bot: the `ci:` block of
 `.pre-commit-config.yaml` says why.
