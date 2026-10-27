@@ -805,7 +805,7 @@ def test_non_standard_script_in_p2wsh() -> None:
 
 
 def test_p2tr() -> None:
-    """Round-trip p2tr script and address; refuse a bad shape."""
+    """Round-trip p2tr script and address; refuse each bad shape."""
     # 32 octets are a scalar and no public key: what the spelling walk
     # used to reach by falling through is the derivation a caller writes
     # (issue #1188)
@@ -828,11 +828,11 @@ def test_p2tr() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2tr(script_pub_key[:1] + b"\x00" + script_pub_key[2:])
 
-    err_msg = "invalid witness version: 0 instead of 1"
+    err_msg = r"invalid witness version op code: 0x00 instead of OP_1 \(0x51\)"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2tr(b"\x00" + script_pub_key[1:])
 
-    err_msg = "invalid witness version: 82 instead of 1"
+    err_msg = r"invalid witness version op code: 0x52 instead of OP_1 \(0x51\)"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2tr(b"\x52" + script_pub_key[1:])
 
