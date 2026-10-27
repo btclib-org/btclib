@@ -56,6 +56,7 @@ from typing import Any
 from ecc.curves import CURVES, Curve
 
 from btclib.alias import NetworkField, NetworkName, NetworkType, Octets
+from btclib.bech32 import assert_valid_hrp
 from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import assert_type, bytes_from_octets, fields_from_json_object
@@ -335,7 +336,7 @@ class Network:
         )
 
     def assert_valid(self) -> None:
-        """Refuse a field of the wrong type, size, or network_type value."""
+        """Refuse a field of the wrong type, size, or value."""
         # the curve is what every key of this network lives on, and it is
         # read for its own fields wherever the network is: `curve.name`
         # goes into to_dict, and `network_from_name(net).curve` is what
@@ -350,6 +351,7 @@ class Network:
         # bytes fields, TypeError being what they raise for a field
         # rebound to something else
         assert_type(self.hrp, str, "hrp")
+        assert_valid_hrp(self.hrp)
 
         # the row a dict points at is resolved by from_dict, so what this
         # catches is a Network built in code with something else in the

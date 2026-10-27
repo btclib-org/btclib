@@ -64,6 +64,7 @@ from btclib.utils import is_integer, str_from_string
 __all__ = [
     "BECH32_1_CONST",
     "BECH32_M_CONST",
+    "assert_valid_hrp",
     "decode",
     "encode",
 ]
@@ -102,10 +103,10 @@ def _hrp_in_range(text: str) -> bool:
     """Whether every character of `text` is in BIP173's HRP range.
 
     "a value in the range [33-126]", shared between `_decode`'s checks on
-    `text[:pos]` and on the data part after it and `encode`'s on the HRP
-    it is given, so the bound lives in one place. 33 and 126 are the
-    boundary themselves ("!" and "~"); a weakened `<=` at either end
-    would accept 32 (" ") or 127 (DEL).
+    `text[:pos]` and on the data part after it and `assert_valid_hrp`'s
+    on the HRP it is given, so the bound lives in one place. 33 and 126
+    are the boundary themselves ("!" and "~"); a weakened `<=` at either
+    end would accept 32 (" ") or 127 (DEL).
     """
     return all(32 < ord(x) < 127 for x in text)
 
@@ -204,22 +205,37 @@ def decode(bech: String, m: int | None = None) -> tuple[str, list[int]]:
     raise BTClibValueError("invalid checksum")
 
 
+def assert_valid_hrp(hrp: str) -> None:
+    """Validate a human-readable part (HRP).
+
+    The HRP is checked against the rule `_decode` applies to it:
+    non-empty, ASCII, every character in BIP173's [33-126] range --
+    `encode`'s `f"{hrp}1"` given anything else silently formats it
+    rather than raising, a non-str hrp included, which is why the type
+    is checked too rather than left to that formatting. Case is narrower
+    than `_decode`'s: `_decode` accepts an all-uppercase string, but
+    every data digit `encode` writes comes from `_ALPHABET`, which is
+    lowercase only, so an all-uppercase HRP combined with any data digit
+    that is a letter writes a string `decode` refuses as mixed case --
+    the very defect this check exists to catch. Requiring the HRP itself
+    lowercase, rather than merely single-case, is what makes the
+    guarantee hold for every `data` rather than only for the calls that
+    happen to carry no letter.
+    """
+    if not isinstance(hrp, str):
+        raise BTClibTypeError(f"invalid HRP type: {type(hrp).__name__}")
+    if not hrp:
+        raise BTClibValueError("empty HRP")
+    if not _hrp_in_range(hrp):
+        raise BTClibValueError(f"HRP character out of range: {hrp}")
+    if hrp != hrp.lower():
+        raise BTClibValueError(f"HRP is not lowercase: {hrp}")
+
+
 def encode(hrp: str, data: list[int], m: int | None = None) -> bytes:
     """Compute a bech32 string given HRP and data values.
 
-    The HRP is checked against the rule `_decode` applies to it:
-    non-empty, ASCII, every character in BIP173's [33-126] range -- an
-    `f"{hrp}1"` given anything else silently formats it rather than
-    raising, a non-str hrp included, which is why the type is checked
-    too rather than left to that formatting. Case is narrower than
-    `_decode`'s: `_decode` accepts an all-uppercase string, but every
-    data digit here comes from `_ALPHABET`, which is lowercase only, so
-    an all-uppercase HRP combined with any data digit that is a letter
-    writes a string `decode` refuses as mixed case -- the very defect
-    this check exists to catch. Requiring the HRP itself lowercase,
-    rather than merely single-case, is what makes the guarantee hold for
-    every `data` rather than only for the calls that happen to carry no
-    letter.
+    The HRP is checked as `assert_valid_hrp` says.
 
     Every value is one 5-bit digit, and each is checked rather than left
     to the alphabet lookup to fail: ``_ALPHABET[-1]`` is "l" and
@@ -234,14 +250,7 @@ def encode(hrp: str, data: list[int], m: int | None = None) -> bytes:
     key derivation that produced them -- an address is encoded once,
     never in an inner loop.
     """
-    if not isinstance(hrp, str):
-        raise BTClibTypeError(f"invalid HRP type: {type(hrp).__name__}")
-    if not hrp:
-        raise BTClibValueError("empty HRP")
-    if not _hrp_in_range(hrp):
-        raise BTClibValueError(f"HRP character out of range: {hrp}")
-    if hrp != hrp.lower():
-        raise BTClibValueError(f"HRP is not lowercase: {hrp}")
+    assert_valid_hrp(hrp)
 
     for d in data:
         if not is_integer(d):
