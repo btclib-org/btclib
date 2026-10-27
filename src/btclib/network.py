@@ -336,7 +336,7 @@ class Network:
         )
 
     def assert_valid(self) -> None:
-        """Refuse a field of the wrong type, size, or network_type value."""
+        """Refuse a field of the wrong type, size, or value."""
         # the curve is what every key of this network lives on, and it is
         # read for its own fields wherever the network is: `curve.name`
         # goes into to_dict, and `network_from_name(net).curve` is what
