@@ -37,7 +37,9 @@ parent -- the last block of the period before it -- so it needs one
 header rather than the whole chain, which is what makes it a bound
 rather than a rule of its own.
 `btclib.block.header_context.assert_not_timewarp` is where it is read,
-behind `ConsensusParams.enforce_bip94`.
+behind `ConsensusParams.enforce_bip94`. `MAX_TIMEWARP_BIP54` is BIP54's
+looser bound on the same header, read by
+`btclib.block.header_context.assert_bip54_timestamps`.
 
 `MIN_SERIALIZABLE_TRANSACTION_WEIGHT` is here, where its neighbour
 `MIN_TRANSACTION_WEIGHT` is not, and the pair is what says why: the second
@@ -55,6 +57,7 @@ __all__ = [
     "MAX_BLOCK_WEIGHT",
     "MAX_FUTURE_BLOCK_TIME",
     "MAX_TIMEWARP",
+    "MAX_TIMEWARP_BIP54",
     "MIN_SERIALIZABLE_TRANSACTION_WEIGHT",
     "WITNESS_SCALE_FACTOR",
 ]
@@ -78,3 +81,7 @@ MAX_FUTURE_BLOCK_TIME = 2 * 60 * 60
 # not carry since it is a command-line option and not a fact about the
 # chain
 MAX_TIMEWARP = 600
+
+# BIP54: how far behind its own parent the first block of a new retarget
+# period may be timestamped, where BIP54 is enforced
+MAX_TIMEWARP_BIP54 = 2 * 60 * 60

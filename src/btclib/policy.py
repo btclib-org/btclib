@@ -14,7 +14,8 @@ options that tune them. `MIN_STANDARD_TX_NONWITNESS_SIZE` and
 `MAX_STANDARD_TX_SIGOPS_COST` are read by Core's mempool, not by these
 functions. The mining defaults and the mempool's package limits are not
 here. Core's `DUST_RELAY_TX_FEE` is
-`btclib.fee.DUST_RELAY_FEE_RATE`, a `FeeRate`.
+`btclib.fee.DUST_RELAY_FEE_RATE`, a `FeeRate`. `MAX_TX_LEGACY_SIGOPS` is
+`btclib.tx.limits`'s, re-exported here.
 
 Where Core reads the spent outputs from a coins view, the functions here
 take them as a list in input order, as `btclib.script.engine` does.
@@ -30,7 +31,7 @@ from btclib.consensus import WITNESS_SCALE_FACTOR
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.fee import DUST_RELAY_FEE_RATE, FeeRate, dust_threshold
 from btclib.script.engine.script import eval_script
-from btclib.script.sig_ops import p2sh_sig_op_count, sig_op_count
+from btclib.script.sig_ops import sig_op_count
 from btclib.script.solver import (
     _is_pay_to_anchor,
     _is_pay_to_script_hash,
@@ -38,7 +39,9 @@ from btclib.script.solver import (
     _witness_program,
     solver,
 )
+from btclib.tx.limits import MAX_TX_LEGACY_SIGOPS
 from btclib.tx.tx import _TX_MAX_STANDARD_VERSION, _TX_MIN_STANDARD_VERSION, Tx
+from btclib.tx.tx_context import _legacy_sig_ops_within_limit
 from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
 from btclib.utils import _message_text, assert_type, is_integer
@@ -80,8 +83,6 @@ MIN_STANDARD_TX_NONWITNESS_SIZE = 65
 MAX_P2SH_SIGOPS = 15
 # the largest signature check cost a standard transaction may have
 MAX_STANDARD_TX_SIGOPS_COST = MAX_BLOCK_SIGOPS_COST // 5
-# the most legacy signature checks a standard transaction may run (BIP54)
-MAX_TX_LEGACY_SIGOPS = 2_500
 # the default of -bytespersigop
 DEFAULT_BYTES_PER_SIGOP = 20
 # the default of -permitbaremultisig
@@ -229,26 +230,19 @@ def _assert_standard_outputs(
 def are_inputs_standard(prevouts: Sequence[TxOut], tx: Tx) -> bool:
     """Answer Core's `AreInputsStandard`.
 
-    A transaction is refused for running more than
-    `MAX_TX_LEGACY_SIGOPS` legacy signature checks (BIP54): those of
-    each script_sig and of the script_pub_key or redeem script it
-    spends, counted accurately. Then each input is refused for spending
-    a script_pub_key `solver` calls "nonstandard" or "witness_unknown",
-    or a p2sh one whose script_sig leaves no redeem script or one
-    announcing more than `MAX_P2SH_SIGOPS` checks. A coinbase is
-    standard.
+    A transaction is refused where
+    `btclib.tx.tx_context.assert_bip54_sig_ops` refuses it. Then each
+    input is refused for spending a script_pub_key `solver` calls
+    "nonstandard" or "witness_unknown", or a p2sh one whose script_sig
+    leaves no redeem script or one announcing more than
+    `MAX_P2SH_SIGOPS` checks. A coinbase is standard.
     """
     _assert_prevouts(prevouts, tx)
     if tx.is_coinbase:
         return True
 
-    sig_ops = 0
-    for tx_in, prevout in zip(tx.vin, prevouts, strict=True):
-        script_sig = tx_in.script_sig
-        sig_ops += sig_op_count(script_sig, accurate=True)
-        sig_ops += p2sh_sig_op_count(script_sig, prevout.script_pub_key.script)
-        if sig_ops > MAX_TX_LEGACY_SIGOPS:
-            return False
+    if not _legacy_sig_ops_within_limit(tx, prevouts):
+        return False
 
     for tx_in, prevout in zip(tx.vin, prevouts, strict=True):
         tx_out_type, _ = solver(prevout.script_pub_key.script)

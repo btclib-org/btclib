@@ -41,6 +41,7 @@ import btclib.ecc
 import btclib.script
 from btclib import consensus
 from btclib.script import script_pub_key
+from btclib.tx import limits as tx_limits
 from tests import module_names
 
 # what a module defines without a leading underscore and deliberately does
@@ -82,12 +83,16 @@ def _reexports(*groups: tuple[ModuleType, list[str]]) -> dict[str, ModuleType]:
 # re-exporting module alias several canonicals at once, each name to its
 # own.
 #
-# `btclib.consensus` is the one decision: a transaction's counts and a
+# `btclib.consensus` is one decision: a transaction's counts and a
 # witness stack's are arithmetic on the block weight, and neither `btclib.tx`
 # nor `btclib.script` can import `btclib.block`, so the two constants they
 # divide by are defined below all three. `btclib.block.limits` names them
 # still, being where the rest of Core's header is and where a caller reading
 # a block's own rules looks for them.
+#
+# `btclib.policy`'s MAX_TX_LEGACY_SIGOPS is the other: BIP54 makes it a
+# consensus bound, defined in `btclib.tx.limits`, and policy.h is where
+# Core v31.1 declares it.
 #
 # What no entry may name is an object of another distribution:
 # `test_no_module_exports_another_distributions_name` is what holds that,
@@ -100,6 +105,7 @@ REEXPORTED = {
     "btclib.script.limits": _reexports(
         (consensus, ["MAX_SCRIPT_ELEMENT_SIZE", "MAX_SCRIPT_SIZE"]),
     ),
+    "btclib.policy": _reexports((tx_limits, ["MAX_TX_LEGACY_SIGOPS"])),
 }
 
 # every direct child module of every package, on the side of the decision

@@ -4,7 +4,8 @@
 
 """What a transaction owes the chain before it: finality and locks.
 
-Sequence locks, coinbase maturity, and the coinbase's own value ceiling.
+Sequence locks, coinbase maturity, the coinbase's own value ceiling, and
+the transaction rules of BIP54.
 
 `Tx.assert_valid` is Core's `CheckTransaction`, and `script.engine`'s
 `verify_amounts`/`verify_input` are what a transaction can be held to
@@ -20,8 +21,16 @@ block index: btclib must not learn what either is, the same precedent
 chain through a callable rather than an index.
 
 Bitcoin Core v31.1 (bitcoin/bitcoin@9be056a8a7) is the reference for
-every rule, `src/consensus/tx_verify.cpp` and `src/validation.cpp`,
-cited beside the code that transcribes it.
+every rule but BIP54's, `src/consensus/tx_verify.cpp` and
+`src/validation.cpp`, cited beside the code that transcribes it.
+
+The `assert_bip54_*` functions are BIP54 (Consensus Cleanup), a soft
+fork Core v31.1 does not enforce. Its specification is the reference,
+https://github.com/bitcoin/bips/blob/master/bip-0054.md, and the reject
+reasons are those of bitcoin/bitcoin#35793, Core's implementation of it.
+Each function applies its rule unconditionally: whether BIP54 is active
+is the caller's to decide, as BIP68's is for `assert_sequence_locks`
+(below).
 
 ## What each function does not take, and why
 
@@ -61,10 +70,13 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.script.sig_ops import p2sh_sig_op_count, sig_op_count
 from btclib.tx.coin import Coin
 from btclib.tx.limits import (
     COINBASE_MATURITY,
+    INVALID_TX_NONWITNESS_SIZE,
     LOCKTIME_THRESHOLD,
+    MAX_TX_LEGACY_SIGOPS,
     SEQUENCE_FINAL,
     SEQUENCE_LOCKTIME_DISABLE_FLAG,
     SEQUENCE_LOCKTIME_GRANULARITY,
@@ -72,10 +84,14 @@ from btclib.tx.limits import (
     SEQUENCE_LOCKTIME_TYPE_FLAG,
 )
 from btclib.tx.tx import Tx
-from btclib.utils import _message_text, is_integer
+from btclib.tx.tx_out import TxOut
+from btclib.utils import _message_text, assert_type, is_integer
 
 __all__ = [
     "AncestorMedianTimePast",
+    "assert_bip54_coinbase",
+    "assert_bip54_sig_ops",
+    "assert_bip54_tx_size",
     "assert_coinbase_maturity",
     "assert_coinbase_value",
     "assert_sequence_locks",
@@ -239,3 +255,83 @@ def assert_coinbase_value(coinbase: Tx, subsidy: int, fees: int) -> None:
         err_msg = f"bad-cb-amount: {_message_text(coinbase_value)}"
         err_msg += f" instead of {_message_text(ceiling)}"
         raise BTClibValueError(err_msg)
+
+
+def _legacy_sig_ops_within_limit(tx: Tx, prevouts: Sequence[TxOut]) -> bool:
+    """Answer whether `tx` runs at most `MAX_TX_LEGACY_SIGOPS` legacy checks.
+
+    Core's `CheckSigopsBIP54`: for each input, the accurate count of its
+    script_sig and the count `p2sh_sig_op_count` gives for the output it
+    spends, summed over the inputs. A coinbase is within the limit.
+    """
+    if tx.is_coinbase:
+        return True
+    sig_ops = 0
+    for tx_in, prevout in zip(tx.vin, prevouts, strict=True):
+        script_sig = tx_in.script_sig
+        sig_ops += sig_op_count(script_sig, accurate=True)
+        sig_ops += p2sh_sig_op_count(script_sig, prevout.script_pub_key.script)
+        if sig_ops > MAX_TX_LEGACY_SIGOPS:
+            return False
+    return True
+
+
+def assert_bip54_sig_ops(tx: Tx, prevouts: Sequence[TxOut]) -> None:
+    """Refuse a transaction running more than `MAX_TX_LEGACY_SIGOPS` checks.
+
+    BIP54's limit on the legacy signature checks a transaction may run:
+    those of each script_sig and of the script_pub_key it spends, or of
+    the redeem script where that is p2sh, counted as BIP16 counts them
+    (`btclib.script.sig_ops`). `prevouts` are the outputs `tx` spends, in
+    input order. A coinbase is not limited and its `prevouts` are not
+    counted. Refuses with `bad-txns-legacy-sigops`.
+    """
+    assert_type(tx, Tx, "tx")
+    assert_type(prevouts, Sequence, "prevouts")
+    for prevout in prevouts:
+        assert_type(prevout, TxOut, "prevout")
+    if not tx.is_coinbase and len(prevouts) != len(tx.vin):
+        err_msg = f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
+        raise BTClibValueError(err_msg)
+
+    if not _legacy_sig_ops_within_limit(tx, prevouts):
+        raise BTClibValueError("bad-txns-legacy-sigops")
+
+
+def assert_bip54_tx_size(tx: Tx) -> None:
+    """Refuse a transaction of 64 bytes, its witness not counted.
+
+    BIP54's ban on `INVALID_TX_NONWITNESS_SIZE`: the size is that of the
+    serialization without witness, so a segwit transaction is refused
+    whatever its witness adds. Refuses with `bad-txns-size`.
+    """
+    assert_type(tx, Tx, "tx")
+    if tx._serialized_size(include_witness=False) == INVALID_TX_NONWITNESS_SIZE:
+        raise BTClibValueError("bad-txns-size")
+
+
+def assert_bip54_coinbase(coinbase: Tx, height: int) -> None:
+    """Refuse a coinbase not time-locked to the height of its block.
+
+    BIP54's rule on the coinbase of the block at `height`: its
+    `lock_time` must be `height - 1`, and the sequence of its input must
+    not be `SEQUENCE_FINAL`, which would turn the lock off. Refuses with
+    `bad-cb-locktime` or `bad-cb-sequence`, in that order. The genesis
+    block, at height zero, is not checked, as Core does not check it.
+    """
+    assert_type(coinbase, Tx, "coinbase")
+    if not is_integer(height):
+        raise BTClibTypeError(f"invalid height type: {type(height).__name__}")
+    if height < 0:
+        raise BTClibValueError(f"invalid height: {_message_text(height)}")
+    if not coinbase.is_coinbase:
+        raise BTClibValueError("not a coinbase")
+
+    if height == 0:
+        return
+    if coinbase.lock_time != height - 1:
+        err_msg = f"bad-cb-locktime: {_message_text(coinbase.lock_time)}"
+        err_msg += f" instead of {_message_text(height - 1)}"
+        raise BTClibValueError(err_msg)
+    if coinbase.vin[0].sequence == SEQUENCE_FINAL:
+        raise BTClibValueError("bad-cb-sequence")

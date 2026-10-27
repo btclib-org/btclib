@@ -127,7 +127,8 @@ bitcoin-core/secp256k1's `src` for `secp256k1_symbols.txt` on 2026-09-10,
 refreshed again on 2026-09-14, 2026-09-29, 2026-10-07 and 2026-10-26, at the
 tip of its path each time.
 BIP324's `packet_encoding_test_vectors.csv` followed on 2026-09-27, at the
-tip of its path.
+tip of its path, rust-bitcoin's `huge_witness.bin` on 2026-10-11, and
+bip-0054's vector files on 2026-10-26, each at the tip of its path.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -228,6 +229,85 @@ asserted. `tests/p2p/bip324_test.py` reads the session id, the garbage
 terminators and the packet columns, and holds `p2p.bip324.Cipher` to
 them; the `mid_*_l` and `mid_*_p` keys are not read, and the ciphertext
 pins the send keys only. `in_idx` names each case in both files.
+
+### `tests/tx/_data/sigops.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0054/test_vectors/sigops.json
+commit  4f94c5f01f1eb098dd96e5241a6b2d81c5cf1bb0  2026-03-13
+blob    056bea027cf740293ba80d5659ac9ec559a9a753
+ours    58cbe393809fd169e428a2438df2345667bdd29f
+pulled  2026-10-26
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical but for a trailing newline** -- upstream ends in a
+blank line, which the `end-of-file-fixer` hook removes, so our blob is
+`58cbe393`.
+
+`tests/tx/tx_context_test.py` holds `assert_bip54_sig_ops` to every
+case: the transaction, the outputs it spends, and whether BIP54's sigop
+limit refuses it. Some of upstream's pathological cases have no output,
+which `CheckTransaction` refuses, so the test parses each transaction
+without that check.
+
+### `tests/tx/_data/txsize.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0054/test_vectors/txsize.json
+commit  fa608987ea064050535c72e8ddf16f0dcffc4dd4  2026-03-16
+blob    50540b619e2d35f1c0f36a842d264709ba8791b4
+pulled  2026-10-26
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. `tests/tx/tx_context_test.py` holds
+`assert_bip54_tx_size` to every case.
+
+### `tests/tx/_data/coinbases.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0054/test_vectors/coinbases.json
+commit  4f94c5f01f1eb098dd96e5241a6b2d81c5cf1bb0  2026-03-13
+blob    6510a5ae22b1c774a5b5991d15d564de52d5ed2d
+ours    3548f12125b21e305e8f3b78d95ee81465da7a5d
+pulled  2026-10-26
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical but for a trailing newline** -- upstream ends in a
+blank line, which the `end-of-file-fixer` hook removes, so our blob is
+`3548f121`.
+
+Each case is a chain of mainnet blocks from genesis.
+`tests/tx/tx_context_test.py` asks `assert_bip54_coinbase` of the
+coinbase of every block at its height, and a chain is valid where no
+coinbase is refused.
+
+### `tests/block/_data/timestamps.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0054/test_vectors/timestamps.json
+commit  977300dad63161839693b77fe1b7e9d9a02cbd57  2026-03-16
+blob    41e67d01f714f0cbb02ac2ee0a0964ced348b0ca
+ours    a71a21c34a8ed776256ef215072a6d77b060aa84
+pulled  2026-10-26
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical but for a trailing newline** -- upstream ends in a
+blank line, which the `end-of-file-fixer` hook removes, so our blob is
+`a71a21c3`.
+
+A tree of mainnet header chains from genesis, in the format bip-0054's
+`test_vectors/README.md` describes: each path from the root to a leaf is
+one case. `tests/block/header_context_test.py` asks
+`assert_bip54_timestamps` of every header of each chain, and a chain is
+valid where no header is refused.
 
 ## bitcoin/bitcoin
 
@@ -962,8 +1042,10 @@ Against a pinned upstream blob:
   `sig_hash_legacy_test_vectors.json`, `script_tests.json`,
   `tx_valid.json`, `tx_invalid.json`, `key_io_valid.json`,
   `key_io_invalid.json`, `base58_encode_decode.json`, `siphash.json`,
-  `blockfilters.json`, `checkblock_valid.json`, `checkblock_invalid.json`.
-- identical but for a trailing newline: `script_assets_test.json`.
+  `blockfilters.json`, `checkblock_valid.json`, `checkblock_invalid.json`,
+  `txsize.json`.
+- identical but for a trailing newline: `script_assets_test.json`,
+  `sigops.json`, `coinbases.json`, `timestamps.json`.
 - identical but for line endings: `packet_encoding_test_vectors.csv`.
 - JSON-equal, reformatted: `signmessage.json`.
 

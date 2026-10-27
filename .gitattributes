@@ -13,6 +13,7 @@ tests/_data/siphash.json -text
 tests/block/_data/blockfilters.json -text
 tests/block/_data/checkblock_invalid.json -text
 tests/block/_data/checkblock_valid.json -text
+tests/block/_data/timestamps.json -text
 tests/schemes/_data/packet_encoding_test_vectors.csv -text
 tests/schemes/_data/signmessage.json -text
 tests/script/_data/bip67_test_vectors.json -text
@@ -22,4 +23,7 @@ tests/script/_data/taproot_test_vector.json -text
 tests/script_engine/_data/script_tests.json -text
 tests/script_engine/_data/tx_invalid.json -text
 tests/script_engine/_data/tx_valid.json -text
+tests/tx/_data/coinbases.json -text
 tests/tx/_data/huge_witness.bin -text
+tests/tx/_data/sigops.json -text
+tests/tx/_data/txsize.json -text
