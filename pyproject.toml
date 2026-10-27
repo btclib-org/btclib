@@ -22,9 +22,9 @@
 #       "import uv_build; print(uv_build.build_sdist('<outdir>'))"
 #
 # which answers with nothing below the boundary and with
-# pyproject.toml.orig at it. The ceiling is the next minor, which is
-# where uv's versioning policy puts a breaking change, this backend
-# releasing with uv and versioned by it
+# pyproject.toml.orig at it. The ceiling is the minor after the newest
+# one uv.lock locks, uv's versioning policy putting a breaking change at
+# a minor, and this backend releasing with uv and versioned by it
 requires = ["uv_build>=0.12.0,<0.14"]
 build-backend = "uv_build"
 
