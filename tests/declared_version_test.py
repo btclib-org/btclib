@@ -7,8 +7,8 @@
 The version is declared once, in pyproject.toml, and
 `btclib.__version__` reads it back from the installed metadata -- so a
 checkout declaring a version that has already been tagged reports itself
-as that release, which is what a bug report quotes. RELEASING.md's last
-step, *Open the next cycle's version*, is what keeps it from happening:
+as that release, which is what a bug report quotes. RELEASING.md's
+step *Open the next cycle's version* is what keeps it from happening:
 it sets a generic next version without the day, "so a checkout of `main`
 reports itself as work in progress rather than as a release it is not".
 Skipping it is what left `main` declaring `2026.9.3` while `v2026.9.3`
