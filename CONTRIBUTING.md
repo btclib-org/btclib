@@ -1771,8 +1771,8 @@ first, into one `extend` that filled a point table wrongly (pull
 request #474).
 
 **`RUF100` removes a `# noqa` for a preview rule that `pyproject.toml`
-reaches only through its family,** when the hooks' `ruff check --fix`
-runs.
+does not name by its code or its name,** when the hooks'
+`ruff check --fix` runs.
 
 ### Every change starts with an issue
 
