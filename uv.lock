@@ -448,14 +448,14 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "cryptography", marker = "extra == 'bip324'", specifier = ">=42.0.0" },
-    { name = "ecc", specifier = ">=2026.10.23" },
-    { name = "ecc", extras = ["secp256k1"], marker = "extra == 'secp256k1'", specifier = ">=2026.10.23" },
+    { name = "ecc", specifier = ">=2026.10.28" },
+    { name = "ecc", extras = ["secp256k1"], marker = "extra == 'secp256k1'", specifier = ">=2026.10.28" },
     { name = "typing-extensions", specifier = ">=4.10" },
 ]
 provides-extras = ["secp256k1", "bip324"]
 
 [package.metadata.requires-dev]
-bindings = [{ name = "ecc", extras = ["secp256k1"], specifier = ">=2026.10.23" }]
+bindings = [{ name = "ecc", extras = ["secp256k1"], specifier = ">=2026.10.28" }]
 bip324 = [{ name = "cryptography", specifier = ">=42.0.0" }]
 check = [
     { name = "check-sdist", specifier = ">=1.6.0" },
@@ -471,7 +471,7 @@ dev = [
     { name = "cosmic-ray", specifier = ">=8.7.0" },
     { name = "coverage", specifier = ">=7.16.0" },
     { name = "cryptography", specifier = ">=42.0.0" },
-    { name = "ecc", extras = ["secp256k1"], specifier = ">=2026.10.23" },
+    { name = "ecc", extras = ["secp256k1"], specifier = ">=2026.10.28" },
     { name = "furo", marker = "python_full_version >= '3.12'", specifier = ">=2025.12.19" },
     { name = "hypothesis", specifier = ">=6.168.0" },
     { name = "mypy", specifier = ">=2.3.1" },
@@ -490,7 +490,7 @@ dev = [
 ]
 docs = [
     { name = "cryptography", specifier = ">=42.0.0" },
-    { name = "ecc", extras = ["secp256k1"], specifier = ">=2026.10.23" },
+    { name = "ecc", extras = ["secp256k1"], specifier = ">=2026.10.28" },
     { name = "furo", marker = "python_full_version >= '3.12'", specifier = ">=2025.12.19" },
     { name = "myst-parser", marker = "python_full_version >= '3.12'", specifier = ">=5.1.0" },
     { name = "sphinx", marker = "python_full_version >= '3.12'", specifier = ">=9.1.0" },
@@ -511,7 +511,7 @@ harness = [
 ]
 lint = [
     { name = "cryptography", specifier = ">=42.0.0" },
-    { name = "ecc", extras = ["secp256k1"], specifier = ">=2026.10.23" },
+    { name = "ecc", extras = ["secp256k1"], specifier = ">=2026.10.28" },
     { name = "mypy", specifier = ">=2.3.1" },
     { name = "pre-commit", specifier = ">=4.6.2" },
     { name = "ruff", specifier = ">=0.16.7" },
@@ -521,7 +521,7 @@ test = [
     { name = "bitcoin-core-rpc", specifier = ">=2026.10.17" },
     { name = "coverage", specifier = ">=7.16.0" },
     { name = "cryptography", specifier = ">=42.0.0" },
-    { name = "ecc", extras = ["secp256k1"], specifier = ">=2026.10.23" },
+    { name = "ecc", extras = ["secp256k1"], specifier = ">=2026.10.28" },
     { name = "hypothesis", specifier = ">=6.168.0" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
@@ -1175,14 +1175,14 @@ wheels = [
 
 [[package]]
 name = "ecc"
-version = "2026.10.23"
+version = "2026.10.28"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/57/df/d7d03f3aa63475cae1ac75663c608995879ec75fd58c980663c0a8c3e025/ecc-2026.10.23.tar.gz", hash = "sha256:023b3a9099223bcb7c04744901c5ed550feaa552c99fc58692d8cae721a9f621", size = 2034565, upload-time = "2026-10-23T07:05:26.127Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3e/dd/62441bc3c7e4cfb4dd0a9f3aa03e30d107aa68e2c57ee584c669731b1675/ecc-2026.10.28.tar.gz", hash = "sha256:78a4768200a16badd922e28f04423f5f152defdd9fa55cfae8fcc65ecc28ebca", size = 2082102, upload-time = "2026-10-28T03:01:48.797Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fd/f2/a621fd191ebfaeb7dc67efd560603f9b188cd5be708c6b01e871a9ce2f3d/ecc-2026.10.23-py3-none-any.whl", hash = "sha256:ee86bc2f0622f8835b11d8f84f1f03d9d3ae7b30b17d3082bf6cd43af29d7bfc", size = 299600, upload-time = "2026-10-23T07:05:24.552Z" },
+    { url = "https://files.pythonhosted.org/packages/49/95/0e949e277bf8e64502b30036d8a9ad86bb2d8b4ad91bc4d13865b61c6d04/ecc-2026.10.28-py3-none-any.whl", hash = "sha256:9e933dd6128dc5fc76c3f69f9edc47bda7fcc9df9b8e29bf9f0c8ed2f843d460", size = 300598, upload-time = "2026-10-28T03:01:47.356Z" },
 ]
 
 [package.optional-dependencies]

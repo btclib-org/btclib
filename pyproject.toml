@@ -55,16 +55,17 @@ requires-python = ">=3.11"
 dependencies = [
     # the curve arithmetic and the schemes built on it, which btclib
     # imports from `ecc` where it uses them and does not re-export.
-    # 2026.10.23 is the floor: it declares btclib-secp256k1 >=0.8.0.12,
-    # and 2026.10.20 declares >=0.8.0.8, below the GHSA-8h6f-34jj-7p6c
-    # fix. It keeps out PyPI's unrelated `ecc` 0.0.1 of 2013, and has
-    # `ssa.pub_key_tweak_add_var` and `ssa.prv_key_tweak_add`, which
-    # `script.taproot` calls. SECURITY.md links ecc's lines at
-    # v2026.10.20, unchanged in 2026.10.23, and
-    # tests/security_citations_test.py reads them from the installed
-    # package. ecc's lift words an invalid x as `invalid x-coordinate` or
-    # `x-coordinate not in 0..p-1`, which the taproot tests rely on
-    "ecc>=2026.10.23",
+    # 2026.10.28 is the floor: SECURITY.md links ecc's lines at its tag,
+    # and tests/security_citations_test.py reads them from the installed
+    # package, where 2026.10.23 holds musig2.py's and dh.py's at other
+    # lines (issue #2851). It declares btclib-secp256k1 >=0.8.0.12, as
+    # 2026.10.23 does, where 2026.10.20 declares >=0.8.0.8, below the
+    # GHSA-8h6f-34jj-7p6c fix. It keeps out PyPI's unrelated `ecc` 0.0.1
+    # of 2013, and has `ssa.pub_key_tweak_add_var` and
+    # `ssa.prv_key_tweak_add`, which `script.taproot` calls. ecc's lift
+    # words an invalid x as `invalid x-coordinate` or `x-coordinate not
+    # in 0..p-1`, which the taproot tests rely on
+    "ecc>=2026.10.28",
     # `typing.override` is 3.12's, `typing.TypeIs` is 3.13's, and the
     # floor is 3.11, so both come from the backport; 4.4 is the release
     # that adds `override`, 4.10 the one that adds `TypeIs`, and the
@@ -137,7 +138,7 @@ secp256k1 = [
     # the whole of the delegation: btclib calls the bindings only through
     # ecc, which imports them for the curve arithmetic and the schemes,
     # and ecc's extra is what states which release that takes
-    "ecc[secp256k1]>=2026.10.23",
+    "ecc[secp256k1]>=2026.10.28",
 ]
 # `btclib.p2p.bip324`, BIP324's v2 transport cipher, `pip install
 # "btclib[bip324]"`. Issue #1066 keeps a hand-written cipher out of
@@ -205,7 +206,7 @@ pull_requests = "https://github.com/btclib-org/btclib/pulls"
 # refuses the day the two stop agreeing. What the group buys is that no
 # documented command had to grow an `--extra`, and that the job of issue
 # #991 is those same commands with this group left out
-bindings = ["ecc[secp256k1]>=2026.10.23"]
+bindings = ["ecc[secp256k1]>=2026.10.28"]
 # the `bip324` extra again, for the reason `bindings` is a group: the
 # suite, the type check and the docs build import `btclib.p2p.bip324`,
 # and `tests/build_system_test.py` holds the two declarations equal.
