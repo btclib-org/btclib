@@ -33,6 +33,7 @@ other. Past a size ceiling GitHub's contents API answers a file with an
 empty `content` at HTTP 200, which reads as an empty file rather than as
 an error, and one file per release is what keeps each of them under it.
 
+- [v2026.10.24](./changelog/v2026.10.24.md)
 - [v2026.10.17](./changelog/v2026.10.17.md)
 - [v2026.10.16](./changelog/v2026.10.16.md)
 - [v2026.10.9](./changelog/v2026.10.9.md)
@@ -54,115 +55,140 @@ an error, and one file per release is what keeps each of them under it.
 - [v2026.8.9](./changelog/v2026.8.9.md)
 - [v2026.8.7](./changelog/v2026.8.7.md)
 
-## v2026.10.24
+## v2026.10.28
 
-### btclib moves to `ecc`
+### No block version floor below the BIP34, BIP66 and BIP65 heights
 
-btclib requires `ecc` 2026.10.23 and calls the bindings only through it (issue
-btclib-org/ecc#306, closes #2724, closes #2717, closes #2726).
+`BlockContext.min_version` is `None` there, and `Block.assert_valid_contextual`
+accepts any version, as Core does (closes #2833).
 
-### The `secp256k1` extra installs `ecc[secp256k1]`
+### BIP54
 
-btclib no longer imports `btclib_secp256k1`, and the script engine verifies
-through `ecc`'s `dsa.verify_` and `ssa.verify_`.
+An `assert_bip54_*` function per rule, in `tx_context` and `header_context`,
+each leaving activation to the caller, held to bip-0054's vectors
+(closes #2799).
 
-### Taproot follows `ecc`'s names and refusals
+### Tapscript signature checks
 
-`output_pubkey_from_merkle_root` and `_tweaked_pubkey` take `_var`. A point not
-on the curve is refused as `point not on curve`, and a tweak that sums to
-infinity or zero raises `BTClibValueError`.
+A refused `OP_CHECKSIG` or `OP_CHECKSIGADD` leaves its operands on the stack,
+and `OP_CHECKSIG` or `OP_CHECKSIGVERIFY` on a stack of fewer than two elements
+names its op code (closes #2800).
 
-### Names that run in variable time take `_var`
+### Stack size
 
-`PubKeyData.point`, `assert_p2pk`, `is_p2pk`, `assert_p2ms`, `is_p2ms`,
-`p2ms_m_and_keys`, `MuHash3072.digest` and `CoinStats.digest`, with no alias
-(closes #2687).
+A `STACK_SIZE` refusal raised while a script runs names the command after
+which the stack and the altstack together are over `MAX_STACK_SIZE`, and the
+legacy engine does not size the stack a script starts on (closes #2801).
 
-### `Block.assert_valid_contextual` checks the height-dependent rules
+### A step callback for the script engine
 
-It asks what Core's `ContextualCheckBlockHeader` and `ContextualCheckBlock`
-ask, the timewarp rule apart, and `BlockContext` takes a `ConsensusParams`
-(issue #2705).
+`verify_input` takes an optional `step` callback, called before each command
+and once more where the script stops (closes #2803).
 
-### `btclib.p2p` holds the message start
+### Network hrp
 
-`btclib.p2p.magic` holds Core's message start per network, and btclib no longer
-depends on bitcoin-core-rpc (issue #2707).
+`Network.assert_valid` refuses an hrp `bech32.encode` refuses, through
+`bech32.assert_valid_hrp` (closes #2822).
 
-### `btclib.p2p.headers_sync` is Core's low-work headers sync
+### Refusal messages
 
-With `consensus.HEADERS_SYNC_PARAMS`, Core's `HeadersSyncParams` per network
-(issue #2706).
+`assert_p2tr` names the op code it read against OP_1, for a first byte other
+than OP_1 (closes #2820), and `base58.decode` refuses a bad checksum quoting
+neither checksum (closes #2727).
 
-### Electrum reads balances
+### Parse readers
 
-The codec asks for a script hash's balance, singly or in a batch (issue
-btclib-org/btclib-wallet#458).
+The `utils.py` docstring names the readers that leave trailing octets
+(closes #2790).
 
-### Tests
+### Threshold page
 
-The `sig_ops` boundaries are tested (closes #2775), and so is each field of a
-payment (closes #2704). Feature data of length 253 is drawn every time
-(closes #2698).
+`ScriptPubKey.p2ms` links ecc's where-the-threshold-lives page, and the docs
+drop their copy (closes #2784).
 
-### OP_CODESEPARATOR in tapscript
+### Fuzzing
 
-One key signing behind successive OP_CODESEPARATORs is tested (closes #2746,
-closes #2782).
+`fuzz_interpreter` runs `eval_script` under ALL_FLAGS and NO_FLAGS
+(closes #2787), and `fuzz_bip324` fuzzes `p2p.bip324`'s contents parser and
+packet cipher (closes #2781).
 
-### Tapscript ratio tests
+### btcd oracle
 
-They time sixteen small runs against one large (closes #2613).
+`fuzz/btcd_decode` is at btcd wire v2.0.2 and golang.org/x/crypto v0.58.0
+(closes #2797).
 
-### Secret-free refusals
+### Kernel differential
 
-`assert_secret_free` finds a secret printed in groups (issue
-btclib-org/.github#1697).
+The free tapleaf runs the drawn script (closes #2802), and the `step` frames
+are compared with the kernel's tracer where the kernel has one
+(bitcoin/bitcoin#35641).
 
-### Test packages
+### Script tests
 
-`tests/ecc/` is `tests/schemes/`: a test package named `ecc` shadows the import
-package.
+A pre-BIP66 mainnet signature whose DER s reads as negative is tested
+(closes #2804), and OP_PICK and OP_ROLL are timed in a tapleaf (closes #2788).
+
+### Vendored data
+
+`script_tests.json` is Core's at 5a4cd705 (closes #2750), and the
+libsecp256k1 symbol pin is upstream's 32099110d63a (closes #2729).
+
+### Release verification
+
+SECURITY.md's and RELEASING.md's verify commands compare the repository's id,
+which a rename keeps (closes #2773).
+
+### btclib requires ecc 2026.10.28
+
+SECURITY.md links ecc's lines at its v2026.10.28 tag, where `musig2.py`'s and
+`dh.py`'s cited lines sit, and the suite reads them from the installed ecc
+(closes #2851).
+
+### Pinned workflow calls
+
+Every call of a btclib-org/.github reusable workflow names a tagged commit
+(issue btclib-org/.github#1870).
+
+### uv_build
+
+The check-sdist hook's uv_build is `<0.14`, as `[build-system]` is
+(closes #2764).
 
 ### Dependencies
 
-GitPython is 3.2.1 (issue btclib-org/.github#1835) and virtualenv 21.14.13
-(issues btclib-org/.github#1824 and btclib-org/.github#1844) in `uv.lock`, with
-the CA bundle at 2026.10.19. The build backend may be uv_build 0.13.
+`uv.lock` moves hypothesis, ruff and uv-build, the pre-commit hook pins move
+forward, and the btclib-org/.github calls move to v2026.10.26.
 
-### Locked past advisories
+### CONTRIBUTING.md
 
-setuptools is 84.2.1 and filelock 4.2.4 in `uv.lock` (issue
-btclib-org/.github#1849).
+It says that development is LLM-based and a contribution must be understood
+(issue btclib-org/.github#1846), and points the deprecation-window rule to
+section 12 (closes #2844).
 
-### CI
+### Session hazards
 
-The py-arm-authority workflow is retired, btclib holding no arm.
-`claude-review.yml` declines zizmor's dangerous-triggers (issue
-btclib-org/.github#1813).
+CONTRIBUTING.md states the mutation-run, `VIRTUAL_ENV`, unsafe-fix and RUF100
+hazards (closes #2835).
 
-### Actions, hooks and dev tooling
+### Dependabot
 
-setup-uv is 10.3.0, and the pre-commit hooks and the dev-tooling group move.
+CONTRIBUTING.md says that a pull request moving uv_build's range moves the
+check-sdist hook by hand (closes #2809), and `dependabot.yml` names the
+`uv.lock` exception (issue btclib-org/.github#1818).
 
-### Tooling moves off the compromised emSign roots
+### RELEASING.md
 
-pypi-publish is v1.14.3 (GHSA-5xjx-3w67-w9x9) and uv-pre-commit 0.13.5.
-`required-version` is `>=0.13.4`, which refuses a uv that trusts the
-compromised emSign root (GHSA-hq85-5cpj-mr62; issue btclib-org/.github#1844).
+It says to open the next cycle once `version-check` is green and to rebuild a
+re-pushed tag's docs by hand (closes #2834), and lists bitcoin-core-rpc among
+btclib's dependents.
 
-### The btcd oracle
+### REVIEWING.md
 
-Its two divergences from btcd are triaged: neither is a defect of btclib
-(closes #2765).
+It takes the shared part of btclib-org/.github 72e0222 (issue
+btclib-org/.github#1904).
 
-### Documents
+### Comments
 
-CONTRIBUTING.md states the `_var` criterion once, as `ecc`'s does
-(issue #2687). RELEASING.md lists the dependents of btclib as the loop of
-section 12 measures them (issue btclib-org/bip39-slip39#106).
-
-### AGENTS.md replaces CLAUDE.md
-
-Instructions AGENTS.md does not hold move to CONTRIBUTING.md (issue
-btclib-org/.github#1808).
+`.pre-commit-config.yaml` says how a zizmor finding is answered (issue
+btclib-org/.github#1813), and an ignore whose reason was false goes
+(closes #2794).
