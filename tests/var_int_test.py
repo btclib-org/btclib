@@ -15,7 +15,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 def test_var_int_conversion() -> None:
     """Round-trip each length boundary; refuse negatives and 2**64."""
     int_ = -1
-    with pytest.raises(BTClibValueError, match="negative integer: "):
+    with pytest.raises(BTClibValueError, match="^negative integer$"):
         var_int.serialize(int_)
 
     int_ = 0x00

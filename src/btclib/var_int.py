@@ -28,7 +28,6 @@ from btclib.alias import BinaryData
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
     _message_hex,
-    _message_text,
     bytesio_from_binarydata,
     hex_string,
     is_integer,
@@ -132,7 +131,7 @@ def serialize(i: int) -> bytes:
     if not is_integer(i):
         raise BTClibTypeError(f"non-integer var_int: {i}")
     if i < 0x00:
-        raise BTClibValueError(f"negative integer: {_message_text(i)}")
+        raise BTClibValueError("negative integer")
     if i < 0xFD:  # 1 byte
         return bytes([i])
     if i <= 0xFFFF:  # 2 bytes
