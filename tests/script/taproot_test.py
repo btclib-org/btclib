@@ -684,17 +684,19 @@ def test_a_tree_of_the_wrong_type_is_refused_as_a_type(tree: Any) -> None:
         pytest.param([_LEAF, _LEAF, _LEAF], id="three subtrees"),
         pytest.param([(0x100, ["OP_1"])], id="a leaf version above a byte"),
         pytest.param([(-2, ["OP_1"])], id="a negative leaf version"),
+        pytest.param([(0xC1, ["OP_1"])], id="an odd leaf version"),
+        pytest.param([(0x50, ["OP_1"])], id="leaf version 0x50"),
     ],
 )
 def test_a_tree_of_the_wrong_shape_is_refused_as_a_value(
     tree: TaprootScriptTree,
 ) -> None:
-    """A list of a length no node has, and a leaf version of no byte.
+    """A list of a length no node has, and a leaf version BIP341 rules out.
 
-    The first was taken for no tree at all by `output_pubkey`, and an
-    IndexError from `tree_helper`; the third subtree was dropped from
-    the root with no error; and the mask read 0x100 as leaf version 0x00
-    and -2 as 0xFE.
+    A node holds one leaf or two subtrees, so neither an empty list nor
+    three subtrees is a node. A leaf version is a byte, and BIP341 rules
+    out an odd one and 0x50, the second for its ambiguity with the annex
+    (issue #2766).
     """
     for call in (
         lambda: tree_helper(tree),
@@ -973,7 +975,9 @@ def test_a_leaf_hash_refuses_what_no_control_block_carries() -> None:
     for leaf_version in (-1, 0xC1, 0xFF, 0x100, 10**5000):
         with pytest.raises(BTClibValueError, match="^invalid leaf version: "):
             leaf_hash(leaf_version, b"")
-    for leaf_version in (0, 0xC0, 0xFE):
+    # 0x50 included: a control block can carry it, and tree_helper is
+    # what refuses it in a script tree (issue #2766)
+    for leaf_version in (0, 0x50, 0xC0, 0xFE):
         assert len(leaf_hash(leaf_version, b"")) == 32
 
 

@@ -218,6 +218,12 @@ def leaf_hash(leaf_version: int, script: bytes) -> bytes:
     `c[0] & 0xfe`, and Bitcoin Core's `TaprootBuilder::Add` asserts it
     even. An odd one names no leaf any spend can reveal, so it is
     refused rather than masked or hashed as given.
+
+    0x50 is hashed. BIP341 rules it out of a script tree, and tree_helper
+    refuses it there. But consensus accepts a control block of version
+    0x50, whose first byte is 0x51, or 0x50 where an annex follows it, and
+    check_output_pubkey hashes the version of the control block it is
+    given.
     """
     if not is_integer(leaf_version):
         err_msg = f"invalid leaf version type: {type(leaf_version).__name__}"
@@ -239,8 +245,9 @@ def tree_helper(script_tree: TaprootScriptTree) -> tuple[TaprootLeafPaths, bytes
     one leaf or of two subtrees, a leaf being a `(leaf_version, script)`
     tuple. A node that is no list, a leaf that is no such tuple and a
     leaf version that is no integer are a BTClibTypeError; a list of
-    neither one nor two elements, a leaf version outside a byte and a
-    leaf deeper than MAX_TREE_DEPTH are a BTClibValueError.
+    neither one nor two elements, a leaf version that is outside a byte,
+    odd or 0x50, and a leaf deeper than MAX_TREE_DEPTH are a
+    BTClibValueError.
     """
     return _walk(script_tree, 0)
 
@@ -282,10 +289,11 @@ def _tree_helper(leaf: object) -> tuple[TaprootLeafPaths, bytes]:
     if not is_integer(leaf_version):
         err_msg = f"invalid leaf version type: {type(leaf_version).__name__}"
         raise BTClibTypeError(err_msg)
-    # the mask below would read 0x100 as 0x00 and -1 as 0xFE
-    if not 0 <= leaf_version <= 0xFF:
+    # BIP341: a leaf version "cannot be odd" and "cannot be 0x50 as that
+    # would result in ambiguity with the annex". leaf_hash refuses the odd
+    # ones too, but hashes 0x50
+    if not 0 <= leaf_version <= 0xFE or leaf_version & 1 or leaf_version == 0x50:
         raise BTClibValueError(f"invalid leaf version: {_message_text(leaf_version)}")
-    leaf_version &= 0xFE
     h = leaf_hash(leaf_version, serialize(script))
     return ([((leaf_version, script), b"")], h)
 
