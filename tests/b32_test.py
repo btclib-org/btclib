@@ -360,8 +360,38 @@ def test_a_conversion_width_is_positive(
         b32.power_of_2_base_conversion([1], from_bits, to_bits)
 
 
+@pytest.mark.parametrize(
+    "from_bits, to_bits, err_msg",
+    [
+        (5, 65, "invalid to_bits: 65 > 64"),
+        (65, 5, "invalid from_bits: 65 > 64"),
+        (5, 2**64, "invalid to_bits: 18446744073709551616 > 64"),
+        (2**64, 5, "invalid from_bits: 18446744073709551616 > 64"),
+        (2**33, 5, "invalid from_bits: 8589934592 > 64"),
+    ],
+)
+def test_a_conversion_width_is_at_most_64(
+    from_bits: int, to_bits: int, err_msg: str
+) -> None:
+    """A width above 64 is refused before the conversion starts.
+
+    A width of 2**64 would otherwise raise `MemoryError` or `OverflowError`,
+    depending on the interpreter, and one near 2**33 would build a list of
+    about 1.7 billion digits.
+    """
+    with pytest.raises(BTClibValueError, match=err_msg):
+        b32.power_of_2_base_conversion([1], from_bits, to_bits)
+
+
+def test_a_conversion_width_of_64_is_accepted() -> None:
+    """A width of 64 is valid on either side, the refusal starting at 65."""
+    assert b32.power_of_2_base_conversion([1], 64, 1) == [0] * 63 + [1]
+    assert b32.power_of_2_base_conversion([1], 1, 64) == [1 << 63]
+    assert b32.power_of_2_base_conversion([1], 64, 64) == [1]
+
+
 def test_a_conversion_width_of_one_is_accepted() -> None:
-    """A width of 1 is valid on either side, the refusal above stopping at 0."""
+    """A width of 1 is valid on either side, a width below 1 being refused."""
     assert b32.power_of_2_base_conversion([1], 8, 1) == [0, 0, 0, 0, 0, 0, 0, 1]
     assert b32.power_of_2_base_conversion([1], 1, 8) == [128]
     assert b32.power_of_2_base_conversion([1], 1, 1) == [1]
