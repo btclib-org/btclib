@@ -41,7 +41,7 @@ from ecc.curves import bytes_from_point, point_from_octets_var
 from hypothesis import given
 from hypothesis import strategies as st
 
-from btclib import b32, b58
+from btclib import b32, b58, bech32
 from btclib.alias import ScriptList
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
@@ -198,6 +198,73 @@ def test_invalid_address() -> None:
     for address, err_msg in invalid_addresses:
         with pytest.raises(BTClibValueError, match=err_msg):
             b32.witness_from_address(address)
+
+
+def _either_constant_decode(bech: str, m: int | None = None) -> tuple[str, list[int]]:
+    """Accept bech32 and bech32m alike when given no `m`.
+
+    The witness-version default of `bech32.decode` is bitcoin's rule;
+    this stands for a codec without it, which tries both constants.
+    """
+    if m is not None:
+        return bech32.decode(bech, m)
+    try:
+        return bech32.decode(bech, bech32.BECH32_1_CONST)
+    except BTClibValueError:
+        return bech32.decode(bech, bech32.BECH32_M_CONST)
+
+
+_WRONG_CONSTANT = [
+    # BIP350, "Invalid checksum (Bech32m instead of Bech32)", version 0
+    (
+        "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kemeawh",
+        "^invalid checksum \\(bech32m instead of bech32\\)$",
+    ),
+    (
+        "tb1q0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq24jc47",
+        "^invalid checksum \\(bech32m instead of bech32\\)$",
+    ),
+    # BIP350, "Invalid checksum (Bech32 instead of Bech32m)", versions 1 and 2
+    (
+        "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqh2y7hd",
+        "^invalid checksum \\(bech32 instead of bech32m\\)$",
+    ),
+    (
+        "tb1z0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqglt7rf",
+        "^invalid checksum \\(bech32 instead of bech32m\\)$",
+    ),
+]
+
+
+@pytest.mark.parametrize("address, err_msg", _WRONG_CONSTANT)
+def test_the_constant_follows_the_witness_version(
+    monkeypatch: pytest.MonkeyPatch, address: str, err_msg: str
+) -> None:
+    """BIP350: version 0 is bech32, any other version bech32m.
+
+    The rule is b32's, whatever the codec does when it is not told the
+    constant: here the codec accepts either one.
+    """
+    monkeypatch.setattr(b32, "decode", _either_constant_decode)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        b32.witness_from_address(address)
+
+
+@pytest.mark.parametrize("address", [a for a, _ in _WRONG_CONSTANT])
+def test_the_codec_stand_in_accepts_the_wrong_constant(address: str) -> None:
+    """The control: what b32 must refuse, the stand-in lets through."""
+    hrp, data = _either_constant_decode(address)
+    assert hrp in {"bc", "tb"}
+    assert data
+
+
+def test_an_address_without_data_is_refused_whatever_the_codec(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The witness version is the first data value, so there must be one."""
+    monkeypatch.setattr(b32, "decode", _either_constant_decode)
+    with pytest.raises(BTClibValueError, match="^empty data in bech32 address$"):
+        b32.witness_from_address("bc1gmk9yu")
 
 
 def test_a_refused_address_is_not_quoted() -> None:
