@@ -19,6 +19,51 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.10.28
+
+- **btclib requires `ecc` 2026.10.28** (closes #2851). Act on it if you pin
+  `ecc` below it.
+- **`Block.assert_valid_contextual` accepts a block of any version below
+  the BIP34, BIP66 and BIP65 heights** (closes #2833). Bitcoin Core sets no
+  version floor there, and btclib refused a version of 0 or below. Act on
+  it if you relied on that refusal.
+- **This release is signed by `reusable-build.yml` at a commit of
+  btclib-org/.github, not at `refs/heads/main`** (issue
+  btclib-org/.github#1870). A `gh attestation verify` whose
+  `--signer-workflow` ends in `@refs/heads/main` refuses it. Act on it if
+  you verify releases that way: run SECURITY.md's command, which names the
+  workflow with no ref and checks the repository by its id (closes #2773).
+
+### Breaking changes
+
+- **`BlockContext.min_version` is `int | None`** (closes #2833). It is
+  `None` below the BIP34, BIP66 and BIP65 heights. Act on it if you compare
+  it: check for `None` first.
+- **A `STACK_SIZE` refusal raised while a script runs names the command after
+  which the stack and the altstack together are over `MAX_STACK_SIZE`, in a
+  legacy script and in tapscript alike, and the legacy engine does not size
+  the stack a script starts on** (closes #2801), as Core's `EvalScript` does.
+  A script v2026.10.24 refused can be refused with another code or at another
+  index, and a legacy script that brings its starting stack within the limit
+  can run to its end. Act on it if you relied on the refusal or match its code
+  or index.
+- **A refused tapscript signature check leaves its operands on the stack**
+  (closes #2800), as Core does. The verdict does not change. In tapscript,
+  OP_CHECKSIG and OP_CHECKSIGVERIFY on a stack of fewer than two elements
+  refuse as `OP_CHECKSIG on a stack of less than 2 elements` and
+  `OP_CHECKSIGVERIFY on a stack of less than 2 elements`, where they said
+  `stack underflow`. Act on it if you read the stack of a refused script or
+  match either message.
+- **`Network.assert_valid` refuses an hrp that `bech32.encode` refuses**:
+  an empty, out-of-range or not-lowercase one (closes #2822). Act on it if
+  you build a `Network` with such an hrp.
+- **Refusals read differently** (closes #2727, closes #2820).
+  `base58.decode` refuses a bad checksum as `invalid checksum`, quoting
+  neither checksum. For a first byte other than OP_1, `assert_p2tr` names
+  the op code it read against OP_1, as
+  `invalid witness version op code: 0x52 instead of OP_1 (0x51)`. Act
+  on it if you match either message.
+
 ## v2026.10.24
 
 - **btclib requires `ecc` 2026.10.23, which replaces btclib-ecc** (issue
