@@ -48,6 +48,7 @@ from btclib.script import (
     type_and_payload,
 )
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
+from btclib.script.script import serialize as script_serialize
 from btclib.script.taproot import (
     MAX_TREE_DEPTH,
     assert_valid_control_block,
@@ -1015,10 +1016,23 @@ def test_op_success_is_followed_by_bytes_however_they_are_held() -> None:
         assert serialize(["OP_SUCCESS80", spelling]) == expected
 
 
-def test_parse_unknown_op_code() -> None:
-    """0xff is neither an OP_SUCCESS nor a named op code."""
-    with pytest.raises(BTClibValueError, match="unknown op code: 0xff"):
-        parse(b"\xff")
+def test_0xff_is_parsed_and_left_to_execution() -> None:
+    """0xff is neither an OP_SUCCESS nor a named op code, and no refusal.
+
+    Core's `GetOp` reads it and only `EvalScript` refuses it, where it
+    executes, so a leaf holding it in an unexecuted branch is spendable.
+    Parse names it as script.parse does, and serialize writes it back.
+    The other names of that form are no tapscript op code.
+    """
+    script = b"\x00\x63\xff\x68\x51"  # OP_0 OP_IF 0xff OP_ENDIF OP_1
+    commands = parse(script)
+    assert commands == ["OP_0", "OP_IF", "UNKNOWN_OP_CODE_255", "OP_ENDIF", "OP_1"]
+    assert serialize(commands) == script
+    assert script_serialize(["UNKNOWN_OP_CODE_255"]) == b"\xff"
+
+    for not_tapscript in ("UNKNOWN_OP_CODE_254", "UNKNOWN_OP_CODE_80"):
+        with pytest.raises(BTClibValueError, match="invalid string command: "):
+            serialize([not_tapscript])
 
 
 # an empty push in each of its three operators, among valid commands
@@ -1032,6 +1046,7 @@ _TAPSCRIPT_PIECES = [
     b"\xac",
     b"\x02ab",
     b"\x4c\x01\xff",
+    b"\xff",
 ]
 
 
