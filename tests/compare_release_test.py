@@ -224,7 +224,7 @@ def test_run_probe_reports_a_failed_interpreter(cmp: Any) -> None:
     [
         ("refused", "refused", None),
         ("accepted 01", "accepted 01", None),
-        ("absent", "absent", None),
+        ("absent", "absent", "absent from both"),
         ("refused", "accepted 01", "accepted by one, not the other"),
         ("accepted 01", "crashed KeyError", "accepted by one, not the other"),
         ("accepted 01", "accepted 02", "serialized differently"),
@@ -264,6 +264,16 @@ def test_compare_lists_an_absent_entry_point_once(cmp: Any) -> None:
             "1 accepted, 1 refused",
         ),
     ]
+
+
+def test_compare_lists_an_entry_point_absent_from_both(cmp: Any) -> None:
+    """Nothing was compared for it, so it is one row and not dropped."""
+    run = _run(cmp, ("h", "m:f", "a", "absent"), ("h", "m:f", "b", "absent"))
+    found = cmp.compare(run, run)
+    assert [(d.kind, d.spec, d.name, d.release, d.current) for d in found] == [
+        ("absent from both", "m:f", "(every input)", "2 absent", "2 absent")
+    ]
+    assert "| absent from both | `h` | `m:f` |" in cmp.render(run, run, found)
 
 
 def test_compare_sees_no_difference(cmp: Any) -> None:

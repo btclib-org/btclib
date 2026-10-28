@@ -21,12 +21,14 @@ two answers are compared. An answer is one of:
 
 A difference is an entry point that accepts on one side only, accepts and
 serializes differently, refuses where the other crashes, crashes
-differently, or is absent from one side.
+differently, or is absent from one side. An entry point absent from both
+sides is listed too, as `absent from both`: nothing was compared for it.
 
 The inputs are `fuzz/corpus/<harness>/*.bin` and, where
 `--fuzz-artifacts` names a directory, the corpora the `fuzz` workflow
 uploads as `cifuzz-corpus-<harness>` tar files.
 
+    uv sync --locked --no-default-groups --group bip324
     uv run --locked --no-default-groups python \
         .github/scripts/compare_release.py \
         --current .venv/bin/python --release <venv>/bin/python
@@ -71,6 +73,9 @@ _CONTEXT = 8
 _PLAIN = (type(None), bool, int, float, str, bytes, list, tuple, dict)
 
 ABSENT = "absent"
+# the kinds of difference listed once per entry point, not per input
+_ABSENT_ONE = "entry point absent"
+_ABSENT_BOTH = "absent from both"
 # the first word of an outcome where the entry point returned an object
 _ACCEPTED = ("accepted", "unserializable")
 # one record of a probe: (harness, entry point, input name, outcome)
@@ -276,11 +281,11 @@ def run_probe(python: str, request: dict[str, Any]) -> Run:
 
 def _kind(release: str, current: str) -> str | None:
     """Return how two outcomes differ, or None where they do not."""
-    if release == current:
-        return None
     heads = (release.split(" ", 1)[0], current.split(" ", 1)[0])
     if ABSENT in heads:
-        return "entry point absent"
+        return _ABSENT_BOTH if release == current else _ABSENT_ONE
+    if release == current:
+        return None
     taken = [head in _ACCEPTED for head in heads]
     if taken[0] != taken[1]:
         return "accepted by one, not the other"
@@ -306,27 +311,20 @@ def compare(release: Run, current: Run) -> list[Difference]:
     The row of an absent entry point counts each side's outcomes.
     """
     differences: list[Difference] = []
-    absent: dict[tuple[str, str], tuple[list[str], list[str]]] = {}
+    absent: dict[tuple[str, str, str], tuple[list[str], list[str]]] = {}
     for (harness, spec, name, was), (_, _, _, now) in zip(
         release.records, current.records, strict=True
     ):
         kind = _kind(was, now)
-        if kind == "entry point absent":
-            sides = absent.setdefault((harness, spec), ([], []))
+        if kind in {_ABSENT_ONE, _ABSENT_BOTH}:
+            sides = absent.setdefault((kind, harness, spec), ([], []))
             sides[0].append(was)
             sides[1].append(now)
         elif kind is not None:
             differences.append(Difference(kind, harness, spec, name, was, now))
     differences += [
-        Difference(
-            "entry point absent",
-            harness,
-            spec,
-            "(every input)",
-            _tally(was),
-            _tally(now),
-        )
-        for (harness, spec), (was, now) in absent.items()
+        Difference(kind, harness, spec, "(every input)", _tally(was), _tally(now))
+        for (kind, harness, spec), (was, now) in absent.items()
     ]
     return sorted(differences, key=lambda d: (d.kind, d.harness, d.spec, d.name))
 

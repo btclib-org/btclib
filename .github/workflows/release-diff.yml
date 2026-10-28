@@ -63,16 +63,21 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
 
+      # both venvs take the bip324 extra: without cryptography,
+      # btclib.p2p.bip324 imports on neither side and the entry point
+      # fuzz/fuzz_bip324.py declares is not compared
       - name: Install this tree
-        run: uv sync --locked --no-default-groups
+        run: uv sync --locked --no-default-groups --group bip324
 
       - name: Install the last release
         run: |
-          uv export --locked --no-default-groups --no-emit-project --no-hashes \
+          uv export --locked --no-default-groups --group bip324 \
+            --no-emit-project --no-hashes \
             --output-file "$RUNNER_TEMP/constraints.txt"
           uv venv "$RUNNER_TEMP/release"
           uv pip install --python "$RUNNER_TEMP/release/bin/python" \
-            --only-binary btclib --constraint "$RUNNER_TEMP/constraints.txt" btclib
+            --only-binary btclib --constraint "$RUNNER_TEMP/constraints.txt" \
+            'btclib[bip324]'
 
       # best effort: the artifacts expire, and a fork's run may not be
       # allowed to list them. Without them the seeds are all there is, and
