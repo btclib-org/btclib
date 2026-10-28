@@ -295,7 +295,7 @@ def test_render_clips_and_escapes_a_row(cmp: Any) -> None:
     release = _run(cmp, ("h", "m:f", "a|b", "accepted " + "00" * 100))
     current = _run(cmp, ("h", "m:f", "a|b", "refused"))
     text = cmp.render(release, current, cmp.compare(release, current))
-    assert "Differences: 1." in text
+    assert "Rows: 1." in text
     assert "a\\|b" in text
     assert "... (209 characters)" in text
 

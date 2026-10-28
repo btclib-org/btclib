@@ -73,7 +73,7 @@ _CONTEXT = 8
 _PLAIN = (type(None), bool, int, float, str, bytes, list, tuple, dict)
 
 ABSENT = "absent"
-# the kinds of difference listed once per entry point, not per input
+# the kinds of row listed once per entry point, not per input
 _ABSENT_ONE = "entry point absent"
 _ABSENT_BOTH = "absent from both"
 # the first word of an outcome where the entry point returned an object
@@ -170,7 +170,7 @@ class Run:
 
 @dataclass(frozen=True)
 class Difference:
-    """One entry point and input on which the release and this tree differ."""
+    """A report row: a difference, or an entry point absent from both."""
 
     kind: str
     harness: str
@@ -280,7 +280,11 @@ def run_probe(python: str, request: dict[str, Any]) -> Run:
 
 
 def _kind(release: str, current: str) -> str | None:
-    """Return how two outcomes differ, or None where they do not."""
+    """Return a row's kind: how two outcomes differ, or `absent from both`.
+
+    `absent from both` is where neither side has the entry point. None is
+    where both have it and agree.
+    """
     heads = (release.split(" ", 1)[0], current.split(" ", 1)[0])
     if ABSENT in heads:
         return _ABSENT_BOTH if release == current else _ABSENT_ONE
@@ -306,7 +310,7 @@ def _tally(outcomes: list[str]) -> str:
 
 
 def compare(release: Run, current: Run) -> list[Difference]:
-    """Return every difference, an absent entry point once and not per input.
+    """Return the rows, an absent entry point once and not per input.
 
     The row of an absent entry point counts each side's outcomes.
     """
@@ -365,7 +369,7 @@ def render(release: Run, current: Run, differences: list[Difference]) -> str:
         lines.append("No difference.")
         return "\n".join(lines) + "\n"
     lines += [
-        f"Differences: {len(differences)}. A difference that is intended is",
+        f"Rows: {len(differences)}. A difference that is intended is",
         "named in the pull request that causes it.",
         "",
         "| kind | harness | entry point | input | release | this tree |",
