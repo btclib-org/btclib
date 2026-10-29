@@ -9,10 +9,12 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from btclib import var_bytes, var_int
+from typing_extensions import override
+
+from btclib import var_int
 from btclib.alias import BinaryData, Octets
 from btclib.consensus import MAX_WITNESS_STACK_ITEMS
-from btclib.exceptions import BTClibTypeError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
@@ -26,27 +28,57 @@ __all__ = [
     "Witness",
 ]
 
+# the width of the number after each var_int prefix
+_PREFIX_WIDTH = {0xFD: 2, 0xFE: 4, 0xFF: 8}
 
-# frozen, and a tuple rather than a list of bytes, which makes a Witness
-# immutable all the way down: neither replacing the whole stack of a
-# witness held by someone else (issue #140) nor mutating one in place
-# through a shared default (issue #139) is expressible, and the
-# generated __hash__ works, every element being immutable too.
+
+def _read_size(data: bytes, pos: int) -> tuple[int, int]:
+    """Return the var_int at pos of a checked serialization, and its end."""
+    size = data[pos]
+    if size < 0xFD:
+        return size, pos + 1
+    width = _PREFIX_WIDTH[size]
+    end = pos + 1 + width
+    return int.from_bytes(data[pos + 1 : end], byteorder="little"), end
+
+
+def _size_prefix(size: int) -> bytes:
+    """Return var_int.serialize(size), the common one-octet case first."""
+    return bytes((size,)) if size < 0xFD else var_int.serialize(size)
+
+
+# frozen, and held as bytes, which makes a Witness immutable all the way
+# down: neither replacing the stack of a witness held by someone else
+# (issue #140) nor mutating one in place through a shared default (issue
+# #139) is expressible, and the generated __hash__ works.
 #
-# A witness is built once — parsed, or handed a signature and a script —
-# and then read, so the interpreter's popping is done on a list of its own
+# Held as its serialization, a witness is parsed without an object per
+# element: one walk over its lengths and one copy of its bytes. Where the
+# BytesIO still shares the bytes it was built over, as it does when parse
+# is given octets, getbuffer() first copies all of them.
+#
+# The serialization is canonical, var_int refusing every other encoding of
+# a length, so two witnesses have one serialization exactly when they have
+# one stack: the generated __eq__ and __hash__ compare it.
+#
+# `stack` is cached in `_stack`, which is not a field, and the field it is
+# derived from cannot change under it. The constructor fills the cache with
+# the elements it was handed, and parse leaves it empty. It is a property
+# and not a functools.cached_property, which mypy would let a caller assign
+# to.
 @dataclass(frozen=True)
 class Witness:
     """The witness stack of one transaction input, per BIP141.
 
-    A tuple of byte strings, bottom of the stack first, exactly as
-    serialized in the transaction's witness section after the outputs;
-    a non-segwit input has an empty one. Immutable throughout, so a
-    Witness can be shared and hashed; the script interpreter pops a list
-    copy of its own.
+    A Witness holds its serialization. `stack` is the tuple of its byte
+    strings, bottom of the stack first; for a parsed Witness, it is read
+    from the serialization on first access and cached. A non-segwit input
+    has an empty one.
+    Immutable throughout, so a Witness can be shared and hashed; the
+    script interpreter pops a list copy of its own.
     """
 
-    stack: tuple[bytes, ...]
+    _serialized: bytes
 
     def __init__(
         self, stack: Sequence[Octets] | None = None, *, check_validity: bool = True
@@ -57,27 +89,57 @@ class Witness:
         if is_octets(stack):
             raise BTClibTypeError(f"invalid stack type: {type(stack).__name__}")
         # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
-        object.__setattr__(
-            self,
-            "stack",
-            tuple(bytes_from_octets(element) for element in stack) if stack else (),
-        )
+        if not stack:
+            # the empty witness of a legacy input, without the general loop
+            object.__setattr__(self, "_serialized", b"\x00")
+            object.__setattr__(self, "_stack", ())
+            if check_validity:
+                self.assert_valid()
+            return
+        elements = tuple(bytes_from_octets(element) for element in stack)
+        parts = [_size_prefix(len(elements))]
+        for element in elements:
+            parts += (_size_prefix(len(element)), element)
+        object.__setattr__(self, "_serialized", b"".join(parts))
+        object.__setattr__(self, "_stack", elements)
 
         if check_validity:
             self.assert_valid()
 
+    @property
+    def stack(self) -> tuple[bytes, ...]:
+        """The stack elements, bottom first.
+
+        A parsed Witness reads them from its bytes on first access.
+        """
+        stack: tuple[bytes, ...] | None = self.__dict__.get("_stack")
+        if stack is None:
+            data = self._serialized
+            n, pos = _read_size(data, 0)
+            elements = []
+            for _ in range(n):
+                size, pos = _read_size(data, pos)
+                elements.append(data[pos : pos + size])
+                pos += size
+            stack = tuple(elements)
+            object.__setattr__(self, "_stack", stack)
+        return stack
+
     def __len__(self) -> int:
-        return len(self.stack)
+        return _read_size(self._serialized, 0)[0]
+
+    @override
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(stack={self.stack!r})"
 
     def assert_valid(self) -> None:
-        """Refuse a stack element that does not read as bytes.
+        """Refuse a serialization that does not read as bytes.
 
         Any elements are a valid witness -- what they must mean is the
-        spending script's business -- so readability is the whole
-        check.
+        spending script's business. The constructor and parse always
+        store bytes; the coercion is for a Witness built any other way.
         """
-        for stack_element in self.stack:
-            bytes(stack_element)
+        bytes(self._serialized)
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, list[str]]:
         """Return the witness as a dict of hex strings, for json.
@@ -110,17 +172,14 @@ class Witness:
 
     def _serialized_size(self) -> int:
         """Return what serialize writes, without writing it."""
-        return var_int._size(len(self.stack)) + sum(
-            var_bytes._size(w) for w in self.stack
-        )
+        return len(self._serialized)
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the serialization of the Witness."""
         if check_validity:
             self.assert_valid()
 
-        out = var_int.serialize(len(self.stack))
-        return out + b"".join([var_bytes.serialize(w) for w in self.stack])
+        return self._serialized
 
     @classmethod
     def parse(
@@ -135,6 +194,7 @@ class Witness:
         octet case is what a PSBT_IN_FINAL_SCRIPTWITNESS value is.
         """
         stream = bytesio_from_binarydata(data)
+        start = stream.tell()
         # bounded by the block that would have to carry the stack rather
         # than by var_int's own MAX_SIZE, which answers whether a
         # CompactSize is sane and not whether anything could hold this
@@ -145,6 +205,26 @@ class Witness:
         # and parses, here as it does for Core, and refusing it here would
         # be issue #123 again
         n = var_int.parse(stream, MAX_WITNESS_STACK_ITEMS)
-        stack = [var_bytes.parse(stream) for _ in range(n)]
+        pos = stream.tell()
+        with stream.getbuffer() as buf:
+            end = len(buf)
+            for _ in range(n):
+                # a length under 0xfd is one octet and canonical; any other
+                # is var_int's to read, with its refusals
+                if pos < end and buf[pos] < 0xFD:
+                    pos += 1 + buf[pos]
+                else:
+                    stream.seek(pos)
+                    size = var_int.parse(stream)
+                    pos = stream.tell() + size
+                if pos > end:
+                    raise BTClibValueError("not enough binary data")
+            serialized = bytes(buf[start:pos])
+        stream.seek(pos)
         assert_no_trailing(data, stream, "witness")
-        return cls(stack, check_validity=check_validity)
+
+        witness = cls.__new__(cls)
+        object.__setattr__(witness, "_serialized", serialized)
+        if check_validity:
+            witness.assert_valid()
+        return witness
