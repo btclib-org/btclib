@@ -335,6 +335,7 @@ _WITNESS_SCRIPT = serialize(["OP_2", _KEY, _KEY, _KEY, "OP_3", "OP_CHECKMULTISIG
             [b"", _WITNESS_SCRIPT],
             id="p2sh-of-no-witness-program",
         ),
+        pytest.param(0, b"", _p2sh(_P2WPKH), [], id="p2sh-with-an-empty-script-sig"),
         pytest.param(
             0,
             b"",
