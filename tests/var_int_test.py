@@ -4,6 +4,8 @@
 
 """Tests for the `btclib.var_int` module."""
 
+from fractions import Fraction
+
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
@@ -124,6 +126,22 @@ def test_a_bool_is_neither_a_count_nor_a_cap() -> None:
     assert var_int.serialize(0) == b"\x00"
     assert var_int.serialize(1) == b"\x01"
     assert var_int.parse(b"\x01", max_size=1) == 1
+
+
+def test_a_fraction_too_large_to_print_is_still_a_type_error() -> None:
+    """A refusal's message quotes the refused value.
+
+    `str()` of an int past the digit limit raises ValueError -- so a
+    Fraction whose numerator runs past it would leave through the
+    refusal's own message as the wrong exception, not the library's. The
+    message describes such a value instead of quoting it, and both entry
+    points still raise the type error the caller contracted for.
+    """
+    too_large_to_print = Fraction(10**4400, 3)
+    with pytest.raises(BTClibTypeError, match="non-integer var_int"):
+        var_int.serialize(too_large_to_print)
+    with pytest.raises(BTClibTypeError, match="non-integer max_size"):
+        var_int.parse(b"\x01", max_size=too_large_to_print)
 
 
 def test_var_int_non_canonical() -> None:
