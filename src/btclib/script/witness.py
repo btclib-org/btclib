@@ -53,8 +53,9 @@ def _size_prefix(size: int) -> bytes:
 # #139) is expressible, and the generated __hash__ works.
 #
 # Held as its serialization, a witness is parsed without an object per
-# element: a witness of four million empty elements costs one walk over
-# its lengths and one copy of its bytes.
+# element: one walk over its lengths and one copy of its bytes. Where the
+# BytesIO still shares the bytes it was built over, as it does when parse
+# is given octets, getbuffer() first copies all of them.
 #
 # The serialization is canonical, var_int refusing every other encoding of
 # a length, so two witnesses have one serialization exactly when they have
