@@ -538,6 +538,8 @@ def test_are_inputs_standard_p2sh() -> None:
         (_p2sh(OP_1), serialize(["OP_0", "OP_DROP"]), False),
         # a script_sig need not be push-only to leave a redeem script
         (_p2sh(OP_1), serialize(["OP_0", "OP_DROP", OP_1]), True),
+        # and a push over 520 bytes fails the script_sig, push-only or not
+        (_p2sh(OP_1 * 521), serialize([OP_1 * 521]), False),
     ],
 )
 def test_are_inputs_standard_edges(
