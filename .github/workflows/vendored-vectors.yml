@@ -75,7 +75,7 @@ concurrency:
 
 jobs:
   vectors:
-    uses: btclib-org/.github/.github/workflows/reusable-vendored-vectors.yml@eb3b0c28476b98694ab3a3c3a9dce7e8e26ab4f5 # v2026.10.26
+    uses: btclib-org/.github/.github/workflows/reusable-vendored-vectors.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
     # permissions do not inherit through a call: the check job the
     # reusable workflow runs wants issues: write for its gh issue
     # create/edit/close calls, so the calling job declares it here,

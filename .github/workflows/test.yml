@@ -163,7 +163,7 @@ jobs:
   #   this tree's own prose, below (issue btclib-org/.github#35)
   changes:
     name: Decide whether the jobs below have anything to check
-    uses: btclib-org/.github/.github/workflows/reusable-changes.yml@eb3b0c28476b98694ab3a3c3a9dce7e8e26ab4f5 # v2026.10.26
+    uses: btclib-org/.github/.github/workflows/reusable-changes.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
     # A job's permissions replace the workflow's rather than adding to
     # them, so contents: read is named here too, alongside
     # pull-requests: read, which the callee's own job needs to list a
@@ -266,7 +266,7 @@ jobs:
           # repository's own remote with `git fetch --depth=1 --tags`
           fetch-tags: true
       - name: Setup uv
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           # the cache holds the wheels uv.lock resolves, which every run
           # of every commit otherwise fetches again
@@ -367,7 +367,7 @@ jobs:
           # included, and `test-passed` waits on both
           fetch-tags: true
       - name: Setup uv
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: true
           python-version: "3.15"
@@ -438,7 +438,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup uv
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: true
           python-version: "3.15"
@@ -513,7 +513,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup uv
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: true
       # the files the checks below read, from the signed build

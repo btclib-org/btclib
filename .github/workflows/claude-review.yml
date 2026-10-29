@@ -103,7 +103,7 @@ jobs:
       contents: read
       pull-requests: write # posting the review, and the reply to a mention
       id-token: write # the OIDC token the action mints at its own startup
-    uses: btclib-org/.github/.github/workflows/reusable-claude-review.yml@eb3b0c28476b98694ab3a3c3a9dce7e8e26ab4f5 # v2026.10.26
+    uses: btclib-org/.github/.github/workflows/reusable-claude-review.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
     # the callee has no cache step, and this job runs from an
     # issue_comment trigger, so it is given no cache access: the linter's
     # cache-call-unrestricted check asks a call to name its limit

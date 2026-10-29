@@ -79,7 +79,7 @@ concurrency:
 
 jobs:
   suite-macos:
-    uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@eb3b0c28476b98694ab3a3c3a9dce7e8e26ab4f5 # v2026.10.26
+    uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
     with:
       runners: '["macos-26-intel", "macos-latest"]'
       python-versions: '["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t", "pypy3.11"]'
