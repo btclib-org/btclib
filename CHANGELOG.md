@@ -61,7 +61,7 @@ an error, and one file per release is what keeps each of them under it.
 ### btclib requires ecc 2026.10.30
 
 SECURITY.md links ecc's lines at its v2026.10.30 tag, where two of `curve.py`'s
-cited lines sit, and the suite reads them from the installed ecc
+cited lines moved, and the suite reads them from the installed ecc
 (closes #2864).
 
 ### Witness
@@ -93,5 +93,5 @@ constants the codec accepts (issue #2725).
 
 ### Dependencies
 
-`uv.lock` moves uv-build, and the btclib-org/.github calls move to
-v2026.10.29.
+`uv.lock` moves uv-build, astral-sh/setup-uv moves to 10.3.2, and the
+btclib-org/.github calls move to v2026.10.29.

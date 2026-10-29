@@ -38,7 +38,9 @@ full year, short month, short day (YYYY-M-D)
   you use `dataclasses.fields`, `replace`, `asdict` or `astuple` on a
   `Witness`, or on a `TxIn` or `Tx` holding one, or match `Witness(x)`
   positionally: `replace` raises `TypeError`, so build a new `Witness(stack)`
-  instead.
+  instead. `Witness.parse` builds with `cls.__new__`, so a subclass's own
+  `__init__` does not run on parse. Act on it if your subclass's `__init__`
+  does work a parsed instance needs.
 - **A script tree with an odd leaf version or 0x50 is refused with
   `BTClibValueError`** (closes #2766), as BIP341 requires, by `tree_helper`,
   `output_pubkey`, `output_prvkey`, `input_script_sig` and
@@ -50,6 +52,10 @@ full year, short month, short day (YYYY-M-D)
   `OverflowError` or `MemoryError`. Act on it if you pass such a width.
 - **`var_int.serialize` refuses a negative integer as `negative integer`**,
   without printing it (closes #2645). Act on it if you match the message.
+- **`b32.witness_from_address` refuses an address under the wrong checksum
+  constant as `invalid checksum (bech32m instead of bech32)` or
+  `invalid checksum (bech32 instead of bech32m)`**, where it said
+  `invalid checksum` (issue #2725). Act on it if you match the message.
 
 ## v2026.10.28
 
