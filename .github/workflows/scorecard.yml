@@ -55,7 +55,7 @@ concurrency:
 
 jobs:
   analysis:
-    uses: btclib-org/.github/.github/workflows/reusable-scorecard.yml@eb3b0c28476b98694ab3a3c3a9dce7e8e26ab4f5 # v2026.10.26
+    uses: btclib-org/.github/.github/workflows/reusable-scorecard.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
     # a called workflow's own permissions: block can only downgrade, not
     # restore, what this calling job grants -- GitHub's own docs on
     # reusing workflow configurations -- so every scope the callee's job
