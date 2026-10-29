@@ -19,6 +19,38 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.10.30
+
+- **btclib requires `ecc` 2026.10.30** (closes #2864). Its `negate` and
+  `negate_jac` raise `EccValueError`, not `EccTypeError`, for a point of the
+  wrong length; btclib calls neither. Act on it if you pin `ecc` below
+  2026.10.30, or catch `TypeError` from either.
+- **`taproot.parse` reads 0xff as `UNKNOWN_OP_CODE_255`** (closes #2731), as
+  `script.parse` does, and `taproot.serialize` writes it back. Core refuses
+  the byte only where it executes. Act on it if you relied on the parse
+  refusing it.
+
+### Breaking changes
+
+- **The dataclass field of a `Witness` is its serialization, `_serialized`,
+  not `stack`** (closes #2748). `Witness.stack` is a tuple of bytes, read from
+  the serialization. Act on it if
+  you use `dataclasses.fields`, `replace`, `asdict` or `astuple` on a
+  `Witness`, or on a `TxIn` or `Tx` holding one, or match `Witness(x)`
+  positionally: `replace` raises `TypeError`, so build a new `Witness(stack)`
+  instead.
+- **A script tree with an odd leaf version or 0x50 is refused with
+  `BTClibValueError`** (closes #2766), as BIP341 requires, by `tree_helper`,
+  `output_pubkey`, `output_prvkey`, `input_script_sig` and
+  `ScriptPubKey.p2tr`. v2026.10.28 built an odd version's leaf as the even
+  version below it, and built a 0x50 leaf. Act on it if you pass such a tree:
+  use the even version. 0x50 has no replacement.
+- **`b32.power_of_2_base_conversion` refuses a width above 64 with
+  `BTClibValueError`** (closes #2720), where it converted or raised
+  `OverflowError` or `MemoryError`. Act on it if you pass such a width.
+- **`var_int.serialize` refuses a negative integer as `negative integer`**,
+  without printing it (closes #2645). Act on it if you match the message.
+
 ## v2026.10.28
 
 - **btclib requires `ecc` 2026.10.28** (closes #2851). Act on it if you pin
