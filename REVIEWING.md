@@ -509,8 +509,8 @@ author.
 
 ## This repository in particular
 
-Each of these is a question, and the document that answers it is named
-because that document, and not this one, is where the rule lives.
+Each of these is a question. Where another document holds the rule, the
+question names it.
 
 - A change to a call that consults the dispatch, which `ARCHITECTURE.md`
   names: does it keep **both arithmetic paths** right, and is the
