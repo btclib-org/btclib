@@ -11,8 +11,10 @@ module-path = "src/btclib/p2p/headers_sync.py"
 
 # Its own tests, which also fail on a keyword-only `*` turned into `/`.
 # -n0 and -p no:randomly for the reasons sig_hash.toml gives. --no-cov
-# because nothing here reads the report, and the instrumentation is most
-# of what an unmutated run costs.
+# because nothing here reads the report, and writing it is most of what
+# an unmutated run costs: it covers the whole of `source` in
+# pyproject.toml's [tool.coverage.run], while the instrumentation itself
+# costs next to nothing, as pyproject.toml's comment on --cov says.
 test-command = """python -m pytest -x -q -n0 -p no:randomly --no-cov \
   tests/p2p/headers_sync_test.py"""
 

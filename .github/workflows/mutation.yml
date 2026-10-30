@@ -196,14 +196,14 @@ jobs:
       # it, longer than one runner is worth, so it is split, and
       # `headers-sync` below holds a third part of it. The budgets are sized
       # from a twenty-minute sample of the package, not from a finished
-      # session, so the first scheduled run says whether either completes,
-      # and one that is cut reports a sample.
+      # session, and neither session finishes inside its own: scheduled run
+      # 40311019237 cut both, so each reports a sample.
       #
       # `headers-sync`: headers_sync.py is a scope of its own so that its
       # budget runs every mutant of it, as issue #2832 asks. Run
-      # 41115716316 ran them all in 27 minutes, and 45 is that with a
-      # slower runner's margin. A run whose counts print `never run` has
-      # outgrown it.
+      # 41115716316 ran them all in 27 minutes on a GitHub runner, and 45
+      # is that with a margin over that runner. A run whose counts print
+      # `never run` has outgrown it.
       profiles: >-
         [{"profile": "the consensus code", "slug": "consensus", "ceiling": 200, "sessions":
         "sig_hash.toml 90m\nengine.toml 90m"},
