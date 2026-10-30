@@ -77,7 +77,6 @@ entries close on a verdict; one with nothing upstream to compare
 against says so in prose instead. The verdicts used:
 
 - **identical** — our file and the upstream blob are the same bytes.
-- **reformatted** — same parsed JSON value, different whitespace.
 - **transcribed** — there is no file compared byte for byte. Over prose
   (a BIP, an RFC, a BOLT) the check is that every value in our copy
   appears verbatim in the pinned text; over a source file the check is
@@ -790,8 +789,9 @@ pulled   2020-01-04
 behind   0 revisions; still the blob on master
 ```
 
-Verdict: **reformatted**. 200 vectors, JSON-equal, and all 200 are
-exercised by `tests/schemes/bms_test.py`.
+Verdict: **identical but for a trailing newline**, the change the notice
+below dates, so our blob is `dec81a97`. All 200 vectors are exercised by
+`tests/schemes/bms_test.py`.
 
 Modified here on 2023-01-04: btclib's `end-of-file-fixer` hook added the
 final newline upstream's file lacks, and changed nothing else. This is
@@ -1121,10 +1121,9 @@ Against a pinned upstream blob:
   `txsize.json`, python-bitcoinlib's `LICENSE`, and gnulib's
   `COPYINGv3`.
 - identical but for a trailing newline: `script_assets_test.json`,
-  `sigops.json`, `coinbases.json`, `timestamps.json`, and
-  python-bitcoinlib's `COPYING`.
+  `sigops.json`, `coinbases.json`, `timestamps.json`, `signmessage.json`,
+  and python-bitcoinlib's `COPYING`.
 - identical but for line endings: `packet_encoding_test_vectors.csv`.
-- JSON-equal, reformatted: `signmessage.json`.
 
 Not checked byte for byte against one:
 
