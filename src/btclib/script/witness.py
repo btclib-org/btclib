@@ -52,10 +52,10 @@ def _size_prefix(size: int) -> bytes:
 # (issue #140) nor mutating one in place through a shared default (issue
 # #139) is expressible, and the generated __hash__ works.
 #
-# Held as its serialization, a witness is parsed without an object per
-# element: one walk over its lengths and one copy of its bytes. Where the
-# BytesIO still shares the bytes it was built over, as it does when parse
-# is given octets, getbuffer() first copies all of them.
+# Held as its serialization, a parsed witness keeps no object per element.
+# parse asks the stream for read() alone: a caller's BytesIO may hand out
+# what it reads without holding it, as btclib-node's mempool reader does,
+# and then neither getbuffer() nor an absolute seek finds the bytes.
 #
 # The serialization is canonical, var_int refusing every other encoding of
 # a length, so two witnesses have one serialization exactly when they have
@@ -194,7 +194,6 @@ class Witness:
         octet case is what a PSBT_IN_FINAL_SCRIPTWITNESS value is.
         """
         stream = bytesio_from_binarydata(data)
-        start = stream.tell()
         # bounded by the block that would have to carry the stack rather
         # than by var_int's own MAX_SIZE, which answers whether a
         # CompactSize is sane and not whether anything could hold this
@@ -205,26 +204,29 @@ class Witness:
         # and parses, here as it does for Core, and refusing it here would
         # be issue #123 again
         n = var_int.parse(stream, MAX_WITNESS_STACK_ITEMS)
-        pos = stream.tell()
-        with stream.getbuffer() as buf:
-            end = len(buf)
-            for _ in range(n):
-                # a length under 0xfd is one octet and canonical; any other
-                # is var_int's to read, with its refusals
-                if pos < end and buf[pos] < 0xFD:
-                    pos += 1 + buf[pos]
-                else:
-                    stream.seek(pos)
-                    size = var_int.parse(stream)
-                    pos = stream.tell() + size
-                if pos > end:
+        serialized = bytearray(_size_prefix(n))
+        read = stream.read
+        for _ in range(n):
+            # a length under 0xfd is one octet and canonical; any other is
+            # var_int's to read, with its refusals, so what is kept of it
+            # is the canonical encoding read
+            prefix = read(1)
+            if prefix and prefix[0] < 0xFD:
+                size = prefix[0]
+            else:
+                if prefix:
+                    prefix += read(_PREFIX_WIDTH[prefix[0]])
+                size = var_int.parse(prefix)
+            serialized += prefix
+            if size:
+                element = read(size)
+                if len(element) != size:
                     raise BTClibValueError("not enough binary data")
-            serialized = bytes(buf[start:pos])
-        stream.seek(pos)
+                serialized += element
         assert_no_trailing(data, stream, "witness")
 
         witness = cls.__new__(cls)
-        object.__setattr__(witness, "_serialized", serialized)
+        object.__setattr__(witness, "_serialized", bytes(serialized))
         if check_validity:
             witness.assert_valid()
         return witness
