@@ -182,8 +182,8 @@ def test_parse_reads_a_stream_through_read_alone() -> None:
 
     btclib-node reads `mempool.dat` through such a stream. The witnesses
     hold an empty stack, empty elements and an element whose length takes
-    three octets, and the stream is left on the octets after the
-    transaction.
+    three octets. A legacy transaction follows, whose marker probe is put
+    back, and the stream is left on the octets after it.
     """
     witnesses = [
         Witness([b"", b"\x01" * 72, b"\x02" * 33]),
@@ -195,12 +195,19 @@ def test_parse_reads_a_stream_through_read_alone() -> None:
         for i, w in enumerate(witnesses)
     ]
     tx = Tx(2, 0, vin, [TxOut(1, b"\x51")])
-    stream = _ReadOnlyStream(tx.serialize(include_witness=True) + b"next")
+    legacy = Tx(2, 0, [TxIn(OutPoint(b"\x04" * 32, 0))], [TxOut(1, b"\x51")])
+    data = (
+        tx.serialize(include_witness=True)
+        + legacy.serialize(include_witness=True)
+        + b"next"
+    )
+    stream = _ReadOnlyStream(data)
 
     parsed = Tx.parse(stream)
 
     assert parsed == tx
     assert [tx_in.script_witness for tx_in in parsed.vin] == witnesses
+    assert Tx.parse(stream) == legacy
     assert stream.read() == b"next"
     with pytest.raises(ValueError, match="no position"):
         stream.tell()
