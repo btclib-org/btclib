@@ -5,14 +5,17 @@
 """Tests for the `btclib.script.witness` module."""
 
 from dataclasses import FrozenInstanceError
+from io import SEEK_CUR, SEEK_SET, BytesIO
 
 import pytest
 from hypothesis import given
+from typing_extensions import override
 
 from btclib import var_int
 from btclib.consensus import MAX_WITNESS_STACK_ITEMS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import Witness
+from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests.conftest import JsonGolden
 from tests.strategies import WITNESSES
 
@@ -129,3 +132,81 @@ def test_a_declared_stack_size_is_bounded_before_allocation() -> None:
 def test_witness_round_trip(witness: Witness) -> None:
     """Parse what serialize writes, whatever the stack."""
     assert Witness.parse(witness.serialize()) == witness
+
+
+class _ReadOnlyStream(BytesIO):
+    """A stream holding none of what it gives, as btclib-node's reader is.
+
+    `read` hands out the bytes, and `seek` only steps back into the last
+    read, which is how `Tx.parse` puts back its marker probe. Every other
+    way to the bytes refuses.
+    """
+
+    def __init__(self, data: bytes) -> None:
+        super().__init__()
+        self._data = data
+        self._position = 0
+        self._last = 0
+
+    @override
+    def read(self, size: int | None = -1) -> bytes:
+        end = len(self._data) if size is None or size < 0 else self._position + size
+        piece = self._data[self._position : end]
+        self._position += len(piece)
+        self._last = len(piece)
+        return piece
+
+    @override
+    def seek(self, offset: int, whence: int = SEEK_SET, /) -> int:
+        if whence != SEEK_CUR or not -self._last <= offset < 0:
+            raise ValueError("only a step back into the last read")
+        self._position += offset
+        self._last += offset
+        return 0
+
+    @override
+    def tell(self) -> int:
+        raise ValueError("no position")
+
+    @override
+    def getbuffer(self) -> memoryview:
+        raise ValueError("no buffer")
+
+    @override
+    def getvalue(self) -> bytes:
+        raise ValueError("no value")
+
+
+def test_parse_reads_a_stream_through_read_alone() -> None:
+    """A transaction's witnesses parse from a stream that only reads.
+
+    btclib-node reads `mempool.dat` through such a stream. The witnesses
+    hold an empty stack, empty elements and an element whose length takes
+    three octets, and the stream is left on the octets after the
+    transaction.
+    """
+    witnesses = [
+        Witness([b"", b"\x01" * 72, b"\x02" * 33]),
+        Witness(),
+        Witness([b"\x03" * 0xFD]),
+    ]
+    vin = [
+        TxIn(OutPoint(bytes([i + 1]) * 32, i), b"", 0, w)
+        for i, w in enumerate(witnesses)
+    ]
+    tx = Tx(2, 0, vin, [TxOut(1, b"\x51")])
+    stream = _ReadOnlyStream(tx.serialize(include_witness=True) + b"next")
+
+    parsed = Tx.parse(stream)
+
+    assert parsed == tx
+    assert [tx_in.script_witness for tx_in in parsed.vin] == witnesses
+    assert stream.read() == b"next"
+    with pytest.raises(ValueError, match="no position"):
+        stream.tell()
+    with pytest.raises(ValueError, match="no buffer"):
+        stream.getbuffer()
+    with pytest.raises(ValueError, match="no value"):
+        stream.getvalue()
+    with pytest.raises(ValueError, match="only a step back"):
+        stream.seek(0)
