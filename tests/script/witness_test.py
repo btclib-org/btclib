@@ -15,9 +15,9 @@ from btclib import var_int
 from btclib.consensus import MAX_WITNESS_STACK_ITEMS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import Witness
+from btclib.testing.strategies import WITNESSES
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests.conftest import JsonGolden
-from tests.strategies import WITNESSES
 
 
 def test_witness() -> None:

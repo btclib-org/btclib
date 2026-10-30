@@ -220,6 +220,37 @@ def test_the_tests_package_imports_no_btclib_submodule() -> None:
     assert ast.literal_eval(loaded) == ["btclib"]
 
 
+def test_btclib_works_without_the_testing_extra() -> None:
+    """Only `btclib.testing.strategies` needs hypothesis.
+
+    The probe runs where hypothesis cannot be imported, as in an install
+    without the `testing` extra: a `None` in `sys.modules` makes an import
+    of that name raise `ImportError`. `import btclib`, `from btclib import
+    *`, `from btclib.testing import *` and the blocks work there, and the
+    strategies raise.
+
+    A subprocess for the reason the p2p test above gives: this suite has
+    already imported hypothesis.
+    """
+    probe = (
+        "import sys; sys.modules['hypothesis'] = None\n"
+        "from btclib import *\n"
+        "from btclib.testing import *\n"
+        "blocks.read_bytes(blocks.NAMES[0])\n"
+        "try:\n"
+        "    from btclib.testing import strategies\n"
+        "except ImportError:\n"
+        "    print('refused')\n"
+    )
+    loaded = subprocess.run(  # noqa: S603
+        [sys.executable, "-c", probe], check=True, capture_output=True, encoding="utf-8"
+    ).stdout
+    assert loaded == "refused\n"
+
+    # where hypothesis is installed, importing the package loads none of it
+    assert "hypothesis" not in _loaded_after_importing("btclib.testing")
+
+
 def test_address_encodings_stay_below_script(unimported_btclib: None) -> None:
     """b58 and b32 must not import btclib.script.
 

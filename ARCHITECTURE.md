@@ -63,6 +63,7 @@ elsewhere a module reaches up where its subject asks for it, as
 - **the chain**: `script`, `tx`, `block`, `fee`, `policy`, `coinstats`,
   `muhash`
 - **the wire**: `p2p`, `electrum`
+- **fixtures for tests**: `testing`
 
 `alias` holds the types the public API accepts, much of it taking anything
 convertible rather than one type, and `exceptions` the errors it raises.
@@ -144,8 +145,11 @@ sync, which decides what to ask a peer for and sends nothing itself.
   `test_the_codec_does_not_pay_for_the_rpc_package` and
   `test_electrum_codec_stays_stdlib_light` hold both codecs to that.
 - **Package data.** The networks are JSON under `src/btclib/_data/`, read
-  once at import by `src/btclib/network.py`; the catalogued curves are
-  ecc's package data.
+  once at import by `src/btclib/network.py`. The blocks
+  `block_170.bin`, `block_200000.bin` and `block_481824_complete.bin` are
+  under `src/btclib/testing/_data/`, read by
+  `btclib.testing.blocks.read_bytes`. The catalogued curves are ecc's
+  package data.
 
 ## The public surface
 

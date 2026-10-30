@@ -313,18 +313,19 @@ tools, including those needed to build the documentation, is then created with:
 uv sync
 ```
 
-**Every dependency is required but ecc's bindings and the v2 transport's
-cipher, which are the `secp256k1` and `bip324` extras, and every one of
-them is a floor with no upper bound**, and the absence
-of a ceiling is a decision. Which releases those floors name is
+**Every dependency is required but ecc's bindings, the v2 transport's
+cipher and hypothesis, which are the `secp256k1`, `bip324` and `testing`
+extras, and every one of them is a floor with no upper bound**, and the
+absence of a ceiling is a decision. Which releases those floors name is
 `pyproject.toml`, next to the reason each one is where it is: a floor
 moves whenever this tree starts calling something newer, so a copy of the
 number here would be a second place to remember and the first to go
 stale. `typing-extensions` is the backport of what the 3.11 floor does
 not have, and its floor is the release adding the latest name this tree
-imports from it. `cryptography` is pyca's, and no coordinated release
-stands in for a ceiling there: `deps-latest.yml` runs the suite on its
-newest release every week, which is what tells this tree it has moved.
+imports from it. `cryptography` is pyca's and `hypothesis` is not
+btclib-org's either, and no coordinated release stands in for a ceiling
+there: `deps-latest.yml` runs the suite on their newest releases every
+week, which is what tells this tree they have moved.
 The others are btclib-org projects developed by the
 same people, so a breaking change there is coordinated with the release
 here — which is what a version ceiling substitutes for when it cannot be.
@@ -340,6 +341,12 @@ covered by CI and documented.
 `btclib.p2p.bip324` cannot be imported, and nothing else in btclib imports
 it. An installation that did not ask for a cipher has none: that is
 btclib-org/btclib-node#1190's plan, approved by the maintainer.
+
+**The `testing` extra is for tests**, btclib's own and those of code
+built on it. Without it `btclib.testing.strategies` cannot be imported,
+and the rest of btclib, `btclib.testing.blocks` included, works.
+`btclib.testing` is there so that btclib-wallet imports the strategies and
+the blocks rather than copying them (issue #2708).
 
 **Every sibling floor names a release PyPI serves**, so `pyproject.toml`
 carries no `[tool.uv.sources]` table and uv resolves the siblings from
