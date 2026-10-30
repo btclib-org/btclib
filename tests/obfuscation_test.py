@@ -185,11 +185,12 @@ def test_offset_is_a_non_negative_integer() -> None:
 
 
 def test_an_offset_too_large_to_print_is_still_a_type_error() -> None:
-    """Like the var_int refusals.
+    """An offset `str()` cannot write is described, as `var_int`'s are.
 
     A Fraction whose numerator runs past the digit limit must not escape
     through the refusal's own message as a plain ValueError. The message
     describes it instead of quoting it.
     """
-    with pytest.raises(BTClibTypeError, match="non-integer offset"):
-        obfuscation.obfuscate(b"data", bytes(8), Fraction(10**4400, 3))
+    unwritable = r"a Fraction str\(\) cannot write$"
+    with pytest.raises(BTClibTypeError, match=f"non-integer offset: {unwritable}"):
+        obfuscation.obfuscate(b"data", bytes(8), Fraction(10**4400, 3))  # type: ignore[arg-type]

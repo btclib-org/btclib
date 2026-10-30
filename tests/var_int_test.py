@@ -138,10 +138,11 @@ def test_a_fraction_too_large_to_print_is_still_a_type_error() -> None:
     points still raise the type error the caller contracted for.
     """
     too_large_to_print = Fraction(10**4400, 3)
-    with pytest.raises(BTClibTypeError, match="non-integer var_int"):
-        var_int.serialize(too_large_to_print)
-    with pytest.raises(BTClibTypeError, match="non-integer max_size"):
-        var_int.parse(b"\x01", max_size=too_large_to_print)
+    unwritable = r"a Fraction str\(\) cannot write$"
+    with pytest.raises(BTClibTypeError, match=f"non-integer var_int: {unwritable}"):
+        var_int.serialize(too_large_to_print)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match=f"non-integer max_size: {unwritable}"):
+        var_int.parse(b"\x01", max_size=too_large_to_print)  # type: ignore[arg-type]
 
 
 def test_var_int_non_canonical() -> None:
