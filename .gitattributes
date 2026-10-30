@@ -13,6 +13,16 @@ tests/_data/siphash.json -text
 tests/block/_data/blockfilters.json -text
 tests/block/_data/checkblock_invalid.json -text
 tests/block/_data/checkblock_valid.json -text
+tests/block/_data/opentimestamps/COPYINGv3 -text
+tests/block/_data/opentimestamps/LICENSE -text
+tests/block/_data/opentimestamps/a-or-b.ots -text
+tests/block/_data/opentimestamps/bad-stamp.txt.ots -text
+tests/block/_data/opentimestamps/bitcoin.pdf.ots -text
+tests/block/_data/opentimestamps/different-blockchains.txt.ots -text
+tests/block/_data/opentimestamps/empty.ots -text
+tests/block/_data/opentimestamps/gdp2q25-2nd.pdf.ots -text
+tests/block/_data/opentimestamps/hello-world.txt.ots -text
+tests/block/_data/opentimestamps/incomplete.txt.ots -text
 tests/block/_data/timestamps.json -text
 tests/schemes/_data/packet_encoding_test_vectors.csv -text
 tests/schemes/_data/signmessage.json -text
