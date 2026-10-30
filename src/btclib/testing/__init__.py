@@ -5,8 +5,7 @@
 """Module btclib.testing: fixtures for the tests of btclib and its callers.
 
 `blocks` holds mainnet blocks as bytes. `strategies` holds hypothesis
-strategies for transactions, scripts and blocks, and needs the `testing`
-extra (`pip install "btclib[testing]"`), which installs hypothesis.
+strategies for transactions, scripts and blocks.
 
 `strategies` is imported by name, as in `from btclib.testing import
 strategies`. It is not in `__all__`, so that `from btclib.testing import *`
