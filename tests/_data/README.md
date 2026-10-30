@@ -131,7 +131,8 @@ tip of its path, rust-bitcoin's `huge_witness.bin` on 2026-10-11, and
 bip-0054's vector files on 2026-10-26, each at the tip of its path.
 python-bitcoinlib's `LICENSE` followed on 2026-10-26, at the tip of its
 path, and its `COPYING` the same day, at the tip of its path before
-upstream deleted it.
+upstream deleted it. gnulib's `COPYINGv3` followed on 2026-10-30, at the
+tip of its path.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -755,7 +756,26 @@ Verdict: **identical**. Upstream's licence, kept beside
 `signmessage.json` below: btclib is MIT, and the vectors are
 redistributed rather than written here. It is the same blob at
 `signmessage.json`'s pin. The directory holds python-bitcoinlib's files
-alone, so that the licence beside them covers nothing else.
+and the GPL text below, so that the licence beside them covers nothing
+else.
+
+### `tests/schemes/_data/python-bitcoinlib/COPYINGv3`
+
+```text
+repo     coreutils/gnulib
+path     doc/COPYINGv3
+commit   d64d66cc4897d605f543257dcd038524a0a55215  2017-10-02
+blob     f288702d2fa16d3cdf0035b15a9fcbc552cd88e7
+pulled   2026-10-30
+behind   0 revisions; still the blob on master
+```
+
+Verdict: **identical**. The GPL, kept beside the LGPL `LICENSE` above,
+which incorporates its terms. The text is the one gnu.org serves at
+<https://www.gnu.org/licenses/gpl-3.0.txt>, whose bytes hash to this
+blob on 2026-10-30. The pin is gnulib's copy, read through gnulib's
+GitHub mirror, so that the weekly job can compare it. The text allows
+verbatim copies, which this is.
 
 ### `tests/schemes/_data/python-bitcoinlib/signmessage.json`
 
@@ -772,6 +792,10 @@ behind   0 revisions; still the blob on master
 
 Verdict: **reformatted**. 200 vectors, JSON-equal, and all 200 are
 exercised by `tests/schemes/bms_test.py`.
+
+Modified here on 2023-01-04: btclib's `end-of-file-fixer` hook added the
+final newline upstream's file lacks, and changed nothing else. This is
+the dated notice the GPL asks of a modified copy.
 
 ### `tests/block/_data/python-bitcoinlib/COPYING`
 
@@ -1094,7 +1118,8 @@ Against a pinned upstream blob:
   `tx_valid.json`, `tx_invalid.json`, `key_io_valid.json`,
   `key_io_invalid.json`, `base58_encode_decode.json`, `siphash.json`,
   `blockfilters.json`, `checkblock_valid.json`, `checkblock_invalid.json`,
-  `txsize.json`, and python-bitcoinlib's `LICENSE`.
+  `txsize.json`, python-bitcoinlib's `LICENSE`, and gnulib's
+  `COPYINGv3`.
 - identical but for a trailing newline: `script_assets_test.json`,
   `sigops.json`, `coinbases.json`, `timestamps.json`, and
   python-bitcoinlib's `COPYING`.

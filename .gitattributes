@@ -16,6 +16,7 @@ tests/block/_data/python-bitcoinlib/checkblock_invalid.json -text
 tests/block/_data/python-bitcoinlib/checkblock_valid.json -text
 tests/block/_data/timestamps.json -text
 tests/schemes/_data/packet_encoding_test_vectors.csv -text
+tests/schemes/_data/python-bitcoinlib/COPYINGv3 -text
 tests/schemes/_data/python-bitcoinlib/LICENSE -text
 tests/schemes/_data/python-bitcoinlib/signmessage.json -text
 tests/script/_data/bip67_test_vectors.json -text
