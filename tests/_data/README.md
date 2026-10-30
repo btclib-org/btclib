@@ -796,6 +796,10 @@ in 8ff7d8b6, which leaves both files unchanged. The directory holds
 python-bitcoinlib's files alone, so that the licence beside them covers
 nothing else.
 
+`git log --follow` reads this file as a copy of btclib's own `LICENSE`
+and answers that file's date; `pulled` is the date of the commit that
+added this file here.
+
 ### `tests/block/_data/python-bitcoinlib/checkblock_valid.json`
 
 ```text
