@@ -159,9 +159,9 @@ jobs:
       # released rather than the day btclib changed, and the version
       # that answered is then unknowable from a green run. Raising it is
       # a commit, with the new sha read from the same place.
-      bitcoind-version: "31.1"
+      bitcoind-version: "32.1"
       bitcoind-sha256: >-
-        b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
+        61545c17c3120fb7412f896d248b11993af04ec8817aad3649c55b2afb044963
       # tests/integration/conftest.py's own two switches, not something
       # a file here could write
       integration-env-var: BTCLIB_INTEGRATION

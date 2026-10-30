@@ -66,13 +66,15 @@ _TEST_TIMEOUT = 120.0
 _BIND_ATTEMPTS = 5
 
 # what Core writes to debug.log of a port that is taken, read at Bitcoin
-# Core commit cce32b16874e and at v31.1, the release the workflow pins.
-# The p2p listener says so (src/net.cpp). The rpc server has one
-# endpoint (`-rpcallowip` below) and, where it cannot bind it, exits with
-# "Unable to bind any endpoint for RPC server" and does not say why in
-# v31.1 (src/httpserver.cpp); on a port picked a moment before, a taken
-# port is the cause. The rpc line reaches only the log, stderr saying only
-# "Unable to start HTTP server", so the log is what is read for both.
+# Core commit cce32b16874e and at v32.1, the release the workflow pins.
+# The p2p listener says so (src/net.cpp), and so does the rpc server, in
+# the warning it logs for an endpoint it cannot bind (src/httpserver.cpp).
+# That server has one endpoint (`-rpcallowip` below) and, where it cannot
+# bind it, exits with "Unable to bind any endpoint for RPC server". The
+# warning v31.1 logs there gives no reason, and on a port picked a moment
+# before, a taken port is the cause. The rpc lines reach only the log,
+# stderr saying only "Unable to start HTTP server", so the log is what is
+# read for both.
 # Other bind errors in net.cpp say "(bind returned error ...)" instead and
 # are not retried
 _PORT_TAKEN = re.compile(
