@@ -29,7 +29,7 @@ from btclib.script.engine.script_op_codes import (
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.script import op_code_spans, serialize
 from btclib.script.script_pub_key import is_p2sh, is_segwit, type_and_payload
-from btclib.script.sig_hash import PrecomputedTxData, _SigHashCache
+from btclib.script.sig_hash import PrecomputedTxData, _assert_valid_vin_i, _SigHashCache
 from btclib.script.sig_ops import p2sh_sig_op_count, witness_sig_op_count
 from btclib.script.taproot import MAX_TREE_DEPTH, check_output_pubkey
 from btclib.script.witness import Witness
@@ -460,7 +460,17 @@ def verify_input(
 
     A refusal is a ScriptError, its `code` the ScriptErrorCode Core's
     VerifyScript fails with for the same input.
+
+    An index naming no input, and a prevouts list that does not cover
+    every input, are refused before anything is read (issue #2672): left
+    to the lists, a negative index would verify another input, and an
+    index past the end would raise a bare `IndexError`.
     """
+    _assert_valid_vin_i(tx, i)
+    if len(prevouts) != len(tx.vin):
+        raise BTClibValueError(
+            f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
+        )
     script_flags = to_script_flags(flags)
     script_sig = tx.vin[i].script_sig
     # one for the whole input, the script_sig, the script_pub_key, the
