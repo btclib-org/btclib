@@ -34,13 +34,12 @@ full year, short month, short day (YYYY-M-D)
 
 - **The dataclass field of a `Witness` is its serialization, `_serialized`,
   not `stack`** (closes #2748). `Witness.stack` is a tuple of bytes, read from
-  the serialization. Act on it if
-  you use `dataclasses.fields`, `replace`, `asdict` or `astuple` on a
-  `Witness`, or on a `TxIn` or `Tx` holding one, or match `Witness(x)`
-  positionally: `replace` raises `TypeError`, so build a new `Witness(stack)`
-  instead. `Witness.parse` builds with `cls.__new__`, so a subclass's own
-  `__init__` does not run on parse. Act on it if your subclass's `__init__`
-  does work a parsed instance needs.
+  the serialization. Act on it if you use `dataclasses.fields` or `replace` on
+  a `Witness`, `asdict` or `astuple` on a `Witness` or on a `TxIn` or `Tx`
+  holding one, or match `Witness(x)` positionally: `replace` raises
+  `TypeError`, so build a new `Witness(stack)` instead. `Witness.parse` builds
+  with `cls.__new__`, so a subclass's own `__init__` does not run on parse.
+  Act on it if your subclass's `__init__` does work a parsed instance needs.
 - **A script tree with an odd leaf version or 0x50 is refused with
   `BTClibValueError`** (closes #2766), as BIP341 requires, by `tree_helper`,
   `output_pubkey`, `output_prvkey`, `input_script_sig` and
@@ -56,6 +55,14 @@ full year, short month, short day (YYYY-M-D)
   constant as `invalid checksum (bech32m instead of bech32)` or
   `invalid checksum (bech32 instead of bech32m)`**, where it said
   `invalid checksum` (issue #2725). Act on it if you match the message.
+- **`b32.witness_from_address` refuses an address with an empty data part and
+  a wrong checksum, such as `bc1qqqqqq`, as `invalid checksum`**, where it said
+  `empty data in bech32 address` (issue #2725). Act on it if you match the
+  message.
+- **`taproot.check_output_pubkey` refuses a one-octet control block as
+  `invalid control block length`**, where it said
+  `invalid size: 0 bytes instead of (32, 33, 65)` (closes #2703). Act on it if
+  you match the message.
 
 ## v2026.10.28
 

@@ -75,6 +75,12 @@ first access (closes #2748).
 `taproot.parse` reads 0xff as `UNKNOWN_OP_CODE_255`, leaving its refusal to
 execution (closes #2731).
 
+### Taproot helpers
+
+`taproot.tree_from_weights` builds the Huffman tree of weighted leaves, and
+`taproot.tap_tweak`, `taproot.merkle_root_from_control_block` and
+`sig_ops.last_push` are public (closes #2703, issue #2711).
+
 ### MINIMALIF_ALL
 
 `ScriptFlag.MINIMALIF_ALL`, off by default, applies MINIMALIF to legacy and
@@ -91,7 +97,18 @@ constants the codec accepts (issue #2725).
 `var_int.serialize` refuses a negative integer without printing it
 (closes #2645).
 
+### Release diff
+
+`release-diff.yml` installs `cryptography` on both sides, so the report
+compares `btclib.p2p.bip324`'s entry point, and it lists an entry point absent
+from both (closes #2831).
+
 ### Dependencies
 
 `uv.lock` moves uv-build, astral-sh/setup-uv moves to 10.3.2, and the
 btclib-org/.github calls move to v2026.10.29.
+
+### REVIEWING.md
+
+It takes .github's sentence opening the own part's questions (issue
+btclib-org/.github#1919).
