@@ -41,6 +41,7 @@ from btclib.script.witness import Witness
 from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
+    "last_push",
     "p2sh_sig_op_count",
     "sig_op_count",
     "witness_sig_op_count",
@@ -102,16 +103,27 @@ def sig_op_count(script: Octets, *, accurate: bool = False) -> int:
     return _sig_op_count(bytes_from_octets(script), accurate)
 
 
-def _last_push(script_sig: bytes) -> bytes | None:
-    """Return what a push-only script_sig pushes last, None for any other.
+def last_push(script_sig: Octets) -> bytes | None:
+    """Return the data of a push-only script_sig's last op code, else None.
 
-    Core reads it this way in both places: `GetSigOpCount(scriptSig)`
-    answers zero where `GetOp` fails or reads an op code above `OP_16`,
-    and `CountWitnessSigOps` asks `IsPushOnly`, which refuses the same
-    two. An op code carrying no data -- `OP_0`, `OP_1NEGATE`,
-    `OP_RESERVED`, `OP_1` to `OP_16` -- leaves the data empty, as
-    `GetScriptOp` clears it before each op code it reads.
+    The redeem script of a p2sh input, as Core reads it to count
+    signature checks. `GetSigOpCount(scriptSig)` answers zero where
+    `GetOp` fails or reads an op code above `OP_16`, and
+    `CountWitnessSigOps` asks `IsPushOnly`, which refuses the same two.
+    An empty script_sig is push-only, and its answer is empty.
+
+    What is read is the data of the last op code, as `GetOp` returns it,
+    and not the stack element it would leave: an op code carrying no
+    data -- `OP_0`, `OP_1NEGATE`, `OP_RESERVED`, `OP_1` to `OP_16` --
+    leaves the data empty, as `GetScriptOp` clears it before each op
+    code it reads. The script_sig is not run, so a push over 520 bytes
+    is read as any other.
     """
+    return _last_push(bytes_from_octets(script_sig))
+
+
+def _last_push(script_sig: bytes) -> bytes | None:
+    """`last_push` of a script_sig already in bytes."""
     data = b""
     end = 0
     for op_code, start, stop in op_code_spans(script_sig):

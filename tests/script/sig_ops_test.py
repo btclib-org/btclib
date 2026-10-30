@@ -29,6 +29,7 @@ from btclib.script import (
     witness_sig_op_count,
 )
 from btclib.script.limits import MAX_PUBKEYS_PER_MULTISIG
+from btclib.script.sig_ops import last_push
 
 _KEY = bytes.fromhex(
     "0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
@@ -367,3 +368,22 @@ def test_witness_sig_op_count_takes_a_witness() -> None:
     """A list of stack elements is refused rather than read as a stack."""
     with pytest.raises(BTClibTypeError, match="invalid witness type: list"):
         witness_sig_op_count(b"", _P2WPKH, [b"", b""])  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "script_sig, pushed",
+    [
+        pytest.param(serialize(["OP_0", _KEY]), _KEY, id="the-last-of-two-pushes"),
+        pytest.param(b"\x4c\x02\xab\xcd", b"\xab\xcd", id="by-op-pushdata1"),
+        pytest.param(serialize([b"\x51" * 521]), b"\x51" * 521, id="over-520-bytes"),
+        pytest.param(serialize([_KEY, "OP_5"]), b"", id="op-5-carries-no-data"),
+        pytest.param(serialize([_KEY]) + b"\x50", b"", id="nor-does-op-reserved"),
+        pytest.param(b"", b"", id="an-empty-script-sig"),
+        pytest.param(serialize([_KEY, "OP_NOP"]), None, id="not-push-only"),
+        pytest.param(serialize([_KEY]) + b"\x4b", None, id="a-push-cut-short"),
+    ],
+)
+def test_last_push(script_sig: bytes, pushed: bytes | None) -> None:
+    """The data of the last op code of a push-only script_sig, as `GetOp`."""
+    assert last_push(script_sig) == pushed
+    assert last_push(script_sig.hex()) == pushed

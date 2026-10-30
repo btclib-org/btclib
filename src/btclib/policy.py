@@ -148,6 +148,14 @@ def _redeem_script(script_sig: bytes) -> bytes | None:
     runs as Core's policy runs it to read a redeem script without
     verifying the spend: `EvalScript` under `SCRIPT_VERIFY_NONE` with a
     `BaseSignatureChecker`, which is `eval_script`'s default.
+
+    Not `script.sig_ops.last_push`, which is the reading Core counts
+    signature checks with and does not run the script. The two answer
+    differently, for example, for a script_sig that is not push-only or
+    ends in `OP_1NEGATE` or `OP_1` to `OP_16`, which can leave a value
+    here; for a push-only one holding `OP_RESERVED` or a push over 520
+    bytes, which fails here; and for the empty one, which leaves nothing
+    here.
     """
     stack, error = eval_script(script_sig)
     return None if error else stack[-1] if stack else None
