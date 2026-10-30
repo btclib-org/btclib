@@ -656,10 +656,11 @@ def test_verify_input_refuses_bad_index_and_prevouts() -> None:
     """verify_input refuses an index naming no input before reading it.
 
     A negative index used to wrap to another input, so a script needing
-    no signature passed under it; an index past the end, and a prevouts
-    list not covering every input, raised a bare IndexError (issue
-    #2672). The passing input 1 is the control: the negative index
-    would have verified it.
+    no signature passed under it; an index past the end of the inputs,
+    or of a short prevouts list, raised a bare IndexError, and a list
+    longer than the inputs passed on an input checking no signature
+    (issue #2672). The passing input 1 is the control: the negative
+    index would have verified it.
     """
     prev0, tx0 = taproot_script_spend(["OP_0"], lock_time=0, sequence=1)
     prev1, tx1 = taproot_script_spend(["OP_1"], lock_time=0, sequence=1)
@@ -674,6 +675,8 @@ def test_verify_input_refuses_bad_index_and_prevouts() -> None:
         verify_input(prevouts, tx, 2, ALL_FLAGS)
     with pytest.raises(BTClibValueError, match="prevouts for"):
         verify_input(prev0, tx, 0, ALL_FLAGS)
+    with pytest.raises(BTClibValueError, match="3 prevouts for 2"):
+        verify_input(prevouts + prev0, tx, 1, ALL_FLAGS)
 
 
 def test_tapscript_checksequenceverify() -> None:

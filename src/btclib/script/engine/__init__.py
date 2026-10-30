@@ -461,10 +461,9 @@ def verify_input(
     A refusal is a ScriptError, its `code` the ScriptErrorCode Core's
     VerifyScript fails with for the same input.
 
-    An index naming no input, and a prevouts list that does not cover
-    every input, are refused before anything is read (issue #2672): left
-    to the lists, a negative index would verify another input, and an
-    index past the end would raise a bare `IndexError`.
+    An index naming no input, and a prevouts list that is not one entry
+    per input, are refused before anything is read (issue #2672): a
+    negative index would otherwise verify another input.
     """
     _assert_valid_vin_i(tx, i)
     if len(prevouts) != len(tx.vin):
