@@ -8,6 +8,7 @@ Core's own vectors are from `src/test/streams_tests.cpp` at Bitcoin Core
 v31.1 (9be056a8a7), cited by line where each is used.
 """
 
+from fractions import Fraction
 from io import BytesIO
 from typing import Any
 
@@ -181,3 +182,15 @@ def test_offset_is_a_non_negative_integer() -> None:
             obfuscation.obfuscate(b"data", bytes(8), bad)  # type: ignore[arg-type]
     with pytest.raises(BTClibValueError, match="negative offset"):
         obfuscation.obfuscate(b"data", bytes(8), -1)
+
+
+def test_an_offset_too_large_to_print_is_still_a_type_error() -> None:
+    """An offset `str()` cannot write is described, as `var_int`'s are.
+
+    A Fraction whose numerator runs past the digit limit must not escape
+    through the refusal's own message as a plain ValueError. The message
+    describes it instead of quoting it.
+    """
+    unwritable = r"a Fraction str\(\) cannot write$"
+    with pytest.raises(BTClibTypeError, match=f"non-integer offset: {unwritable}"):
+        obfuscation.obfuscate(b"data", bytes(8), Fraction(10**4400, 3))  # type: ignore[arg-type]

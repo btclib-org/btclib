@@ -23,7 +23,12 @@ skips the work; here the XOR with zeros returns the same bytes.
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata, is_integer
+from btclib.utils import (
+    _message_text,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    is_integer,
+)
 
 __all__ = [
     "KEY_SIZE",
@@ -47,7 +52,7 @@ def obfuscate(data: Octets, key: Octets, offset: int = 0) -> bytes:
     data = bytes_from_octets(data)
     key = bytes_from_octets(key, KEY_SIZE)
     if not is_integer(offset):
-        raise BTClibTypeError(f"non-integer offset: {offset}")
+        raise BTClibTypeError(f"non-integer offset: {_message_text(offset)}")
     if offset < 0:
         raise BTClibValueError(f"negative offset: {offset}")
 
