@@ -13,6 +13,7 @@ tests/_data/siphash.json -text
 tests/block/_data/blockfilters.json -text
 tests/block/_data/checkblock_invalid.json -text
 tests/block/_data/checkblock_valid.json -text
+tests/block/_data/opentimestamps/COPYINGv3 -text
 tests/block/_data/opentimestamps/LICENSE -text
 tests/block/_data/opentimestamps/a-or-b.ots -text
 tests/block/_data/opentimestamps/bad-stamp.txt.ots -text

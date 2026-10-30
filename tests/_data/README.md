@@ -127,9 +127,11 @@ bitcoin-core/secp256k1's `src` for `secp256k1_symbols.txt` on 2026-09-10,
 refreshed again on 2026-09-14, 2026-09-29, 2026-10-07 and 2026-10-26, at the
 tip of its path each time.
 BIP324's `packet_encoding_test_vectors.csv` followed on 2026-09-27, at the
-tip of its path, rust-bitcoin's `huge_witness.bin` on 2026-10-11,
+tip of its path, rust-bitcoin's `huge_witness.bin` on 2026-10-12,
 opentimestamps-client's examples and their licence on 2026-10-21, and
 bip-0054's vector files on 2026-10-26, each at the tip of its path.
+gnulib's `COPYINGv3`, beside opentimestamps-client's licence, followed on
+2026-10-30, at the tip of its path.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -867,10 +869,11 @@ btclib is MIT, and the proofs are redistributed rather than written here.
 
 The proofs are the examples of opentimestamps-client that
 `tests/block/opentimestamps_test.py` replays: every example carrying a
-Bitcoin attestation, `bad-stamp.txt.ots` among them, which the test
-refuses, and `incomplete.txt.ots`, which it reports as pending. The other
-examples carry no Bitcoin attestation, or are invalid on purpose, and are
-not vendored. Each keeps its upstream name: `a-or-b.ots` is under
+Bitcoin attestation at upstream's f3a9e92e (2026-10-27),
+`bad-stamp.txt.ots` among them, which the test refuses, and
+`incomplete.txt.ots`, which it reports as pending. The other examples
+carry no Bitcoin attestation, or are invalid on purpose, and are not
+vendored. Each keeps its upstream name: `a-or-b.ots` is under
 `examples/sha1/` upstream, the others under `examples/`. The headers they
 attest are under *Chain data, not a repository*.
 
@@ -985,6 +988,24 @@ behind   0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/COPYINGv3`
+
+```text
+repo     coreutils/gnulib
+path     doc/COPYINGv3
+commit   d64d66cc4897d605f543257dcd038524a0a55215  2017-10-02
+blob     f288702d2fa16d3cdf0035b15a9fcbc552cd88e7
+pulled   2026-10-30
+behind   0 revisions; still the blob on master
+```
+
+Verdict: **identical**. The GPL, kept beside the LGPL `LICENSE` above,
+which incorporates its terms. The text is the one gnu.org serves at
+<https://www.gnu.org/licenses/gpl-3.0.txt>, whose bytes hash to this
+blob on 2026-10-30. The pin is gnulib's copy, read through gnulib's
+GitHub mirror, so that the weekly job can compare it. The text allows
+verbatim copies, which this is.
 
 ## Chain data, not a repository
 
@@ -1203,8 +1224,9 @@ Against a pinned upstream blob:
   `tx_valid.json`, `tx_invalid.json`, `key_io_valid.json`,
   `key_io_invalid.json`, `base58_encode_decode.json`, `siphash.json`,
   `blockfilters.json`, `checkblock_valid.json`, `checkblock_invalid.json`,
-  `txsize.json`, and opentimestamps-client's proofs and `LICENSE` under
-  `tests/block/_data/opentimestamps/`.
+  `txsize.json`, opentimestamps-client's proofs and `LICENSE` under
+  `tests/block/_data/opentimestamps/`, and gnulib's `COPYINGv3` beside
+  them.
 - identical but for a trailing newline: `script_assets_test.json`,
   `sigops.json`, `coinbases.json`, `timestamps.json`.
 - identical but for line endings: `packet_encoding_test_vectors.csv`.

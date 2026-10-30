@@ -6,7 +6,8 @@
 
 The proofs are the Bitcoin-attested examples of opentimestamps-client's
 `examples/`, and `incomplete.txt.ots`, kept under their upstream names in
-`tests/block/_data/opentimestamps/`, with upstream's licence beside them.
+`tests/block/_data/opentimestamps/`, with upstream's licence and the
+GPL-3.0 text it incorporates beside them.
 The headers of the blocks they attest are in
 `tests/block/_data/opentimestamps_headers.json`.
 `tests/_data/README.md` records both.
