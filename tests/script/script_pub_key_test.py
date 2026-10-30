@@ -390,7 +390,7 @@ def test_p2wpkh() -> None:
     addr = b58.p2wpkh_p2sh(PubKeyData(pub_key, network))
     assert addr == "3BJxz2r8zY7LxJfdGjUpjjHNh6YEiitvf2"
 
-    err_msg = "invalid witness version: "
+    err_msg = "invalid witness version op code: 0x33 instead of OP_0 (0x00)"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2wpkh(b"\x33" + script_pub_key[1:])
 
@@ -502,7 +502,7 @@ def test_p2wsh() -> None:
     addr = b58.p2wsh_p2sh(redeem_script, network)
     assert addr == "39GUePMSQ4mADpihVLd8cFQ2tih9Fy4qkz"
 
-    err_msg = "invalid witness version: "
+    err_msg = "invalid witness version op code: 0x33 instead of OP_0 (0x00)"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2wsh(b"\x33" + script_pub_key[1:])
 

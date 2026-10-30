@@ -398,8 +398,7 @@ def assert_p2wpkh(script_pub_key: Octets) -> None:
     # p2wpkh [OP_0, pub_key hash]
     # 0x0014{20-byte pub_key hash}
     if script_pub_key[0] != 0:
-        err_msg = f"invalid witness version: {script_pub_key[0]}"
-        err_msg += " instead of 0"
+        err_msg = f"invalid witness version op code: {hex(script_pub_key[0])} instead of OP_0 (0x00)"
         raise BTClibValueError(err_msg)
     if script_pub_key[1] != 0x14:
         err_msg = f"invalid pub_key hash length marker: {script_pub_key[1]}"
@@ -418,8 +417,7 @@ def assert_p2wsh(script_pub_key: Octets) -> None:
     # p2wsh [OP_0, redeem_script hash]
     # 0x0020{32-byte redeem_script hash}
     if script_pub_key[0] != 0:
-        err_msg = f"invalid witness version: {script_pub_key[0]}"
-        err_msg += " instead of 0"
+        err_msg = f"invalid witness version op code: {hex(script_pub_key[0])} instead of OP_0 (0x00)"
         raise BTClibValueError(err_msg)
     if script_pub_key[1] != 0x20:
         err_msg = f"invalid redeem script hash length marker: {script_pub_key[1]}"
