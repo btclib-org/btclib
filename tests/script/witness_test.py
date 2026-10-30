@@ -138,8 +138,9 @@ class _ReadOnlyStream(BytesIO):
     """A stream holding none of what it gives, as btclib-node's reader is.
 
     `read` hands out the bytes, and `seek` only steps back into the last
-    read, which is how `Tx.parse` puts back its marker probe. Every other
-    way to the bytes refuses.
+    read, which is how `Tx.parse` puts back its marker probe. `tell`,
+    `getbuffer` and `getvalue` refuse, and every other read finds an empty
+    buffer.
     """
 
     def __init__(self, data: bytes) -> None:
