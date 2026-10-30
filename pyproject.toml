@@ -1263,12 +1263,9 @@ ignore = [
     # zero-finding for a construct this codebase does not contain, so
     # selecting it reads as an enforced invariant while enforcing
     # nothing: DTZ without a naive datetime, G and LOG without logging,
-    # ASYNC without async code, NPY without NumPy, EXE without a shebang
-    # anywhere left to check against an executable bit (the same
-    # decision .pre-commit-config.yaml already states for
-    # check-shebang-scripts-are-executable), AIR without Airflow, DJ
-    # without Django, FAST without FastAPI, ICN without an import this
-    # tree gives a non-conventional alias, INT without gettext, PD
+    # ASYNC without async code, NPY without NumPy, AIR without Airflow,
+    # DJ without Django, FAST without FastAPI, ICN without an import
+    # this tree gives a non-conventional alias, INT without gettext, PD
     # without pandas, and YTT without a `sys.version` comparison -- this
     # file's own `python_version` comment above already states there is
     # no `sys.version_info` branch anywhere in btclib or tests
@@ -1277,7 +1274,6 @@ ignore = [
     "LOG",
     "ASYNC",
     "NPY",
-    "EXE",
     "AIR",
     "DJ",
     "FAST",
@@ -1285,6 +1281,11 @@ ignore = [
     "INT",
     "PD",
     "YTT",
+    # flake8-executable: EXE001 is ruff's
+    # check-shebang-scripts-are-executable, which
+    # .pre-commit-config.yaml leaves off, and fails on the same file for
+    # the reason given there
+    "EXE",
     # flake8-todos disciplines the format of a marker FIX above already
     # refuses outright -- the seven member codes below are the whole
     # family, and each is a question about a TODO/FIXME/XXX/HACK comment
