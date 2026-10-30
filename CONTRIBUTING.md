@@ -370,6 +370,8 @@ project's dependencies:
   once, with `uv run --isolated --with`, whether the newest bindings
   work, after the build job and on the files that job uploaded; it
   publishes nothing.
+- `release-diff.yml` installs the last release into a venv of its own
+  with `uv pip install`, under constraints exported from the lock.
 - `deps-latest.yml` runs `uv lock --upgrade` to test the newest versions,
   `deps-oldest.yml` re-locks to each declared floor, and
   `pypi-install.yml` runs `uv pip install` to test the published
