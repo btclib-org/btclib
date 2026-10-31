@@ -56,6 +56,7 @@ from __future__ import annotations
 
 import string
 from collections.abc import Iterable
+from typing import overload
 
 from btclib.alias import Octets, String
 from btclib.bech32 import BECH32_1_CONST, BECH32_M_CONST, decode, encode
@@ -63,7 +64,13 @@ from btclib.consensus import MAX_SCRIPT_SIZE
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.key import PubKeyData
-from btclib.network import NETWORKS, network_from_key_value, network_from_name
+from btclib.network import (
+    NETWORKS,
+    Network,
+    _assert_network,
+    _network_from,
+    network_from_key_value,
+)
 from btclib.utils import (
     _message_text,
     assert_type,
@@ -214,18 +221,39 @@ def _address_from_witness(wit_ver: int, wit_prg: Octets, hrp: str) -> str:
 
 
 def address_from_witness(
-    wit_ver: int, wit_prg: Octets, network: str = "mainnet"
+    wit_ver: int, wit_prg: Octets, network: str | Network = "mainnet"
 ) -> str:
     """Encode a bech32 native segwit address from the witness."""
-    hrp = network_from_name(network).hrp
+    hrp = _network_from(network).hrp
     return _address_from_witness(wit_ver, wit_prg, hrp)
 
 
-def witness_from_address(b32addr: String) -> tuple[int, bytes, str]:
+@overload
+def witness_from_address(
+    b32addr: String, network: None = None
+) -> tuple[int, bytes, str]: ...
+
+
+@overload
+def witness_from_address(
+    b32addr: String, network: Network
+) -> tuple[int, bytes, Network]: ...
+
+
+def witness_from_address(
+    b32addr: String, network: Network | None = None
+) -> tuple[int, bytes, str | Network]:
     """Return the witness from a bech32 native segwit address.
 
     The returned data structure is: version, program, network.
+
+    Without a `network`, the hrp is looked up in NETWORKS and the network
+    is its name. Given one, the hrp has to be that network's, and the
+    network itself is returned. This is how a caller decodes another
+    chain's addresses with a Network it built.
     """
+    if network is not None:
+        _assert_network(network)
     # the coercion before the length, which is a fact about characters:
     # `len` of what is neither text nor bytes is a TypeError about a
     # builtin, where the codec below would have named the argument
@@ -242,12 +270,17 @@ def witness_from_address(b32addr: String) -> tuple[int, bytes, str]:
     wit_prog = bytes(_power_of_2_base_conversion(data[1:], 5, 8, False))
     wit_prog = bytes_from_witness_program(wit_ver, wit_prog)
 
+    if network is not None:
+        if hrp != network.hrp:
+            raise BTClibValueError(f"invalid hrp: {hrp}")
+        return wit_ver, wit_prog, network
+
     # check that it is a known segwit address type
-    network = network_from_key_value("hrp", hrp)
-    if network is None:
+    name = network_from_key_value("hrp", hrp)
+    if name is None:
         raise BTClibValueError(f"invalid hrp: {hrp}")
 
-    return wit_ver, wit_prog, network
+    return wit_ver, wit_prog, name
 
 
 # 1.+2. = 3. bech32 address from pub_key/script_pub_key
@@ -298,7 +331,7 @@ def p2wpkh(key: PubKeyData) -> str:
     return address_from_witness(0, _v0_witness_program_from_key(key), key.network)
 
 
-def p2wsh(script_pub_key: Octets, network: str = "mainnet") -> str:
+def p2wsh(script_pub_key: Octets, network: str | Network = "mainnet") -> str:
     """Return the p2wsh bech32 address corresponding to a script_pub_key.
 
     The script_pub_key is the witness script, and a witness script over
@@ -309,6 +342,6 @@ def p2wsh(script_pub_key: Octets, network: str = "mainnet") -> str:
     return address_from_witness(0, h256, network)
 
 
-def p2tr(output_key: Octets, network: str = "mainnet") -> str:
+def p2tr(output_key: Octets, network: str | Network = "mainnet") -> str:
     """Return the p2tr bech32 address corresponding to a taproot output key."""
     return address_from_witness(1, output_key, network)

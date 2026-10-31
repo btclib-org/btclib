@@ -14,6 +14,7 @@ from btclib import var_bytes
 from btclib.alias import BinaryData, Octets, String
 from btclib.amount import btc_from_sats, sats_from_btc, valid_sats_amount
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.network import Network
 from btclib.script import ScriptPubKey, script_from_dict, script_to_dict
 from btclib.utils import (
     _assert_valid_8_byte_signed_field,
@@ -27,6 +28,27 @@ from btclib.utils import (
 __all__ = [
     "TxOut",
 ]
+
+
+def _network_to_json(network: str | Network) -> str | dict[str, str | None]:
+    """Return a network name as it is, a Network as its own dict.
+
+    A Network that `Network.from_dict` does not read back as an equal one
+    is refused, so that json written here is never json read back as
+    another network.
+    """
+    if isinstance(network, str):
+        return network
+    dict_ = network.to_dict()
+    try:
+        back = Network.from_dict(dict_)
+    except BTClibValueError:
+        back = None
+    if back != network:
+        err_msg = "network cannot be written as json: "
+        err_msg += "its curve or consensus row is not one btclib names"
+        raise BTClibValueError(err_msg)
+    return dict_
 
 
 # frozen all the way down: `value` is immutable and ScriptPubKey is frozen
@@ -76,11 +98,11 @@ class TxOut:
         elif check_validity:
             # the object branch asks what the octets branch asks. Building
             # one from octets validates it -- ScriptPubKey's own default --
-            # so without this a network name the class refuses enters here
+            # so without this a network the class refuses enters here
             # and travels on: a TxOut is what carries a script into a Tx's
             # outputs, a Block's transactions and PsbtIn.witness_utxo, and
             # assert_valid below judges the amount alone, on purpose.
-            # What it asks is the network name and that the script is
+            # What it asks is the network and that the script is
             # bytes, not that the script parses -- Script.assert_valid
             # explains why nothing asks that, and why this cannot refuse a
             # script that is in a block
@@ -105,23 +127,27 @@ class TxOut:
         # chain need not parse, and validating that here would refuse
         # transactions that are in blocks -- bitcoin/bitcoin#320, and issue
         # #123. What the object is asked is what ScriptPubKey asks itself,
-        # the network name and that the script is bytes, neither of which
-        # is a property of anything on chain. Here as well as in the
-        # constructor, so that deferring the check and making it later
-        # answer the same question: `check_validity=False` followed by
-        # `assert_valid()` is the spelling every caller that builds a
-        # TxOut by hand and validates it afterwards uses, and without this
-        # that pair passed what the constructor alone refuses. The class is
-        # frozen, so a field reassigned behind it is not the reason
+        # the network (a name, or a valid Network) and that the script is
+        # bytes, neither of which is a property of anything on chain. Here
+        # as well as in the constructor, so that deferring the check and
+        # making it later answer the same question: `check_validity=False`
+        # followed by `assert_valid()` is the spelling every caller that
+        # builds a TxOut by hand and validates it afterwards uses, and
+        # without this that pair passed what the constructor alone refuses.
+        # The class is frozen, so a field reassigned behind it is not why
         self.script_pub_key.assert_valid()
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
         """Return the output as a dict of json-friendly values.
 
-        The value is a BTC string, not satoshi; type, addresses and
-        network are derived for the reader and ignored by from_dict,
-        which rebuilds them from the script -- network excepted, read
-        back with mainnet as its default.
+        The value is a BTC string, not satoshi; type and addresses are
+        derived for the reader and ignored by from_dict, which rebuilds
+        them from the script. The network is read back, with mainnet as
+        its default: a name, or for a Network NETWORKS does not hold the
+        dict `Network.to_dict` writes. That one is refused where
+        `Network.from_dict` would not give the same Network back, its
+        curve or consensus row being named in the dict and not in the
+        tables.
         """
         if check_validity:
             self.assert_valid()
@@ -141,7 +167,7 @@ class TxOut:
             "scriptPubKey": script_to_dict(self.script_pub_key.script),
             "type": self.script_pub_key.type,
             "addresses": self.script_pub_key.addresses,
-            "network": self.script_pub_key.network,
+            "network": _network_to_json(self.script_pub_key.network),
         }
 
     @classmethod
@@ -169,6 +195,8 @@ class TxOut:
         value = sats_from_btc(dict_["value"])
         script_bin = script_from_dict(dict_["scriptPubKey"])
         network = dict_.get("network", "mainnet")
+        if isinstance(network, Mapping):
+            network = Network.from_dict(network, check_validity=check_validity)
         return cls(
             value, ScriptPubKey(script_bin, network), check_validity=check_validity
         )
@@ -227,7 +255,13 @@ class TxOut:
         )
 
     @classmethod
-    def from_address(cls: type[TxOut], value: int, address: String) -> TxOut:
-        """Build a TxOut paying the address, network included."""
-        script_pub_key = ScriptPubKey.from_address(address)
+    def from_address(
+        cls: type[TxOut], value: int, address: String, network: Network | None = None
+    ) -> TxOut:
+        """Build a TxOut paying the address, network included.
+
+        `network` is `ScriptPubKey.from_address`'s: a Network NETWORKS
+        does not hold is kept.
+        """
+        script_pub_key = ScriptPubKey.from_address(address, network)
         return cls(value, script_pub_key)

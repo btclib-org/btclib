@@ -74,7 +74,7 @@ from typing_extensions import override
 
 from btclib.alias import Octets, Point
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.network import NETWORKS, network_from_name, normalized_network_name
+from btclib.network import NETWORKS, Network, _network_from, _normalized_network
 from btclib.utils import assert_type, bytes_from_octets, is_integer
 
 __all__ = [
@@ -102,21 +102,24 @@ _HYBRID_PREFIXES = (0x06, 0x07)
 
 @dataclass(frozen=True, init=False)
 class PubKeyData:
-    """A public key as its SEC octets, on a named network.
+    """A public key as its SEC octets, on a network.
 
     The octets are the field because serializing a point is cheap and
     parsing one is not; `point_var` is the lift, paid on first use and kept.
     The module docstring carries the reasoning and the CHANGELOG entry
     the measurements.
+
+    The network is a NETWORKS name, or a Network NETWORKS does not hold: a
+    Network equal to an entry is stored as that entry's name.
     """
 
     sec: bytes
-    network: str
+    network: str | Network
 
     def __init__(
         self,
         sec: Octets,
-        network: str = "mainnet",
+        network: str | Network = "mainnet",
         *,
         check_validity: bool = True,
     ) -> None:
@@ -130,13 +133,13 @@ class PubKeyData:
         object.__setattr__(self, "sec", bytes_from_octets(sec))
         # the two fields are asymmetric in what they inherit from their
         # converter: `bytes_from_octets` refuses a wrong type whatever
-        # `check_validity` says, where `normalized_network_name` refuses
+        # `check_validity` says, where `_normalized_network` refuses
         # nothing and leaves the refusal to `assert_valid`. Without the
         # coercion, " MainNet " and "mainnet" build keys that are not
         # equal and do not hash alike, and the docstring above -- equality
         # reads the declared fields -- would be true of the fields and
         # false of the key
-        object.__setattr__(self, "network", normalized_network_name(network))
+        object.__setattr__(self, "network", _normalized_network(network))
 
         if check_validity:
             self.assert_valid()
@@ -156,7 +159,7 @@ class PubKeyData:
     @property
     def curve(self) -> Curve:
         """Return the curve of the network the key is on."""
-        return network_from_name(self.network).curve
+        return _network_from(self.network).curve
 
     @cached_property
     def point_var(self) -> Point:
@@ -179,12 +182,12 @@ class PubKeyData:
         where the curve is asked. That `sec` is bytes at all is not asked
         here, `bytes_from_octets` having refused anything else in the
         constructor whatever `check_validity` said; `network` is asked,
-        `normalized_network_name` being a coercion that refuses
-        nothing.
+        `_normalized_network` being a coercion that refuses nothing.
         """
-        assert_type(self.network, str, "network")
-        # refuses a name no network has, which is what this is called for
-        ec = network_from_name(self.network).curve
+        assert_type(self.network, (str, Network), "network")
+        # refuses a name no network has and a Network that is not valid,
+        # which is what this is called for
+        ec = _network_from(self.network).curve
         if len(self.sec) == ec.p_size + 1:
             if self.sec[0] not in _COMPRESSED_PREFIXES:
                 raise BTClibValueError(
@@ -204,7 +207,7 @@ class PubKeyData:
 
 @dataclass(frozen=True, init=False)
 class PrvKeyData:
-    """A private key as its scalar, on a named network, compressed or not.
+    """A private key as its scalar, on a network, compressed or not.
 
     `compressed` is not decoration: it is what a WIF carries and what
     decides the SEC form of `pub`, so without it the public key this
@@ -216,19 +219,19 @@ class PrvKeyData:
     """
 
     q: int
-    network: str
+    network: str | Network
     compressed: bool
 
     def __init__(
         self,
         q: int,
-        network: str = "mainnet",
+        network: str | Network = "mainnet",
         compressed: bool = True,
         *,
         check_validity: bool = True,
     ) -> None:
         object.__setattr__(self, "q", q)
-        object.__setattr__(self, "network", normalized_network_name(network))
+        object.__setattr__(self, "network", _normalized_network(network))
         object.__setattr__(self, "compressed", compressed)
 
         if check_validity:
@@ -248,7 +251,7 @@ class PrvKeyData:
     @property
     def curve(self) -> Curve:
         """Return the curve of the network the key is on."""
-        return network_from_name(self.network).curve
+        return _network_from(self.network).curve
 
     @cached_property
     def pub(self) -> PubKeyData:
@@ -272,7 +275,7 @@ class PrvKeyData:
 
     def assert_valid(self) -> None:
         """Refuse a scalar outside 1..n-1, and an unknown network."""
-        assert_type(self.network, str, "network")
+        assert_type(self.network, (str, Network), "network")
         # `is_integer` and not `assert_type(self.q, int, "q")`: a bool is
         # an int to `isinstance`, and here the two mean different things
         # -- `compressed` is a kind and `q` is a number -- so True
@@ -282,7 +285,7 @@ class PrvKeyData:
         if not is_integer(self.q):
             raise BTClibTypeError("not a private key scalar")
         assert_type(self.compressed, bool, "compressed")
-        ec = network_from_name(self.network).curve
+        ec = _network_from(self.network).curve
         if not 0 < self.q < ec.n:
             # never echo the scalar: it is the secret itself
             raise BTClibValueError("private key not in 1..n-1")
