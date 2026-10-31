@@ -165,6 +165,33 @@ those checks passed to
      python -c "import btclib; print(btclib.__version__)"
    ```
 
+**A rehearsal that is not to be approved is closed by rejecting its
+`testpypi` deployment, before the branch is rehearsed again.**
+`release.yml`'s concurrency group admits one run per ref at a time,
+and a run waiting at the approval holds it. A later dispatch of the same
+branch waits as `pending`, and the dispatch after it cancels that one:
+GitHub keeps one pending run per group. `gh run cancel` does not close
+a run waiting at an approval (issue #2854). Find the waiting run:
+
+```shell
+gh run list --repo btclib-org/btclib --workflow release.yml \
+  --branch <branch> --status waiting
+```
+
+```shell
+run=<run id>
+```
+
+Then reject its deployment. The run ends at once, and the pending
+dispatch, if there is one, starts:
+
+```shell
+env=$(gh api repos/btclib-org/btclib/environments/testpypi --jq .id)
+gh api -X POST \
+  "repos/btclib-org/btclib/actions/runs/${run:?}/pending_deployments" \
+  -F "environment_ids[]=${env:?}" -f state=rejected -f comment=superseded
+```
+
 ## Release to PyPI
 
 `deps-latest` is worth dispatching before the tag rather than waiting for
