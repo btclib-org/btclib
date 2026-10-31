@@ -168,6 +168,8 @@ class Block:
     assert_valid is Core's CheckBlock -- what the bytes answer for
     themselves, proof-of-work included; the rules that need a height
     or a clock are assert_valid_contextual, taking a BlockContext.
+    assert_valid_contextual_block is the block's share of those rules,
+    for a block whose header was already accepted.
     """
 
     header: BlockHeader
@@ -527,10 +529,11 @@ class Block:
 
         Which height, and whether BIP34 is in force at all, are the
         caller's to say: the second is `BlockContext.is_bip34_active`, and
-        `assert_valid_contextual` is what applies it. Nothing is skipped
-        here, so a caller that knows the rule binds can ask for it
-        directly -- which is the only way to ask it of a block whose
-        height is all that is known about its place in a chain.
+        `assert_valid_contextual` and `assert_valid_contextual_block`
+        apply it. Nothing is skipped here, so a caller that knows the
+        rule binds can ask for it directly -- which is the only way to
+        ask it of a block whose height is all that is known about its
+        place in a chain.
         """
         self._assert_coinbase()
 
