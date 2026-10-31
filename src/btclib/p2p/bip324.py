@@ -6,7 +6,7 @@
 
 https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki
 
-This module needs the `bip324` extra, `pip install "btclib[bip324]"`,
+This module needs the `bip324` extra, ``pip install "btclib[bip324]"``,
 which brings in `cryptography`. Issue 1066 keeps a hand-written cipher
 out of btclib, and none is written here: the ciphers are
 `cryptography`'s. The rest of btclib does not import this module and
