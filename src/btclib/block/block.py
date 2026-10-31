@@ -618,9 +618,8 @@ class Block:
         Bitcoin Core's ContextualCheckBlockHeader and ContextualCheckBlock,
         in Core's order. The header first: bad-diffbits and time-too-old
         where the context carries what they read, time-too-new, and
-        bad-version. Then the block: bad-txns-nonfinal, bad-cb-height
-        where BIP34 binds, the witness rules at the context's height, and
-        the weight.
+        bad-version. Then the block, as `assert_valid_contextual_block`
+        says.
 
         Separate from assert_valid, which is CheckBlock: what the bytes
         answer for themselves, and therefore what Block.parse can ask.
@@ -641,7 +640,32 @@ class Block:
         context.assert_valid()
 
         self._assert_valid_contextual_header(context)
+        self._assert_valid_contextual_block(context)
 
+    def assert_valid_contextual_block(self, context: BlockContext) -> None:
+        """Assert Core's ContextualCheckBlock, and not the header's rules.
+
+        bad-txns-nonfinal, bad-cb-height where BIP34 binds, the witness
+        rules at the context's height, and the weight, in that order:
+        `assert_valid_contextual` without ContextualCheckBlockHeader.
+
+        Of the contextual rules, this is what Core asks of a block whose
+        header it already accepted: AcceptBlockHeader returns early for a
+        known header, and AcceptBlock goes on to CheckBlock, which is
+        `assert_valid`, and to ContextualCheckBlock, which is this. A
+        header that passed time-too-new when it arrived is not asked it
+        again once the clock has gone back.
+        """
+        # the context is an object a caller builds, and its height reaches
+        # the activation comparisons below: unchecked, a str for it would
+        # raise a bare TypeError, which flies past the handler the contract
+        # asks for
+        context.assert_valid()
+
+        self._assert_valid_contextual_block(context)
+
+    def _assert_valid_contextual_block(self, context: BlockContext) -> None:
+        """Assert Core's ContextualCheckBlock, the context already checked."""
         self._assert_final_transactions(context)
 
         if context.is_bip34_active:

@@ -526,6 +526,37 @@ def test_a_transaction_must_be_final_at_the_height() -> None:
     )
 
 
+def test_the_block_rules_can_be_asked_without_the_header_rules() -> None:
+    """Core's ContextualCheckBlock alone, for a header already accepted.
+
+    A clock two hours and a second behind block 481,824's timestamp fails
+    its header on time-too-new. At height 481,823 its body fails
+    bad-txns-nonfinal as well: the whole check answers the first, and the
+    block's own rules the second. At its own height the block's rules
+    pass, the header's still refusing.
+    """
+    block = block_of("block_481824_complete.bin")
+    tx = block.transactions[1]
+    now = block.header.time - timedelta(seconds=MAX_FUTURE_BLOCK_TIME + 1)
+    early = BlockContext(height=_MAINNET_SEGWIT_HEIGHT - 1, now=now)
+
+    err_msg = "invalid timestamp \\(too far in the future\\): "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_contextual(early)
+    with pytest.raises(BTClibValueError, match=f"non-final transaction: {tx.id.hex()}"):
+        block.assert_valid_contextual_block(early)
+
+    at = BlockContext(height=_MAINNET_SEGWIT_HEIGHT, now=now)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_contextual(at)
+    block.assert_valid_contextual_block(at)
+
+    # the context is checked here too, before any rule reads it
+    unchecked = BlockContext(height=-1, now=now, check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid height: -1"):
+        block.assert_valid_contextual_block(unchecked)
+
+
 def test_the_witness_rules_depend_on_the_segwit_height() -> None:
     """Core's CheckWitnessMalleation, either side of the segwit height.
 
