@@ -18,6 +18,7 @@ one runner, and `tests-passed` gates it without a line being added to any
 `needs` list.
 """
 
+import ast
 import re
 from pathlib import Path
 
@@ -184,3 +185,33 @@ def test_is_public(parts: tuple[str, ...], public: bool) -> None:
     a private module inside a package it does not.
     """
     assert _is_public(parts) is public
+
+
+def test_pip_commands_in_src_docstrings_use_double_backticks() -> None:
+    """Pip install commands in docstrings under src/ use double backticks.
+
+    Single backticks render as <cite> in Sphinx, causing smartquotes to turn
+    double quotes into curly quotes. Double backticks render as <code> code
+    literals with straight quotes (issue #2872).
+    """
+    single_backtick_pattern = re.compile(r"(?<!`)`pip install[^`]+`(?!`)")
+    for path in sorted(_PACKAGE_DIR.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(
+                node,
+                (
+                    ast.Module,
+                    ast.FunctionDef,
+                    ast.AsyncFunctionDef,
+                    ast.ClassDef,
+                ),
+            ):
+                doc = ast.get_docstring(node)
+                if doc and "pip install" in doc:
+                    for line in doc.splitlines():
+                        match = single_backtick_pattern.search(line)
+                        assert not match, (
+                            f"{path}: docstring pip install command must use "
+                            f"double backticks: {match.group(0)}"
+                        )
