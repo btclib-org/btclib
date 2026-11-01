@@ -78,7 +78,6 @@ entries close on a verdict; one with nothing upstream to compare
 against says so in prose instead. The verdicts used:
 
 - **identical** — our file and the upstream blob are the same bytes.
-- **reformatted** — same parsed JSON value, different whitespace.
 - **transcribed** — there is no file compared byte for byte. Over prose
   (a BIP, an RFC, a BOLT) the check is that every value in our copy
   appears verbatim in the pinned text; over a source file the check is
@@ -98,6 +97,9 @@ against says so in prose instead. The verdicts used:
 the tree, from `git log --follow --diff-filter=A`. That is a fact in this
 repository; someone's memory of the day they opened a browser is not.
 Where a file was vendored earlier and later refreshed, both dates appear.
+Where `--follow` takes a file for a copy of another file in this tree, it
+answers the other file's date; `pulled` is then the date of the commit
+that added the file.
 
 `behind` counts upstream revisions of that path since the pin. It is a
 staleness figure, not a defect: a vector file is a fixed set of cases and
@@ -132,8 +134,11 @@ tip of its path, rust-bitcoin's `huge_witness.bin` on 2026-10-12,
 opentimestamps-client's examples and their licence on 2026-10-21,
 rustreexo's `test_values/` files on 2026-10-21, and bip-0054's vector
 files on 2026-10-26, each at the tip of its path.
-gnulib's `COPYINGv3`, beside opentimestamps-client's licence, followed on
-2026-10-30, at the tip of its path.
+python-bitcoinlib's `LICENSE` followed on 2026-10-26, at the tip of its
+path, and its `COPYING` the same day, at the tip of its path before
+upstream deleted it.
+gnulib's `COPYINGv3`, beside opentimestamps-client's and python-bitcoinlib's
+licences, followed on 2026-10-30, at the tip of its path.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -741,30 +746,95 @@ bindings expose a name, that being a fact about their own surface.
 
 ## Other projects
 
-### `tests/schemes/_data/signmessage.json`
+### `tests/schemes/_data/python-bitcoinlib/LICENSE`
 
 ```text
-repo    petertodd/python-bitcoinlib
-path    bitcoin/tests/data/signmessage.json
-commit  0b8318cc36e86508a3153342290b31b614a1be7f  2015-06-30
-blob    31d619867d1ab2dcd8358868ac501b35ebb9c129
-ours    dec81a97db1e63960fb3306ebc2716e9c7c8ef92
-pulled  2020-01-04
-behind  0 revisions; still the blob on master
+repo     petertodd/python-bitcoinlib
+path     LICENSE
+commit   8ff7d8b64b0c7ceefb678c8883cb1d01d1d6e5cc  2014-09-07
+blob     a4cfc1c29796086e96bc58ae30ef66de1412a094
+licence  LGPL-3.0-or-later
+pulled   2026-10-26
+behind   0 revisions; that commit is the only one to touch the path
 ```
 
-Verdict: **reformatted**. 200 vectors, JSON-equal, and all 200 are
-exercised by `tests/schemes/bms_test.py`.
+Verdict: **identical**. Upstream's licence, kept beside
+`signmessage.json` below: btclib is MIT, and the vectors are
+redistributed rather than written here. It is the same blob at
+`signmessage.json`'s pin. The directory holds python-bitcoinlib's files
+and the GPL text below, so that the licence beside them covers nothing
+else.
 
-### `tests/block/_data/checkblock_valid.json`
+### `tests/schemes/_data/python-bitcoinlib/COPYINGv3`
 
 ```text
-repo    petertodd/python-bitcoinlib
-path    bitcoin/tests/data/checkblock_valid.json
-commit  46314961bd7d8d0d6069c766c9cb7bfc41c299f4  2014-02-22
-blob    eeca0aa43d8c3cd75d3c98d497f39edb2f722dff
-pulled  2026-08-02
-behind  0 revisions; that commit is the only one to touch the path
+repo     coreutils/gnulib
+path     doc/COPYINGv3
+commit   d64d66cc4897d605f543257dcd038524a0a55215  2017-10-02
+blob     f288702d2fa16d3cdf0035b15a9fcbc552cd88e7
+pulled   2026-10-30
+behind   0 revisions; still the blob on master
+```
+
+Verdict: **identical**. The GPL, kept beside the LGPL `LICENSE` above,
+which incorporates its terms. It is the same blob as
+`tests/block/_data/opentimestamps/COPYINGv3`, whose entry says where the
+text comes from.
+
+### `tests/schemes/_data/python-bitcoinlib/signmessage.json`
+
+```text
+repo     petertodd/python-bitcoinlib
+path     bitcoin/tests/data/signmessage.json
+commit   0b8318cc36e86508a3153342290b31b614a1be7f  2015-06-30
+blob     31d619867d1ab2dcd8358868ac501b35ebb9c129
+ours     dec81a97db1e63960fb3306ebc2716e9c7c8ef92
+licence  LGPL-3.0-or-later
+pulled   2020-01-04
+behind   0 revisions; still the blob on master
+```
+
+Verdict: **identical but for a trailing newline**, the change the notice
+below dates, so our blob is `dec81a97`. All 200 vectors are exercised by
+`tests/schemes/bms_test.py`.
+
+Modified here on 2023-01-04: btclib's `end-of-file-fixer` hook added the
+final newline upstream's file lacks, and changed nothing else. This is
+the dated notice the GPL asks of a modified copy.
+
+### `tests/block/_data/python-bitcoinlib/COPYING`
+
+```text
+repo     petertodd/python-bitcoinlib
+path     COPYING
+commit   cfdc2a397d686f667b56bab42351def0f3cee76d  2013-08-28
+blob     fec0301a468177e870de69be60303d05ded7a42c
+ours     d050d83442fa61873d096732f9919e3996026da5
+licence  MIT
+pulled   2026-10-26
+behind   1 revision; 8ff7d8b6 (2014-09-07) deleted the path
+```
+
+Verdict: **identical but for a trailing newline**: upstream's file ends
+in a blank line, which the `end-of-file-fixer` hook removed, so our blob
+is `d050d834`. Upstream's licence at the pin of `checkblock_valid.json`
+and `checkblock_invalid.json` below, kept beside them: the same blob is
+at that commit. Its terms are MIT for every file but `bitcoin/rpc.py`,
+which is not vendored. Upstream replaced it with the LGPL `LICENSE` above
+in 8ff7d8b6, which leaves both files unchanged. The directory holds
+python-bitcoinlib's files alone, so that the licence beside them covers
+nothing else.
+
+### `tests/block/_data/python-bitcoinlib/checkblock_valid.json`
+
+```text
+repo     petertodd/python-bitcoinlib
+path     bitcoin/tests/data/checkblock_valid.json
+commit   46314961bd7d8d0d6069c766c9cb7bfc41c299f4  2014-02-22
+blob     eeca0aa43d8c3cd75d3c98d497f39edb2f722dff
+licence  MIT
+pulled   2026-08-02
+behind   0 revisions; that commit is the only one to touch the path
 ```
 
 Verdict: **identical**. Four blocks — genesis twice, 99,960 and 99,993 —
@@ -777,15 +847,16 @@ is read: it answers "is this timestamp too far in the future", which
 `BlockContext` carries the clock for. The first is one second inside the
 two-hour window and the second is the instant genesis was mined.
 
-### `tests/block/_data/checkblock_invalid.json`
+### `tests/block/_data/python-bitcoinlib/checkblock_invalid.json`
 
 ```text
-repo    petertodd/python-bitcoinlib
-path    bitcoin/tests/data/checkblock_invalid.json
-commit  46314961bd7d8d0d6069c766c9cb7bfc41c299f4  2014-02-22
-blob    16a9b3cafea17fb55057c1bb5eac572b524b27d5
-pulled  2026-08-02
-behind  0 revisions; that commit is the only one to touch the path
+repo     petertodd/python-bitcoinlib
+path     bitcoin/tests/data/checkblock_invalid.json
+commit   46314961bd7d8d0d6069c766c9cb7bfc41c299f4  2014-02-22
+blob     16a9b3cafea17fb55057c1bb5eac572b524b27d5
+licence  MIT
+pulled   2026-08-02
+behind   0 revisions; that commit is the only one to touch the path
 ```
 
 Verdict: **identical**. Seven blocks consensus refuses, and the only
@@ -1305,14 +1376,14 @@ Against a pinned upstream blob:
   `key_io_invalid.json`, `base58_encode_decode.json`, `siphash.json`,
   `blockfilters.json`, `checkblock_valid.json`, `checkblock_invalid.json`,
   `txsize.json`, opentimestamps-client's proofs and `LICENSE` under
-  `tests/block/_data/opentimestamps/`, and gnulib's `COPYINGv3` beside
-  them.
+  `tests/block/_data/opentimestamps/`, python-bitcoinlib's `LICENSE`, and
+  gnulib's `COPYINGv3` beside both `LICENSE` files.
 - identical byte for byte, from rustreexo: `test_cases.json`,
   `update_data_tests.json`, `cached_proof_tests.json`.
 - identical but for a trailing newline: `script_assets_test.json`,
-  `sigops.json`, `coinbases.json`, `timestamps.json`.
+  `sigops.json`, `coinbases.json`, `timestamps.json`, `signmessage.json`,
+  and python-bitcoinlib's `COPYING`.
 - identical but for line endings: `packet_encoding_test_vectors.csv`.
-- JSON-equal, reformatted: `signmessage.json`.
 
 Not checked byte for byte against one:
 

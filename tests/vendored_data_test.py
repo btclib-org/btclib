@@ -178,7 +178,7 @@ _EXEMPT: dict[str, str] = {
     "commits, all stamped within a second of `2025-07-23T19:45:18Z`, which": _UPSTREAM_FACT,
     "cannot be when a 2021 dump was added: qa-assets prunes its history — the": _UPSTREAM_FACT,
     "survive the next prune. The blob SHA-1 above will, and it is what a": _UPSTREAM_FACT,
-    "Verdict: **reformatted**. 200 vectors, JSON-equal, and all 200 are": _UPSTREAM_FACT,
+    "below dates, so our blob is `dec81a97`. All 200 vectors are exercised by": _UPSTREAM_FACT,
     "Verdict: **identical**. Four blocks — genesis twice, 99,960 and 99,993 —": _UPSTREAM_FACT,
     "The two genesis entries differ only in the `cur_time` beside them, and it": _UPSTREAM_FACT,
     "two-hour window and the second is the instant genesis was mined.": _UPSTREAM_FACT,
