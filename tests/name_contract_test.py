@@ -234,20 +234,6 @@ def _argument_less_bools() -> dict[str, bool]:
 _NOT_A_READ = ("assert_", "get_", "to_")
 _AN_ACTION = frozenset({"clear", "close", "flip", "wipe"})
 
-# hashlib's own API, mirrored in a Protocol, and hashlib draws the line
-# itself: `digest()`, `hexdigest()` and `copy()` are calls where
-# `block_size`, `digest_size` and `name` are attributes. So these three
-# are named one by one rather than the class being exempt -- a property
-# here would stop anything `hashlib.new` returns from satisfying
-# HashObject, and the other three are reads and stay properties
-_MIRRORS_HASHLIB = frozenset(
-    {
-        "btclib.alias.HashObject.copy",
-        "btclib.alias.HashObject.digest",
-        "btclib.alias.HashObject.hexdigest",
-    }
-)
-
 
 def _is_a_read(decorated: set[str]) -> bool:
     """Return whether the decorators make this a read rather than a call.
@@ -454,7 +440,7 @@ def test_an_argument_less_member_is_read_not_called(dotted: str) -> None:
     is what keeps this rule from needing one.
     """
     name = dotted.rpartition(".")[2]
-    if name.startswith(_NOT_A_READ) or name in _AN_ACTION or dotted in _MIRRORS_HASHLIB:
+    if name.startswith(_NOT_A_READ) or name in _AN_ACTION:
         assert not _CLASS_MEMBERS[dotted], (
             f"{dotted} is a @property and its name says it is not a read:"
             " rename it, or drop the decorator"
@@ -472,11 +458,8 @@ def test_the_walk_reaches_every_shape_of_member() -> None:
     # a cached_property is a read too, which testing for "property" alone
     # would have missed
     assert _CLASS_MEMBERS["btclib.script.script.Script.asm"] is True
-    # and the three of HashObject that hashlib spells as attributes
-    assert _CLASS_MEMBERS["btclib.alias.HashObject.digest_size"] is True
     # and the shapes that are not a read
     # OutPoint's and not Tx's, which takes an `unsigned_template` and so
     # is not argument-less at all
     assert _CLASS_MEMBERS["btclib.tx.out_point.OutPoint.assert_valid"] is False
     assert _CLASS_MEMBERS["btclib.block.block.Block.assert_valid_weight"] is False
-    assert _CLASS_MEMBERS["btclib.alias.HashObject.digest"] is False

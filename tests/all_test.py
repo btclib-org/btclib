@@ -34,6 +34,7 @@ from pathlib import Path
 from pkgutil import iter_modules
 from types import ModuleType
 
+import ecc.alias
 import pytest
 
 import btclib
@@ -90,15 +91,19 @@ def _reexports(*groups: tuple[ModuleType, list[str]]) -> dict[str, ModuleType]:
 # still, being where the rest of Core's header is and where a caller reading
 # a block's own rules looks for them.
 #
-# `btclib.policy`'s MAX_TX_LEGACY_SIGOPS is the other: BIP54 makes it a
+# `btclib.policy`'s MAX_TX_LEGACY_SIGOPS is another: BIP54 makes it a
 # consensus bound, defined in `btclib.tx.limits`, and policy.h is where
 # Core v31.1 declares it.
 #
-# What no entry may name is an object of another distribution:
-# `test_no_module_exports_another_distributions_name` is what holds that,
-# and `ecc` and `bitcoin_core_rpc` are imported from where they are
-# defined
+# `btclib.alias` is the one entry naming another distribution's objects:
+# the type aliases of `ecc.alias`, which btclib's modules and callers spell
+# `btclib.alias.Octets`. Every other object of `ecc` and `bitcoin_core_rpc`
+# is imported from where it is defined, as
+# `test_no_module_exports_another_distributions_name` holds.
 REEXPORTED = {
+    "btclib.alias": _reexports(
+        (ecc.alias, ["BinaryData", "Integer", "Octets", "Point", "String"]),
+    ),
     "btclib.block.limits": _reexports(
         (consensus, ["MAX_BLOCK_WEIGHT", "WITNESS_SCALE_FACTOR"]),
     ),
@@ -398,11 +403,9 @@ def test_no_module_exports_a_name_it_imported() -> None:
     with this test, not around it.
 
     `REEXPORTED` is that conversation, one name-to-canonical mapping per
-    re-exporting module: `btclib.block.limits` names the two constants
-    `btclib.consensus` defines below the package, which is where a caller
-    reading a block's rules looks for them, and so does `btclib.script.limits`
-    for its two. A package is asked too where it is recorded, for its names
-    that are not one of its own submodules.
+    re-exporting module, and the comment above it gives each one's reason.
+    A package is asked too where it is recorded, for its names that are not
+    one of its own submodules.
 
     Asserted both ways, because a skip list is only half a table: it says
     which names may be re-exported and nothing about whether they still are,
@@ -448,6 +451,11 @@ def test_no_module_exports_another_distributions_name() -> None:
     it from there. It is asked of the object rather than of the import
     statement, so an alias spelled `import x as y`, or a name bound in a
     `try`, is caught too.
+
+    The exception is `btclib.alias`, which `REEXPORTED` records too: its
+    `ecc.alias` names are unions and a `tuple[int, int]`, whose
+    `__module__` is `types`, `typing` or `builtins`, by interpreter, so the
+    object does not say it is `ecc`'s.
     """
     foreign = ("ecc", "bitcoin_core_rpc")
     for module in library_modules():

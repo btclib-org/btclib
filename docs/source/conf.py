@@ -143,6 +143,11 @@ intersphinx_mapping = {
 #   below begin with an underscore, and automodule does not document a
 #   name spelled that way at all, so `:members:` renders no page for a
 #   signature naming one to link to
+# - `Octets` as autodoc renders it in a signature it cannot evaluate,
+#   `ConsensusParams.script_flags_at`'s `block_hash: Octets | None`, where
+#   `consensus.py` imports it under TYPE_CHECKING: `btclib.alias` imports it
+#   from ecc, autodoc documents no imported name, and the bare name
+#   has no page to link to
 nitpick_ignore = [
     ("py:class", "collections.abc.Callable[[]"),
     ("py:class", "tuple[int"),
@@ -156,6 +161,7 @@ nitpick_ignore = [
     ("py:class", "btclib.p2p.block_filters._FilterRangeRequest"),
     ("py:class", "btclib.script.sig_hash._TaprootInputHashes"),
     ("py:class", "btclib.script.sig_hash._SigHashCache"),
+    ("py:class", "Octets"),
 ]
 
 # no suppress_warnings, and myst.xref_missing least of all: the transform
