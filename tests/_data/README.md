@@ -97,6 +97,9 @@ against says so in prose instead. The verdicts used:
 the tree, from `git log --follow --diff-filter=A`. That is a fact in this
 repository; someone's memory of the day they opened a browser is not.
 Where a file was vendored earlier and later refreshed, both dates appear.
+Where `--follow` takes a file for a copy of another file in this tree, it
+answers the other file's date; `pulled` is then the date of the commit
+that added the file.
 
 `behind` counts upstream revisions of that path since the pin. It is a
 staleness figure, not a defect: a vector file is a fixed set of cases and
@@ -774,11 +777,9 @@ behind   0 revisions; still the blob on master
 ```
 
 Verdict: **identical**. The GPL, kept beside the LGPL `LICENSE` above,
-which incorporates its terms. The text is the one gnu.org serves at
-<https://www.gnu.org/licenses/gpl-3.0.txt>, whose bytes hash to this
-blob on 2026-10-30. The pin is gnulib's copy, read through gnulib's
-GitHub mirror, so that the weekly job can compare it. The text allows
-verbatim copies, which this is.
+which incorporates its terms. It is the same blob as
+`tests/block/_data/opentimestamps/COPYINGv3`, whose entry says where the
+text comes from.
 
 ### `tests/schemes/_data/python-bitcoinlib/signmessage.json`
 
@@ -823,10 +824,6 @@ which is not vendored. Upstream replaced it with the LGPL `LICENSE` above
 in 8ff7d8b6, which leaves both files unchanged. The directory holds
 python-bitcoinlib's files alone, so that the licence beside them covers
 nothing else.
-
-`git log --follow` reads this file as a copy of btclib's own `LICENSE`
-and answers that file's date; `pulled` is the date of the commit that
-added this file here.
 
 ### `tests/block/_data/python-bitcoinlib/checkblock_valid.json`
 
