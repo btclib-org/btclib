@@ -510,6 +510,13 @@ def test_p2wsh() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2wsh(script_pub_key[:1] + b"\x00" + script_pub_key[2:])
 
+    assert is_p2wsh(script_pub_key)
+    too_long = b"\x00\x20" + b"\x00" * 33
+    assert not is_p2wsh(too_long)
+    err_msg = "invalid size: 35 bytes instead of 34"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2wsh(too_long)
+
 
 def test_unknown() -> None:
     """A script of no type at all: no address, and the whole of it back.
