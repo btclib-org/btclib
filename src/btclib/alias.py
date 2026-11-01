@@ -229,9 +229,9 @@ NetworkField = Literal[
     "slip132_p2wsh_pub",
 ]
 
-# The networks btclib ships, which is every network there is here:
-# network.NETWORKS is fixed at import and read-only, so this list is the
-# whole of the vocabulary and not a sample of it.
+# The networks btclib ships: network.NETWORKS is fixed at import and
+# read-only, so this list is the whole of that catalogue and not a sample
+# of it. A Network built by a caller is not in it, and is not named here.
 #
 # Still not a parameter type, and issue #216 is where that is decided: the
 # `network: str` parameters accept a name with spaces around it and in any

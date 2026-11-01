@@ -16,6 +16,7 @@ key, the script being the one place the key itself sits.
 
 from __future__ import annotations
 
+import string
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
@@ -31,8 +32,10 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.key import PubKeyData
 from btclib.network import (
-    network_type_from_network,
-    normalized_network_name,
+    Network,
+    _assert_network,
+    _network_from,
+    _normalized_network,
     validated_network_name,
 )
 from btclib.script.limits import MAX_PUBKEYS_PER_MULTISIG
@@ -45,6 +48,7 @@ from btclib.utils import (
     bytesio_from_binarydata,
     is_integer,
     is_octets,
+    str_from_string,
 )
 
 __all__ = [
@@ -75,7 +79,7 @@ __all__ = [
 ]
 
 
-def address(script_pub_key: Octets, network: str = "mainnet") -> str:
+def address(script_pub_key: Octets, network: str | Network = "mainnet") -> str:
     """Return the bech32/base58 address from a script_pub_key.
 
     A witness program of version 2 or higher has an address as much as
@@ -177,17 +181,49 @@ def p2ms_m_and_keys_var(script_pub_key: Octets) -> tuple[int, list[bytes]]:
     return m, pub_keys
 
 
-def addresses(script_pub_key: Octets, network: str = "mainnet") -> list[str]:
+def addresses(script_pub_key: Octets, network: str | Network = "mainnet") -> list[str]:
     """Return the p2pkh addresses of the pub_keys in a p2ms script_pub_key."""
     _, pub_keys = p2ms_m_and_keys_var(script_pub_key)
     # check_validity=False: `p2ms_m_and_keys_var` has just parsed each of
     # these as a curve point, which settles the size and the prefix
-    # `assert_valid` reads, and the network name is resolved by
-    # `b58.address_from_h160` one call down
+    # `assert_valid` reads, and `b58.address_from_h160` resolves the
+    # network one call down
     return [
         b58.p2pkh(PubKeyData(pub_key, network, check_validity=False))
         for pub_key in pub_keys
     ]
+
+
+def _starts_with_hrp(addr: String, network: Network) -> bool:
+    """Answer whether the string starts with the hrp of the network and a 1."""
+    str_addr = str_from_string(addr, "address").strip(string.whitespace).lower()
+    return str_addr.startswith(f"{network.hrp}1")
+
+
+def _is_mixed_case(addr: String) -> bool:
+    """Answer whether the string has both upper and lower case letters."""
+    str_addr = str_from_string(addr, "address").strip(string.whitespace)
+    return str_addr not in {str_addr.lower(), str_addr.upper()}
+
+
+def _bech32_script(
+    addr: String, network: Network | None
+) -> tuple[bytes, str | Network]:
+    """Return the script of a bech32 address, and the network found."""
+    wit_ver, wit_prg, found = b32.witness_from_address(addr, network)
+    return serialize([op_int(wit_ver), wit_prg]), found
+
+
+def _base58_script(
+    addr: String, network: Network | None
+) -> tuple[bytes, str | Network]:
+    """Return the script of a base58 address, and the network found."""
+    script_type, h160, found = b58.h160_from_address(addr, network)
+    if script_type == "p2sh":
+        commands: ScriptList = ["OP_HASH160", h160, "OP_EQUAL"]
+    else:  # it must be "p2pkh"
+        commands = ["OP_DUP", "OP_HASH160", h160, "OP_EQUALVERIFY", "OP_CHECKSIG"]
+    return serialize(commands), found
 
 
 def _is_funct(assert_funct: Callable[[Octets], None], script_pub_key: Octets) -> bool:
@@ -574,13 +610,15 @@ class ScriptPubKey(Script):
     The script bytes and their validation are Script's; the network
     enters `address`, `addresses`, the equality test and the hash, two
     ScriptPubKey being equal when their scripts match and their
-    networks are of one type -- mainnet against the rest -- rather
-    than of one name. Frozen and hashable on that same pair, so a
-    ScriptPubKey can be a set member or a dict key. The classmethods
+    networks are of one `network_type` -- "main" against "test" -- rather
+    than of one name; a Network of another chain with the same type
+    compares equal. Frozen and hashable on that same pair, so a
+    ScriptPubKey can be a set member or a dict key. The network is a
+    NETWORKS name, or a Network NETWORKS does not hold. The classmethods
     build the standard shapes, one per type the classifier names.
     """
 
-    network: str
+    network: str | Network
 
     @property
     def type(self) -> ScriptType:
@@ -624,14 +662,15 @@ class ScriptPubKey(Script):
         # a signet address too -- and comparing names made a signet
         # ScriptPubKey unequal to the very address it renders, identical
         # script bytes and all. Types keep the distinction that matters,
-        # mainnet against the rest, and drop the one the address cannot
-        # carry: issue #207.
+        # "main" against "test", and drop the one the address cannot
+        # carry: issue #207. A Network of another chain with the same type
+        # compares equal.
         #
         # Two ScriptPubKey are still not equal across types, so this is
         # not a loosening of the funds-relevant check. __hash__ below is
         # over the same pair this compares, and moves with it
-        if network_type_from_network(self.network) != network_type_from_network(
-            other.network
+        if _network_from(self.network).network_type != (
+            _network_from(other.network).network_type
         ):
             return False
         return super().__eq__(other)
@@ -644,25 +683,25 @@ class ScriptPubKey(Script):
         # Script hashes its bytes alone, and a Script never equals a
         # ScriptPubKey -- the generated __eq__ it inherits compares by
         # exact class -- so the two need not agree
-        return hash((self.script, network_type_from_network(self.network)))
+        return hash((self.script, _network_from(self.network).network_type))
 
     def __init__(
         self,
         script: Octets,
-        network: str = "mainnet",
+        network: str | Network = "mainnet",
         *,
         check_validity: bool = True,
     ) -> None:
         # normalized here and refused in assert_valid below, which is the
         # split `key.PubKeyData` takes for the same field:
-        # `normalized_network_name` refuses nothing, so
+        # `_normalized_network` refuses nothing, so
         # `check_validity=False` still builds the invalid object a caller
         # means to exercise, and asking `assert_valid()` afterwards gets
         # the answer the constructor would have given. The coercion is not
         # deferred with the refusal, because it is not a check: the field
         # is read as it stands -- `TxOut.to_dict` reports it verbatim --
         # so its spelling is settled even where no check runs
-        object.__setattr__(self, "network", normalized_network_name(network))
+        object.__setattr__(self, "network", _normalized_network(network))
         # network first, then super(): Script.__init__ calls
         # self.assert_valid(), which dispatches to the override below and
         # so needs the field set. That call is also the whole validation,
@@ -673,7 +712,10 @@ class ScriptPubKey(Script):
 
     @override
     def assert_valid(self) -> None:
-        """Run Script's checks, then refuse a name no network answers to."""
+        """Run Script's checks, then refuse a name no network answers to.
+
+        A Network is asked for validity, as `key.PubKeyData` asks it.
+        """
         super().assert_valid()
         # `validated_network_name` and not a `NETWORKS` membership test:
         # membership hashes its operand, which leaves a name of an
@@ -682,31 +724,57 @@ class ScriptPubKey(Script):
         # quotes the name it refuses, beside the names there are. Its
         # return value is not read: `__init__` above applies the same
         # normalization to the field
-        validated_network_name(self.network)
+        if isinstance(self.network, Network):
+            self.network.assert_valid()
+        else:
+            validated_network_name(self.network)
 
     @classmethod
-    def from_address(cls, addr: String, *, check_validity: bool = True) -> ScriptPubKey:
-        """Return the ScriptPubKey of the input bech32/base58 address."""
-        if b32.is_segwit_prefixed(addr):
-            wit_ver, wit_prg, network = b32.witness_from_address(addr)
-            return cls(
-                serialize([op_int(wit_ver), wit_prg]),
-                network,
-                check_validity=check_validity,
-            )
+    def from_address(
+        cls,
+        addr: String,
+        network: Network | None = None,
+        *,
+        check_validity: bool = True,
+    ) -> ScriptPubKey:
+        """Return the ScriptPubKey of the input bech32/base58 address.
 
-        script_type, h160, network = b58.h160_from_address(addr)
-        if script_type == "p2sh":
-            commands: ScriptList = ["OP_HASH160", h160, "OP_EQUAL"]
-        else:  # it must be "p2pkh"
-            commands = [
-                "OP_DUP",
-                "OP_HASH160",
-                h160,
-                "OP_EQUALVERIFY",
-                "OP_CHECKSIG",
-            ]
-        return cls(serialize(commands), network, check_validity=check_validity)
+        Given a `network`, the address has to be one of that network's, as
+        `b58.h160_from_address` and `b32.witness_from_address` check it.
+        A Network equal to a NETWORKS entry gives that entry's name; one
+        NETWORKS does not hold is kept, `ScriptPubKey.network` being a
+        name or a Network.
+        """
+        if network is not None:
+            _assert_network(network)
+        script: bytes
+        found: str | Network
+        if network is None:
+            if b32.is_segwit_prefixed(addr):
+                script, found = _bech32_script(addr, None)
+            else:
+                script, found = _base58_script(addr, None)
+        elif b32.is_segwit_prefixed(addr) or _starts_with_hrp(addr, network):
+            # a base58 address can start as an hrp and a 1 by chance, in any
+            # case, so with a network given it is bech32 first and base58
+            # where the string is not one. Where neither reads it, the error
+            # is base58's for a mixed-case string, which cannot be bech32,
+            # and bech32's otherwise
+            try:
+                script, found = _bech32_script(addr, network)
+            except BTClibValueError as bech32_error:
+                try:
+                    script, found = _base58_script(addr, network)
+                except BTClibValueError as base58_error:
+                    if _is_mixed_case(addr):
+                        raise base58_error from None
+                    raise bech32_error from None
+        else:
+            script, found = _base58_script(addr, network)
+        # the decoders answer a name where no network was given, and the
+        # network itself where one was; the constructor turns a Network
+        # equal to an entry of NETWORKS into that entry's name
+        return cls(script, found, check_validity=check_validity)
 
     @classmethod
     def p2pk(
@@ -795,8 +863,18 @@ class ScriptPubKey(Script):
         network = keys[0].network
         for key in keys[1:]:
             if key.network != network:
-                err_msg = f"mixed networks in m-of-n: {network} and {key.network}"
-                raise BTClibValueError(err_msg)
+                # a Network's repr runs to its curve parameters, so it is
+                # not quoted
+                labels = [
+                    net if isinstance(net, str) else "a given network"
+                    for net in (network, key.network)
+                ]
+                mixed = (
+                    f"{labels[0]} and {labels[1]}"
+                    if isinstance(network, str) or isinstance(key.network, str)
+                    else "two given networks"
+                )
+                raise BTClibValueError(f"mixed networks in m-of-n: {mixed}")
         pub_keys = [key.sec for key in keys]
         if lexicographic_sorting:
             # btclib_secp256k1's keys.pubkey_sort is not called here:
@@ -853,7 +931,7 @@ class ScriptPubKey(Script):
     def p2sh(
         cls,
         redeem_script: Octets,
-        network: str = "mainnet",
+        network: str | Network = "mainnet",
         *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
@@ -889,7 +967,7 @@ class ScriptPubKey(Script):
     def p2wsh(
         cls,
         redeem_script: Octets,
-        network: str = "mainnet",
+        network: str | Network = "mainnet",
         *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
@@ -908,7 +986,7 @@ class ScriptPubKey(Script):
         cls,
         internal_key: PubKeyData | None = None,
         script_path: TaprootScriptTree | None = None,
-        network: str = "mainnet",
+        network: str | Network = "mainnet",
         *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
