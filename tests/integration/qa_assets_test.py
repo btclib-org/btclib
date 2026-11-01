@@ -55,7 +55,7 @@ and with the same framing. So these are not replayed:
   not octets of a format;
 - PSBT and descriptors (`psbt`, `descriptor_parse`,
   `bitcoin_0_32_deserialize_psbt`): btclib reads neither;
-  `btclib-wallet` does;
+  `btclib-wallet` reads PSBTs and `bip32-descriptors` descriptors;
 - a target that reads no format (`hashes_sha256`), or tries one input as
   many (`bitcoin_compare_consensus_encoding`), or decodes a fixed-width
   array (`consensus_encoding_decode_array`);

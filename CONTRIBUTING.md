@@ -1562,17 +1562,17 @@ validity at construction is not validity at use. Passing it is supported —
 a public function that takes an already-built object and asks it nothing
 is one a caller can reach with an object the library itself would refuse.
 
-`btclib_wallet.bip32` is the shape to copy. `derive` validates and calls
-`_derive`, which does not, and `_key_data_from_bip32_key` is the one place
-a `BIP32Key` of any spelling becomes a validated `BIP32KeyData`, every
-public wrapper going through it. `btclib_wallet.descriptors` then composes
-the twins directly — `_xpub_from_xprv(_derive(_key_data_from_bip32_key(xprv),
+`bip32_descriptors.bip32` is the shape to copy. `derive` validates and calls
+`_derive`, which does not, and `key_data_from_bip32_key` is the one place a
+`BIP32Key` of any spelling becomes a validated `BIP32KeyData`, every public
+wrapper going through it. `bip32_descriptors.descriptors` then composes the
+twins directly — `_xpub_from_xprv(_derive(key_data_from_bip32_key(xprv),
 prefix, None))` — paying one validation instead of three, and no base58
-round trip between them. The leading underscore those three carry means
-what it means anywhere in Python: private. `__all__` is what decides
-publicity, so it is a reader's hint rather than the rule, but an
-unvalidating twin belongs on the private side of that list, and calling one
-asserts that its caller validated.
+round trip between them. The leading underscore the twins carry means what
+it means anywhere in Python: private. `__all__` is what decides publicity,
+so it is a reader's hint rather than the rule, but an unvalidating twin
+belongs on the private side of that list, and calling one asserts that its
+caller validated.
 
 **A private function takes no default argument either**, which is the same
 absence of an outside caller read the other way: a default is written for

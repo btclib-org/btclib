@@ -115,8 +115,8 @@ Each spelling of a key is read by the module that defines it:
 - a WIF is Base58Check with a prefix and a flag, so
   `b58.prv_key_data_from_wif` reads it and `b58.wif_from_prv_key` writes
   it
-- an extended key is BIP32's format, parsed by `btclib_wallet.bip32`; a
-  caller holding one parses it there and passes on the scalar or the
+- an extended key is BIP32's format, parsed by `bip32_descriptors.bip32`;
+  a caller holding one parses it there and passes on the scalar or the
   point
 
 ### The chain and the wire
@@ -132,11 +132,14 @@ sends nothing itself.
 
 ## What sits outside the package
 
-- **The wallet side** (key derivation, mnemonics, PSBTs, output
-  descriptors, signers, chain backends and the Electrum protocol's
-  codec) is the `btclib-wallet` distribution, imported as
-  `btclib_wallet`. It imports btclib, and nothing in btclib imports it:
-  `tests/imports_test.py` holds that edge to one direction.
+- **BIP32 key derivation and output descriptors** are the
+  `bip32-descriptors` distribution, imported as `bip32_descriptors`. It
+  imports btclib.
+- **The rest of the wallet side** (mnemonics, PSBTs, signers, chain
+  backends and the Electrum protocol's codec) is the `btclib-wallet`
+  distribution, imported as `btclib_wallet`. It imports btclib, and
+  nothing in btclib imports it: `tests/imports_test.py` holds that edge to
+  one direction.
 - **[bitcoin-core-rpc](https://github.com/btclib-org/bitcoin-core-rpc)** is
   not a runtime dependency: `btclib.p2p.magic` holds the message start
   of each network. The suite uses the package to drive a bitcoind, to read
