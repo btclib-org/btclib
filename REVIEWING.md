@@ -518,11 +518,12 @@ question names it.
   `btclib_secp256k1` bindings and which the Python arithmetic is
   `ARCHITECTURE.md`'s, and the suite validates the second against the
   first.
-- A change under `tests/**/_data/`: does `tests/_data/README.md` still
-  say which revision of upstream the file is, and does the file carry
-  the name upstream publishes it under? A citation in a test module
-  names a branch, which moves under us; that file is where a vendored
-  vector is pinned to a commit and the bytes compared.
+- A change under `tests/**/_data/` or `src/btclib/testing/_data/`: does
+  `tests/_data/README.md` still say which revision of upstream the file
+  is, and does the file carry the name upstream publishes it under? A
+  citation in a test module names a branch, which moves under us; that
+  file is where a vendored vector is pinned to a commit and the bytes
+  compared.
 - The rule against stating a count is the organization's, above; what is
   this tree's is the exception under it. A count of what **upstream**
   published pins a vendored file rather than measuring this tree, and

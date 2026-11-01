@@ -99,6 +99,7 @@ __all__ = [
     "p2p",
     "policy",
     "script",
+    "testing",
     "tx",
     "utils",
     "var_bytes",

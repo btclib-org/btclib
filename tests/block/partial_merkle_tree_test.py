@@ -5,28 +5,25 @@
 """Tests for the `btclib.block.partial_merkle_tree` module.
 
 The valid vectors are built with `PartialMerkleTree.from_txids` over the
-`_data/block_*.bin` blocks `tests/block/merkle_proof_test.py` already
-uses, and checked against the recomputed root and the real header's
-`merkle_root` -- consensus data this library did not compute -- rather
-than recorded by hand. The refusals are each Core's own, transliterated
+vendored blocks `tests/block/merkle_proof_test.py` already uses, and
+checked against the recomputed root and the real header's `merkle_root`
+-- consensus data this library did not compute -- rather than recorded
+by hand. The refusals are each Core's own, transliterated
 from `src/merkleblock.cpp`'s `ExtractMatches`/`TraverseAndExtract`, and
 each is asserted on its own message rather than merely on the exception
 class.
 """
 
-from pathlib import Path
-
 import pytest
 
 from btclib.block import Block, PartialMerkleTree
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from tests import vendored_block
 
 
 def _load(fname: str) -> Block:
-    """Return a vendored block, parsed from tests/block/_data."""
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        return Block.parse(file_.read())
+    """Return a vendored block, parsed."""
+    return Block.parse(vendored_block(fname))
 
 
 @pytest.mark.parametrize(

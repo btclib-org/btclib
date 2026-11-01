@@ -27,7 +27,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, datetime
-from pathlib import Path
 
 import pytest
 
@@ -40,8 +39,8 @@ from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
 from btclib.script import ScriptPubKey, Witness, script
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
+from tests import vendored_block
 
-_DATA = Path(__file__).parent / "_data"
 _PREVIOUS = "00000000000000000024fb37364cbf81fd49cc2d51c09c75c35433c3a1945d04"
 _TIME = datetime(2024, 5, 1, 12, 0, 0, tzinfo=UTC)
 # 0xffff * 2^232, satisfied by one nonce in 256 -- mining_test.py's own
@@ -49,7 +48,7 @@ _EASY_BITS = "2000ffff"
 
 
 def _parse(fname: str) -> Block:
-    return Block.parse((_DATA / fname).read_bytes())
+    return Block.parse(vendored_block(fname))
 
 
 def test_build_coinbase_pays_the_subsidy_and_commits_to_the_height() -> None:

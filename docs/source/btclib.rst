@@ -11,6 +11,7 @@ Subpackages
    btclib.ecc
    btclib.p2p
    btclib.script
+   btclib.testing
    btclib.tx
 
 Submodules
