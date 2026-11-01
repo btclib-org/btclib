@@ -1,0 +1,27 @@
+# The low-work headers sync, mutated: `p2p/headers_sync.py` is Core's
+# HeadersSyncState, which takes the headers a peer sends before any of
+# them is stored. A threshold or a height moved by one is what its
+# mistakes look like: a chain stored that should not be, or one refused
+# that should not be. A scope of its own, so that its budget runs every
+# mutant rather than sampling the module beside the relay messages
+# (issue #2832).
+
+[cosmic-ray]
+module-path = "src/btclib/p2p/headers_sync.py"
+
+# Its own tests, which also fail on a keyword-only `*` turned into `/`.
+# -n0 and -p no:randomly for the reasons sig_hash.toml gives. --no-cov
+# because nothing here reads the report, and writing it is most of what
+# an unmutated run costs: it covers the whole of `source` in
+# pyproject.toml's [tool.coverage.run], while the instrumentation itself
+# costs next to nothing, as pyproject.toml's comment on --cov says.
+test-command = """python -m pytest -x -q -n0 -p no:randomly --no-cov \
+  tests/p2p/headers_sync_test.py"""
+
+timeout = 300
+
+excluded-modules = []
+
+# one mutant at a time, in this working tree: see sig_hash.toml
+[cosmic-ray.distributor]
+name = "local"
