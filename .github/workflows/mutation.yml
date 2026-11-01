@@ -79,7 +79,7 @@ on:
           - shared
           - script
           - bip324
-          - electrum
+          - key-parsers
           - p2p-connection
           - p2p-relay
 
@@ -186,7 +186,7 @@ jobs:
       # the machine that measured it, at a load of 6 to 12. 20 minutes is
       # three times that.
       #
-      # `electrum`: electrum_key.toml's session completes in minutes on
+      # `key-parsers`: key.toml's session completes in minutes on
       # the machine that measured it, and 15 is that with a slower
       # runner's margin.
       #
@@ -213,8 +213,8 @@ jobs:
         "script.toml 45m"},
         {"profile": "the v2 transport cipher", "slug": "bip324", "ceiling": 35, "sessions":
         "bip324.toml 20m"},
-        {"profile": "the Electrum replies and the keys", "slug": "electrum", "ceiling": 30,
-        "sessions": "electrum_key.toml 15m"},
+        {"profile": "the key parsers", "slug": "key-parsers", "ceiling": 30,
+        "sessions": "key.toml 15m"},
         {"profile": "the peer-to-peer connection", "slug": "p2p-connection", "ceiling": 110,
         "sessions": "p2p_connection.toml 90m"},
         {"profile": "the peer-to-peer relay", "slug": "p2p-relay", "ceiling": 95,

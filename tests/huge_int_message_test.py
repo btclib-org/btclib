@@ -26,7 +26,7 @@ from typing import Any
 import pytest
 from ecc.ecc import dsa
 
-from btclib import base58, electrum, var_int
+from btclib import base58, var_int
 from btclib.alias import TaprootScriptTree
 from btclib.b32 import bytes_from_witness_program, power_of_2_base_conversion
 from btclib.block import Block, BlockHeader
@@ -145,11 +145,6 @@ _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
         "base58 output size",
         _HUGE,
         lambda v: base58.decode(base58.encode(b"\x00" * 20), v),
-    ),
-    (
-        "electrum request id",
-        _HUGE,
-        lambda v: electrum.decode_response(b'{"id": 1, "result": 0}\n', v),
     ),
     (
         "addrv2 network id without an ip",
