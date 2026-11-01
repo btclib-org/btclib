@@ -14,10 +14,10 @@ That is why `Network` has no `magic` field: a field keyed by the name
 "signet" would be wrong for every custom signet.
 
 The values are transcribed from `src/kernel/chainparams.cpp` at Bitcoin
-Core v31.1 (bitcoin/bitcoin@9be056a8a7), the tag `btclib.consensus` cites,
-and `tests/p2p/magic_test.py` holds each one to that transcription.
-Signet's entry is a copy of the derived value rather than a derivation at
-import: the test derives it from `DEFAULT_SIGNET_CHALLENGE`.
+Core v31.1 (bitcoin/bitcoin@9be056a8a7), and `tests/p2p/magic_test.py`
+holds each one to that transcription. Signet's entry is a copy of the
+derived value rather than a derivation at import: the test derives it
+from `DEFAULT_SIGNET_CHALLENGE`.
 """
 
 from types import MappingProxyType
