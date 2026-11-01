@@ -1008,10 +1008,11 @@ def _script_from(script_pub_key: Octets | ScriptPubKey) -> bytes:
     anybody has.
 
     Private, and reached through `script_from_script_pub_key` by the questions
-    that ask "is this output mine" -- `btclib_wallet`'s `Descriptor.index_of`
-    among them. Here rather than in any of them, because it is about this
-    module's own class and this module's own `from_address`, and because a
-    second copy of the rule is a second answer to give.
+    that ask "is this output mine" --
+    `bip32_descriptors.descriptors.Descriptor.index_of` among them. Here rather
+    than in any of them, because it is about this module's own class and this
+    module's own `from_address`, and because a second copy of the rule is a
+    second answer to give.
 
     The empty string is the one refused outright, and for the reason the
     whole function exists: it is what `address` answers where a script has
@@ -1070,10 +1071,11 @@ def script_from_script_pub_key(script_pub_key: Octets | ScriptPubKey) -> bytes:
     belonging to somebody else, and nothing in it says the question was
     malformed.
 
-    Here rather than three times over in `btclib_wallet`'s
-    `Descriptor.index_of`, `DescriptorWallet.position_of` and
-    `RangedWallet.position_of`, for the reason `_script_from` gives about
-    itself: a second copy of the rule is a second answer to give.
+    Here rather than three times over, in
+    `bip32_descriptors.descriptors.Descriptor.index_of` and in `btclib_wallet`'s
+    `DescriptorWallet.position_of` and `RangedWallet.position_of`, for the
+    reason `_script_from` gives about itself: a second copy of the rule is a
+    second answer to give.
     """
     if isinstance(script_pub_key, ScriptPubKey):
         script_pub_key.assert_valid()

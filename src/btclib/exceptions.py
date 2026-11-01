@@ -406,9 +406,9 @@ class InvalidPrvKeyError(BTClibValueError):
     format might accept, so `b58.prv_key_data_from_wif` raising this is
     more use to `b58._pub_keyinfo_from_key` than a "try the next
     spelling" that would end in "not a private key": a WIF, with a fault
-    in it. `btclib_wallet.bip32.prv_keyinfo_from_xprv` answers the same
-    way about an xprv whose version bytes name a network and whose key
-    prefix is not the private one.
+    in it. `bip32_descriptors.bip32.prv_keyinfo_from_xprv` answers the
+    same way about an xprv whose version bytes name a network and whose
+    key prefix is not the private one.
 
     A BTClibValueError, so code catching that keeps catching this.
     """

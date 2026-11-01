@@ -241,9 +241,9 @@ class KeyPairSpellings(NamedTuple):
     The WIF and the xprv are here for the refusals alone: `ecc` takes a
     scalar and a point, and a spelling that carries a network is read
     where its format is defined -- a WIF by `b58`, an xprv by
-    `btclib_wallet.bip32` (issue #1188). The xprv is written out as the
-    Base58Check of its BIP32 serialization, so building it asks nothing
-    of the package that parses one.
+    `bip32_descriptors.bip32` (issue #1188). The xprv is written out as
+    the Base58Check of its BIP32 serialization, so building it asks
+    nothing of the package that parses one.
     """
 
     q: int
@@ -314,8 +314,8 @@ def key_pair_spellings() -> KeyPairSpellings:
     )
 
     # an xpub is the only public spelling that names a network, and it is
-    # `btclib_wallet.bip32.pub_keyinfo_from_xpub`'s to read (issue #1188),
-    # so every family here is network-unaware
+    # `bip32_descriptors.bip32.pub_keyinfo_from_xpub`'s to read (issue
+    # #1188), so every family here is network-unaware
     net_unaware_compressed_pub_keys: list[bytes | str] = [
         Q_compressed_hexstring,
         Q_compressed_hexstring2,

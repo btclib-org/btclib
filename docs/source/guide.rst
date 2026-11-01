@@ -161,23 +161,23 @@ The four aliases:
     The two spellings that do carry both are read where they are defined
     (issue #1188). A WIF is ``b58``'s own object,
     ``b58.prv_key_data_from_wif`` reading it and ``b58.wif_from_prv_key``
-    building it; an extended key is ``btclib_wallet.bip32``'s, and
-    ``btclib_wallet.bip32.prv_keyinfo_from_xprv`` answers the same
+    building it; an extended key is ``bip32_descriptors.bip32``'s, and
+    ``bip32_descriptors.bip32.prv_keyinfo_from_xprv`` answers the same
     ``(scalar, network, compressed)`` triple from an ``xprv``.
     An address builder takes neither spelling: it takes the public key,
     which ``b58.prv_key_data_from_wif(wif).pub`` and
-    ``btclib_wallet.bip32.pub_keyinfo_from_xkey(xkey)`` are the two ways
-    to reach.
+    ``bip32_descriptors.bip32.pub_keyinfo_from_xkey(xkey)`` are the two
+    ways to reach.
 
     **The arithmetic layer reads it with**
     ``ecc.curves.scalar_from_prv_key``, and a second name for the
     same union of types would be nothing a type checker could tell apart
     (issue #1188). It does not take an extended
     key: ``dsa.sign(msg, xprv)`` does not work; pass
-    ``btclib_wallet.bip32.prv_keyinfo_from_xprv(xprv)[0]``. ``btclib.ecc.bms``
-    is narrower still: message signing wants the network and the
-    compression too, so it takes the ``btclib.key.PrvKeyData`` a WIF and
-    a scalar both resolve to — ``b58.prv_key_data_from_wif(wif)`` for the
+    ``bip32_descriptors.bip32.prv_keyinfo_from_xprv(xprv)[0]``.
+    ``btclib.ecc.bms`` is narrower still: message signing wants the network
+    and the compression too, so it takes the ``btclib.key.PrvKeyData`` a WIF
+    and a scalar both resolve to — ``b58.prv_key_data_from_wif(wif)`` for the
     one, ``btclib.key.PrvKeyData(q)`` for the other.
 
 ``btclib.key.PubKeyData``
@@ -188,8 +188,8 @@ The four aliases:
     holds rather than leaving the size and the format to decide
     (issue #1188). ``btclib.key.PrvKeyData(q).pub`` derives it from a
     scalar, ``b58.prv_key_data_from_wif(wif).pub`` from a WIF, and
-    ``btclib_wallet.bip32.pub_keyinfo_from_xkey(xkey)`` answers the pair
-    a ``PubKeyData`` is built from for an extended key.
+    ``bip32_descriptors.bip32.pub_keyinfo_from_xkey(xkey)`` answers the
+    pair a ``PubKeyData`` is built from for an extended key.
 
 >>> from btclib import b58
 >>> from btclib.key import PrvKeyData

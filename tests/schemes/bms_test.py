@@ -806,7 +806,8 @@ def test_ledger() -> None:
     The two keys are what BIP32 derives at `m/1` and `m/0/0` from the
     BIP39 seed of the mnemonic "barely sun snack this snack relief pipe
     attack disease boss enlist lawsuit", with no passphrase: the
-    derivation is `btclib_wallet`'s, so the scalars are written out.
+    derivation is `bip32_descriptors.bip32`'s, so the scalars are written
+    out.
     """
     # non-standard leading 31 in DER serialization
     q = 0x4325CDB483C8CD28059BF35F2F73A2F89B7B0F46A11E595E7E5064C453EAC994

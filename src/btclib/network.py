@@ -578,7 +578,7 @@ def normalized_network_name(network: Any) -> Any:
     `key.PubKeyData` and `key.PrvKeyData` compare and hash the field
     itself, so two spellings of one network would build objects that are
     neither equal nor hashed alike;
-    `btclib_wallet.descriptors.Descriptor` and its fragment subclasses
+    `bip32_descriptors.descriptors.Descriptor` and its fragment subclasses
     share that reason, `network` being a plain dataclass field there too,
     and none of them defining its own `__init__` is why the coercion sits
     in `__post_init__` instead. `script.ScriptPubKey` compares and hashes

@@ -185,7 +185,7 @@ def test_p2pkh_from_wif() -> None:
     """Verify the WIF of a scalar and the p2pkh of that WIF.
 
     `wif_from_prv_key` takes a scalar, not an extended key: an xprv is
-    BIP32's format, and `btclib_wallet.bip32.prv_keyinfo_from_xprv` is
+    BIP32's format, and `bip32_descriptors.bip32.prv_keyinfo_from_xprv` is
     what resolves one (issue #1188). The scalar is the one that call
     answers for the zero seed's `m/0h/0h/12`.
     """

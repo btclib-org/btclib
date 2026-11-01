@@ -1481,9 +1481,10 @@ def test_a_leading_op_code_is_compared_for_equality() -> None:
 def test_script_from_takes_an_output_however_the_caller_holds_it() -> None:
     """A `ScriptPubKey`, its bytes, their hex and its address are one script.
 
-    `btclib_wallet`'s "is this output mine" questions are what call it,
-    and they are tested there; this is the helper's own contract, held
-    here because the helper is this module's.
+    The "is this output mine" questions of `bip32_descriptors` and
+    `btclib_wallet` are what call it, and they are tested there; this is
+    the helper's own contract, held here because the helper is this
+    module's.
     """
     script_pub_key = ScriptPubKey.from_address(b32.p2wpkh(PrvKeyData(1).pub))
     script = script_pub_key.script

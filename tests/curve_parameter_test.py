@@ -30,7 +30,7 @@ The first half is the whole of the table below. The second half has
 nothing to ask here, because **every curve is a valid ec** -- that is
 what the parameter is for. What can be wrong is a curve the *key* names,
 and the one key spelling that names a network, and through it a curve,
-is an xpub: `btclib_wallet.bip32` reads it, and the test of that
+is an xpub: `bip32_descriptors.bip32` reads it, and the test of that
 mismatch is there.
 
 The functions of the ecc package take an `ec` too, and that
