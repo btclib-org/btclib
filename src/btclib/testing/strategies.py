@@ -25,7 +25,7 @@ without loss. `BLOCKS` draws blocks that `assert_valid` accepts with
 of a test; each has a coinbase, up to `MAX_BLOCK_TRANSACTIONS` - 1 other
 transactions and, where any carries a witness, the BIP141 commitment.
 
-This module needs the `testing` extra, `pip install "btclib[testing]"`,
+This module needs the `testing` extra, ``pip install "btclib[testing]"``,
 which brings in hypothesis.
 """
 

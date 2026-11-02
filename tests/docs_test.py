@@ -18,6 +18,7 @@ one runner, and `tests-passed` gates it without a line being added to any
 `needs` list.
 """
 
+import ast
 import re
 from pathlib import Path
 
@@ -184,3 +185,44 @@ def test_is_public(parts: tuple[str, ...], public: bool) -> None:
     a private module inside a package it does not.
     """
     assert _is_public(parts) is public
+
+
+# a pip command in single backticks, across a line break too
+_CITED_PIP = re.compile(r"(?<!`)`pip\s+install[^`]*`(?!`)")
+
+
+def _cited_pip_commands(doc: str) -> list[str]:
+    """Every pip command a docstring writes in single backticks."""
+    return _CITED_PIP.findall(doc)
+
+
+@pytest.mark.parametrize(
+    "doc, cited",
+    [
+        ('the extra, `pip install "btclib[x]"`, which', True),
+        ('the extra, `pip install\n"btclib[x]"`, which', True),
+        ('the extra, ``pip install "btclib[x]"``, which', False),
+        ('the extra, ``pip install\n"btclib[x]"``, which', False),
+    ],
+)
+def test_cited_pip_commands(doc: str, cited: bool) -> None:
+    """Both answers, on one line and wrapped across two."""
+    assert bool(_cited_pip_commands(doc)) is cited
+
+
+def test_pip_commands_in_src_docstrings_use_double_backticks() -> None:
+    """Pip install commands in docstrings under src/ use double backticks.
+
+    Single backticks render as <cite> in Sphinx, causing smartquotes to turn
+    double quotes into curly quotes. Double backticks render as <code> code
+    literals with straight quotes (issue #2872).
+    """
+    documented = (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+    cited = [
+        f"{path.relative_to(_ROOT)}: {command}"
+        for path in sorted(_PACKAGE_DIR.rglob("*.py"))
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        if isinstance(node, documented)
+        for command in _cited_pip_commands(ast.get_docstring(node) or "")
+    ]
+    assert not cited, "pip commands in single backticks: " + "; ".join(cited)
