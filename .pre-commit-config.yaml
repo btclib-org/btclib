@@ -405,7 +405,7 @@ repos:
   # ahead of markdownlint-cli2 below on purpose: that hook's `--fix`
   # repairs the very seam this hook exists to name (btclib-org/.github#1293)
   - repo: https://github.com/btclib-org/.github
-    rev: c3d81fbdf89364dd100be2dc37c58c21cc8d5888 # frozen: v2026.10.26
+    rev: 364bebad486493fb00f61edc656318567e0604aa  # frozen: v2026.11.2
     hooks:
       - id: check-changelog
         args: [--grandfathered, "23"]
@@ -750,7 +750,7 @@ repos:
   # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
   # pyupgrade, and yesqa
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.2
+    rev: v0.17.3
     hooks:
       - id: ruff-check
         name: ruff check (in place fixes)
@@ -770,7 +770,7 @@ repos:
   # not run over them -- and .github/scripts is read from the tree by
   # whoever changes it
   - repo: https://github.com/jsh9/pydoclint
-    rev: 0.11.1
+    rev: 0.12.0
     hooks:
       - id: pydoclint
         name: pydoclint (arguments and return values)
@@ -841,7 +841,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.13.5
+    rev: 0.13.6
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock
