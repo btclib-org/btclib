@@ -20,7 +20,7 @@ read off the module; and `script_flags_at` is compared against Core's
 every block, the four gated on a buried deployment, and the exception
 looked up by hash -- rather than against a table of answers.
 
-The blob is Bitcoin Core v31.1, `bitcoin/bitcoin@9be056a8a7`. A tag and
+The blob is Bitcoin Core v32.1, `bitcoin/bitcoin@f0de87f040`. A tag and
 not a branch tip, so the line numbers beside each row cannot move under
 the citation; `src/btclib/consensus.py` says why that release.
 """
@@ -74,7 +74,7 @@ _CHAINPARAMS: dict[str, dict[str, Any]] = {
         "pow_target_spacing": 10 * 60,
         "pow_target_timespan": 14 * 24 * 60 * 60,
         "minimum_chain_work": int(
-            "0000000000000000000000000000000000000001128750f82f4c366153a3a030", 16
+            "000000000000000000000000000000000000000145ec036acc5ba740052af1a0", 16
         ),
         "bip30_exceptions": (
             (
@@ -132,7 +132,7 @@ _CHAINPARAMS: dict[str, dict[str, Any]] = {
         "pow_target_spacing": 10 * 60,
         "pow_target_timespan": 14 * 24 * 60 * 60,
         "minimum_chain_work": int(
-            "0000000000000000000000000000000000000000000017dde1c649f3708d14b6", 16
+            "0000000000000000000000000000000000000000000017f49f702147f10c0eb6", 16
         ),
         "bip30_exceptions": (),
         "bip30_unspendable": (),
@@ -155,8 +155,8 @@ _CHAINPARAMS: dict[str, dict[str, Any]] = {
         # the networks: segwit binds on regtest from the genesis block
         "segwit_height": 0,
         "pow_allow_min_difficulty_blocks": True,
-        # `opts.enforce_bip94` at chainparams.cpp:579, and the option's
-        # own default is false at chainparams.h:154: what a regtest node
+        # `opts.enforce_bip94` at chainparams.cpp:607, and the option's
+        # own default is false at chainparams.h:159: what a regtest node
         # runs with, `-test=bip94` not being passed
         "enforce_bip94": False,
         "pow_no_retargeting": True,
@@ -187,7 +187,7 @@ _CHAINPARAMS: dict[str, dict[str, Any]] = {
         # the default signet's, which chainparams assigns above the class
         # body's own block: a custom challenge gets `uint256{}` instead
         "minimum_chain_work": int(
-            "00000000000000000000000000000000000000000000000000000b463ea0a4b8", 16
+            "00000000000000000000000000000000000000000000000000001090e9dc1520", 16
         ),
         "bip30_exceptions": (),
         "bip30_unspendable": (),
@@ -207,7 +207,7 @@ _CHAINPARAMS: dict[str, dict[str, Any]] = {
         "pow_target_spacing": 10 * 60,
         "pow_target_timespan": 14 * 24 * 60 * 60,
         "minimum_chain_work": int(
-            "0000000000000000000000000000000000000000000009a0fe15d0177d086304", 16
+            "000000000000000000000000000000000000000000000e346a558455ade8eca9", 16
         ),
         "bip30_exceptions": (),
         "bip30_unspendable": (),
@@ -428,7 +428,7 @@ def test_subsidy_halves_exactly_sixty_four_times(halving_interval: int) -> None:
     """Every halving is exactly half the last, for 64 of them, then zero.
 
     Bitcoin Core's own `block_subsidy_test`
-    (`src/test/validation_tests.cpp`, at bitcoin/bitcoin@9be056a8a7):
+    (`src/test/validation_tests.cpp`, at bitcoin/bitcoin@f0de87f040):
     mainnet's interval, regtest's, and one that is neither, `nSubsidy`
     read back after each right shift rather than recomputed from the
     height.
@@ -447,7 +447,7 @@ def test_subsidy_sums_to_the_twenty_one_million_cap() -> None:
     """The total payout of mainnet's own schedule, Core's own constant.
 
     `subsidy_limit_test` (`src/test/validation_tests.cpp`, at
-    bitcoin/bitcoin@9be056a8a7): the sum over every thousand-block step
+    bitcoin/bitcoin@f0de87f040): the sum over every thousand-block step
     to height 14,000,000, each step's reward standing for the thousand
     blocks it covers -- short of the 21,000,000 BTC cap by the
     remainder every halving floors away.
@@ -501,11 +501,11 @@ def test_subsidy_refuses_a_negative_height_or_a_non_positive_interval() -> None:
 # `m_headers_sync_params`, the commitment period and then the redownload
 # buffer size, assigned at the line beside it
 _HEADERS_SYNC_PARAMS = {
-    "mainnet": (641, 15218),  # line 201
-    "testnet": (673, 14460),  # line 310
-    "testnet4": (606, 16092),  # line 423
-    "signet": (620, 15724),  # line 548
-    "regtest": (275, 7017),  # line 684
+    "mainnet": (649, 15400),  # line 230
+    "testnet": (682, 14613),  # line 338
+    "testnet4": (616, 16199),  # line 451
+    "signet": (629, 15885),  # line 576
+    "regtest": (275, 7017),  # line 681
 }
 
 

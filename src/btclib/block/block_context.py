@@ -41,12 +41,14 @@ __all__ = ["BlockContext"]
 
 @dataclass(frozen=True)
 class BlockContext:
-    """What Block.assert_valid_contextual reads: a height, a clock, a chain.
+    """What a block's contextual checks read: a height, a clock, a chain.
 
-    The facts a block cannot answer for itself, supplied by the caller.
-    consensus is the chain's parameters, mainnet's by default as
-    everywhere else in btclib. median_time_past and required_bits default
-    to None, which skips the rules that need them.
+    Block.assert_valid_contextual and Block.assert_valid_contextual_block
+    take one; the second asks no rule of the clock, time-too-new being a
+    header rule. The facts a block cannot answer for itself, supplied by
+    the caller. consensus is the chain's parameters, mainnet's by default
+    as everywhere else in btclib. median_time_past and required_bits
+    default to None, which skips the rules that need them.
     """
 
     # the height the block is being accepted at, i.e. Core's

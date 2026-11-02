@@ -23,7 +23,6 @@ name: fuzz
 #   - `data`
 #   - `merkleblock`
 #   - `reject`
-# - the response decoders of `btclib.electrum`.
 #
 # Reached only once a transaction, a script or a signature is already
 # being handled:

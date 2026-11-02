@@ -81,6 +81,7 @@ from btclib.p2p import (
 )
 from btclib.script import Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
+from btclib.utreexo import Proof, Stump
 from tests import public_classes_with
 
 # what btclib promises to raise, and the whole of it: a truncated buffer
@@ -134,6 +135,11 @@ def _inventory() -> Inventory:
     return Inventory(InventoryType.MSG_BLOCK, BlockHeader.parse(_block_1()[:80]).hash)
 
 
+def _stump() -> Stump:
+    """Return the stump of three leaves, which has two roots."""
+    return Stump().modify([bytes([i]) * 32 for i in range(1, 4)], [], Proof())
+
+
 def _partial_merkle_tree() -> PartialMerkleTree:
     """Return the tree that keeps the coinbase of the block after genesis."""
     txids = [tx.id for tx in Block.parse(_block_1()).transactions]
@@ -156,6 +162,8 @@ _CASES: list[tuple[str, type[Any], bytes]] = [
         PartialMerkleTree,
         _partial_merkle_tree().serialize(),
     ),
+    ("utreexo_stump", Stump, _stump().serialize),
+    ("utreexo_proof", Proof, Proof([0, 5], [bytes([1]) * 32, bytes(32)]).serialize),
     ("bms_sig", bms.Sig, bms.sign(b"parse contract", PrvKeyData(1)).serialize()),
     ("witness", Witness, Witness([b"\x51", b"\x52\x53"]).serialize()),
     ("p2p_message", Message, Message("f9beb4d9", "ping", bytes(8)).serialize()),

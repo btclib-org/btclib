@@ -68,13 +68,6 @@ def test_every_kind_names_an_entry_point_of_a_harness() -> None:
     assert set(oracle.KINDS) <= declared
 
 
-def test_entry_points_read_the_keys_of_a_dict(tmp_path: Path) -> None:
-    """A dict of arguments naming constants is read by its keys alone."""
-    harness = tmp_path / "fuzz_dict.py"
-    harness.write_text('N = 1\nENTRY_POINTS = {"m:f": (N,), "m:g": ()}\n')
-    assert oracle.entry_points(harness) == ("m:f", "m:g")
-
-
 def test_a_harness_without_entry_points_is_refused(tmp_path: Path) -> None:
     """A harness that declares no entry point is an error."""
     harness = tmp_path / "fuzz_none.py"

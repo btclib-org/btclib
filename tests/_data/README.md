@@ -1,6 +1,6 @@
 # Vendored test vectors
 
-This file is about `tests/**/_data/`.
+This file is about `tests/**/_data/` and `src/btclib/testing/_data/`.
 
 The other directory holding json beside the tests,
 `tests/**/_generated_files/`, is the opposite kind of thing and has no
@@ -26,7 +26,8 @@ names a range of Core's `script/script.h` and the released tag it read
 them at, and `src/btclib/consensus.py` pins its tag once at the top and
 says why a tag rather than a `master` tip.
 
-Where every file under a `tests/**/_data/` directory came from, and
+Where every file under a `tests/**/_data/` directory or
+`src/btclib/testing/_data/` came from, and
 whether our copy still matches it. The test modules already cite their
 sources, but against `master`: a citation like
 `bips/blob/master/bip-0340/test-vectors.csv` names a file that changes
@@ -77,7 +78,6 @@ entries close on a verdict; one with nothing upstream to compare
 against says so in prose instead. The verdicts used:
 
 - **identical** — our file and the upstream blob are the same bytes.
-- **reformatted** — same parsed JSON value, different whitespace.
 - **transcribed** — there is no file compared byte for byte. Over prose
   (a BIP, an RFC, a BOLT) the check is that every value in our copy
   appears verbatim in the pinned text; over a source file the check is
@@ -97,6 +97,9 @@ against says so in prose instead. The verdicts used:
 the tree, from `git log --follow --diff-filter=A`. That is a fact in this
 repository; someone's memory of the day they opened a browser is not.
 Where a file was vendored earlier and later refreshed, both dates appear.
+Where `--follow` takes a file for a copy of another file in this tree, it
+answers the other file's date; `pulled` is then the date of the commit
+that added the file.
 
 `behind` counts upstream revisions of that path since the pin. It is a
 staleness figure, not a defect: a vector file is a fixed set of cases and
@@ -127,8 +130,15 @@ bitcoin-core/secp256k1's `src` for `secp256k1_symbols.txt` on 2026-09-10,
 refreshed again on 2026-09-14, 2026-09-29, 2026-10-07 and 2026-10-26, at the
 tip of its path each time.
 BIP324's `packet_encoding_test_vectors.csv` followed on 2026-09-27, at the
-tip of its path, rust-bitcoin's `huge_witness.bin` on 2026-10-11, and
-bip-0054's vector files on 2026-10-26, each at the tip of its path.
+tip of its path, rust-bitcoin's `huge_witness.bin` on 2026-10-12,
+opentimestamps-client's examples and their licence on 2026-10-21,
+rustreexo's `test_values/` files on 2026-10-21, and bip-0054's vector
+files on 2026-10-26, each at the tip of its path.
+python-bitcoinlib's `LICENSE` followed on 2026-10-26, at the tip of its
+path, and its `COPYING` the same day, at the tip of its path before
+upstream deleted it.
+gnulib's `COPYINGv3`, beside opentimestamps-client's and python-bitcoinlib's
+licences, followed on 2026-10-30, at the tip of its path.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -561,7 +571,7 @@ whole is what made that possible without a second pull — and it is what
 the naming section above asks for anyway, a btclib-named extract of the
 block column having no upstream name to be compared against.
 
-The ten are testnet, where the four blocks of `tests/block/_data/` are
+The ten are testnet, where the vendored `block_*.bin` files are
 mainnet, and Core picked them for the shapes their scripts have: a
 coinbase output script no parser can read, an output paying to an empty
 script and a transaction spending from one, duplicate pushdata, witness
@@ -736,30 +746,95 @@ bindings expose a name, that being a fact about their own surface.
 
 ## Other projects
 
-### `tests/schemes/_data/signmessage.json`
+### `tests/schemes/_data/python-bitcoinlib/LICENSE`
 
 ```text
-repo    petertodd/python-bitcoinlib
-path    bitcoin/tests/data/signmessage.json
-commit  0b8318cc36e86508a3153342290b31b614a1be7f  2015-06-30
-blob    31d619867d1ab2dcd8358868ac501b35ebb9c129
-ours    dec81a97db1e63960fb3306ebc2716e9c7c8ef92
-pulled  2020-01-04
-behind  0 revisions; still the blob on master
+repo     petertodd/python-bitcoinlib
+path     LICENSE
+commit   8ff7d8b64b0c7ceefb678c8883cb1d01d1d6e5cc  2014-09-07
+blob     a4cfc1c29796086e96bc58ae30ef66de1412a094
+licence  LGPL-3.0-or-later
+pulled   2026-10-26
+behind   0 revisions; that commit is the only one to touch the path
 ```
 
-Verdict: **reformatted**. 200 vectors, JSON-equal, and all 200 are
-exercised by `tests/schemes/bms_test.py`.
+Verdict: **identical**. Upstream's licence, kept beside
+`signmessage.json` below: btclib is MIT, and the vectors are
+redistributed rather than written here. It is the same blob at
+`signmessage.json`'s pin. The directory holds python-bitcoinlib's files
+and the GPL text below, so that the licence beside them covers nothing
+else.
 
-### `tests/block/_data/checkblock_valid.json`
+### `tests/schemes/_data/python-bitcoinlib/COPYINGv3`
 
 ```text
-repo    petertodd/python-bitcoinlib
-path    bitcoin/tests/data/checkblock_valid.json
-commit  46314961bd7d8d0d6069c766c9cb7bfc41c299f4  2014-02-22
-blob    eeca0aa43d8c3cd75d3c98d497f39edb2f722dff
-pulled  2026-08-02
-behind  0 revisions; that commit is the only one to touch the path
+repo     coreutils/gnulib
+path     doc/COPYINGv3
+commit   d64d66cc4897d605f543257dcd038524a0a55215  2017-10-02
+blob     f288702d2fa16d3cdf0035b15a9fcbc552cd88e7
+pulled   2026-10-30
+behind   0 revisions; still the blob on master
+```
+
+Verdict: **identical**. The GPL, kept beside the LGPL `LICENSE` above,
+which incorporates its terms. It is the same blob as
+`tests/block/_data/opentimestamps/COPYINGv3`, whose entry says where the
+text comes from.
+
+### `tests/schemes/_data/python-bitcoinlib/signmessage.json`
+
+```text
+repo     petertodd/python-bitcoinlib
+path     bitcoin/tests/data/signmessage.json
+commit   0b8318cc36e86508a3153342290b31b614a1be7f  2015-06-30
+blob     31d619867d1ab2dcd8358868ac501b35ebb9c129
+ours     dec81a97db1e63960fb3306ebc2716e9c7c8ef92
+licence  LGPL-3.0-or-later
+pulled   2020-01-04
+behind   0 revisions; still the blob on master
+```
+
+Verdict: **identical but for a trailing newline**, the change the notice
+below dates, so our blob is `dec81a97`. All 200 vectors are exercised by
+`tests/schemes/bms_test.py`.
+
+Modified here on 2023-01-04: btclib's `end-of-file-fixer` hook added the
+final newline upstream's file lacks, and changed nothing else. This is
+the dated notice the GPL asks of a modified copy.
+
+### `tests/block/_data/python-bitcoinlib/COPYING`
+
+```text
+repo     petertodd/python-bitcoinlib
+path     COPYING
+commit   cfdc2a397d686f667b56bab42351def0f3cee76d  2013-08-28
+blob     fec0301a468177e870de69be60303d05ded7a42c
+ours     d050d83442fa61873d096732f9919e3996026da5
+licence  MIT
+pulled   2026-10-26
+behind   1 revision; 8ff7d8b6 (2014-09-07) deleted the path
+```
+
+Verdict: **identical but for a trailing newline**: upstream's file ends
+in a blank line, which the `end-of-file-fixer` hook removed, so our blob
+is `d050d834`. Upstream's licence at the pin of `checkblock_valid.json`
+and `checkblock_invalid.json` below, kept beside them: the same blob is
+at that commit. Its terms are MIT for every file but `bitcoin/rpc.py`,
+which is not vendored. Upstream replaced it with the LGPL `LICENSE` above
+in 8ff7d8b6, which leaves both files unchanged. The directory holds
+python-bitcoinlib's files alone, so that the licence beside them covers
+nothing else.
+
+### `tests/block/_data/python-bitcoinlib/checkblock_valid.json`
+
+```text
+repo     petertodd/python-bitcoinlib
+path     bitcoin/tests/data/checkblock_valid.json
+commit   46314961bd7d8d0d6069c766c9cb7bfc41c299f4  2014-02-22
+blob     eeca0aa43d8c3cd75d3c98d497f39edb2f722dff
+licence  MIT
+pulled   2026-08-02
+behind   0 revisions; that commit is the only one to touch the path
 ```
 
 Verdict: **identical**. Four blocks — genesis twice, 99,960 and 99,993 —
@@ -772,15 +847,16 @@ is read: it answers "is this timestamp too far in the future", which
 `BlockContext` carries the clock for. The first is one second inside the
 two-hour window and the second is the instant genesis was mined.
 
-### `tests/block/_data/checkblock_invalid.json`
+### `tests/block/_data/python-bitcoinlib/checkblock_invalid.json`
 
 ```text
-repo    petertodd/python-bitcoinlib
-path    bitcoin/tests/data/checkblock_invalid.json
-commit  46314961bd7d8d0d6069c766c9cb7bfc41c299f4  2014-02-22
-blob    16a9b3cafea17fb55057c1bb5eac572b524b27d5
-pulled  2026-08-02
-behind  0 revisions; that commit is the only one to touch the path
+repo     petertodd/python-bitcoinlib
+path     bitcoin/tests/data/checkblock_invalid.json
+commit   46314961bd7d8d0d6069c766c9cb7bfc41c299f4  2014-02-22
+blob     16a9b3cafea17fb55057c1bb5eac572b524b27d5
+licence  MIT
+pulled   2026-08-02
+behind   0 revisions; that commit is the only one to touch the path
 ```
 
 Verdict: **identical**. Seven blocks consensus refuses, and the only
@@ -849,45 +925,275 @@ pair of exceptions. It broke past versions of rust-bitcoin and LND, as
 [an electrs issue](https://github.com/romanz/electrs/issues/783) records.
 The licence is rust-bitcoin's, whose `LICENSE` is the CC0 text.
 
+### `tests/block/_data/opentimestamps/LICENSE`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     LICENSE
+commit   f47a4ec046649ac3efa1543bd83a9fa5affcc8d3  2016-08-22
+blob     4165418d146712fb294cb39d94e7c28b2d26055b
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. Upstream's licence, kept beside the proofs below:
+btclib is MIT, and the proofs are redistributed rather than written here.
+
+The proofs are the examples of opentimestamps-client that
+`tests/block/opentimestamps_test.py` replays: every example carrying a
+Bitcoin attestation at upstream's f3a9e92e (2026-10-27),
+`bad-stamp.txt.ots` among them, which the test refuses, and
+`incomplete.txt.ots`, which it reports as pending. The other examples
+carry no Bitcoin attestation, or are invalid on purpose, and are not
+vendored. Each keeps its upstream name: `a-or-b.ots` is under
+`examples/sha1/` upstream, the others under `examples/`. The headers they
+attest are under *Chain data, not a repository*.
+
+### `tests/block/_data/opentimestamps/a-or-b.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/sha1/a-or-b.ots
+commit   185a5997cf315402747223a1feae18e669ae08f2  2023-10-20
+blob     346e86a865507d57034847e1cae4b118ffb8e9dc
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the only one to touch the path
+```
+
+Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/bad-stamp.txt.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/bad-stamp.txt.ots
+commit   5d5d325b2a7083e93a7c685a679edc3f6b8f27d7  2016-09-14
+blob     897b46dba45e4dbef2667d1323acad0ee1c431e6
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/bitcoin.pdf.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/bitcoin.pdf.ots
+commit   34bbebd50ec20d26a72cf200d8eae2506f47bc2d  2021-01-22
+blob     c2114bafba315ce4efcf46c711d9ee06b3b181ad
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the only one to touch the path
+```
+
+Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/different-blockchains.txt.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/different-blockchains.txt.ots
+commit   afa0640501f5bf26a9a4c0eb86b14acf57c21cd7  2017-05-28
+blob     95013bb5d6c34a0f91c80faac062bef884ca7634
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the only one to touch the path
+```
+
+Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/empty.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/empty.ots
+commit   5d5d325b2a7083e93a7c685a679edc3f6b8f27d7  2016-09-14
+blob     c4c3ea3e811a12490a95832e3974cc1b19942d57
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/gdp2q25-2nd.pdf.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/gdp2q25-2nd.pdf.ots
+commit   cd71c7609421bed2a07b9642a3c02a58c9fd2cdf  2026-02-07
+blob     3779b5ce648ea9aca6aff04e50991b5ee91c41a7
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the only one to touch the path
+```
+
+Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/hello-world.txt.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/hello-world.txt.ots
+commit   5d5d325b2a7083e93a7c685a679edc3f6b8f27d7  2016-09-14
+blob     d8357eb50f9f26136a367bcc7e8365b2ddd7e0f5
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/incomplete.txt.ots`
+
+```text
+repo     opentimestamps/opentimestamps-client
+path     examples/incomplete.txt.ots
+commit   5d5d325b2a7083e93a7c685a679edc3f6b8f27d7  2016-09-14
+blob     f49cd3595c50ed52d8ffada5f8f84ceb18f4c1ca
+licence  LGPL-3.0-or-later
+pulled   2026-10-21
+behind   0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**.
+
+### `tests/block/_data/opentimestamps/COPYINGv3`
+
+```text
+repo     coreutils/gnulib
+path     doc/COPYINGv3
+commit   d64d66cc4897d605f543257dcd038524a0a55215  2017-10-02
+blob     f288702d2fa16d3cdf0035b15a9fcbc552cd88e7
+pulled   2026-10-30
+behind   0 revisions; still the blob on master
+```
+
+Verdict: **identical**. The GPL, kept beside the LGPL `LICENSE` above,
+which incorporates its terms. The text is the one gnu.org serves at
+<https://www.gnu.org/licenses/gpl-3.0.txt>, whose bytes hash to this
+blob on 2026-10-30. The pin is gnulib's copy, read through gnulib's
+GitHub mirror, so that the weekly job can compare it. The text allows
+verbatim copies, which this is.
+
+## mit-dci/rustreexo
+
+The Utreexo accumulator `btclib.utreexo` follows, read at the commit
+`b73cbac1f425f0e849faa279982ef4f5ec9f3754` that release 0.7.0 tags. Its
+`test_values/` files are the same bytes at that tag and at the tip of
+`main`, so each pin below is the last commit to touch the path and the
+weekly job finds it current.
+
+The crate is licensed `MIT OR Apache-2.0` (`Cargo.toml`, `LICENSE-MIT`,
+`LICENSE-APACHE`).
+
+`tests/utreexo_test.py` reads these files, in the directory
+`tests/_data/rustreexo/` because their upstream names, `test_cases.json`
+among them, say nothing outside their repository. A hash of zeros is an
+empty node there, as `Stump` takes it.
+
+### `tests/_data/rustreexo/test_cases.json`
+
+```text
+repo    mit-dci/rustreexo
+path    test_values/test_cases.json
+commit  8869ed90130464a50821054622437ba1ebf42961  2022-10-20
+blob    9290de291a4a2d66801e4708ffa0c0aaa4f49d0f
+pulled  2026-10-21
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. The `insertion_tests`, `deletion_tests` and
+`proof_tests`, all run. One proof test expects `false`. Another has
+targets that are nodes above the leaves, which `btclib.utreexo` reads as
+positions of the forest, as rustreexo does.
+
+### `tests/_data/rustreexo/update_data_tests.json`
+
+```text
+repo    mit-dci/rustreexo
+path    test_values/update_data_tests.json
+commit  ae74e64e5a238add561261a9961640ee46169320  2023-01-13
+blob    30d6eea8936999d8f88a255d3fb2d748d7f32304
+pulled  2026-10-21
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. Every case is run: the positions and hashes
+`Stump.update_data` reports for what it added, what it destroyed, and what the
+deletion changed.
+
+### `tests/_data/rustreexo/cached_proof_tests.json`
+
+```text
+repo    mit-dci/rustreexo
+path    test_values/cached_proof_tests.json
+commit  d7e3b1bd3922238309bd8ab01c765c35fe75ff4e  2023-01-23
+blob    810134b0f1b6077757cefff400c19aa8e6bc5126
+pulled  2026-10-21
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. Every case is run: a proof of leaves a wallet
+caches, updated by `Proof.update` across a block, verifies against the
+next `Stump` and has the targets and leaf hashes the file lists.
+
 ## Chain data, not a repository
 
 These are consensus bytes. There is no upstream repository to pin and no
 commit to name: the authority is the chain, and any node or block
 explorer settles a dispute. The identifier is the block hash or the txid,
 which is what `Block.parse` and `Tx.parse` recompute from the bytes on
-every run — so the first two entries verify themselves. So does the
-rust-bitcoin transaction above, whose bytes come from upstream and not from
-a node; no other vendored vector does. The third holds parts of
-transactions rather than whole ones, and says what that costs. The
-fourth is chain data inside an envelope: bodies a node and an explorer
-send, carrying bytes the first entry already holds, and it is the one
-entry here that needs no node to re-derive.
+every run — so the block files and the segwit transaction verify
+themselves. So does the rust-bitcoin transaction above, whose bytes come
+from upstream and not from a node. `unspendable_script_pub_keys.json`
+holds parts of transactions rather than whole ones, and says what that
+costs. `opentimestamps_headers.json` holds block headers beside their
+hashes, and verifies itself the same way.
 
 ### `tests/block/_data/block_*.bin`
 
 ```text
 block_1.bin       height 1, 215 bytes
   00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048
+block_481824.bin  height 481824, 988,519 bytes
+  0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893
+```
+
+Pulled 2020-06-08.
+
+Verdict: **recorded**, except `block_481824.bin`, which is derived rather
+than returned by any call (below).
+
+`bitcoin-cli getblock <hash> 0` returns `block_1.bin`. It does not return
+`block_481824.bin`: that is the block of
+`src/btclib/testing/_data/block_481824_complete.bin` serialized *without*
+witness data, as a pre-segwit node sees it, which no RPC hands over.
+It is derivable —
+`Block.parse(complete).serialize(include_witness=False)` reproduces it
+byte for byte, checked — and that is how to regenerate it.
+
+### `src/btclib/testing/_data/block_*.bin`
+
+```text
 block_170.bin     height 170, 490 bytes
   00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee
 block_200000.bin  height 200000, 247,533 bytes
   000000000000034a7dedef4a161fa058a2d67a173a90155f3a2fe6fc132e0ebf
-block_481824.bin and block_481824_complete.bin
-  height 481824, 988,519 and 989,323 bytes
+block_481824_complete.bin
+  height 481824, 989,323 bytes
   0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893
 ```
 
 Pulled 2020-06-08, except `block_200000.bin`, 2020-06-09.
 
-Verdict: **recorded**, except `block_481824.bin`, which is derived rather
-than returned by any call (below).
-
-`bitcoin-cli getblock <hash> 0` returns the first three and
-`block_481824_complete.bin`. It does not return `block_481824.bin`: that
-is the same block serialized *without* witness data, as a pre-segwit node
-sees it, which no RPC hands over. It is derivable —
-`Block.parse(complete).serialize(include_witness=False)` reproduces it
-byte for byte, checked — and that is how to regenerate it.
+Verdict: **recorded**. `bitcoin-cli getblock <hash> 0` returns each of
+them. They ship in the wheel, as `btclib.testing.blocks`, so that the
+tests of btclib's callers read them too.
 
 ### `tests/tx/_data/` — a segwit transaction
 
@@ -947,6 +1253,31 @@ Any explorer answers the same question — Esplora's
 is where this copy came from, no node with a transaction index being at
 hand. The heights are the issue's own, and `getblockhash`/`getblock`
 confirm them.
+
+### `tests/block/_data/opentimestamps_headers.json`
+
+```text
+source  Esplora: api/block-height/<height>, then api/block/<hash>/header
+hosts   mempool.space and blockstream.info, which answered the same bytes
+pulled  2026-10-21
+```
+
+Verdict: **recorded**. Each key is a height that a proof under
+`tests/block/_data/opentimestamps/` attests, and holds the hash of the
+block at that height and its header.
+`tests/block/opentimestamps_test.py` recomputes the hash from the header,
+so a corrupted copy announces itself. The height stands in a fence of its
+own; the fence below reads it as `${height:?}`, the shell's must-be-set
+form.
+
+```shell
+height=<a height the file names>
+```
+
+```shell
+hash=$(curl -s "https://mempool.space/api/block-height/${height:?}")
+curl -s "https://mempool.space/api/block/${hash}/header"
+```
 
 ## Not vendored from anywhere
 
@@ -1033,7 +1364,8 @@ that is wrong. The lists *are* the fact the number summarized, and the tree
 answers whenever the number is wanted:
 
 ```shell
-git ls-files 'tests/_data/*' 'tests/*/_data/*' | grep -cv 'README.md'
+git ls-files 'tests/_data/*' 'tests/*/_data/*' 'src/btclib/testing/_data/*' |
+  grep -cv 'README.md'
 ```
 
 Against a pinned upstream blob:
@@ -1043,11 +1375,15 @@ Against a pinned upstream blob:
   `tx_valid.json`, `tx_invalid.json`, `key_io_valid.json`,
   `key_io_invalid.json`, `base58_encode_decode.json`, `siphash.json`,
   `blockfilters.json`, `checkblock_valid.json`, `checkblock_invalid.json`,
-  `txsize.json`.
+  `txsize.json`, opentimestamps-client's proofs and `LICENSE` under
+  `tests/block/_data/opentimestamps/`, python-bitcoinlib's `LICENSE`, and
+  gnulib's `COPYINGv3` beside both `LICENSE` files.
+- identical byte for byte, from rustreexo: `test_cases.json`,
+  `update_data_tests.json`, `cached_proof_tests.json`.
 - identical but for a trailing newline: `script_assets_test.json`,
-  `sigops.json`, `coinbases.json`, `timestamps.json`.
+  `sigops.json`, `coinbases.json`, `timestamps.json`, `signmessage.json`,
+  and python-bitcoinlib's `COPYING`.
 - identical but for line endings: `packet_encoding_test_vectors.csv`.
-- JSON-equal, reformatted: `signmessage.json`.
 
 Not checked byte for byte against one:
 
@@ -1057,7 +1393,8 @@ Not checked byte for byte against one:
   `muhash_vectors.json`, `secp256k1_symbols.txt`,
   `huge_witness.bin`.
 - chain data, identified by block hash or txid: the blocks under
-  `tests/block/_data/`, the segwit transaction under `tests/tx/_data/`, and
+  `tests/block/_data/` and `src/btclib/testing/_data/`, the segwit
+  transaction under `tests/tx/_data/`, `opentimestamps_headers.json`, and
   `unspendable_script_pub_keys.json`, which is scripts rather than whole
   transactions and so is the one that cannot recompute its own
   identifier.

@@ -60,7 +60,10 @@ _TESTS_DIR = Path(__file__).parent
 # of the library where that dependency is not installed: it cannot be
 # imported there, and a btclib without the extra answers as before.
 # `tests/build_system_test.py` holds each entry to the extra it names
-NEEDS_AN_EXTRA = {"btclib.p2p.bip324": "cryptography"}
+NEEDS_AN_EXTRA = {
+    "btclib.p2p.bip324": "cryptography",
+    "btclib.testing.strategies": "hypothesis",
+}
 
 
 def importable(name: str) -> bool:
@@ -160,6 +163,23 @@ def load_bin(*relative_path: str) -> bytes:
         return file_.read()
 
 
+def vendored_block(name: str) -> bytes:
+    """Read a vendored block by its file name, wherever it is vendored.
+
+    `btclib.testing.blocks` ships the blocks its `NAMES` lists, so that
+    the tests of btclib's callers read them too. The others are under
+    `tests/block/_data/`.
+
+    The import is inside the function for the reason
+    `key_pair_spellings` below gives.
+    """
+    from btclib.testing import blocks  # noqa: PLC0415
+
+    if name in blocks.NAMES:
+        return blocks.read_bytes(name)
+    return load_bin("block", "_data", name)
+
+
 # what makes an id unreadable in a report and unusable in a -k expression:
 # anything that is not a letter, a digit or a dash. Bitcoin Core comments
 # hold spaces, quotes, parentheses and slashes; a descriptor holds a '#'
@@ -221,9 +241,9 @@ class KeyPairSpellings(NamedTuple):
     The WIF and the xprv are here for the refusals alone: `ecc` takes a
     scalar and a point, and a spelling that carries a network is read
     where its format is defined -- a WIF by `b58`, an xprv by
-    `btclib_wallet.bip32` (issue #1188). The xprv is written out as the
-    Base58Check of its BIP32 serialization, so building it asks nothing
-    of the package that parses one.
+    `bip32_descriptors.bip32` (issue #1188). The xprv is written out as
+    the Base58Check of its BIP32 serialization, so building it asks
+    nothing of the package that parses one.
     """
 
     q: int
@@ -294,8 +314,8 @@ def key_pair_spellings() -> KeyPairSpellings:
     )
 
     # an xpub is the only public spelling that names a network, and it is
-    # `btclib_wallet.bip32.pub_keyinfo_from_xpub`'s to read (issue #1188),
-    # so every family here is network-unaware
+    # `bip32_descriptors.bip32.pub_keyinfo_from_xpub`'s to read (issue
+    # #1188), so every family here is network-unaware
     net_unaware_compressed_pub_keys: list[bytes | str] = [
         Q_compressed_hexstring,
         Q_compressed_hexstring2,

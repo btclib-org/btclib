@@ -89,7 +89,6 @@ __all__ = [
     "compressor",
     "consensus",
     "ecc",
-    "electrum",
     "exceptions",
     "fee",
     "hashes",
@@ -100,8 +99,10 @@ __all__ = [
     "p2p",
     "policy",
     "script",
+    "testing",
     "tx",
     "utils",
+    "utreexo",
     "var_bytes",
     "var_int",
 ]

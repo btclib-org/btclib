@@ -13,7 +13,7 @@ no peer at all. What is driven here is therefore in two halves.
 
 **The derivation is checked against something that is not this library.**
 The vectors are block 481,824 -- the first segwit block, already in the
-tree under tests/block/_data and authenticated by its own proof of work,
+tree in btclib.testing.blocks and authenticated by its own proof of work,
 which is what issue #1101 and issue #1103 leaned on -- and the short ids
 and the key below were computed with Bitcoin Core's own
 test/functional/test_framework/crypto/siphash.py: a second
@@ -70,8 +70,9 @@ from btclib.p2p import (
     reconstruct,
 )
 from btclib.p2p.limits import MAX_BLOCK_TX_INDEX
+from btclib.testing.blocks import read_bytes
+from btclib.testing.strategies import TXS
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
-from tests.strategies import TXS
 
 _DATA = Path(__file__).parent.parent / "block" / "_data"
 
@@ -80,7 +81,7 @@ _DATA = Path(__file__).parent.parent / "block" / "_data"
 # transactions carry witnesses, so that a wtxid is not a txid for most of
 # them and a short id computed over the wrong one is a short id that
 # differs
-_BLOCK_481824 = (_DATA / "block_481824_complete.bin").read_bytes()
+_BLOCK_481824 = read_bytes("block_481824_complete.bin")
 # the block after genesis, whose one transaction is a coinbase: what a
 # case needs a valid header and a real transaction for and nothing else
 _BLOCK_1 = Block.parse((_DATA / "block_1.bin").read_bytes())

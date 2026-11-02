@@ -4,16 +4,15 @@
 
 """Tests for the `btclib.block.merkle_proof` module.
 
-The vectors are the `_data/block_*.bin` blocks the rest of tests/block
-uses: a branch is built here from the transaction list, and what it is
-checked against is the merkle_root of the real header, which is
-consensus data and not something this library computed. Core's
+The vectors are the vendored blocks the rest of tests/block uses: a
+branch is built here from the transaction list, and what it is checked
+against is the merkle_root of the real header, which is consensus data
+and not something this library computed. Core's
 gettxoutproof produces the same branches, and its verifytxoutproof is
 the authority on the answer, but neither is needed to have the vectors:
 the block carries the transactions and the root that commits to them.
 """
 
-from pathlib import Path
 from typing import Any, cast
 
 import pytest
@@ -22,13 +21,12 @@ from btclib.block import Block, merkle_proof
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256, merkle_root_from_branch
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
+from tests import vendored_block
 
 
 def _load(fname: str) -> Block:
-    """Return a vendored block, parsed from tests/block/_data."""
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        return Block.parse(file_.read())
+    """Return a vendored block, parsed."""
+    return Block.parse(vendored_block(fname))
 
 
 def _branch(hashes: list[bytes], index: int) -> list[bytes]:

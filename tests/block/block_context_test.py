@@ -19,7 +19,6 @@ height, so its coinbase commitment is one the whole network agreed on.
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import pytest
 
@@ -35,6 +34,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import serialize
 from btclib.script.witness import Witness
 from btclib.tx import TxIn
+from tests import vendored_block
 
 _MAINNET = CONSENSUS_PARAMS["mainnet"]
 _MAINNET_BIP34_HEIGHT = 227_931
@@ -43,10 +43,8 @@ _COMMITMENT_PREFIX = bytes.fromhex("6a24aa21a9ed")
 
 
 def block_of(fname: str) -> Block:
-    """Parse a vendored block from this directory's `_data`."""
-    filename = Path(__file__).parent / "_data" / fname
-    with filename.open("rb") as file_:
-        return Block.parse(file_.read())
+    """Parse a vendored block."""
+    return Block.parse(vendored_block(fname))
 
 
 def test_the_activation_height_is_cores() -> None:
@@ -524,6 +522,37 @@ def test_a_transaction_must_be_final_at_the_height() -> None:
             height=1, now=now, consensus=bip113_at_1, median_time_past=time - 1
         )
     )
+
+
+def test_the_block_rules_can_be_asked_without_the_header_rules() -> None:
+    """Core's ContextualCheckBlock alone, for a header already accepted.
+
+    A clock two hours and a second behind block 481,824's timestamp fails
+    its header on time-too-new. At height 481,823 its body fails
+    bad-txns-nonfinal as well: the whole check answers the first, and the
+    block's own rules the second. At its own height the block's rules
+    pass, the header's still refusing.
+    """
+    block = block_of("block_481824_complete.bin")
+    tx = block.transactions[1]
+    now = block.header.time - timedelta(seconds=MAX_FUTURE_BLOCK_TIME + 1)
+    early = BlockContext(height=_MAINNET_SEGWIT_HEIGHT - 1, now=now)
+
+    err_msg = "invalid timestamp \\(too far in the future\\): "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_contextual(early)
+    with pytest.raises(BTClibValueError, match=f"non-final transaction: {tx.id.hex()}"):
+        block.assert_valid_contextual_block(early)
+
+    at = BlockContext(height=_MAINNET_SEGWIT_HEIGHT, now=now)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_contextual(at)
+    block.assert_valid_contextual_block(at)
+
+    # the context is checked here too, before any rule reads it
+    unchecked = BlockContext(height=-1, now=now, check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid height: -1"):
+        block.assert_valid_contextual_block(unchecked)
 
 
 def test_the_witness_rules_depend_on_the_segwit_height() -> None:

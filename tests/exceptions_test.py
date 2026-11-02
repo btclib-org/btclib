@@ -4,14 +4,13 @@
 
 """Tests for `btclib.exceptions`, and for what an exception carries.
 
-The classes with nothing added to their base need no test of their own:
-what they are is the base, and every module raising one asserts the
-message it raised. What is tested here is the classes carrying a field
--- `HttpError`, `RpcError`, `SignerError` and `ScriptError` -- and
-specifically that a field survives leaving the process it was raised
-in, which is the case the field exists for and the one nothing else in
-the suite exercises: pytest-xdist sends a report as text, so no exception
-object crosses between workers (issue #391).
+The classes with nothing added to their base need no test of their own: what
+they are is the base, and every module raising one asserts the message it
+raised. What is tested here is the classes carrying a field --
+`IncompleteMessageError` and `ScriptError` -- and specifically that a field
+survives leaving the process it was raised in, which is the case the field
+exists for and the one nothing else in the suite exercises: pytest-xdist sends a
+report as text, so no exception object crosses between workers (issue #391).
 """
 
 from __future__ import annotations
@@ -34,15 +33,11 @@ from btclib.exceptions import (
     BTClibTypeError,
     BTClibUserWarning,
     BTClibValueError,
-    FetchError,
-    HttpError,
-    RpcError,
+    IncompleteMessageError,
     ScriptError,
     ScriptErrorCode,
-    SignerError,
+    ShortIdCollisionError,
 )
-
-HTTP_MESSAGE = "getblockcount at http://127.0.0.1:8332: HTTP 503"
 
 # the exception, the `args` it is expected to carry, its message, and the
 # fields a caller reads. Constructed here and shared by every test below:
@@ -50,39 +45,11 @@ HTTP_MESSAGE = "getblockcount at http://127.0.0.1:8332: HTTP 503"
 # an exception this module would have to say more about
 CASES = [
     pytest.param(
-        HttpError(HTTP_MESSAGE, 503),
-        (HTTP_MESSAGE, 503),
-        HTTP_MESSAGE,
-        {"status": 503},
-        id="HttpError",
-    ),
-    pytest.param(
-        RpcError("getrawtransaction: not found", -5, {"txid": "00"}),
-        ("getrawtransaction: not found", -5, {"txid": "00"}),
-        "getrawtransaction: not found (rpc error code -5)",
-        {"code": -5, "data": {"txid": "00"}},
-        id="RpcError",
-    ),
-    pytest.param(
-        RpcError("getblock: block not found", -5),
-        ("getblock: block not found", -5, None),
-        "getblock: block not found (rpc error code -5)",
-        {"code": -5, "data": None},
-        id="RpcError-without-data",
-    ),
-    pytest.param(
-        SignerError("the device said no", -14),
-        ("the device said no", -14),
-        "the device said no (signer error code -14)",
-        {"code": -14},
-        id="SignerError",
-    ),
-    pytest.param(
-        SignerError("no answer that was json"),
-        ("no answer that was json", None),
-        "no answer that was json",
-        {"code": None},
-        id="SignerError-without-code",
+        IncompleteMessageError("not a whole header", 4),
+        ("not a whole header", 4),
+        "not a whole header: 4 more bytes wanted",
+        {"missing": 4},
+        id="IncompleteMessageError",
     ),
     pytest.param(
         ScriptError(
@@ -169,8 +136,11 @@ def test_the_message_is_composed_once(
 
 @pytest.mark.parametrize(
     "error",
-    [FetchError("no answer from http://127.0.0.1:8332"), BTClibValueError("bad")],
-    ids=["FetchError", "BTClibValueError"],
+    [
+        ShortIdCollisionError("two positions share one short id"),
+        BTClibValueError("bad"),
+    ],
+    ids=["ShortIdCollisionError", "BTClibValueError"],
 )
 def test_an_exception_adding_nothing_round_trips_too(error: BaseException) -> None:
     """The control: a class taking a message alone was never affected."""
@@ -270,28 +240,31 @@ def test_script_error_code_is_numbered_as_core_numbers_it() -> None:
     assert all(code.description for code in ScriptErrorCode)
 
 
-def _raise_http_error() -> None:
-    raise HttpError(HTTP_MESSAGE, 503)
+def _raise_incomplete_message_error() -> None:
+    raise IncompleteMessageError("not a whole header", 4)
 
 
 def test_a_field_carrying_exception_crosses_a_process_boundary() -> None:
-    """What the field is for: a fetch fanned out across processes.
+    """What the field is for: a parse fanned out across processes.
 
     A worker that cannot send its exception back does not merely lose the
     diagnosis -- `ProcessPoolExecutor` reports a `BrokenProcessPool`, so
-    the pool dies wherever the node answers 503 and works wherever it does
-    not. The same raise in this process is the control: the two have to
-    agree on the class, the message and the status.
+    the pool dies wherever a message is cut short and works wherever it
+    is not. The same raise in this process is the control: the two have
+    to agree on the class, the message and the field.
     """
-    with pytest.raises(HttpError) as local:
-        _raise_http_error()
+    with pytest.raises(IncompleteMessageError) as local:
+        _raise_incomplete_message_error()
 
-    with ProcessPoolExecutor(max_workers=1) as pool, pytest.raises(HttpError) as remote:
-        pool.submit(_raise_http_error).result()
+    with (
+        ProcessPoolExecutor(max_workers=1) as pool,
+        pytest.raises(IncompleteMessageError) as remote,
+    ):
+        pool.submit(_raise_incomplete_message_error).result()
 
     assert type(remote.value) is type(local.value)
     assert str(remote.value) == str(local.value)
-    assert remote.value.status == local.value.status == 503
+    assert remote.value.missing == local.value.missing == 4
 
 
 def test_a_failure_raised_inside_ecc_is_caught_by_the_builtin() -> None:
