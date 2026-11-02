@@ -405,7 +405,7 @@ repos:
   # ahead of markdownlint-cli2 below on purpose: that hook's `--fix`
   # repairs the very seam this hook exists to name (btclib-org/.github#1293)
   - repo: https://github.com/btclib-org/.github
-    rev: 364bebad486493fb00f61edc656318567e0604aa  # frozen: v2026.11.2
+    rev: 364bebad486493fb00f61edc656318567e0604aa # frozen: v2026.11.2
     hooks:
       - id: check-changelog
         args: [--grandfathered, "23"]
