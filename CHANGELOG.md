@@ -33,6 +33,7 @@ other. Past a size ceiling GitHub's contents API answers a file with an
 empty `content` at HTTP 200, which reads as an empty file rather than as
 an error, and one file per release is what keeps each of them under it.
 
+- [v2026.10.30](./changelog/v2026.10.30.md)
 - [v2026.10.28](./changelog/v2026.10.28.md)
 - [v2026.10.24](./changelog/v2026.10.24.md)
 - [v2026.10.17](./changelog/v2026.10.17.md)
@@ -56,59 +57,104 @@ an error, and one file per release is what keeps each of them under it.
 - [v2026.8.9](./changelog/v2026.8.9.md)
 - [v2026.8.7](./changelog/v2026.8.7.md)
 
-## v2026.10.30
+## v2026.11.2
 
-### btclib requires ecc 2026.10.30
+### Wallet-only code leaves btclib
 
-SECURITY.md links ecc's lines at its v2026.10.30 tag, where two of `curve.py`'s
-cited lines moved, and the suite reads them from the installed ecc
-(closes #2864).
+`btclib.exceptions` drops the exceptions only btclib-wallet raises, and
+`btclib.electrum` goes, with its tests and fuzz harness; btclib-wallet declares
+them (closes #2709).
 
-### Witness
+### btclib.alias
 
-A `Witness` holds its serialization, and a parsed one builds its stack on
-first access (closes #2748).
+`btclib.alias` imports `BinaryData`, `Integer`, `Octets`, `Point` and `String`
+from `ecc.alias`, and no longer defines the names ecc defines (closes #2710).
 
-### Taproot
+### Networks
 
-`tree_helper` refuses an odd leaf version and 0x50 (closes #2766), and
-`taproot.parse` reads 0xff as `UNKNOWN_OP_CODE_255`, leaving its refusal to
-execution (closes #2731).
+The address, WIF and xkey-version decoders take an optional `Network`, and
+accept only its prefixes, hrp and versions, so an application decodes another
+chain's addresses with a `Network` it built (closes #2714).
 
-### Taproot helpers
+### btclib.testing
 
-`taproot.tree_from_weights` builds the Huffman tree of weighted leaves, and
-`taproot.tap_tweak`, `taproot.merkle_root_from_control_block` and
-`sig_ops.last_push` are public (closes #2703, issue #2711).
+`btclib.testing` ships the blocks btclib-wallet's tests read and, under the new
+`testing` extra, the hypothesis strategies (issue #2708).
 
-### MINIMALIF_ALL
+### Utreexo
 
-`ScriptFlag.MINIMALIF_ALL`, off by default, applies MINIMALIF to legacy and
-P2SH scripts too (closes #2769).
+`btclib.utreexo` is a roots-only Utreexo accumulator, checked against
+rustreexo (issue #2590).
 
-### Segwit addresses
+### Core v32.1
 
-`witness_from_address` holds an address to BIP350's constant itself, whichever
-constants the codec accepts (issue #2725).
+`btclib.consensus` moves to Core v32.1, and `integration-bitcoind.yml` to
+bitcoind 32.1 (closes #2850, closes #2845).
+
+### Block
+
+`Block.assert_valid_contextual_block` checks a block's contextual rules without
+its header's (closes #2836).
 
 ### Refusals
 
-`b32.power_of_2_base_conversion` refuses a width above 64 (closes #2720), and
-`var_int.serialize` refuses a negative integer without printing it
-(closes #2645).
+`verify_input` refuses an index naming no input (closes #2672), and
+`var_int.parse`, `var_int.serialize` and `obfuscation.obfuscate` describe a
+value `str()` cannot write instead of raising `ValueError` (closes #2863).
 
-### Release diff
+### Segwit refusals
 
-`release-diff.yml` installs `cryptography` on both sides, so the report
-compares `btclib.p2p.bip324`'s entry point, and it lists an entry point absent
-from both (closes #2831).
+`assert_p2wpkh` and `assert_p2wsh` name the witness version op code in hex
+(closes #2842), and a test pins the refusal of a 35-byte script opening with
+OP_0 0x20 (closes #2890).
+
+### OpenTimestamps
+
+The suite replays OpenTimestamps proofs against btclib's block headers
+(closes #2742).
+
+### Vendored data
+
+python-bitcoinlib's licence ships beside the vectors vendored from it
+(closes #2760).
+
+### pip commands
+
+The docstrings of `btclib.p2p.bip324` and `btclib.testing.strategies` render
+their `pip install` commands with straight quotes, and a test refuses one in
+single backticks (closes #2872).
+
+### Tests
+
+A witness sig-op count row covers an empty script_sig spending P2SH
+(closes #2859), and the tapscript script ratio test is bounded at 900 s
+(closes #2868).
+
+### Mutation
+
+The low-work headers sync is mutated in a scope of its own (closes #2832).
+
+### Shebang hooks
+
+`check-executables-have-shebangs` runs (issue #2852), and so does its converse
+once `fuzz/btcd_oracle.py` has no shebang (closes #2877).
+
+### bip32_descriptors
+
+The prose names `bip32_descriptors` for BIP32 and descriptors (closes #2882).
+
+### Repository
+
+SECURITY.md links what changed since the security review (issue
+btclib-org/.github#1795), and the dependency groups' comments say `uv_build`
+carries a ceiling (closes btclib-org/.github#1848).
+
+### CONTRIBUTING.md
+
+Its shared part matches btclib-org/.github's: a comment's word limits, the
+`Sign-off` check and `--admin`, the advisory exception, and the reopen's merge.
 
 ### Dependencies
 
-`uv.lock` moves uv-build, astral-sh/setup-uv moves to 10.3.2, and the
-btclib-org/.github calls move to v2026.10.29.
-
-### REVIEWING.md
-
-It takes .github's sentence opening the own part's questions (issue
-btclib-org/.github#1919).
+The dev-tooling group moves bitcoin-core-rpc, coverage, hypothesis and ruff in
+`uv.lock`.
