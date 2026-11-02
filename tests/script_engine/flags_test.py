@@ -55,6 +55,47 @@ def test_every_flag_is_checked_and_every_check_is_a_flag() -> None:
     assert flags_named_in_the_engine() == set(ScriptFlag.__members__)
 
 
+# the position of each name in Bitcoin Core's `script_verify_flag_name`,
+# src/script/interpreter.h at v32.1, whose `script_verify_flags` sets bit
+# `1 << position` (src/script/verify_flags.h). Written out, not derived,
+# so that a member given another bit fails
+CORE_BIT = {
+    "P2SH": 0,
+    "STRICTENC": 1,
+    "DERSIG": 2,
+    "LOW_S": 3,
+    "NULLDUMMY": 4,
+    "SIGPUSHONLY": 5,
+    "MINIMALDATA": 6,
+    "DISCOURAGE_UPGRADABLE_NOPS": 7,
+    "CLEANSTACK": 8,
+    "CHECKLOCKTIMEVERIFY": 9,
+    "CHECKSEQUENCEVERIFY": 10,
+    "WITNESS": 11,
+    "DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM": 12,
+    "MINIMALIF": 13,
+    "NULLFAIL": 14,
+    "WITNESS_PUBKEYTYPE": 15,
+    "CONST_SCRIPTCODE": 16,
+    "TAPROOT": 17,
+    "DISCOURAGE_UPGRADABLE_TAPROOT_VERSION": 18,
+    "DISCOURAGE_OP_SUCCESS": 19,
+    "DISCOURAGE_UPGRADABLE_PUBKEYTYPE": 20,
+}
+
+
+def test_every_core_flag_has_core_bit() -> None:
+    """A Core bitmask passed as `ScriptFlag(n)` reads the flags Core means.
+
+    The names alone do not catch a swapped bit: Core's vectors spell
+    their flags by name (issue #2770). `MINIMALIF_ALL` is not Core's, so
+    it is the one member outside the table.
+    """
+    assert set(ScriptFlag.__members__) == set(CORE_BIT) | {"MINIMALIF_ALL"}
+    for name, position in CORE_BIT.items():
+        assert ScriptFlag[name].value == 1 << position, name
+
+
 def test_all_flags_is_the_consensus_set() -> None:
     """What the engine enforces by default, named one by one.
 

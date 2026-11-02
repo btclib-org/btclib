@@ -22,6 +22,8 @@ src/script/interpreter.h, so a flag means here what it means there, and
 Core's vectors -- `script_tests.json` and `tx_valid.json` carry theirs as
 a comma-separated string -- can be passed as they are written. The one
 member that is not Core's is `MINIMALIF_ALL`, and no vector names it.
+`tests/script_engine/flags_test.py` holds every other member to Core's
+bit.
 """
 
 from __future__ import annotations
@@ -93,9 +95,9 @@ class ScriptFlag(Flag):
     # the fork stays deployable. Consensus is untouched by all three, and
     # a spend refused under one of them is a spend a node still accepts
     # in a block
-    DISCOURAGE_UPGRADABLE_PUBKEYTYPE = 1 << 18
+    DISCOURAGE_UPGRADABLE_TAPROOT_VERSION = 1 << 18
     DISCOURAGE_OP_SUCCESS = 1 << 19
-    DISCOURAGE_UPGRADABLE_TAPROOT_VERSION = 1 << 20
+    DISCOURAGE_UPGRADABLE_PUBKEYTYPE = 1 << 20
 
     # not Core's: set well above Core's positions, which end at 1 << 20, so
     # that the flags Core adds next do not reach it. The class docstring
