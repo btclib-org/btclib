@@ -64,8 +64,8 @@ explain, is closed without review.
 **Write plainly**, in the tree and on the forge: the point first, plain
 words, one fact per sentence. On the forge, the title and the first
 sentence carry the point; a body is at most two short paragraphs before
-any code block or template section; a comment is about 200 words, and
-never more than 250, with no list and no heading; a review's summary
+any code block or template section; a comment is about 250 words, and
+never more than 300, with no list and no heading; a review's summary
 takes the shape `REVIEWING.md`'s *The verdict* gives it.
 
 ## Pull requests
@@ -78,11 +78,12 @@ exactly them, so a red run there is a local run that was not done.
 **Every commit of a pull request carries a `Signed-off-by:` trailer
 naming its author**, which certifies the [Developer Certificate of
 Origin][dco]. `git commit -s` adds it, and `git rebase --signoff <base>`
-adds it to commits already made. The `Sign-off` check is required, so a
-pull request whose commits lack the trailer cannot merge; its failure
-prints the command that adds it. [The standard's *Signatures*][s-sigs]
-says why a signature does not replace it, and which commits the
-`Sign-off` job skips.
+adds it to commits already made. The `Sign-off` check is required, so
+only an administrator can merge a pull request whose commits lack the
+trailer: *Landing it* says why `--admin` waits for no required check.
+The check's failure prints the command that adds the trailer. [The
+standard's *Signatures*][s-sigs] says why a signature does not replace
+it, and which commits the `Sign-off` job skips.
 
 What a pull request's title and description have to say about the issues
 it closes, and why a manual link in the Development panel is a trap
@@ -125,7 +126,9 @@ It is opened the moment it is written and verified — not held for the
 previous one to be reviewed or to land, and not batched with the next. A
 batch arrives as one reviewing job with several subjects, which is the
 shape that costs the most to read; a finished pull request held back is
-review that could have started and did not.
+review that could have started and did not. A security advisory's fix is
+the exception, held back as [section 12][s12]'s *A security advisory is
+worked in this order* says.
 
 Working this way stacks branches, which is fine and costs one rule: a
 child whose base was amended is moved with the old base named,
@@ -188,12 +191,16 @@ so the risk of landing on a red `main` is accepted
 
 A pull request whose required check is red only because `main` was red
 is closed and reopened once the repair lands (`gh pr close <n>`, then
-`gh pr reopen <n>`). GitHub then runs its checks on a fresh merge with
-the repaired `main`, where a re-run would test the old merge commit. No
-push is made, so its approvals and its ack of record stand. `--auto`,
-where closing dropped it, is armed again once the checks are green. The
-reopen also runs the review bot again, and changes that review requests
-are answered like any other review's.
+`gh pr reopen <n>`). A re-run would test the old merge commit, and the
+reopen runs the checks on the merge GitHub then holds. GitHub refreshes
+that merge lazily, so the reopen's runs can still test the old one. A
+run's log is read before the run is relied on: its line `HEAD is now at
+<sha> Merge <head> into <base>` names the merge it tested, and where
+`<base>` lacks the repair, the pull request is closed and reopened
+again. No push is made, so its approvals and its ack of record stand.
+Closing disarms `--auto`, so it is armed again once the checks are
+green. The reopen also runs the review bot again, and changes that
+review requests are answered like any other review's.
 
 Then squash, [the only method the rule accepts][s11].
 
