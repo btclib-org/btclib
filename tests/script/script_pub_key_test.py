@@ -482,7 +482,7 @@ def test_p2wsh_witness_script_size() -> None:
 
 
 def test_p2wsh() -> None:
-    """Round-trip p2wsh script and address; refuse bad markers."""
+    """Round-trip p2wsh script and address; refuse bad markers and sizes."""
     # self-consistency
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     redeem_script = ScriptPubKey.p2pkh(PubKeyData(pub_key)).script
@@ -517,6 +517,13 @@ def test_p2wsh() -> None:
     err_msg = "invalid redeem script hash length marker: "
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2wsh(script_pub_key[:1] + b"\x00" + script_pub_key[2:])
+
+    assert is_p2wsh(script_pub_key)
+    too_long = b"\x00\x20" + b"\x00" * 33
+    assert not is_p2wsh(too_long)
+    err_msg = "invalid size: 35 bytes instead of 34"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2wsh(too_long)
 
 
 def test_unknown() -> None:
