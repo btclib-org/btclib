@@ -60,7 +60,7 @@ _FACTOR = 16
 _LIMIT = 4
 # the bound of the ratio test of a script. Each repeat costs about two runs
 # of the large script and gets the bound of one run, which leaves room
-# for a slow macos-26-intel runner taking several times its usual time
+# for a slow runner taking several times its usual time
 # (issue #2868). A smaller size would lower the ratio a quadratic
 # regression gives
 _SCRIPT_RATIO_BOUND = _BOUND * _REPEATS
