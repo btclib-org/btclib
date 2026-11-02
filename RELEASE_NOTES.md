@@ -19,6 +19,53 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.11.2
+
+- **btclib-wallet 2026.10.29 breaks against this release.** Its `wallet`,
+  `fetch`, `hwi` and `psbt_signer` modules, among others, import what this
+  release removes, and it sets no ceiling on btclib. Act on it if you install
+  btclib-wallet: upgrade it to 2026.11.2 with btclib.
+- **`btclib.consensus` follows Core v32.1** (closes #2845).
+  `HEADERS_SYNC_PARAMS` and the `minimum_chain_work` of `CONSENSUS_PARAMS` take
+  v32.1's values on mainnet, testnet3, signet and testnet4. Act on it if you
+  compare against Core v31.1's.
+- **`wif_from_prv_key`, `prv_key_data_from_wif`, `address_from_h160`,
+  `b58.p2sh`, `p2wsh_p2sh`, `address_from_witness`, `b32.p2wsh`, `b32.p2tr`,
+  `address` and `addresses` take a `Network` as well as a name**, and so do
+  `ScriptPubKey`'s constructor, `p2sh`, `p2wsh` and `p2tr` (closes #2714).
+  `h160_from_address`, `witness_from_address` and `network_from_xkeyversion`
+  take an optional `Network`, and given one accept only its prefixes, hrp and
+  versions. Nothing to act on.
+
+### Breaking changes
+
+- **`FetchError`, `HttpError`, `RpcError`, `SignerError`,
+  `SignerNotFoundError`, `NoDescriptorError` and `InconclusiveError` leave
+  `btclib.exceptions`, and `btclib.electrum` leaves btclib** (closes #2709).
+  btclib-wallet 2026.11.2 declares them, in `btclib_wallet.exceptions` and
+  `btclib_wallet.electrum`. Act on it if you import any of them from btclib:
+  import them from btclib-wallet.
+- **`btclib.alias` no longer defines `HashObject`, `HashF`, `CipherF`, `INF`,
+  `JacPoint` and `INFJ`** (closes #2710). Act on it if you import one of them
+  from `btclib.alias`: import it from `ecc.alias`. `BinaryData`, `Integer`,
+  `Octets`, `Point` and `String` stay, the same objects as `ecc.alias`'s.
+- **The network of a `PubKeyData`, a `PrvKeyData` and a `ScriptPubKey` is
+  typed `str | Network`, and so is the network `h160_from_address`,
+  `witness_from_address` and `network_from_xkeyversion` return** (closes
+  #2714). A key or a script built with a `Network` that `NETWORKS` does not
+  hold keeps that `Network`, and a decoder given a `Network` returns it.
+  Otherwise each is a `NETWORKS` name, as before. Act on it if your type
+  checker reads the network as `str`: narrow it.
+- **`engine.verify_input` refuses an index naming no input with
+  `BTClibValueError`, and a prevouts list that is not one entry per input**
+  (closes #2672). A negative index verified another input, an index past the
+  end raised `IndexError`, and a longer prevouts list was accepted. Act on it
+  if you pass either.
+- **`assert_p2wpkh` and `assert_p2wsh` name the op code they read against
+  OP_0**, as `invalid witness version op code: 0x51 instead of OP_0 (0x00)`,
+  where they said `invalid witness version: 81 instead of 0` (closes #2842).
+  Act on it if you match the message.
+
 ## v2026.10.30
 
 - **btclib requires `ecc` 2026.10.30** (closes #2864). Its `negate` and
