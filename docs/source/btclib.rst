@@ -11,6 +11,7 @@ Subpackages
    btclib.ecc
    btclib.p2p
    btclib.script
+   btclib.testing
    btclib.tx
 
 Submodules
@@ -79,13 +80,6 @@ btclib.consensus module
    :members:
    :show-inheritance:
 
-btclib.electrum module
------------------------
-
-.. automodule:: btclib.electrum
-   :members:
-   :show-inheritance:
-
 btclib.exceptions module
 ------------------------
 
@@ -146,6 +140,13 @@ btclib.utils module
 -------------------
 
 .. automodule:: btclib.utils
+   :members:
+   :show-inheritance:
+
+btclib.utreexo module
+---------------------
+
+.. automodule:: btclib.utreexo
    :members:
    :show-inheritance:
 

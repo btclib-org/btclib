@@ -147,6 +147,23 @@ def test_the_bip324_extra_and_group_ask_for_the_same_thing() -> None:
     assert names == ["cryptography"], group
 
 
+def test_the_testing_extra_and_group_ask_for_the_same_thing() -> None:
+    """The extra is the published fact and the group is this tree's copy of it.
+
+    The reason is `test_the_bindings_extra_and_group_ask_for_the_same_thing`'s,
+    and so is the refusal to spell the requirement here.
+    """
+    extra = _PYPROJECT.get("project", {}).get("optional-dependencies", {})
+    group = _PYPROJECT.get("dependency-groups", {}).get("testing")
+    assert "testing" in extra, "no testing extra in pyproject.toml"
+    assert group is not None, "no testing dependency group in pyproject.toml"
+    assert extra["testing"] == group, (
+        f"the extra asks {extra['testing']}, the group {group}"
+    )
+    names = [requirement.split(">=")[0] for requirement in group]
+    assert names == ["hypothesis"], group
+
+
 def test_every_module_needing_an_extra_names_a_dependency_of_it() -> None:
     """`tests/__init__.py` leaves such a module out where the extra is absent.
 

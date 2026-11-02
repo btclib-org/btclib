@@ -194,8 +194,10 @@ repos:
         exclude: ^fuzz/corpus/
       - id: end-of-file-fixer
         # the corpus, for the reason given on trailing-whitespace above:
-        # this is the hook that rewrote a seed
-        exclude: ^fuzz/corpus/
+        # this is the hook that rewrote a seed. Some of the rustreexo vectors
+        # end without a newline, as upstream publishes them: a newline appended
+        # voids the blob pin in tests/_data/README.md
+        exclude: ^(fuzz/corpus/|tests/_data/rustreexo/)
       - id: mixed-line-ending
         # not the default --fix=auto, which normalizes a file to its own
         # most frequent ending: a file entirely in CRLF is consistent by
@@ -211,10 +213,10 @@ repos:
       # .clusterfuzzlite/build.sh carries the bit, and check-hooks-apply
       # above fails this hook once no tracked file does
       - id: check-executables-have-shebangs
-      # its converse stays off: fuzz/btcd_oracle.py opens with
-      # "#!/usr/bin/env python3" and is not executable, being run as
-      # "python fuzz/btcd_oracle.py", and the hook fails on it
-      # - id: check-shebang-scripts-are-executable
+      # its converse: execve, which reads a shebang, refuses a file
+      # without the executable bit (EACCES), so execve never starts the
+      # interpreter a shebang on such a file names
+      - id: check-shebang-scripts-are-executable
       # no byte order mark anywhere today, and the same kind of guard as
       # check-executables-have-shebangs: what it costs is one line, what
       # it buys is that an editor on another platform cannot quietly add
@@ -248,7 +250,7 @@ repos:
       - id: pretty-format-json
         name: pretty-format-json (in place fixes)
         args: [--autofix, --indent=4, --no-sort-keys]
-        # tests/**/_data/ is the vendored directory, as tests/_data/
+        # tests/**/_data/ holds the vendored json, as tests/_data/
         # README.md declares it: most files that do not conform are
         # vectors that file gives a blob SHA and the verdict "identical"
         # to, and a reformat voids the pin and the verdict together.

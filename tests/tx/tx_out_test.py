@@ -14,9 +14,9 @@ from hypothesis import given
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import ScriptPubKey
+from btclib.testing.strategies import TX_OUTS
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests.conftest import JsonGolden
-from tests.strategies import TX_OUTS
 
 
 def test_tx_out() -> None:

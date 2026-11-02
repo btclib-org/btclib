@@ -58,6 +58,12 @@ _BOUND = 60
 _REPEATS = 15
 _FACTOR = 16
 _LIMIT = 4
+# the bound of the ratio test of a script. Each repeat costs about two runs
+# of the large script and gets the bound of one run, which leaves room
+# for a slow macos-26-intel runner taking several times its usual time
+# (issue #2868). A smaller size would lower the ratio a quadratic
+# regression gives
+_SCRIPT_RATIO_BOUND = _BOUND * _REPEATS
 _CHECKS = 1_000
 _T = TypeVar("_T")
 
@@ -182,7 +188,7 @@ def _seconds_of(prevout: TxOut, tx: Tx) -> float:
     return time.perf_counter() - start
 
 
-@pytest.mark.timeout(_BOUND * 5)
+@pytest.mark.timeout(_SCRIPT_RATIO_BOUND)
 @pytest.mark.parametrize("make", [_nested_if, _equalverifies, _picks, _rolls])
 def test_the_script_takes_time_in_proportion_to_its_size(
     make: Callable[[int], bytes],

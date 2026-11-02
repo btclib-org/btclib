@@ -726,7 +726,9 @@ def test_sign_strippable_message() -> None:
 # report a regression at all
 PYTHON_BITCOINLIB_VECTORS = [
     pytest.param(vector, id=vector_id(index, vector["address"]))
-    for index, vector in enumerate(load("schemes", "_data", "signmessage.json"))
+    for index, vector in enumerate(
+        load("schemes", "_data", "python-bitcoinlib", "signmessage.json")
+    )
 ]
 
 
@@ -794,7 +796,7 @@ def test_the_file_carries_the_high_s_vectors_the_case_rests_on() -> None:
     200 of these, and these 88 are the ones btclib refused.
     """
     high_s = 0
-    for vector in load("schemes", "_data", "signmessage.json"):
+    for vector in load("schemes", "_data", "python-bitcoinlib", "signmessage.json"):
         sig = bms.Sig.b64decode(vector["signature"])
         high_s += sig.dsa_sig.s > ec.n - sig.dsa_sig.s
     assert high_s == 88
@@ -806,7 +808,8 @@ def test_ledger() -> None:
     The two keys are what BIP32 derives at `m/1` and `m/0/0` from the
     BIP39 seed of the mnemonic "barely sun snack this snack relief pipe
     attack disease boss enlist lawsuit", with no passphrase: the
-    derivation is `btclib_wallet`'s, so the scalars are written out.
+    derivation is `bip32_descriptors.bip32`'s, so the scalars are written
+    out.
     """
     # non-standard leading 31 in DER serialization
     q = 0x4325CDB483C8CD28059BF35F2F73A2F89B7B0F46A11E595E7E5064C453EAC994

@@ -15,8 +15,8 @@ answers -- the serialized basic filter and the basic header chained onto
 it.
 
 Core chose the rows for the shapes their scripts have, and they are
-shapes nothing else in this suite holds. The four blocks of
-`_data/block_*.bin` are mainnet and ordinary; these are testnet and
+shapes nothing else in this suite holds. The vendored blocks
+`tests.vendored_block` reads are mainnet and ordinary; these are testnet and
 deliberately odd -- a coinbase output script no parser can read, two
 empty output scripts, duplicate pushdata. What the file does not add is
 an *invalid* block: every row is a block the chain accepted, and the

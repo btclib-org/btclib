@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Copyright (c) The btclib developers
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
@@ -296,10 +295,6 @@ def entry_points(harness: Path) -> tuple[str, ...]:
         if isinstance(node, ast.Assign) and any(
             isinstance(t, ast.Name) and t.id == "ENTRY_POINTS" for t in node.targets
         ):
-            # a dict from entry point to its arguments, whose values may
-            # name constants, so only its keys are read
-            if isinstance(node.value, ast.Dict):
-                return tuple(ast.literal_eval(key) for key in node.value.keys)
             return tuple(ast.literal_eval(node.value))
     err_msg = f"{harness} declares no ENTRY_POINTS"
     raise SystemExit(err_msg)

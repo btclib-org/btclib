@@ -394,7 +394,7 @@ def _assert_valid_prevouts(prevouts: list[TxOut]) -> None:
     them reach the serialization and not only the one being signed. The
     amount by its field's width and not by the money range, for the reason
     above; the script by what ScriptPubKey asks of itself, which is its
-    network name and that the script is bytes.
+    network and that the script is bytes.
     """
     for prevout in prevouts:
         _assert_valid_camount(prevout.value, "spent amount")

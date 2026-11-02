@@ -15,9 +15,11 @@ of `ecc.ellswift`. btclib imports each name it uses from
 `ecc` and publishes none of them: `ecc.curves.mult` is spelt
 that way and no other, and `tests/all_test.py`'s
 `test_no_module_exports_another_distributions_name` holds every `__all__`
-of btclib to it. What those names raise is ecc's exception
-classes, which derive from the built-in classes and not from
-`BTClibException`, and a caller names them from `ecc.exceptions`.
+of btclib to it. What those names raise is ecc's exception classes,
+which derive from the built-in classes and not from `BTClibException`,
+and a caller names them from `ecc.exceptions`. The exception to
+publishing none is the type aliases `btclib.alias` imports from
+`ecc.alias`, `Octets` among them.
 
 ecc delegates secp256k1 to
 [btclib-secp256k1](https://github.com/btclib-org/btclib-secp256k1), the
@@ -61,8 +63,9 @@ elsewhere a module reaches up where its subject asks for it, as
 - **networks, keys and addresses**: `network`, `base58`, `bech32`, `key`,
   `b58`, `b32`
 - **the chain**: `script`, `tx`, `block`, `fee`, `policy`, `coinstats`,
-  `muhash`
-- **the wire**: `p2p`, `electrum`
+  `muhash`, `utreexo`
+- **the wire**: `p2p`
+- **fixtures for tests**: `testing`
 
 `alias` holds the types the public API accepts, much of it taking anything
 convertible rather than one type, and `exceptions` the errors it raises.
@@ -112,8 +115,8 @@ Each spelling of a key is read by the module that defines it:
 - a WIF is Base58Check with a prefix and a flag, so
   `b58.prv_key_data_from_wif` reads it and `b58.wif_from_prv_key` writes
   it
-- an extended key is BIP32's format, parsed by `btclib_wallet.bip32`; a
-  caller holding one parses it there and passes on the scalar or the
+- an extended key is BIP32's format, parsed by `bip32_descriptors.bip32`;
+  a caller holding one parses it there and passes on the scalar or the
   point
 
 ### The chain and the wire
@@ -121,16 +124,19 @@ Each spelling of a key is read by the module that defines it:
 `script`, `tx` and `block` build and validate what goes on the chain, and
 `script.engine` verifies a transaction against the consensus rules.
 `p2p` is the wire format peers speak: the message envelope, its framing,
-the message start of each network, and the payloads. `electrum` is the
-Electrum server protocol. Both turn octets into objects and objects into
-octets, and neither opens a socket: a caller reading from a connection
-hands them what it read. `p2p` also holds Bitcoin Core's low-work headers
-sync, which decides what to ask a peer for and sends nothing itself.
+the message start of each network, and the payloads. It turns octets
+into objects and objects into octets, and opens no socket: a caller
+reading from a connection hands it what it read. It also holds Bitcoin
+Core's low-work headers sync, which decides what to ask a peer for and
+sends nothing itself.
 
 ## What sits outside the package
 
-- **The wallet side** (key derivation, mnemonics, PSBTs, output
-  descriptors, signers and chain backends) is the `btclib-wallet`
+- **BIP32 key derivation and output descriptors** are the
+  `bip32-descriptors` distribution, imported as `bip32_descriptors`. It
+  imports btclib.
+- **The rest of the wallet side** (mnemonics, PSBTs, signers, chain
+  backends and the Electrum protocol's codec) is the `btclib-wallet`
   distribution, imported as `btclib_wallet`. It imports btclib, and
   nothing in btclib imports it: `tests/imports_test.py` holds that edge to
   one direction.
@@ -141,11 +147,14 @@ sync, which decides what to ask a peer for and sends nothing itself.
   No module loads `urllib.request` on its way to anything else, so a
   caller who parses messages pays nothing for a client it never uses.
   `tests/imports_test.py`'s
-  `test_the_codec_does_not_pay_for_the_rpc_package` and
-  `test_electrum_codec_stays_stdlib_light` hold both codecs to that.
+  `test_the_codec_does_not_pay_for_the_rpc_package` holds the codec to
+  that.
 - **Package data.** The networks are JSON under `src/btclib/_data/`, read
-  once at import by `src/btclib/network.py`; the catalogued curves are
-  ecc's package data.
+  once at import by `src/btclib/network.py`. The blocks
+  `block_170.bin`, `block_200000.bin` and `block_481824_complete.bin` are
+  under `src/btclib/testing/_data/`, read by
+  `btclib.testing.blocks.read_bytes`. The catalogued curves are ecc's
+  package data.
 
 ## The public surface
 
