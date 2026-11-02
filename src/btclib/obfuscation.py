@@ -54,7 +54,7 @@ def obfuscate(data: Octets, key: Octets, offset: int = 0) -> bytes:
     if not is_integer(offset):
         raise BTClibTypeError(f"non-integer offset: {_message_text(offset)}")
     if offset < 0:
-        raise BTClibValueError(f"negative offset: {offset}")
+        raise BTClibValueError(f"negative offset: {_message_text(offset)}")
 
     shift = offset % KEY_SIZE
     rotated = key[shift:] + key[:shift]
