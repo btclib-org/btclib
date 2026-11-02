@@ -143,7 +143,6 @@ jobs:
         os:
           - ubuntu-latest
           - ubuntu-24.04-arm
-          - macos-26-intel
           - macos-latest
           - windows-latest
           - windows-11-arm
@@ -296,7 +295,6 @@ jobs:
         os:
           - ubuntu-latest
           - ubuntu-24.04-arm
-          - macos-26-intel
           - macos-latest
           - windows-latest
           - windows-11-arm
