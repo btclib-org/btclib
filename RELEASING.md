@@ -628,8 +628,11 @@ to `deps-latest`'s own result.
    `publish-testpypi` is `skipped` on a tag and `publish-pypi` on a
    rehearsal — each is the other's trigger — `public-api` is red for a
    break `RELEASE_NOTES.md` does not name, and `documented` skipped on its own
-   account, its guard being the push. Everything else should be
-   `success`.
+   account, its guard being the push. `Run the lint workflow / lint /
+   Dependency review` and `Run the lint workflow / lint / Sign-off` are
+   `skipped` on every run, as they run only on a `pull_request`; a
+   tagged commit had both checks on its own pull request. Everything
+   else should be `success`.
 
 1. Read the `documented` job rather than the site: read the docs activates
    and builds a new release tag from the automation rule REPOSITORY.md
