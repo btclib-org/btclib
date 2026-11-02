@@ -270,7 +270,7 @@ class MuHash3072:
         `MuHash3072 acc` locals in `crypto_tests.cpp`. A `@property` and
         not a call, this class offering nothing else `digest_var()` would be
         read against: `MuHash3072` mirrors no library whose own API fixes
-        the shape, the way `btclib.alias.HashObject` mirrors `hashlib`'s.
+        the shape, the way `ecc.alias.HashObject` mirrors `hashlib`'s.
         """
         value = (self._numerator * pow(self._denominator, -1, _MODULUS)) % _MODULUS
         return hashlib.sha256(value.to_bytes(_BYTE_SIZE, "little")).digest()

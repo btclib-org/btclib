@@ -313,18 +313,19 @@ tools, including those needed to build the documentation, is then created with:
 uv sync
 ```
 
-**Every dependency is required but ecc's bindings and the v2 transport's
-cipher, which are the `secp256k1` and `bip324` extras, and every one of
-them is a floor with no upper bound**, and the absence
-of a ceiling is a decision. Which releases those floors name is
+**Every dependency is required but ecc's bindings, the v2 transport's
+cipher and hypothesis, which are the `secp256k1`, `bip324` and `testing`
+extras, and every one of them is a floor with no upper bound**, and the
+absence of a ceiling is a decision. Which releases those floors name is
 `pyproject.toml`, next to the reason each one is where it is: a floor
 moves whenever this tree starts calling something newer, so a copy of the
 number here would be a second place to remember and the first to go
 stale. `typing-extensions` is the backport of what the 3.11 floor does
 not have, and its floor is the release adding the latest name this tree
-imports from it. `cryptography` is pyca's, and no coordinated release
-stands in for a ceiling there: `deps-latest.yml` runs the suite on its
-newest release every week, which is what tells this tree it has moved.
+imports from it. `cryptography` is pyca's and `hypothesis` is not
+btclib-org's either, and no coordinated release stands in for a ceiling
+there: `deps-latest.yml` runs the suite on their newest releases every
+week, which is what tells this tree they have moved.
 The others are btclib-org projects developed by the
 same people, so a breaking change there is coordinated with the release
 here — which is what a version ceiling substitutes for when it cannot be.
@@ -340,6 +341,12 @@ covered by CI and documented.
 `btclib.p2p.bip324` cannot be imported, and nothing else in btclib imports
 it. An installation that did not ask for a cipher has none: that is
 btclib-org/btclib-node#1190's plan, approved by the maintainer.
+
+**The `testing` extra is for tests**, btclib's own and those of code
+built on it. Without it `btclib.testing.strategies` cannot be imported,
+and the rest of btclib, `btclib.testing.blocks` included, works.
+`btclib.testing` is there so that btclib-wallet imports the strategies and
+the blocks rather than copying them (issue #2708).
 
 **Every sibling floor names a release PyPI serves**, so `pyproject.toml`
 carries no `[tool.uv.sources]` table and uv resolves the siblings from
@@ -482,7 +489,7 @@ special-cases the value, so 99.999% is a red build where the 99.99 this
 replaces passed everything above 99.985%, and the 99.9 before it ten
 times as much again. No slack, so a statement no test reaches is either
 covered by patching what stands in the way, as the ripemd160 fallback
-and electrum's round-trip check are, or marked `pragma: no cover --`
+is, or marked `pragma: no cover --`
 with the reason on that same line, and a reason too long for the line
 above it as well, the inline half naming the case. `--cov` is in
 pyproject.toml's addopts, so `uv run pytest` prints the total and
@@ -1340,8 +1347,9 @@ For a package the list is what the `__init__` re-exports, submodules
 included: a module named there is a module a caller — and the command line
 of btclib-org/.github#1235, which reads the command tree off `__all__` —
 can descend into. For a module it is what the module itself defines: a
-name it imported belongs to the module that defines it, and
-`btclib.alias.Octets` is the spelling of `Octets`.
+name it imported belongs to the module that defines it, except what
+`REEXPORTED` in `tests/all_test.py` records: `btclib.alias.Octets` is
+`ecc.alias.Octets` under the spelling btclib's callers use.
 
 `btclib.__all__` is the root of that tree: every top-level module and
 package, imported on demand by the module `__getattr__` in
@@ -1505,11 +1513,7 @@ What is *not* a read is exempt by shape rather than by a list of names:
 `assert_*` refuses, and a property that refuses is a trap, since reading
 `obj.assert_valid` evaluates the method and throws it away; `get_*` talks
 to a node or an explorer, so the prefix is the warning a property would
-hide; `to_*` hands back a new object; and `close` is an action. The one
-exemption named individually is `alias.HashObject`'s `digest`,
-`hexdigest` and `copy`, because hashlib calls them that way — and hashlib
-draws the same line itself, `block_size` and `digest_size` being
-attributes there as they are properties here.
+hide; `to_*` hands back a new object; and `close` is an action.
 
 The bool half of the same rule: Thirty were properties and six were methods,
 which made the six the exception; they are properties now. It also makes
@@ -1558,17 +1562,17 @@ validity at construction is not validity at use. Passing it is supported —
 a public function that takes an already-built object and asks it nothing
 is one a caller can reach with an object the library itself would refuse.
 
-`btclib_wallet.bip32` is the shape to copy. `derive` validates and calls
-`_derive`, which does not, and `_key_data_from_bip32_key` is the one place
-a `BIP32Key` of any spelling becomes a validated `BIP32KeyData`, every
-public wrapper going through it. `btclib_wallet.descriptors` then composes
-the twins directly — `_xpub_from_xprv(_derive(_key_data_from_bip32_key(xprv),
+`bip32_descriptors.bip32` is the shape to copy. `derive` validates and calls
+`_derive`, which does not, and `key_data_from_bip32_key` is the one place a
+`BIP32Key` of any spelling becomes a validated `BIP32KeyData`, every public
+wrapper going through it. `bip32_descriptors.descriptors` then composes the
+twins directly — `_xpub_from_xprv(_derive(key_data_from_bip32_key(xprv),
 prefix, None))` — paying one validation instead of three, and no base58
-round trip between them. The leading underscore those three carry means
-what it means anywhere in Python: private. `__all__` is what decides
-publicity, so it is a reader's hint rather than the rule, but an
-unvalidating twin belongs on the private side of that list, and calling one
-asserts that its caller validated.
+round trip between them. The leading underscore the twins carry means what
+it means anywhere in Python: private. `__all__` is what decides publicity,
+so it is a reader's hint rather than the rule, but an unvalidating twin
+belongs on the private side of that list, and calling one asserts that its
+caller validated.
 
 **A private function takes no default argument either**, which is the same
 absence of an outside caller read the other way: a default is written for

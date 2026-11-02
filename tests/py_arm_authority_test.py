@@ -62,7 +62,7 @@ _LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 _TESTS = Path(__file__).parent
 
 # the vendored vectors each module below is built on, by the name they
-# carry in `tests/_data` or a `_data` beside the module. What makes a
+# carry in `tests/_data` or under a `_data` beside the module. What makes a
 # source third-party is who wrote it: a BIP, Bitcoin Core, Project
 # Wycheproof, an RFC -- and not btclib, which is why `vectors.json` and
 # `btclib_test_vectors.json` appear nowhere here

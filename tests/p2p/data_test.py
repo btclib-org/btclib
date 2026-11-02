@@ -9,9 +9,10 @@ here.** There is no captured `tx` or `block` message to drive these: the
 Bitcoin Wiki's Protocol page annotates neither, and Bitcoin Core
 publishes no vector file for them. What it does not need to, because the
 payload of a `tx` message is a transaction and of a `block` message a
-block, and `tests/block/_data` and `tests/tx/_data` hold real ones whose
-own hashes pin them -- `tests/_data/README.md` records the height and
-hash of every block file and the txid and wtxid of the transaction.
+block, and `tests/block/_data`, `btclib.testing.blocks` and
+`tests/tx/_data` hold real ones whose own hashes pin them --
+`tests/_data/README.md` records the height and hash of every block file
+and the txid and wtxid of the transaction.
 
 **The pair that decides the question this module is about is already in
 the tree.** `block_481824_complete.bin` is that block as an RPC hands it
@@ -50,8 +51,9 @@ from btclib.hashes import hash256
 from btclib.p2p import BlockPayload, Message, NetworkAddress, TxPayload
 from btclib.p2p.limits import MAX_PROTOCOL_MESSAGE_LENGTH
 from btclib.script import Witness
+from btclib.testing.blocks import read_bytes
+from btclib.testing.strategies import TXS
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
-from tests.strategies import TXS
 
 _BLOCK_DATA = Path(__file__).parent.parent / "block" / "_data"
 _TX_DATA = Path(__file__).parent.parent / "tx" / "_data"
@@ -59,7 +61,7 @@ _TX_DATA = Path(__file__).parent.parent / "tx" / "_data"
 # the block after genesis, the smallest there is, and the one block this
 # tree has in both of the encodings `include_witness` chooses between
 _BLOCK_1 = (_BLOCK_DATA / "block_1.bin").read_bytes()
-_COMPLETE = (_BLOCK_DATA / "block_481824_complete.bin").read_bytes()
+_COMPLETE = read_bytes("block_481824_complete.bin")
 _STRIPPED = (_BLOCK_DATA / "block_481824.bin").read_bytes()
 
 # the vendored segwit transaction, whose file is named after its txid and

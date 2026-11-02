@@ -51,13 +51,11 @@ pruning floor, a custom signet's p2p magic -- is not here, and
 `btclib.p2p.magic` is where the last of those lives.
 
 Every value is transcribed from `src/kernel/chainparams.cpp` at Bitcoin
-Core v31.1 (bitcoin/bitcoin@9be056a8a7), with the line it was read at
+Core v32.1 (bitcoin/bitcoin@f0de87f040), with the line it was read at
 beside it, and `tests/consensus_test.py` holds each field to that
 transcription. A released tag rather than a `master` tip, for two
 reasons: these are the numbers a node on the network enforces, and a tag
-names a blob that cannot move under a line citation. `master` also no
-longer keeps all of them in that one file -- taproot's deployment is
-gone from it, buried the way `script_flags_at` below describes.
+names a blob that cannot move under a line citation.
 
 What a row carries that `chainparams.cpp` does not hold is cited to
 `src/validation.cpp` at the same tag: `bip30_exceptions` is
@@ -174,7 +172,7 @@ def subsidy(height: int, halving_interval: int = 210_000) -> int:
 
     Fifty bitcoin, right-shifted once per `halving_interval` blocks and
     forced to zero once that shift is undefined for a native int
-    (`src/validation.cpp`, at bitcoin/bitcoin@9be056a8a7). `height` is
+    (`src/validation.cpp`, at bitcoin/bitcoin@f0de87f040). `height` is
     what a block's coinbase pays for building it; `halving_interval`
     defaults to mainnet's own, and a caller building for another network
     passes `CONSENSUS_PARAMS[name].subsidy_halving_interval`, regtest's
@@ -315,7 +313,7 @@ class ConsensusParams:
         """Return the script rules a block at this height is checked with.
 
         Bitcoin Core's `GetBlockScriptFlags`
-        (`src/validation.cpp`, at bitcoin/bitcoin@9be056a8a7), which is
+        (`src/validation.cpp`, at bitcoin/bitcoin@f0de87f040), which is
         what `btclib.script.engine.verify_input` takes as its `flags`.
 
         P2SH, segwit v0 and taproot are on for every block of every
@@ -374,7 +372,7 @@ class HeadersSyncParams:
     """How much memory the low-work headers sync spends on one peer.
 
     Bitcoin Core's `HeadersSyncParams` (`src/kernel/chainparams.h`, at
-    bitcoin/bitcoin@9be056a8a7). The module docstring says why this is
+    bitcoin/bitcoin@f0de87f040). The module docstring says why this is
     not a field of `ConsensusParams`.
 
     Frozen and hashable, as `ConsensusParams` is: a row is a value, read
@@ -402,7 +400,7 @@ _POW_LIMIT_BITS_SIGNET = b"\x1e\x03\x77\xae"
 # afterwards would be in one table and in neither the other nor the
 # Network instances built from it
 _consensus_params: dict[str, ConsensusParams] = {
-    # read at lines 84 to 117 of chainparams.cpp, and in validation.cpp for
+    # read at lines 114 to 141 of chainparams.cpp, and in validation.cpp for
     # the blocks of 2010 that a duplicate coinbase pairs: IsBIP30Repeat for
     # the ones repeating, IsBIP30Unspendable for the ones repeated
     "mainnet": ConsensusParams(
@@ -419,7 +417,7 @@ _consensus_params: dict[str, ConsensusParams] = {
         pow_no_retargeting=False,
         pow_target_spacing=10 * 60,  # line 128
         pow_target_timespan=14 * 24 * 60 * 60,  # line 127, two weeks
-        minimum_chain_work=0x0000000000000000000000000000000000000001128750F82F4C366153A3A030,
+        minimum_chain_work=0x000000000000000000000000000000000000000145EC036ACC5BA740052AF1A0,
         bip30_exceptions=(
             (
                 91_842,
@@ -469,7 +467,7 @@ _consensus_params: dict[str, ConsensusParams] = {
             ),
         ),
     ),
-    # read at lines 217 to 248 of chainparams.cpp
+    # read at lines 246 to 271 of chainparams.cpp
     "testnet": ConsensusParams(
         name="testnet",
         subsidy_halving_interval=210_000,
@@ -482,9 +480,9 @@ _consensus_params: dict[str, ConsensusParams] = {
         pow_allow_min_difficulty_blocks=True,
         enforce_bip94=False,
         pow_no_retargeting=False,
-        pow_target_spacing=10 * 60,  # line 252
-        pow_target_timespan=14 * 24 * 60 * 60,  # line 251, two weeks
-        minimum_chain_work=0x0000000000000000000000000000000000000000000017DDE1C649F3708D14B6,
+        pow_target_spacing=10 * 60,  # line 258
+        pow_target_timespan=14 * 24 * 60 * 60,  # line 257, two weeks
+        minimum_chain_work=0x0000000000000000000000000000000000000000000017F49F702147F10C0EB6,
         bip30_exceptions=(),
         bip30_unspendable=(),
         script_flag_exceptions=(
@@ -497,7 +495,7 @@ _consensus_params: dict[str, ConsensusParams] = {
             ),
         ),
     ),
-    # read at lines 567 to 596 of chainparams.cpp. Every rule binds at
+    # read at lines 595 to 617 of chainparams.cpp. Every rule binds at
     # height 1 except
     # segwit, which binds at the genesis block: a chain mined for a test
     # is not a chain with a history to be compatible with
@@ -512,17 +510,17 @@ _consensus_params: dict[str, ConsensusParams] = {
         pow_limit_bits=_POW_LIMIT_BITS_REGTEST,
         pow_allow_min_difficulty_blocks=True,
         # the only row whose value is not written in chainparams.cpp:
-        # line 579 assigns `opts.enforce_bip94`, and the option defaults
-        # to false at chainparams.h:154, so false is what a regtest node
+        # line 607 assigns `opts.enforce_bip94`, and the option defaults
+        # to false at chainparams.h:159, so false is what a regtest node
         # runs unless `-test=bip94` is passed. The same shape as the
         # heights above it, which the file marks "always active unless
         # overridden": the table carries what Core ships, not what a
         # command line can make of it
         enforce_bip94=False,
         pow_no_retargeting=True,
-        pow_target_spacing=10 * 60,  # line 581
+        pow_target_spacing=10 * 60,  # line 605
         # one day, not the two weeks every other network aims at (line
-        # 580): DifficultyAdjustmentInterval() is 144 rather than 2016,
+        # 604): DifficultyAdjustmentInterval() is 144 rather than 2016,
         # which is what the minimum-difficulty walk's own stop condition
         # reads on this network
         pow_target_timespan=24 * 60 * 60,
@@ -531,8 +529,8 @@ _consensus_params: dict[str, ConsensusParams] = {
         bip30_unspendable=(),
         script_flag_exceptions=(),
     ),
-    # read at lines 478 to 491 of chainparams.cpp for the heights and the
-    # limit, and at line 447 for the work, which the default signet carries
+    # read at lines 506 to 519 of chainparams.cpp for the heights and the
+    # limit, and at line 475 for the work, which the default signet carries
     # and a custom challenge leaves empty
     "signet": ConsensusParams(
         name="signet",
@@ -546,14 +544,14 @@ _consensus_params: dict[str, ConsensusParams] = {
         pow_allow_min_difficulty_blocks=False,
         enforce_bip94=False,
         pow_no_retargeting=False,
-        pow_target_spacing=10 * 60,  # line 496
-        pow_target_timespan=14 * 24 * 60 * 60,  # line 495, two weeks
-        minimum_chain_work=0x00000000000000000000000000000000000000000000000000000B463EA0A4B8,
+        pow_target_spacing=10 * 60,  # line 514
+        pow_target_timespan=14 * 24 * 60 * 60,  # line 513, two weeks
+        minimum_chain_work=0x00000000000000000000000000000000000000000000000000001090E9DC1520,
         bip30_exceptions=(),
         bip30_unspendable=(),
         script_flag_exceptions=(),
     ),
-    # read at lines 326 to 356 of chainparams.cpp
+    # read at lines 354 to 378 of chainparams.cpp
     "testnet4": ConsensusParams(
         name="testnet4",
         subsidy_halving_interval=210_000,
@@ -567,9 +565,9 @@ _consensus_params: dict[str, ConsensusParams] = {
         # true here alone, testnet4 being the chain BIP94 was written for
         enforce_bip94=True,
         pow_no_retargeting=False,
-        pow_target_spacing=10 * 60,  # line 352
-        pow_target_timespan=14 * 24 * 60 * 60,  # line 351, two weeks
-        minimum_chain_work=0x0000000000000000000000000000000000000000000009A0FE15D0177D086304,
+        pow_target_spacing=10 * 60,  # line 364
+        pow_target_timespan=14 * 24 * 60 * 60,  # line 363, two weeks
+        minimum_chain_work=0x000000000000000000000000000000000000000000000E346A558455ADE8ECA9,
         bip30_exceptions=(),
         bip30_unspendable=(),
         script_flag_exceptions=(),
@@ -584,11 +582,11 @@ CONSENSUS_PARAMS: Mapping[str, ConsensusParams] = MappingProxyType(_consensus_pa
 # every network of CONSENSUS_PARAMS, in its order, assigned in
 # src/kernel/chainparams.cpp at the tag the module docstring names
 _headers_sync_params: dict[str, HeadersSyncParams] = {
-    "mainnet": HeadersSyncParams(641, 15218),  # line 201
-    "testnet": HeadersSyncParams(673, 14460),  # line 310
-    "regtest": HeadersSyncParams(275, 7017),  # line 684
-    "signet": HeadersSyncParams(620, 15724),  # line 548
-    "testnet4": HeadersSyncParams(606, 16092),  # line 423
+    "mainnet": HeadersSyncParams(649, 15400),  # line 230
+    "testnet": HeadersSyncParams(682, 14613),  # line 338
+    "regtest": HeadersSyncParams(275, 7017),  # line 681
+    "signet": HeadersSyncParams(629, 15885),  # line 576
+    "testnet4": HeadersSyncParams(616, 16199),  # line 451
 }
 
 # a mapping and not a dict, so that no caller replaces a row every

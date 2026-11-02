@@ -73,15 +73,16 @@ from btclib.p2p import (
 )
 from btclib.p2p.inventory import MSG_WITNESS_FLAG
 from btclib.p2p.limits import MAX_HEADERS_RESULTS, MAX_INV_SZ, MAX_LOCATOR_SZ
+from btclib.testing.blocks import read_bytes
 from tests.strategies.p2p import INVENTORIES
 
 # the vendored mainnet blocks, whose heights and hashes tests/_data/
 # README.md records and whose first eighty octets are the header.
-# tests/block/_data and not a second copy here: a block is a block, and
-# the pin that covers it is the one already written
+# tests/block/_data and btclib.testing.blocks, not a second copy here: a
+# block is a block, and the pin that covers it is the one already written
 _BLOCK_DATA = Path(__file__).parent.parent / "block" / "_data"
 _HEADER_1 = (_BLOCK_DATA / "block_1.bin").read_bytes()[:80]
-_HEADER_170 = (_BLOCK_DATA / "block_170.bin").read_bytes()[:80]
+_HEADER_170 = read_bytes("block_170.bin")[:80]
 
 # the genesis block hash and block 1's, the way a node prints them
 _GENESIS = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"

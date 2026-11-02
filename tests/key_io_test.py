@@ -90,6 +90,7 @@ def test_address_script(address: str, script_pub_key: str, network: str) -> None
     spk = ScriptPubKey.from_address(address)
     assert spk.script.hex() == script_pub_key
     # the network *type*, not the name: see test_address_network below
+    assert isinstance(spk.network, str)
     assert network_type_from_network(spk.network) == network_type_from_network(network)
 
 

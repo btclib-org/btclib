@@ -165,9 +165,10 @@ which btclib depends on and does not re-export: import them from
 - ECIES in the BIE1 layout, the block cipher supplied by the caller
 - Pedersen commitment
 
-The wallet side — key derivation, mnemonics, PSBTs, output descriptors,
-signers and chain backends — is the `btclib-wallet` distribution, imported
-as `btclib_wallet`, which depends on this one.
+BIP32 key derivation and output descriptors are the `bip32-descriptors`
+distribution, imported as `bip32_descriptors`. The rest of the wallet side —
+mnemonics, PSBTs, signers and chain backends — is the `btclib-wallet`
+distribution, imported as `btclib_wallet`. Both depend on this one.
 
 ---
 

@@ -54,8 +54,8 @@ from btclib.script.script_pub_key import (
     p2ms_m_and_keys_var,
     script_from_script_pub_key,
 )
+from btclib.testing.strategies import SCRIPT_PUB_KEYS
 from tests import load, vector_id
-from tests.strategies import SCRIPT_PUB_KEYS
 
 
 def test_eq() -> None:
@@ -76,7 +76,7 @@ def test_eq() -> None:
 def test_a_network_name_is_taken_as_the_rest_of_the_library_takes_one() -> None:
     """`ScriptPubKey` normalizes the name it is given, and refuses the rest.
 
-    `__init__` coerces through `network.normalized_network_name` and
+    `__init__` coerces a name through `network.normalized_network_name` and
     `assert_valid` refuses through `network.validated_network_name`, so
     the spellings issue #216 decided to keep reach a script, and
     `ScriptPubKey.network` is the name `network_from_name` answers to.
@@ -1489,9 +1489,10 @@ def test_a_leading_op_code_is_compared_for_equality() -> None:
 def test_script_from_takes_an_output_however_the_caller_holds_it() -> None:
     """A `ScriptPubKey`, its bytes, their hex and its address are one script.
 
-    `btclib_wallet`'s "is this output mine" questions are what call it,
-    and they are tested there; this is the helper's own contract, held
-    here because the helper is this module's.
+    The "is this output mine" questions of `bip32_descriptors` and
+    `btclib_wallet` are what call it, and they are tested there; this is
+    the helper's own contract, held here because the helper is this
+    module's.
     """
     script_pub_key = ScriptPubKey.from_address(b32.p2wpkh(PrvKeyData(1).pub))
     script = script_pub_key.script
