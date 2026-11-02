@@ -478,7 +478,7 @@ def test_p2wsh_witness_script_size() -> None:
 
 
 def test_p2wsh() -> None:
-    """Round-trip p2wsh script and address; refuse bad markers."""
+    """Round-trip p2wsh script and address; refuse bad markers and sizes."""
     # self-consistency
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     redeem_script = ScriptPubKey.p2pkh(PubKeyData(pub_key)).script
