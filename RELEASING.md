@@ -253,20 +253,20 @@ to `deps-latest`'s own result.
    ```
 
    `tests/release_notes_test.py` keeps both release-note files count-free:
-   it rejects entry counts and breaking-change totals, because those
-   figures drift and create merge conflicts. It cannot know whether the
-   list is complete, the list being prose about the public API. griffe
-   reads both revisions and answers that: it reports breakage alone — a
-   public object removed, a parameter that changed kind or default or
-   moved, an attribute whose value changed — and says nothing at all about
-   an addition. It compares the expression an attribute is assigned rather
-   than the value the module resolves it to, so a line can print for a
-   change no caller can observe; the paragraph below names the shapes that
-   fall out that way. What the step asks is that nothing it names, once
-   that noise is set aside, is missing from RELEASE_NOTES.md. The converse
-   is not its to answer: an entry describing a break it did not find is a
-   claim about the prose, which review still has to read. It exits 1 on a
-   finding.
+   it rejects entry counts and breaking-change totals, because those figures
+   drift and create merge conflicts. It cannot know whether the list is
+   complete, the list being prose about the public API. griffe reads both
+   revisions and answers that for the breaks it compares: it reports
+   breakage alone — a public object removed, a parameter that changed kind
+   or default or moved, an attribute whose value changed — and says nothing
+   at all about an addition. It compares the expression an attribute is
+   assigned rather than the value the module resolves it to, so a line can
+   print for a change no caller can observe; the paragraph below names the
+   shapes that fall out that way. What the step asks is that nothing it
+   names, once that noise is set aside, is missing from RELEASE_NOTES.md.
+   The converse is not its to answer: an entry describing a break it did not
+   find is a claim about the prose, which review still has to read. It exits
+   1 on a finding.
 
    Breakage by griffe's classification is not breakage a user would notice,
    though, and the noise recurs in recognizable shapes. `Attribute value was
@@ -289,15 +289,17 @@ to `deps-latest`'s own result.
    of output is the only shape its answer takes.
 
    **`release.yml` runs this too, as its `public-api` job, and a red one
-   there is a break `RELEASE_NOTES.md` does not name.**
-   The job exists so the answer arrives while RELEASE_NOTES.md is being
-   written; it is not a gate, and its own comment says so. Which means a
-   release run is *overall red* on a break the notes do not name while every
-   job that matters is green — read the job list and not the run's own badge, the
-   same way `deps-latest` above is read per job. Nothing downstream waits
-   on it: `publish-testpypi`, `publish-pypi` and `pypi-install` each open
-   their `if:` with `always()` and name the dependencies they do require,
-   so a red `public-api` costs the release nothing.
+   there is a break `RELEASE_NOTES.md` does not name.** The job also runs
+   btclib-org/.github's `api_gaps.py`, which reports breaks griffe does not
+   compare or can skip; this step does not (btclib-org/.github#1940). The
+   job exists so the answer arrives while RELEASE_NOTES.md is being written;
+   it is not a gate, and its own comment says so. Which means a release run
+   is *overall red* on a break the notes do not name while every job that
+   matters is green — read the job list and not the run's own badge, the
+   same way `deps-latest` above is read per job. Nothing downstream waits on
+   it: `publish-testpypi`, `publish-pypi` and `pypi-install` each open their
+   `if:` with `always()` and name the dependencies they do require, so a red
+   `public-api` costs the release nothing.
 
    That wiring is younger than the job and was wrong twice. On
    v2026.8.26's rehearsal `publish-testpypi` listed `public-api` in
