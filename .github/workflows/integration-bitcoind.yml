@@ -144,7 +144,7 @@ concurrency:
 
 jobs:
   regtest:
-    uses: btclib-org/.github/.github/workflows/reusable-integration-bitcoind.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
+    uses: btclib-org/.github/.github/workflows/reusable-integration-bitcoind.yml@7b85b373d1957dcfc1a648a21dd7233954ef410b # v2026.11.2
     # permissions do not inherit through a call: the called job reads the
     # tree and writes nothing, so this is what caps what it may be
     # granted -- refusing rather than trimming what the called workflow

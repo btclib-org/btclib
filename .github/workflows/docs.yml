@@ -75,29 +75,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # the checkout, the uv setup, the build and the unresolved-link check are
-  # btclib-org/.github's: reusable-docs.yml, called at a tagged commit (section
-  # 10 of btclib-org/.github's README.md). What stays here is the trigger, the
-  # concurrency group and the workflow-level permissions; the draft and closed
-  # declines are the called workflow's own, reading
-  # github.event.pull_request.draft and github.event.action off this caller's
-  # trigger (btclib-org/.github#35).
+  # the checkout, the uv setup, the build, and the unresolved-link and
+  # included-link checks are btclib-org/.github's: reusable-docs.yml, called
+  # at a tagged commit (section 10 of btclib-org/.github's README.md). What
+  # stays here is the trigger, the concurrency group and the workflow-level
+  # permissions; the draft and closed declines are the called workflow's own,
+  # reading github.event.pull_request.draft and github.event.action off this
+  # caller's trigger (btclib-org/.github#35).
   #
   # This tree has no git submodule for the build to check out, so
   # `submodules` is left at its default; and no script of its own to run
   # against the built pages, so `post-build-script` is too.
   #
-  # The reusable workflow's own unresolved-link grep matches only
-  # href="#./", not href="#../" the way this tree's own step used to:
-  # `.pre-commit-config.yaml`'s local-link-prefix hook here accepts a
-  # `../`-prefixed destination as well as a `./`-prefixed one (unlike
-  # three other repositories of the organization), so becoming a caller
-  # drops the artifact-level backstop for a broken `../` link that #1575
-  # added. A broken one still fails `sphinx-build -n -W` on its own,
-  # through myst's own unresolved-reference warning (issue #1562) -- the
-  # same primary defense the reusable workflow's own comment leans on for
-  # "#./" -- so nothing catches that case at the artifact level if that
-  # defense is ever weakened. Reported rather than compensated for
-  # locally, per btclib-org/.github#35.
+  # The reusable workflow's unresolved-link grep matches href="#../" as well
+  # as href="#./", which this tree needs: `.pre-commit-config.yaml`'s
+  # local-link-prefix hook here accepts a `../`-prefixed destination as well
+  # as a `./`-prefixed one. A broken one fails `sphinx-build -n -W` first,
+  # through docs/source/conf.py's RootFileLinks (issue #1562), and the grep
+  # is the artifact-level backstop (btclib-org/.github#35).
   docs:
-    uses: btclib-org/.github/.github/workflows/reusable-docs.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
+    uses: btclib-org/.github/.github/workflows/reusable-docs.yml@7b85b373d1957dcfc1a648a21dd7233954ef410b # v2026.11.2

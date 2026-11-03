@@ -394,8 +394,9 @@ project's dependencies:
   suffix; `uv lock` keeps the versions already locked.
 - `uv build` and `uv run --no-project` install nothing from the lock.
 - `public-api`, in btclib-org/.github's `reusable-public-api.yml`, runs
-  `uvx griffe==2.2.0`: a pinned version, with its own dependencies
-  unlocked. It is not the build job.
+  `uvx griffe==2.2.0`, then btclib-org/.github's `api_gaps.py` with
+  `uv run --no-project --with griffe==2.2.0`: a pinned version, with its
+  own dependencies unlocked. It is not the build job.
 - `fuzz.yml`'s ClusterFuzzLite build installs
   `.clusterfuzzlite/requirements.txt`, the lock exported with its hashes by
   the `uv-export` hook, with `pip3 install --require-hashes`.
@@ -775,7 +776,7 @@ uv run --locked --only-group lint \
 command: it asks the forge's dependency graph what a pull request adds.
 
 `docs / Build the documentation` is `docs.yml`, calling
-`btclib-org/.github`'s `reusable-docs.yml`, and its command is the one
+`btclib-org/.github`'s `reusable-docs.yml`, and its commands are the ones
 below under "The documentation".
 
 One cell of the platform sweep the `python-versions` list `os-ubuntu.yml`,
@@ -1285,13 +1286,33 @@ a broken `../` link already fails `-W` on its own, through
 the artifact-level backstop for that case too, `reusable-docs.yml`
 itself having widened to catch it (issue btclib-org/.github#35).
 
+The job's third step runs btclib-org/.github's `check_included_links.py`,
+at the commit `docs.yml` pins, over the same pages. It fails on a link
+to a file the docs render that is left at the repository's
+`/blob/main/` address rather than at the file's page here. Section 2 of
+the standard, *The documentation*, is the rule:
+
+```shell
+served=$(mktemp -d)
+git clone --quiet --filter=blob:none --sparse \
+    https://github.com/btclib-org/.github "$served"
+git -C "$served" sparse-checkout set .github/scripts
+git -C "$served" checkout --quiet \
+    "$(sed -n 's/.*reusable-docs\.yml@\([0-9a-f]*\).*/\1/p' .github/workflows/docs.yml)"
+found=0
+uv run --no-project --python 3.15 \
+    "$served"/.github/scripts/check_included_links.py docs/build/html || found=$?
+rm -rf "$served"
+test "$found" -eq 0
+```
+
 A link into a heading of another root file carries a fragment spelled the
 way GitHub derives it from the heading text, as in
 [the gates are the evidence](./REVIEWING.md#the-gates-are-the-evidence),
 and `docs/source/conf.py`'s `myst_heading_anchors` is what makes that
 spelling resolve here too.
 
-Both steps ask whether a page renders and whether its links resolve, and
+The job's steps ask whether a page renders and where its links lead, and
 nothing more. Whether the worked examples on it are still true is a
 different question, asked by `tests/docs_examples_test.py`: any page under
 `docs/source/` carrying a `>>>` prompt is run as a doctest by the suite, so

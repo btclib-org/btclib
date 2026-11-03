@@ -40,16 +40,17 @@ jobs:
   # shape from when the step computing it lived here, and `build` below forwards
   # it under this job's own id (btclib-org/.github#35)
   version-check:
-    uses: btclib-org/.github/.github/workflows/reusable-version-check.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
+    uses: btclib-org/.github/.github/workflows/reusable-version-check.yml@7b85b373d1957dcfc1a648a21dd7233954ef410b # v2026.11.2
 
-  # the griffe walk is btclib-org/.github's, called at a tagged commit (section
-  # 10 of btclib-org/.github's README.md). package: btclib is this tree's own
-  # name, with no hyphen to turn into an underscore -- the reusable workflow's
-  # own header says the equality with the repository name is a coincidence of
-  # four trees and not a rule, which is why the input has no default
+  # the griffe walk, and the api_gaps.py run beside it, are
+  # btclib-org/.github's, called at a tagged commit (section 10 of
+  # btclib-org/.github's README.md). package: btclib is this tree's own name,
+  # with no hyphen to turn into an underscore -- the reusable workflow's own
+  # header says the equality with the repository name is a coincidence of four
+  # trees and not a rule, which is why the input has no default
   # (btclib-org/.github#35)
   public-api:
-    uses: btclib-org/.github/.github/workflows/reusable-public-api.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
+    uses: btclib-org/.github/.github/workflows/reusable-public-api.yml@7b85b373d1957dcfc1a648a21dd7233954ef410b # v2026.11.2
     with:
       package: btclib
 
@@ -63,7 +64,7 @@ jobs:
   # above do. github-release does not name it: it runs only after publish-pypi
   # succeeds
   audit:
-    uses: btclib-org/.github/.github/workflows/reusable-audit.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
+    uses: btclib-org/.github/.github/workflows/reusable-audit.yml@7b85b373d1957dcfc1a648a21dd7233954ef410b # v2026.11.2
 
   # the build and its signature: btclib-org/.github's reusable-build.yml, called
   # at a tagged commit (section 10 of btclib-org/.github's README.md). It builds
@@ -85,7 +86,7 @@ jobs:
       contents: read
       id-token: write # the OIDC token the callee's attest job mints
       attestations: write # the build provenance attestation it writes
-    uses: btclib-org/.github/.github/workflows/reusable-build.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
+    uses: btclib-org/.github/.github/workflows/reusable-build.yml@7b85b373d1957dcfc1a648a21dd7233954ef410b # v2026.11.2
     with:
       python: "3.15"
       version-suffix: ${{ needs.version-check.outputs.version-suffix }}
@@ -366,7 +367,7 @@ jobs:
       needs.build.result == 'success'
     permissions:
       contents: write # creates the GitHub release reusable-github-release.yml attaches files to
-    uses: btclib-org/.github/.github/workflows/reusable-github-release.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
+    uses: btclib-org/.github/.github/workflows/reusable-github-release.yml@7b85b373d1957dcfc1a648a21dd7233954ef410b # v2026.11.2
     with:
       dist-artifact: dist
       # refuses the files unless their digests are the ones the build job
@@ -382,6 +383,6 @@ jobs:
   documented:
     needs: version-check
     if: github.event_name == 'push'
-    uses: btclib-org/.github/.github/workflows/reusable-documented.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
+    uses: btclib-org/.github/.github/workflows/reusable-documented.yml@7b85b373d1957dcfc1a648a21dd7233954ef410b # v2026.11.2
     with:
       readthedocs-slug: btclib
