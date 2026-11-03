@@ -399,8 +399,8 @@ def test_hashes_stays_stdlib_light() -> None:
 
 # Row 5 of issue #2129, `btclib-wallet`, in that table's order, with
 # `mnemonic/`, which went with `bip85`: the units that left this package
-# for `btclib_wallet`. `bip32/` and `descriptors/` have since moved on to
-# `bip32_descriptors`. Those packages import btclib rather than being
+# for `btclib_wallet`. `bip32_descriptors` publishes `bip32/` and
+# `descriptors/`. Those packages import btclib rather than being
 # imported by it, so the check on them is not what they reach but that
 # nothing here reaches back -- under the old names or the new ones.
 _APPLICATION_SLAB = (
@@ -432,7 +432,7 @@ _APPLICATION_SLAB = (
 # the import package row 5 is published as
 _WALLET_PACKAGE = "btclib_wallet"
 
-# the import package `bip32/` and `descriptors/` moved to
+# the import package that publishes `bip32/` and `descriptors/`
 # (btclib-org/.github#1811)
 _DESCRIPTORS_PACKAGE = "bip32_descriptors"
 
@@ -448,7 +448,7 @@ def _is_btclib(name: str) -> bool:
     return name == "btclib" or name.startswith("btclib.")
 
 
-def _is_btclib_or_wallet(name: str) -> bool:
+def _is_btclib_or_slab(name: str) -> bool:
     """Answer whether a dotted name is this package's or the slab's."""
     return (
         _is_btclib(name)
@@ -470,11 +470,9 @@ def _btclib_names_imported_by(path: Path) -> set[str]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             names.update(
-                alias.name for alias in node.names if _is_btclib_or_wallet(alias.name)
+                alias.name for alias in node.names if _is_btclib_or_slab(alias.name)
             )
-        elif isinstance(node, ast.ImportFrom) and _is_btclib_or_wallet(
-            node.module or ""
-        ):
+        elif isinstance(node, ast.ImportFrom) and _is_btclib_or_slab(node.module or ""):
             module = node.module or ""
             names.add(module)
             names.update(f"{module}.{alias.name}" for alias in node.names)
