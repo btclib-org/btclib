@@ -62,4 +62,4 @@ jobs:
     # defaults -- "uv", "" and false -- which is exactly what this file
     # built before this conversion: `uv build --sdist`, no submodules and
     # no setup-python step
-    uses: btclib-org/.github/.github/workflows/reusable-sdist-rebuild.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
+    uses: btclib-org/.github/.github/workflows/reusable-sdist-rebuild.yml@7b85b373d1957dcfc1a648a21dd7233954ef410b # v2026.11.2

@@ -100,4 +100,4 @@ jobs:
   # defense is ever weakened. Reported rather than compensated for
   # locally, per btclib-org/.github#35.
   docs:
-    uses: btclib-org/.github/.github/workflows/reusable-docs.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
+    uses: btclib-org/.github/.github/workflows/reusable-docs.yml@7b85b373d1957dcfc1a648a21dd7233954ef410b # v2026.11.2

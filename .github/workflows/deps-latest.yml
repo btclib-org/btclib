@@ -117,7 +117,7 @@ jobs:
   # -- suite-bindings-latest's own checkout comment below gives the
   # 99.93%, one file, every runner, every week this produced without it
   deps-latest:
-    uses: btclib-org/.github/.github/workflows/reusable-deps-latest.yml@ed616d71c43cd4c8bded40d1182befccd99e6ee7 # v2026.10.29
+    uses: btclib-org/.github/.github/workflows/reusable-deps-latest.yml@7b85b373d1957dcfc1a648a21dd7233954ef410b # v2026.11.2
     with:
       runners: '["ubuntu-latest", "macos-latest", "windows-latest"]'
       python-versions: '["3.11", "3.15"]'
