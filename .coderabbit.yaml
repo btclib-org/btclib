@@ -1,0 +1,89 @@
+---
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit's configuration. Section 14 of the organization's standard
+# owes this file, the same, of every repository, so nothing here may be
+# true of one tree only. Section 11's *Review* says what CodeRabbit's
+# review is, and what it is not. A key this file leaves out takes the
+# default the schema above gives it.
+reviews:
+  # the profile that says more is the one whose silence means less. Its
+  # cost is that each inline finding is a thread the author answers and
+  # resolves before the merge (CONTRIBUTING.md's *The review*)
+  profile: assertive
+  # the description is the author's, held by section 11's *What a pull
+  # request says it is* to what the pull request closes. By default
+  # CodeRabbit writes its summary there, so it goes in its own comment
+  high_level_summary_in_walkthrough: true
+  # never an approval, for the reason section 11's *Review* gives. The
+  # first key is the default, written so that the test reading this
+  # file has it to read. The second matters only where a pull request
+  # turns the first back on in its own copy, and section 11's *Review*
+  # says when one can; no branch can turn this one back on
+  auto_approvals:
+    enabled: false
+    allow_author_approval: false
+  path_instructions:
+    - path: "tests/**"
+      instructions: >-
+        Section 7 of the organization's standard says what a test owes:
+        https://github.com/btclib-org/.github#7-tests
+  pre_merge_checks:
+    # docstrings are section 5's rule: ruff's D rules, in the required
+    # lint check of each tree whose ruff selects them. A coverage
+    # percentage would be a second rule beside it
+    docstrings:
+      mode: "off"
+    title:
+      mode: warning
+      requirements: >-
+        Section 11's *What a pull request says it is* of the
+        organization's standard:
+        https://github.com/btclib-org/.github#what-a-pull-request-says-it-is
+  # a linter a required check runs in any tree is off here, in every
+  # tree: where that check runs it, a second report repeats a finding
+  # that already holds the merge, and this file is the same in every
+  # tree
+  tools:
+    actionlint:
+      enabled: false
+    blinter:
+      enabled: false
+    markdownlint:
+      enabled: false
+    psscriptanalyzer:
+      enabled: false
+    ruff:
+      enabled: false
+    shellcheck:
+      enabled: false
+    yamllint:
+      enabled: false
+    zizmor:
+      enabled: false
+    # a review does not report a check as a finding: CONTRIBUTING.md's
+    # *The review*
+    github-checks:
+      enabled: false
+knowledge_base:
+  # REVIEWING.md and CONTRIBUTING.md are what a review reads a diff
+  # against, in every tree. AGENTS.md is among CodeRabbit's defaults
+  # already.
+  #
+  # The organization's standard, the README.md of btclib-org/.github,
+  # is offered as guidelines to every review, read from that
+  # repository's default branch. applyTo "**" is what applies a
+  # guideline that names no files; such guidelines "get low priority",
+  # and over the review's guideline budget "CodeRabbit leaves these out
+  # first" (CodeRabbit's *Code guidelines*). In btclib-org/.github
+  # itself the entry names the repository under review, which
+  # CodeRabbit ignores, so there it selects nothing
+  code_guidelines:
+    filePatterns:
+      - REVIEWING.md
+      - CONTRIBUTING.md
+      - files: btclib-org/.github:README.md
+        applyTo: "**"
+  # a convention shared between trees is decided once, in the standard
+  # (section 14), and not learned from one tree and applied to another
+  learnings:
+    scope: local
