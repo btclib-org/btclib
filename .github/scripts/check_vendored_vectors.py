@@ -19,12 +19,12 @@ what the other wrote.
 
 btclib-secp256k1 carries a copy under this same name, over its own
 tests/README.md, whose entries are each pinned to a commit under a
-heading owning one fenced block, and bitcoin-node-tests another, over
-its TF2.md. What the copies share is owed to the others in the same
-campaign: the parsing, the `gh` calls, a field's spelling, the
-arguments this takes. What answers to one ledger's own shape is not,
-and the collapsing of identical skip lines below is that -- a heading
-owning several blocks being a shape that README does not carry.
+heading owning one fenced block, and functional-tests another, over its
+TF2.md. What the copies share is owed to the others in the same
+campaign: the parsing, the `gh` calls, a field's spelling, the arguments
+this takes. What answers to one ledger's own shape is not, and the
+collapsing of identical skip lines below is that -- a heading owning
+several blocks being a shape that README does not carry.
 
 Two byte comparisons run over every entry that names a file in its
 heading and records a `blob` or an `ours` line, whatever its `behind`.
