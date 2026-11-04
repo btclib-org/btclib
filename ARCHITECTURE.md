@@ -50,9 +50,10 @@ btclib calls the bindings only through ecc.
 
 Roughly bottom-up. The directions that hold without exception are the
 substrate, `btclib.ecc` without `btclib.ecc.bms`, the pairs in the next
-section and the edge to `btclib_wallet` below, each held by a test;
-elsewhere a module reaches up where its subject asks for it, as
-`btclib.ecc.bms` does for the address a message signature names.
+section and the edges to `bip32_descriptors` and `btclib_wallet` below,
+each held by a test; elsewhere a module reaches up where its subject
+asks for it, as `btclib.ecc.bms` does for the address a message
+signature names.
 
 - **the substrate**: `alias`, `exceptions`, `utils`
 - **the curve and what is built on it**: ecc's `curves`,
@@ -134,7 +135,8 @@ sends nothing itself.
 
 - **BIP32 key derivation and output descriptors** are the
   `bip32-descriptors` distribution, imported as `bip32_descriptors`. It
-  imports btclib.
+  imports btclib, and nothing in btclib imports it:
+  `tests/imports_test.py` holds that edge to one direction.
 - **The rest of the wallet side** (mnemonics, PSBTs, signers, chain
   backends and the Electrum protocol's codec) is the `btclib-wallet`
   distribution, imported as `btclib_wallet`. It imports btclib, and

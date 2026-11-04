@@ -399,9 +399,10 @@ def test_hashes_stays_stdlib_light() -> None:
 
 # Row 5 of issue #2129, `btclib-wallet`, in that table's order, with
 # `mnemonic/`, which went with `bip85`: the units that left this package
-# for `btclib_wallet`. That package imports btclib rather than being
-# imported by it, so the check on it is not what it reaches but that
-# nothing here reaches back -- under its old name or its new one.
+# for `btclib_wallet`. `bip32_descriptors` publishes `bip32/` and
+# `descriptors/`. Those packages import btclib rather than being
+# imported by it, so the check on them is not what they reach but that
+# nothing here reaches back -- under the old names or the new ones.
 _APPLICATION_SLAB = (
     "bip32",
     "bip44",
@@ -431,6 +432,10 @@ _APPLICATION_SLAB = (
 # the import package row 5 is published as
 _WALLET_PACKAGE = "btclib_wallet"
 
+# the import package that publishes `bip32/` and `descriptors/`
+# (btclib-org/.github#1811)
+_DESCRIPTORS_PACKAGE = "bip32_descriptors"
+
 
 def _is_btclib(name: str) -> bool:
     """Answer whether a dotted name is this package's, the bindings excluded.
@@ -443,17 +448,17 @@ def _is_btclib(name: str) -> bool:
     return name == "btclib" or name.startswith("btclib.")
 
 
-def _is_btclib_or_wallet(name: str) -> bool:
-    """Answer whether a dotted name is this package's or `btclib_wallet`'s."""
+def _is_btclib_or_slab(name: str) -> bool:
+    """Answer whether a dotted name is this package's or the slab's."""
     return (
         _is_btclib(name)
-        or name == _WALLET_PACKAGE
-        or name.startswith(f"{_WALLET_PACKAGE}.")
+        or name in (_WALLET_PACKAGE, _DESCRIPTORS_PACKAGE)
+        or name.startswith((f"{_WALLET_PACKAGE}.", f"{_DESCRIPTORS_PACKAGE}."))
     )
 
 
 def _btclib_names_imported_by(path: Path) -> set[str]:
-    """Return every dotted btclib or btclib_wallet name one file's imports name.
+    """Return every dotted btclib or slab name one file's imports name.
 
     `from btclib import wallet` and `from btclib.wallet import Wallet` name
     the same package two different ways; joining the `from` module with
@@ -465,11 +470,9 @@ def _btclib_names_imported_by(path: Path) -> set[str]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             names.update(
-                alias.name for alias in node.names if _is_btclib_or_wallet(alias.name)
+                alias.name for alias in node.names if _is_btclib_or_slab(alias.name)
             )
-        elif isinstance(node, ast.ImportFrom) and _is_btclib_or_wallet(
-            node.module or ""
-        ):
+        elif isinstance(node, ast.ImportFrom) and _is_btclib_or_slab(node.module or ""):
             module = node.module or ""
             names.add(module)
             names.update(f"{module}.{alias.name}" for alias in node.names)
@@ -511,17 +514,18 @@ def test_the_application_slab_check_finds_a_planted_edge() -> None:
     assert edges == {"outside.py": ["btclib.wallet.wallet"]}
 
 
-def test_the_application_slab_scan_reads_both_names(tmp_path: Path) -> None:
-    """`_btclib_names_imported_by` collects the slab under either name.
+def test_the_application_slab_scan_reads_every_name(tmp_path: Path) -> None:
+    """`_btclib_names_imported_by` collects the slab under any of its names.
 
-    The tree has no import of `btclib_wallet`, so without a planted file
-    nothing would show that the scan below reads one at all: a collector
-    keyed on `btclib` alone would answer the same empty set for a module
-    importing the package above it.
+    The tree has no import of `btclib_wallet` or `bip32_descriptors`, so
+    without a planted file nothing would show that the scan below reads
+    one at all: a collector keyed on `btclib` alone would answer the same
+    empty set for a module importing a package above it.
     """
     planted = tmp_path / "planted.py"
     planted.write_text(
         "import btclib_wallet.bip32\nfrom btclib_wallet import psbt\n"
+        "import bip32_descriptors.bip32\nfrom bip32_descriptors import descriptors\n"
         "from btclib_secp256k1 import dsa\n",
         encoding="utf-8",
     )
@@ -529,6 +533,9 @@ def test_the_application_slab_scan_reads_both_names(tmp_path: Path) -> None:
         "btclib_wallet.bip32",
         "btclib_wallet",
         "btclib_wallet.psbt",
+        "bip32_descriptors.bip32",
+        "bip32_descriptors",
+        "bip32_descriptors.descriptors",
     }
 
 
@@ -543,14 +550,14 @@ def test_the_application_slab_has_no_inbound_edge() -> None:
     installed package the same way `module_names` does, from
     `btclib.__path__`, so this checks the tree the suite runs against
     rather than a copy on disk that might be stale. Every file is scanned,
-    for both spellings of the slab: `btclib.<unit>`, which no longer
-    resolves, and `btclib_wallet`, which depends on this package and so
-    cannot be depended on by it.
+    for every spelling of the slab: `btclib.<unit>`, which no longer
+    resolves, and `btclib_wallet` and `bip32_descriptors`, which depend on
+    this package and so cannot be depended on by it.
 
     The slab's units are asserted absent from the tree first. A unit that
-    came back, as a copy or as a module re-exporting `btclib_wallet`'s, is
-    what rule 3 refuses, and a scan that walked it would be reading the
-    slab from inside rather than the protocol side.
+    came back, as a copy or as a module re-exporting `btclib_wallet`'s or
+    `bip32_descriptors`'s, is what rule 3 refuses, and a scan that walked
+    it would be reading the slab from inside rather than the protocol side.
     """
     root = Path(btclib.__path__[0])
     for name in _APPLICATION_SLAB:
@@ -558,6 +565,7 @@ def test_the_application_slab_has_no_inbound_edge() -> None:
         assert not (root / name).exists(), name
     slab_roots = (
         _WALLET_PACKAGE,
+        _DESCRIPTORS_PACKAGE,
         *(f"btclib.{name}" for name in _APPLICATION_SLAB),
     )
     imports_by_file = {
