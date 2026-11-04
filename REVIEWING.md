@@ -231,7 +231,8 @@ and believed it, and a reviewer who only reads reproduces that reading
 rather than testing it. Running it is what makes the verdict something
 the author's own reading did not already decide.
 
-The cases to run are not the reviewer's to invent:
+The cases to run start from what the diff and the tree hold, and go on
+to cases built to break it:
 
 - **The shapes the diff's own prose claims to cover** — the example in
   the hook's comment, in the pull request
@@ -240,6 +241,14 @@ The cases to run are not the reviewer's to invent:
 - **The shapes the tree actually holds.** `git grep` for the construct
   the pattern is about and run it against those lines, rather than
   against an example composed to be matched.
+- **The shapes built to break it.** Inputs meant to make it answer
+  wrong: the edges of the language the pattern or the script reads, such
+  as an empty value, a quote, an escape, or a delimiter inside a name. A
+  case it answers wrong is the finding. The first two cases hold the
+  inputs the author and the tree already offer; this one looks for the
+  input neither does. Inventing it does not reopen what the second case
+  closes: an example composed to be matched can only confirm a reading,
+  and an input built to break one counts only where it does.
 
 A claim the prose makes *about the tree* takes the same treatment.
 "Every link here is already `./`-prefixed", "nothing calls this any
@@ -247,7 +256,7 @@ more": each is one command's worth of evidence, and each is the reason
 the change is offered as safe. Settle it. Where it is false, the finding
 is not the code but the reason given for it.
 
-**One case is the reviewer's to build.** Where a pull request adds a
+**Rows excusing a failure are tried too.** Where a pull request adds a
 test together with rows excusing its failure, such as `BACKLOG` in
 `tests/__init__.py` of btclib-org/.github, run the assertion by hand
 against one tree in the shape the rows wait for. A row cannot tell a
