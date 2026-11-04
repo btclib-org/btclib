@@ -24,8 +24,8 @@ quality analysis running, so stopping it is a decision of this
 repository's.
 
 Where an answer has a copy in the tree, the section recording it says so:
-`pyproject.toml` carries the topics as `keywords` and the documentation
-site as `[project.urls] homepage`.
+`pyproject.toml` carries the topics as `keywords` and the `.homepage` as
+`[project.urls] homepage`.
 
 ## Required checks on main
 
@@ -766,10 +766,19 @@ leaves here is nothing to configure — no `_config.yml` deciding which
 root files become URLs, no `Gemfile` pinning a builder, no `website.yml`
 asking whether the site still renders, and no `CNAME`.
 
-**What a reader is sent to instead is the documentation**, which is the
-*Read the Docs* section below and is what `[project.urls] homepage`
-names. The two were never the same thing, and only one of them was ever
-built from the library.
+**What a reader is sent to instead is this tree's page on btclib.org**,
+`https://btclib.org/btclib/`, which `btclib-org/btclib-org.github.io`
+serves, as section 3 of the standard has it. The repository's `.homepage`
+names it, read back from the endpoint rather than from `pyproject.toml`'s
+own copy of it:
+
+```shell
+gh api repos/btclib-org/btclib --jq '.homepage'
+# https://btclib.org/btclib/
+```
+
+The documentation is the *Read the Docs* section below, which
+`[project.urls] documentation` names.
 
 Turning Pages back on is a settings change and not a pull request, and
 it would republish `main`'s root as whatever Jekyll makes of a tree that
@@ -813,18 +822,6 @@ curl -s https://app.readthedocs.org/api/v3/projects/btclib/ \
   carries between releases. `stable` is the alternative, and what the
   choice decides is which of the two a reader arriving with no version in
   mind is given.
-- **The repository's `.homepage` names this same site**, read back from
-  the endpoint rather than from `pyproject.toml`'s own copy of it:
-
-```shell
-gh api repos/btclib-org/btclib --jq '.homepage'
-# https://btclib.readthedocs.io/
-```
-
-`[project.urls] homepage` in `pyproject.toml` carries the identical
-string (issue btclib-org/.github#533): a releasing tree's home is its
-own documentation, and this is the only site this repository has, the
-*Pages* section above recording that it serves none.
 
 Tags older than the rule are mostly not activatable rather than merely not
 activated: a build needs `.readthedocs.yaml`, which reaches back to
