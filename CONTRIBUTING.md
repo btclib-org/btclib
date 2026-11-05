@@ -407,8 +407,8 @@ branch is for, and it is a state to leave rather than to keep.
 `[tool.uv]` is not distribution metadata, so `dependencies` still
 publishes a plain floor and PyPI still accepts a release — where a
 direct reference written into `dependencies` instead would have to be
-written back over before publication, which is what RELEASING.md's step
-1 refuses. What the entry costs is the wheels: a git source has none, so
+written back over before publication, which is what RELEASING.md's last
+section refuses. What the entry costs is the wheels: a git source has none, so
 every environment builds that sibling from source, and `uv.lock` pins the resolved
 commit, so the branch
 is followed only when the lock is regenerated. One release upstream
@@ -1049,7 +1049,7 @@ uv version --short
 
 RELEASING.md's "Rebuild a release from its tag" has the reproducibility
 commands above in the order a verifier runs them, with the
-`gh attestation verify` that gives the rebuild a verdict and the two
+`gh attestation verify` that gives the rebuild a verdict and the
 bounds on what that verdict means.
 
 The `deps-latest` workflow, which upgrades every dependency uv resolves before

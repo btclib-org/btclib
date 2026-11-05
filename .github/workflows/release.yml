@@ -182,9 +182,8 @@ jobs:
 
   # and `regtest / Regtest against Bitcoin Core`, a required check on main
   # made again here, as the calls above make the required checks they can:
-  # a rehearsal runs from any branch. RELEASING.md's step "Check that every
-  # job you expected actually ran" names the required checks a release
-  # does not make
+  # a rehearsal runs from any branch. RELEASING.md's step that reads the
+  # run job by job names the required checks a release does not make
   integration-bitcoind:
     name: Run the integration-bitcoind workflow
     uses: $/.github/workflows/integration-bitcoind.yml
