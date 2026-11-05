@@ -360,36 +360,6 @@ to `deps-latest`'s own result.
    is an edit to sealed text, which takes a `_KNOWN_DRIFT` entry of its own
    in that module.
 
-1. Run each dependent's suite with this release in place of its PyPI
-   version, whether or not the notes declare a break. Section 12 of the
-   [organization standard](https://github.com/btclib-org/.github#12-releasing)
-   has the rule. The dependents of `btclib` are `base58-bech32`,
-   `bip39-slip39`, `bitcoin-core-rpc`, `functional-tests`,
-   `benchmarks`, `btclib-node` and `btclib-wallet`. Re-derive them
-   with the loop in that section before each release rather than carry
-   this list.
-
-   From a throwaway checkout of each dependent's default branch, with the
-   sha of the release branch's head, pushed, for `<sha>`, and again if the
-   pull request's head moves before the merge:
-
-   ```shell
-   ref=git+https://github.com/btclib-org/btclib@<sha>
-   ```
-
-   ```shell
-   uv run --locked --no-default-groups --group test \
-     --with "btclib @ ${ref:?}" \
-     python -m pytest --no-cov
-   ```
-
-   It is `python -m pytest`, not `pytest`: that script is the environment's
-   own and imports the locked version. `--no-cov` because the question is
-   pass or fail, not the dependent's coverage floor.
-
-   A dependent that fails gets its fix ready first. The release is tagged,
-   then the dependent releases with its floor raised to it.
-
 1. Run `uv run pre-commit run --all-files` and `uv run pytest --cov`,
    follow docs/README.rst to check that the documentation builds, and get
    the above onto `main` through the usual pull request. The local gates
@@ -737,6 +707,9 @@ to `deps-latest`'s own result.
    it fixed, signed tags and assets, attestation names. Then refresh the saved
    answers again. An advisory this repository publishes is owed the same
    review.
+
+A dependent adapts after the release, as section 12 of the organization
+standard says.
 
 ## Rebuild a release from its tag
 
