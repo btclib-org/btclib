@@ -88,13 +88,13 @@ concurrency:
 
 jobs:
   suite-windows:
-    uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@7b85b373d1957dcfc1a648a21dd7233954ef410b # v2026.11.2
+    uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@5be4b0fbb5231cff001a3ee0eaa8f7d82bffef11 # v2026.11.5
     with:
       runners: '["windows-latest"]'
       python-versions: '["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t", "pypy3.11"]'
       fetch-tags: true
   suite-windows-arm:
-    uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@7b85b373d1957dcfc1a648a21dd7233954ef410b # v2026.11.2
+    uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@5be4b0fbb5231cff001a3ee0eaa8f7d82bffef11 # v2026.11.5
     with:
       runners: '["windows-11-arm"]'
       # the one list the tests read as a single line, so it stays one

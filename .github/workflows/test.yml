@@ -163,7 +163,7 @@ jobs:
   #   this tree's own prose, below (issue btclib-org/.github#35)
   changes:
     name: Decide whether the jobs below have anything to check
-    uses: btclib-org/.github/.github/workflows/reusable-changes.yml@7b85b373d1957dcfc1a648a21dd7233954ef410b # v2026.11.2
+    uses: btclib-org/.github/.github/workflows/reusable-changes.yml@5be4b0fbb5231cff001a3ee0eaa8f7d82bffef11 # v2026.11.5
     # A job's permissions replace the workflow's rather than adding to
     # them, so contents: read is named here too, alongside
     # pull-requests: read, which the callee's own job needs to list a
