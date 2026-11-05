@@ -767,10 +767,10 @@ root files become URLs, no `Gemfile` pinning a builder, no `website.yml`
 asking whether the site still renders, and no `CNAME`.
 
 **What a reader is sent to instead is this tree's page on btclib.org**,
-`https://btclib.org/btclib/`, which `btclib-org/btclib-org.github.io`
-serves, as section 3 of the standard has it. The repository's `.homepage`
-names it, read back from the endpoint rather than from `pyproject.toml`'s
-own copy of it:
+`https://btclib.org/btclib/`, which section 3 of the standard makes its
+homepage and `btclib-org/btclib-org.github.io` serves. The repository's
+`.homepage` names it, read back from the endpoint rather than from
+`pyproject.toml`'s own copy of it:
 
 ```shell
 gh api repos/btclib-org/btclib --jq '.homepage'
