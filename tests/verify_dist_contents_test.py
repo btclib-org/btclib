@@ -428,8 +428,7 @@ def _rules(text: str) -> list[tuple[set[str], set[str]]]:
         elif items and line.startswith("  "):
             items[-1] += " " + line.strip()
         elif items:
-            named = set(_CONSTANT.findall(" ".join(lead)))
-            if named:
+            if named := set(_CONSTANT.findall(" ".join(lead))):
                 rules.append((named, _stated(items)))
             items, lead = [], []
         elif line.strip():

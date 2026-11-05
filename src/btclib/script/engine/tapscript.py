@@ -203,7 +203,7 @@ def _eval_checksig(
         if budget < 0:
             err_msg = "exhausted sigops budget"
             raise ScriptError(err_msg, ScriptErrorCode.TAPSCRIPT_VALIDATION_WEIGHT)
-    if len(pub_key) == 0:
+    if not pub_key:
         raise ScriptError("empty public key", ScriptErrorCode.TAPSCRIPT_EMPTY_PUBKEY)
     if len(pub_key) == 32:
         if signature:
@@ -396,7 +396,7 @@ OPERATIONS: Mapping[str, ScriptOp] = {
 # what the OPERATIONS table cannot hold, read against Core's tapscript
 # rules: the op codes needing the engine's own state, the sigops budget
 # among it
-def _run_ops(  # noqa: C901, PLR0912
+def _run_ops(  # noqa: C901, PLR0912  # sourcery skip: low-code-quality
     script_bytes: bytes,
     stack: list[bytes],
     altstack: list[bytes],

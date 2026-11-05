@@ -676,8 +676,7 @@ class Headers(Payload):
         headers = []
         for _ in range(count):
             headers.append(BlockHeader.parse(stream, check_validity=check_validity))
-            transactions = var_int.parse(stream)
-            if transactions:
+            if transactions := var_int.parse(stream):
                 err_msg = f"invalid transaction count: {transactions}"
                 err_msg += " instead of 0"
                 raise BTClibValueError(err_msg)

@@ -182,9 +182,9 @@ def test_the_coinbase_commitment_is_compared_as_bytes() -> None:
     assert block.height == 481_824
     block.assert_valid_coinbase_height(481_824)
 
+    err_msg = "invalid coinbase height: 03205a07 instead of: "
     # the height of the block before it, and of the one after
     for height in (481_823, 481_825):
-        err_msg = "invalid coinbase height: 03205a07 instead of: "
         with pytest.raises(BTClibValueError, match=err_msg):
             block.assert_valid_coinbase_height(height)
 
@@ -298,8 +298,7 @@ def test_bad_diffbits_compares_the_header_against_required_bits() -> None:
         BlockContext(height=1, now=now, required_bits=bytes.fromhex("1d00ffff"))
     )
 
-    err_msg = "proof-of-work target not the required one: 1d00ffff"
-    err_msg += " instead of 1c00ffff"
+    err_msg = "proof-of-work target not the required one: 1d00ffff instead of 1c00ffff"
     with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid_contextual(
             BlockContext(height=1, now=now, required_bits=bytes.fromhex("1c00ffff"))

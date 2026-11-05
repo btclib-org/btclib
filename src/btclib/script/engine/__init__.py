@@ -390,7 +390,8 @@ def _verify_witness_program(
         raise ScriptError(err_msg, code)
 
 
-def verify_input(
+# one function, as Core's VerifyScript is, which the docstring maps it to
+def verify_input(  # sourcery skip: low-code-quality
     prevouts: list[TxOut],
     tx: Tx,
     i: int,

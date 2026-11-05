@@ -223,12 +223,13 @@ def _assert_valid_index(index: int, what: str, *, check_validity: bool) -> None:
     """
     if not isinstance(index, int):
         raise BTClibTypeError(f"invalid {what} type: {type(index).__name__}")
-    # a bool is an int and would read as index one or zero, which the
-    # range check below cannot tell from an index whose value that is
-    if check_validity and isinstance(index, bool):
-        raise BTClibTypeError(f"invalid {what} type: bool")
-    if check_validity and not 0 <= index <= MAX_BLOCK_TX_INDEX:
-        raise BTClibValueError(f"invalid {what}: {_message_text(index)}")
+    if check_validity:
+        # a bool is an int and would read as index one or zero, which the
+        # range check below cannot tell from an index whose value that is
+        if isinstance(index, bool):
+            raise BTClibTypeError(f"invalid {what} type: bool")
+        if not 0 <= index <= MAX_BLOCK_TX_INDEX:
+            raise BTClibValueError(f"invalid {what}: {_message_text(index)}")
 
 
 def _assert_previous_index(previous_index: int, *, check_validity: bool) -> None:

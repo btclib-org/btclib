@@ -1543,8 +1543,8 @@ def test_script_from_script_pub_key_does_not_quote_what_it_refuses() -> None:
     The decoder's refusal is chained as the cause, and quotes nothing either.
     """
     wif = "L4rK1yDtCWekvXuE6oXD9jCYfFNV2cWRpVuPLBcCU2z8TrisoyY1"
+    err = "^neither a script nor an address$"
     for spelling in (f"bc1{wif}", wif):
-        err = "^neither a script nor an address$"
         with pytest.raises(BTClibValueError, match=err) as exc_info:
             script_from_script_pub_key(spelling)
         cause = exc_info.value.__cause__

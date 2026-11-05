@@ -1110,7 +1110,7 @@ def test_message_verify_reads_no_white_space_in_a_signature(space: str) -> None:
 def test_message_verify_refuses_what_is_not_the_canonical_base64(sig: str) -> None:
     """The empty text is valid base64 of no bytes: a length, not a spelling."""
     expected = _Result.ERR_MALFORMED_SIGNATURE
-    if sig == "":
+    if not sig:
         expected = _Result.ERR_PUBKEY_NOT_RECOVERED
     assert _core(sig=sig) is expected
 

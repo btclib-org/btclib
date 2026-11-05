@@ -446,7 +446,7 @@ def test_every_heading_of_the_pin_file_is_checked_or_named_once(
         if heading not in checked
         and not any(line.startswith(f"{heading} (") for line in skipped)
     ]
-    assert unreported == []
+    assert not unreported
 
 
 def test_a_block_with_no_heading_before_it_has_an_empty_one(
@@ -935,7 +935,7 @@ def test_main_dry_run_prints_but_never_calls_issue(
         " new0000 (2026-01-01), which may have deleted or renamed it"
     ) in out
     assert "SKIPPED: stale (already documented as behind)" in out
-    assert not any(call[1] == "issue" for call in fake_gh.calls)
+    assert all(call[1] != "issue" for call in fake_gh.calls)
 
 
 def test_main_reports_and_says_nothing_drifted_when_clean(
@@ -1254,7 +1254,7 @@ def test_every_vendored_file_the_pin_file_names_is_the_blob_it_records(
     wrong = [
         pin.local for pin in pins if checker._git_blob(Path(pin.local)) != pin.expected
     ]
-    assert wrong == []
+    assert not wrong
 
 
 def test_a_failed_upstream_call_is_a_mismatch_and_the_issue_is_still_dealt_with(
@@ -1304,7 +1304,7 @@ def test_every_file_the_pin_file_names_is_marked_minus_text(
         encoding="utf-8",
     ).stdout
     missing = [line for line in out.splitlines() if not line.endswith(": text: unset")]
-    assert missing == [], "add `<path> -text` to .gitattributes"
+    assert not missing, "add `<path> -text` to .gitattributes"
 
 
 def _failing_gh(

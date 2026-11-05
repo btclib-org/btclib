@@ -492,10 +492,9 @@ def _slab_edges(
     """
     edges = {}
     for file, names in imports_by_file.items():
-        reached = sorted(
+        if reached := sorted(
             n for n in names if any(n == r or n.startswith(f"{r}.") for r in slab_roots)
-        )
-        if reached:
+        ):
             edges[file] = reached
     return edges
 

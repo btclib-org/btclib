@@ -893,7 +893,7 @@ def test_join() -> None:
     # swallow one
     params = inspect.signature(join).parameters
     assert "merge_out" not in params
-    assert not any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+    assert all(p.kind is not inspect.Parameter.VAR_KEYWORD for p in params.values())
 
 
 def test_join_shuffles_only_when_it_is_told_to(

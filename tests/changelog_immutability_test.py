@@ -390,7 +390,8 @@ def _exemptions_no_verdict_can_reach(
     """
     comparable = {key for key, _, _, _ in _comparable_exemptions(drift)}
     unreachable: list[tuple[str, str]] = []
-    for path, version in drift:
+    # the keys are the pairs: items() would pair a key with its _Drift
+    for path, version in drift:  # sourcery skip: missing-dict-items
         if (path, version) in comparable:
             continue
         if version == _newest_released(path) and not _tag_resolves(version):

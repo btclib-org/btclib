@@ -312,8 +312,7 @@ def _class_sites(
         if id(target) in seen_ids:
             continue
         seen_ids.add(id(target))
-        kwonly = _kwonly_names(inspect.signature(bound))
-        if kwonly:
+        if kwonly := _kwonly_names(inspect.signature(bound)):
             found[f"{module.__name__}:{name}.{attr_name}"] = kwonly
     return found
 
@@ -341,13 +340,12 @@ def _live_keyword_only() -> dict[str, list[str]]:
         for name in module.__all__:
             obj = getattr(module, name)
             if inspect.isclass(obj):
-                found.update(_class_sites(module, name, obj, seen_ids))
+                found |= _class_sites(module, name, obj, seen_ids)
             elif inspect.isfunction(obj) or inspect.isbuiltin(obj):
                 if id(obj) in seen_ids:
                     continue
                 seen_ids.add(id(obj))
-                kwonly = _kwonly_names(inspect.signature(obj))
-                if kwonly:
+                if kwonly := _kwonly_names(inspect.signature(obj)):
                     found[f"{module.__name__}:{name}"] = kwonly
     return found
 

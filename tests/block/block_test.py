@@ -335,8 +335,7 @@ def _unjudged_header(**fields: object) -> BlockHeader:
         "time": datetime(2020, 1, 1, tzinfo=UTC),
         "bits": bytes.fromhex("1d00ffff"),
         "nonce": 0,
-    }
-    values.update(fields)
+    } | fields
     return BlockHeader(**values, check_validity=False)  # type: ignore[arg-type]
 
 
@@ -727,15 +726,15 @@ def test_block_481824() -> None:
         if i:  # segwit nodes see the witness data
             assert block.is_segwit
             assert block.size == 989_323
-            assert block.stripped_size == 988_519
             assert block.weight == 3_954_880
             assert block.vsize == 988_720
         else:  # legacy nodes see NO witness data
             assert not block.is_segwit
             assert block.size == 988_519
-            assert block.stripped_size == 988_519
             assert block.weight == 3_954_076
             assert block.vsize == 988_519
+
+        assert block.stripped_size == 988_519
 
 
 def test_vsize_rounds_up_a_weight_that_is_not_a_multiple_of_four() -> None:

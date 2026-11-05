@@ -292,8 +292,7 @@ def _detect_offset_trees(pos: int, leaves: int) -> int:
     bigger = 0
     marker = pos
     while (marker << row) & ((2 << rows) - 1) >= (1 << rows) & leaves:
-        size = (1 << rows) & leaves
-        if size:
+        if size := (1 << rows) & leaves:
             marker -= size
             bigger += 1
         rows -= 1
@@ -710,7 +709,7 @@ class Proof:
             found_hash = next((h for p, h in update_data.new_add if p == pos), None)
             if found_hash is not None:
                 proof.append((pos, found_hash))
-            elif not any(p == pos for p, _ in proof):
+            elif all(p != pos for p, _ in proof):
                 raise BTClibValueError(f"no proof hash for position {pos}")
         proof.sort()
         return Proof(new_targets, [h for _, h in proof]), tuple(h for _, h in targets)

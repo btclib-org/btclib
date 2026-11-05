@@ -426,6 +426,19 @@ def _mutations(draw: st.DrawFn, slots: int) -> list[tuple[int, int, int]]:
     return [draw(edit) for _ in range(count)]
 
 
+def _edited(slots: list[bytes], edits: list[tuple[int, int, int]]) -> list[bytes]:
+    """Apply the edits `_mutations` draws to a copy of the slots."""
+    edited = list(slots)
+    for slot, position, mask in edits:
+        data = bytearray(edited[slot])
+        if data:
+            data[position % len(data)] ^= mask
+        else:
+            data = bytearray([mask])
+        edited[slot] = bytes(data)
+    return edited
+
+
 def _flags_from(chosen: set[ScriptFlag]) -> ScriptFlag:
     flags = NO_FLAGS
     for flag in chosen:
@@ -478,7 +491,7 @@ def spends(
     tx = Tx(draw(st.sampled_from([1, 2, 3])), draw(_U32), vin, vout)
 
     hash_type = draw(
-        st.sampled_from(_HASH_TYPES if not template.schnorr else [0, *_HASH_TYPES])
+        st.sampled_from([0, *_HASH_TYPES] if template.schnorr else _HASH_TYPES)
     )
     # BIP341 has no hash for SIGHASH_SINGLE without a matching output
     if template.schnorr and hash_type & 3 == 3 and index >= len(vout):
@@ -498,14 +511,7 @@ def spends(
     script_pub_key = template.script_pub_key
     if not valid:
         slots = [script_sig, script_pub_key, *witness]
-        for slot, position, mask in draw(_mutations(len(slots))):
-            data = bytearray(slots[slot])
-            if data:
-                data[position % len(data)] ^= mask
-            else:
-                data = bytearray([mask])
-            slots[slot] = bytes(data)
-        script_sig, script_pub_key, *rest = slots
+        script_sig, script_pub_key, *rest = _edited(slots, draw(_mutations(len(slots))))
         witness = tuple(rest)
     prevouts[index] = TxOut(value, script_pub_key)
     vin[index] = TxIn(

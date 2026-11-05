@@ -229,8 +229,8 @@ def test_truncated_encoding_is_rejected(i: int) -> None:
     encoded = var_int.serialize(i)
     if len(encoded) == 1:
         return
+    err_msg = "not enough binary data for var_int"
     for length in range(1, len(encoded)):
-        err_msg = "not enough binary data for var_int"
         with pytest.raises(BTClibValueError, match=err_msg):
             var_int.parse(encoded[:length], max_size=0xFFFFFFFFFFFFFFFF)
 

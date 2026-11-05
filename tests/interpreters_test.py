@@ -216,8 +216,7 @@ def _declared() -> dict[str, tuple[str, ...]]:
     for workflow in _WORKFLOWS:
         if workflow.name == "deps-latest.yml":
             continue
-        listed = _interpreters(workflow.read_text(encoding="utf-8"))
-        if listed:
+        if listed := _interpreters(workflow.read_text(encoding="utf-8")):
             found[workflow.name] = tuple(sorted(listed))
     return found
 

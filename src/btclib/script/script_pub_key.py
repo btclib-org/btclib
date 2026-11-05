@@ -95,9 +95,7 @@ def address(script_pub_key: Octets, network: str | Network = "mainnet") -> str:
     # script from a script that has no address: `None` is falsy just as
     # `b""` is, so a caller passing one was answered "" -- the answer a
     # nulldata output has, and not a word about the argument
-    script_pub_key = bytes_from_octets(script_pub_key)
-
-    if script_pub_key:
+    if script_pub_key := bytes_from_octets(script_pub_key):
         script_type, payload = type_and_payload(script_pub_key)
         if script_type in {"p2pkh", "p2sh"}:
             return b58.address_from_h160(script_type, payload, network)

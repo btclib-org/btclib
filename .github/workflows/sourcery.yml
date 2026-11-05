@@ -1,0 +1,42 @@
+---
+name: sourcery
+
+# Sourcery's rules over this pull request's Python files. The job, its
+# pins and the choice between those files and the whole tree are
+# btclib-org/.github's reusable-sourcery.yml; what is this tree's is the
+# trigger.
+#
+# No paths filter on pull_request, for the reason section 10 of
+# btclib-org/.github's README.md gives: a required check that produces
+# no run blocks the merge. REPOSITORY.md says whether main requires it.
+#
+# No push trigger and no workflow_dispatch, departures that section's
+# paragraph on this job states: what it reads is a pull request's files
+# against its base branch, and neither event carries one.
+
+on:
+  pull_request:
+    # closed so the merge lands in the pull request's own concurrency
+    # group, as section 10 has every pull_request trigger do; the job's
+    # if declines it, and a draft
+    types: [opened, reopened, synchronize, ready_for_review, closed]
+
+# least privilege for the GITHUB_TOKEN, which a called workflow cannot
+# widen: the job reads the tree and writes nothing
+permissions:
+  contents: read
+
+concurrency:
+  # named literally rather than through github.workflow, as everywhere
+  # else here. No push trigger, so the merged run is not cancelled: it
+  # is the last reading the merged files get
+  group: sourcery-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !(github.event.action == 'closed' && github.event.pull_request.merged) }}
+
+jobs:
+  # the job itself is btclib-org/.github's, called at a tagged commit
+  # (section 10 of btclib-org/.github's README.md); what stays here is the
+  # trigger
+  sourcery:
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
+    uses: btclib-org/.github/.github/workflows/reusable-sourcery.yml@5be4b0fbb5231cff001a3ee0eaa8f7d82bffef11 # v2026.11.5

@@ -180,15 +180,11 @@ jobs:
       # see the docs job above
       concurrency-suffix: "-release"
 
-  # and the one required check on main this workflow was not asking for.
-  # `regtest / Regtest against Bitcoin Core` gates every merge, which is
-  # why it was left out and why leaving it out was wrong: a rehearsal is
-  # dispatched from a branch, and a tag is pushed at a commit whose merge
-  # that check answered for -- but the calls to test.yml, lint.yml and
-  # docs.yml are every one of them a required check too, made again here
-  # for exactly that reason. integration-bitcoind.yml declared
-  # `workflow_call` for this from the day it became a gate; nothing had
-  # ever called it
+  # and `regtest / Regtest against Bitcoin Core`, a required check on main
+  # made again here, as the calls above make the required checks they can:
+  # a rehearsal runs from any branch. RELEASING.md's step "Check that every
+  # job you expected actually ran" names the required checks a release
+  # does not make
   integration-bitcoind:
     name: Run the integration-bitcoind workflow
     uses: $/.github/workflows/integration-bitcoind.yml

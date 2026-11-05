@@ -36,7 +36,8 @@ def test_conversions() -> None:
         with localcontext() as ctx:
             ctx.traps[FloatOperation] = trap_float_operation
 
-            assert 1.1 + 2.2 != 3.3
+            # the float addition is what is asserted, so it is not folded
+            assert 1.1 + 2.2 != 3.3  # sourcery skip: simplify-numeric-comparison
             assert Decimal("1.1") + Decimal("2.2") == Decimal("3.3")
 
             assert btc_from_sats(10000) == Decimal("0.00010000")

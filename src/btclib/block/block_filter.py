@@ -430,8 +430,7 @@ class BasicBlockFilter:
                 if script and script[0] != _OP_RETURN:
                     elements.add(script)
         for prevout_script in prevout_scripts:
-            script = bytes_from_octets(prevout_script)
-            if script:
+            if script := bytes_from_octets(prevout_script):
                 elements.add(script)
 
         block_hash = block.header.hash

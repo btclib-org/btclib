@@ -170,8 +170,8 @@ def test_strategy_draws_valid_payloads(payload: Payload) -> None:
     """Every payload drawn passes `assert_valid`, a block with regtest's."""
     # `Payload` declares no `assert_valid`; every subclass has one
     checked: Any = payload
-    if isinstance(payload, BlockPayload):
-        payload.block.assert_valid(REGTEST_POW_LIMIT_BITS)
+    if isinstance(checked, BlockPayload):
+        checked.block.assert_valid(REGTEST_POW_LIMIT_BITS)
     else:
         checked.assert_valid()
 

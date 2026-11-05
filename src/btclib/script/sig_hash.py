@@ -923,14 +923,16 @@ def _taproot(
     if not anyone_can_pay or all_outputs:
         if precomputed is None:
             precomputed = PrecomputedTxData(transaction, prevouts)
-        if not anyone_can_pay:
+        # the two ifs below stay inside the outer one, where mypy knows
+        # `precomputed` is not None; hoist-if-from-if would move them out
+        if not anyone_can_pay:  # sourcery skip: hoist-if-from-if
             parts += [
                 precomputed.sha_prevouts,
                 precomputed.sha_amounts,
                 precomputed.sha_script_pub_keys,
                 precomputed.sha_sequences,
             ]
-        if all_outputs:
+        if all_outputs:  # sourcery skip: hoist-if-from-if
             parts.append(precomputed.sha_outputs)
 
     parts.append(_serialized_spend_type(ext_flag, annex_present))

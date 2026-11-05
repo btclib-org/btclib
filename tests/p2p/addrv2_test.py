@@ -646,8 +646,7 @@ def test_an_entry_refuses_a_field_no_width_holds(
         "network_id": BIP155Network.IPV4,
         "address": bytes(4),
         "port": 0,
-    }
-    fields.update(kwargs)
+    } | kwargs
     with pytest.raises(exception, match=match):
         NetworkAddressV2(**fields)  # type: ignore[arg-type]
 

@@ -683,6 +683,7 @@ a force.
 | `sdist-rebuild` | weekly | the latest release's sdist, rebuilt |
 | `release-diff` | pull request on `src/` | the last release |
 | `api-break` | pull request | the pull request's base |
+| `sourcery` | pull request | — |
 | `release` | a tag | the workflows `release.yml` names in a `uses:` |
 
 That last cell is a pointer rather than a list on purpose: which
@@ -697,10 +698,11 @@ A `when` cell leaves out a `pull_request` trigger that `paths:` filters.
 Such a workflow also runs on a pull request that changes a file its
 `paths:` names.
 
-The `test`, `lint`/`docs` and `integration-bitcoind` rows are what a
-merge waits for, and between them they report the required checks, which
-`REPOSITORY.md` names. They run one image on one interpreter: `ubuntu-latest`,
-and the version `.python-version` names.
+The `test`, `lint`/`docs`, `integration-bitcoind` and `sourcery` rows are
+what a merge waits for, and between them they report the required checks,
+which `REPOSITORY.md` names. The `test`, `lint`/`docs` and
+`integration-bitcoind` rows run one image on one interpreter:
+`ubuntu-latest`, and the version `.python-version` names.
 
 `verified-signatures` reports after each push to `main` whether every
 commit pushed is `verified`; [the standard's *Signatures*][s-sigs] has the
@@ -744,18 +746,18 @@ with the gate's cell cut out of it is one nobody can read the shape of,
 and whoever asked what ran would have to re-derive the hole from
 `test.yml`.
 
-`os-ubuntu`, `os-macos` and `os-windows` hold the dependencies at the lock and move
-the platform; `deps-latest` moves both. Red in one of the three with `deps-latest`
-green is that platform; red in both is the upgrade. Every workflow in the
-table also takes `workflow_dispatch`, the gates included: a branch whose
-pull request is not open yet has no other way to ask, and for the three
-platform workflows it is the only way to ask about a branch at all.
-`claude-review` and `scorecard` are the exceptions, and take none:
-`claude-review`'s job calls a workflow whose two jobs each read the pull
-request or the comment that triggered them, so a manual dispatch would
-start a run with nothing to read; `scorecard`'s triggers are
-`ossf/scorecard-action`'s own, whose README names push and schedule as
-supported and calls `workflow_dispatch` experimental.
+`os-ubuntu`, `os-macos` and `os-windows` hold the dependencies at the lock and
+move the platform; `deps-latest` moves both. Red in one of the three with
+`deps-latest` green is that platform; red in both is the upgrade. Every workflow
+in the table also takes `workflow_dispatch`, the gates included: a branch whose
+pull request is not open yet has no other way to ask, and for the three platform
+workflows it is the only way to ask about a branch at all. `claude-review`,
+`sourcery` and `scorecard` are the exceptions, and take none: `claude-review`'s
+job calls a workflow whose two jobs each read the pull request or the comment
+that triggered them, so a manual dispatch would start a run with nothing to
+read; `sourcery`'s reason is its own header's; `scorecard`'s triggers are
+`ossf/scorecard-action`'s own, whose README names push and schedule as supported
+and calls `workflow_dispatch` experimental.
 
 ### Reproducing what CI runs
 
@@ -1323,13 +1325,13 @@ to answer. Keep them deterministic, which for `ssa.sign` means passing
 those pages a published test vector, so that a reader who copies one copies
 something already known to the world.
 
-The only check with no local equivalent is `codeql`: the analysis needs the
-CodeQL bundle and a database, which is a download rather than a `uv`
-command, so `.github/workflows/codeql.yml` is where it is configured and
-GitHub's runners are where it happens. It runs on every pull request now,
-alongside `push` to `main` and its weekly schedule, so its findings reach
-a branch before a merge rather than only after one; `REPOSITORY.md` has
-why it is still not a required check.
+`codeql` has no local equivalent: the analysis needs the CodeQL bundle and a
+database, which is a download rather than a `uv` command, so
+`.github/workflows/codeql.yml` is where it is configured and GitHub's runners
+are where it happens. It runs on every pull request now, alongside `push` to
+`main` and its weekly schedule, so its findings reach a branch before a merge
+rather than only after one; `REPOSITORY.md` has why it is still not a required
+check.
 
 ### Breaking a caller is not an argument
 
