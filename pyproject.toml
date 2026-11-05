@@ -156,7 +156,7 @@ bip324 = ["cryptography>=42.0.0"]
 testing = ["hypothesis>=6.168.0"]
 
 [project.urls]
-homepage = "https://btclib.readthedocs.io/"
+homepage = "https://btclib.org/btclib/"
 documentation = "https://btclib.readthedocs.io/"
 download = "https://github.com/btclib-org/btclib/releases"
 changelog = "https://github.com/btclib-org/btclib/blob/main/RELEASE_NOTES.md"
