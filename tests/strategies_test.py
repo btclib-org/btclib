@@ -7,10 +7,10 @@
 from typing import Any
 
 import pytest
-from hypothesis import find, given
+from hypothesis import example, find, given
 
 from btclib.alias import ScriptType
-from btclib.block import Block, BlockHeader
+from btclib.block import Block, BlockHeader, genesis_block
 from btclib.block.partial_merkle_tree import _MAX_TRANSACTIONS
 from btclib.block.proof_of_work import REGTEST_POW_LIMIT_BITS
 from btclib.p2p import (
@@ -166,6 +166,13 @@ def test_strategies_draw_valid_p2p_values(
 
 
 @given(payload=PAYLOADS)
+# PAYLOADS draws a block payload on most runs, not all: the example
+# takes the block branch on every run
+@example(
+    payload=BlockPayload(
+        genesis_block("regtest"), include_witness=False, check_validity=False
+    )
+)
 def test_strategy_draws_valid_payloads(payload: Payload) -> None:
     """Every payload drawn passes `assert_valid`, a block with regtest's."""
     # `Payload` declares no `assert_valid`; every subclass has one
