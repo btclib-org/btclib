@@ -45,8 +45,10 @@ def _network_to_json(network: str | Network) -> str | dict[str, str | None]:
     except BTClibValueError:
         back = None
     if back != network:
-        err_msg = "network cannot be written as json: "
-        err_msg += "its curve or consensus row is not one btclib names"
+        err_msg = (
+            "network cannot be written as json: "
+            "its curve or consensus row is not one btclib names"
+        )
         raise BTClibValueError(err_msg)
     return dict_
 

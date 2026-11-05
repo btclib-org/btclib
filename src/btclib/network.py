@@ -713,10 +713,7 @@ def _assert_network(network: Network) -> None:
 
 def _entry_name(network: Network) -> str | None:
     """Return the name of the NETWORKS entry equal to a Network, if any."""
-    for name, net in NETWORKS.items():
-        if net == network:
-            return name
-    return None
+    return next((name for name, net in NETWORKS.items() if net == network), None)
 
 
 def _network_from(network: str | Network) -> Network:

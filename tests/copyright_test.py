@@ -81,7 +81,7 @@ def _license_holder() -> str:
     text = (_ROOT / "LICENSE").read_text(encoding="utf-8")
     match = re.search(_LICENSE_RE, text)
     assert match, f"LICENSE has no 'Copyright (c) holder' line: {text[:80]!r}"
-    return match.group(1)
+    return match[1]
 
 
 def _copyright_holder() -> str:
@@ -89,7 +89,7 @@ def _copyright_holder() -> str:
     assert match, (
         f"btclib.__copyright__ does not match the expected shape: {btclib.__copyright__!r}"
     )
-    return match.group(1)
+    return match[1]
 
 
 def _pyproject_author() -> str:
@@ -110,7 +110,7 @@ def _conf_author_expr() -> str:
     text = (_ROOT / "docs" / "source" / "conf.py").read_text(encoding="utf-8")
     match = re.search(_CONF_AUTHOR_RE, text)
     assert match, "docs/source/conf.py has no top-level 'author = ...' line"
-    return match.group(1)
+    return match[1]
 
 
 def test_license_and_copyright_name_the_same_holder() -> None:

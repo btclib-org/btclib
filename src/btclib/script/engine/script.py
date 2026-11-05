@@ -682,7 +682,7 @@ VERIFY_CODES: Mapping[str, ScriptErrorCode] = {
 # what the OPERATIONS table cannot hold, read against Core's EvalScript:
 # the op codes needing the engine's own state, and the pushes matched by
 # shape rather than by name
-def _run_ops(  # noqa: C901, PLR0912
+def _run_ops(  # noqa: C901, PLR0912  # sourcery skip: low-code-quality
     script_bytes: bytes,
     stack: list[bytes],
     altstack: list[bytes],
@@ -809,7 +809,7 @@ def _run_ops(  # noqa: C901, PLR0912
                     break
                 pub_key = pub_keys[pub_key_index]
                 signature = multisig_signatures[signature_index]
-                accepted = op_checksig(
+                if op_checksig(
                     signature,
                     multisig_signatures,
                     pub_key,
@@ -823,8 +823,7 @@ def _run_ops(  # noqa: C901, PLR0912
                     precomputed,
                     hash_types,
                     sighash_cache,
-                )
-                if accepted:
+                ):
                     if signatures is not None:
                         signatures.append((pub_key, signature))
                     signature_index += 1

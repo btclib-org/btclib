@@ -321,8 +321,7 @@ def assert_no_trailing(data: BinaryData, stream: BytesIO, what: str) -> None:
     if isinstance(data, BytesIO):
         return
 
-    trailing = stream.read()
-    if trailing:
+    if trailing := stream.read():
         raise BTClibValueError(f"{len(trailing)} bytes after the {what}")
 
 
@@ -683,7 +682,7 @@ def int_from_integer(i: Integer) -> int:
             # prefix is checked against ASCII hex first. The refusal does
             # not quote the string, which may be a private key
             digits = i[3:] if i[0] == "-" else i[2:]
-            if not digits or not all(c in "0123456789abcdef" for c in digits):
+            if not digits or any(c not in "0123456789abcdef" for c in digits):
                 err_msg = "invalid hex integer: what follows 0x is not ASCII hex digits"
                 raise BTClibValueError(err_msg)
             return int(i, 16)

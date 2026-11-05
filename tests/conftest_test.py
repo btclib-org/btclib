@@ -492,7 +492,7 @@ def test_cov_is_not_the_last_token_of_addopts() -> None:
     match = re.search(r'^addopts = "(.*)"$', text, re.MULTILINE)
     assert match, "pyproject.toml has no single-line 'addopts = \"...\"'"
 
-    addopts = match.group(1).split()
+    addopts = match[1].split()
     assert "--cov" in addopts, "the local coverage gate is --cov in addopts"
     assert addopts[-1] != "--cov", (
         "--cov is the last token of addopts, so it will swallow the first "

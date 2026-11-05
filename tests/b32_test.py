@@ -411,8 +411,10 @@ def test_a_conversion_takes_integers_only() -> None:
         b32.power_of_2_base_conversion(None, 8, 5)  # type: ignore[arg-type]
 
     # any iterable of integers, a one-shot generator included: it is read
-    # once, into the list the values are checked in
-    assert b32.power_of_2_base_conversion((x for x in b"ab"), 8, 5) == [12, 5, 17, 0]
+    # once, into the list the values are checked in. The skip keeps the
+    # generator, which is the input under test, from becoming iter()
+    one_shot = (x for x in b"ab")  # sourcery skip: simplify-generator
+    assert b32.power_of_2_base_conversion(one_shot, 8, 5) == [12, 5, 17, 0]
 
 
 def test_p2wpkh_p2sh() -> None:

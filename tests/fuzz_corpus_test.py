@@ -160,10 +160,14 @@ def _stateful_seeds(tree: ast.Module) -> tuple[str, ...]:
 
 def _fuzz_target(tree: ast.Module) -> ast.FunctionDef | None:
     """Return the module-level `def fuzz_target(...)`, or None."""
-    for node in tree.body:
-        if isinstance(node, ast.FunctionDef) and node.name == "fuzz_target":
-            return node
-    return None
+    return next(
+        (
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "fuzz_target"
+        ),
+        None,
+    )
 
 
 def _import_bindings(tree: ast.Module) -> dict[str, tuple[str, str]]:
@@ -298,7 +302,8 @@ def _written_settles(spec: str, obj: Any) -> bool:
     if obj[-1:] == [script.ERROR_COMMAND]:
         # a place in the bytes and not an instruction, which serialize refuses
         obj = obj[:-1]
-    return bool(reparse(write(obj)) == obj)
+    # bool() because `==` on Any is Any, which mypy refuses to return
+    return bool(reparse(write(obj)) == obj)  # sourcery skip: remove-unnecessary-cast
 
 
 def _round_trip(spec: str, obj: Any, data: bytes) -> bool | None:
@@ -315,7 +320,9 @@ def _round_trip(spec: str, obj: Any, data: bytes) -> bool | None:
     if attr == "b64decode":
         if not hasattr(obj, "b64encode"):
             return None
-        return bool(obj.b64encode() == data.decode("ascii"))
+        # typed, because `==` on Any is Any, which mypy refuses to return
+        encoded: str = obj.b64encode()
+        return encoded == data.decode("ascii")
     if not hasattr(obj, "serialize"):
         return None
     return _reserialize(obj) == data

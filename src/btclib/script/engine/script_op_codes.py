@@ -257,7 +257,7 @@ def assert_minimal_push(
     """
     if ScriptFlag.MINIMALDATA not in flags:
         return
-    if (len(data) == 1 and (data[0] == 129 or 0 < data[0] <= 16)) or len(data) == 0:
+    if (len(data) == 1 and (data[0] == 129 or 0 < data[0] <= 16)) or not data:
         raise ScriptError(
             f"non-minimal push: OP_0, OP_1NEGATE, or OP_1-OP_16 "
             f"should have been used for {data.hex()!r}",

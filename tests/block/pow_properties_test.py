@@ -202,12 +202,11 @@ def test_a_timewarp_is_refused_where_bip94_is_enforced(
     )
     header = BlockHeader(time=EPOCH + timedelta(seconds=time), check_validity=False)
 
-    refused = (
+    if (
         consensus.enforce_bip94
         and (parent_height + 1) % interval == 0
         and behind > MAX_TIMEWARP
-    )
-    if refused:
+    ):
         with pytest.raises(BTClibValueError, match="timewarp attack"):
             assert_not_timewarp(header, parent, parent_height, consensus)
     else:

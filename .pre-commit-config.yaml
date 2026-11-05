@@ -809,6 +809,16 @@ repos:
         language: pygrep
         entry: '#\s*pragma: no (cover|branch)$'
         types: [python]
+      # section 4 of the standard, its bare-sourcery-skip bullet, is the
+      # rule. pygrep reads bytes, so \s and \w are ASCII there and \W
+      # takes in a non-breaking space; a block scalar with no literal
+      # space, as local-link-prefix's, for the same reason
+      - id: bare-sourcery-skip
+        name: a sourcery skip names rules, and no tag
+        language: pygrep
+        entry: |-
+          #\W*sourcery\W+skip(?!:)|#\W*sourcery\W+skip:[^#]*(?<![\w-])(?:default|refactoring|suggestion|comment)(?![\w-])
+        types: [python]
   # not the mirrors-mypy hook: it injects --ignore-missing-imports, which
   # turns an unresolved (or misspelled) import into Any, the opposite of
   # strict, and it type checks in an isolated environment, where every

@@ -65,6 +65,11 @@ repos/btclib-org/btclib/branches/main/protection --jq
 | `regtest / Regtest against Bitcoin Core` | `integration-bitcoind.yml` |
 | `lint / Dependency review` | `lint.yml`, calling `reusable-lint.yml` |
 | `lint / Sign-off` | `lint.yml`, calling `reusable-lint.yml` |
+| `sourcery / Sourcery` | `sourcery.yml`, calling `reusable-sourcery.yml` |
+
+The command answers these checks in this order, each with `app_id` 15368,
+and `.required_status_checks.strict` is false. Read at
+2026-11-05T07:18:27Z.
 
 A merge waits for all of these checks unless an administrator lands it
 with `--admin`: `enforce_admins` is off (*Branch protection*).
@@ -92,9 +97,14 @@ workflows contributes no name of its own: the context joins the calling
 job's id to the called job's `name:`, so `docs.yml`'s `docs` job calling
 `reusable-docs.yml`, whose own job is named `Build the documentation`,
 produces `docs / Build the documentation`. `lint.yml` calls
-`reusable-lint.yml` and `integration-bitcoind.yml` calls
-`reusable-integration-bitcoind.yml` the same way (issues
-btclib-org/.github#35 and btclib-org/.github#1196).
+`reusable-lint.yml`, `integration-bitcoind.yml` calls
+`reusable-integration-bitcoind.yml` and `sourcery.yml` calls
+`reusable-sourcery.yml` the same way (issues btclib-org/.github#35 and
+btclib-org/.github#1196).
+
+`sourcery / Sourcery` is in the set: [section 10 of the
+standard](https://github.com/btclib-org/.github#the-set-and-its-cadence)
+says when a tree requires it.
 
 `regtest / Regtest against Bitcoin Core` is here because its cost was measured
 rather than assumed: 36 seconds of work for a disposable regtest node, which is
@@ -142,7 +152,8 @@ gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
     {"context": "lint / Lint and type-check", "app_id": 15368},
     {"context": "regtest / Regtest against Bitcoin Core", "app_id": 15368},
     {"context": "lint / Dependency review", "app_id": 15368},
-    {"context": "lint / Sign-off", "app_id": 15368}
+    {"context": "lint / Sign-off", "app_id": 15368},
+    {"context": "sourcery / Sourcery", "app_id": 15368}
   ]
 }
 JSON

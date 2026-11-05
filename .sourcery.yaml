@@ -1,0 +1,28 @@
+---
+# Sourcery's configuration, which the job sourcery.yml calls reads.
+# Section 10 of btclib-org/.github's README.md, *The set, and its
+# cadence*, says what it holds. The rules turned off are TURNED_OFF's in
+# that repository's tests/hooks_test.py, each with its reason beside it.
+version: "1"
+
+rule_settings:
+  disable:
+    - reintroduce-else # undoes ruff's superfluous-else-return
+    - use-fstring-for-concatenation # folds a by_hand hint into the f-string it joins
+    - dont-import-test-modules # refuses `from tests import`, the shared helpers' path
+    - assign-if-exp # ruff's if-else-block-instead-of-if-exp
+    - comprehension-to-generator # ruff's unnecessary-comprehension-in-call
+    - de-morgan # ruff's negate-equal-op, negate-not-equal-op, double-negation, not-in-test
+    - equality-identity # ruff's comparison-with-itself
+    - for-append-to-extend # ruff's manual-list-copy, manual-list-comprehension
+    - identity-comprehension # ruff's unnecessary-comprehension
+    - list-comprehension # ruff's manual-list-comprehension
+    - merge-comparisons # ruff's repeated-equality-comparison
+    - merge-duplicate-blocks # ruff's if-with-same-arms
+    - merge-else-if-into-elif # ruff's collapsible-else-if
+    - remove-redundant-fstring # ruff's f-string-missing-placeholders
+    - remove-unnecessary-else # ruff's superfluous-else-return
+    - simplify-boolean-comparison # ruff's true-false-comparison
+  # the lowest interpreter this tree's code runs on: pyproject.toml's
+  # requires-python floor
+  python_version: "3.11"

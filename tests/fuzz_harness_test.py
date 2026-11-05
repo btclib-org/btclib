@@ -44,12 +44,15 @@ _SEEDS = tuple(
 
 def _requires(path: Path) -> tuple[str, ...]:
     """Return the harness's `REQUIRES`, read without importing it."""
-    for node in ast.parse(path.read_text(encoding="utf-8")).body:
-        if isinstance(node, ast.Assign) and [
-            ast.unparse(target) for target in node.targets
-        ] == ["REQUIRES"]:
-            return tuple(ast.literal_eval(node.value))
-    return ()
+    return next(
+        (
+            tuple(ast.literal_eval(node.value))
+            for node in ast.parse(path.read_text(encoding="utf-8")).body
+            if isinstance(node, ast.Assign)
+            and [ast.unparse(target) for target in node.targets] == ["REQUIRES"]
+        ),
+        (),
+    )
 
 
 def _fuzz_target(

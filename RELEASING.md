@@ -633,7 +633,9 @@ to `deps-latest`'s own result.
    account, its guard being the push. `Run the lint workflow / lint /
    Dependency review` and `Run the lint workflow / lint / Sign-off` are
    `skipped` on every run, as they run only on a `pull_request`; a
-   tagged commit had both checks on its own pull request. Everything
+   tagged commit had both checks on its own pull request. `sourcery /
+   Sourcery` is not in the list at all: release.yml does not call
+   sourcery.yml, which also runs only on a `pull_request`. Everything
    else should be `success`.
 
 1. Read the `documented` job rather than the site: read the docs activates

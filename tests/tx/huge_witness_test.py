@@ -51,7 +51,7 @@ def test_the_witness_is_all_but_a_few_bytes_of_it() -> None:
     assert len(tx.vin) == 1
     stack = tx.vin[0].script_witness.stack
     assert len(stack) > 100_000
-    assert sum(1 for item in stack if item) == 2
+    assert sum(bool(item) for item in stack) == 2
 
 
 def test_the_stack_is_built_only_when_read() -> None:

@@ -217,8 +217,9 @@ def replace_unchecked(instance: Any, **changes: Any) -> Any:
     mutation a frozen instance now refuses. Witness is the exception: its
     field is its serialization, which its constructor does not take.
     """
-    current = {field.name: getattr(instance, field.name) for field in fields(instance)}
-    current.update(changes)
+    current = {
+        field.name: getattr(instance, field.name) for field in fields(instance)
+    } | changes
     return type(instance)(**current, check_validity=False)
 
 

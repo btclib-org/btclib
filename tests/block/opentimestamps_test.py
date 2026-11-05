@@ -244,7 +244,7 @@ def test_one_changed_byte_of_a_header_is_refused(name: str, height: int) -> None
         return {**_HEADERS, str(height): {**entry, "header": _flipped(header, i).hex()}}
 
     kept = [i for i in range(len(header)) if not _refused(proof, changed(i))]
-    assert kept == []
+    assert not kept
 
 
 # A header with valid proof of work on the real genesis at nBits 1d00ffff

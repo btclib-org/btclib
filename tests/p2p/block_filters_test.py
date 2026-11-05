@@ -315,8 +315,9 @@ def test_getcfilters_and_getcfheaders_are_one_body_under_two_commands() -> None:
     assert asked.serialize() == other.serialize()
     # through `object`, because mypy refuses the direct comparison as
     # non-overlapping -- which is the property being asserted, said
-    # statically; what runs here is the runtime half of it
-    either: object = asked
+    # statically; what runs here is the runtime half of it. `asked` stays
+    # below, where `either` would have mypy refuse the attributes
+    either: object = asked  # sourcery skip: use-assigned-variable
     assert either != other
     assert asked.command == "getcfilters"
     assert other.command == "getcfheaders"

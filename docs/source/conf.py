@@ -36,7 +36,7 @@ project_copyright = re.search(
     r'^__copyright__ = "Copyright \(c\) (.+)"$',
     (ROOT / "src" / "btclib" / "__init__.py").read_text(encoding="utf-8"),
     re.MULTILINE,
-).group(1)
+)[1]
 # pyproject.toml's `authors` table, the one place the holder is
 # declared: PYPROJECT is already parsed above, so this is a second
 # read of it rather than a second literal (issue #1519)

@@ -129,10 +129,14 @@ def _promised_by(name: str) -> str | None:
     """Return the type the name promises, or None if it promises nothing."""
     if name.startswith(_AN_OP_CODE):
         return None
-    for prefix, promised in _PROMISED.items():
-        if name.startswith(prefix) or (prefix == "verify" and prefix in name):
-            return promised
-    return None
+    return next(
+        (
+            promised
+            for prefix, promised in _PROMISED.items()
+            if name.startswith(prefix) or (prefix == "verify" and prefix in name)
+        ),
+        None,
+    )
 
 
 def _return_type(returns: ast.expr) -> str:
