@@ -61,6 +61,12 @@ you open the pull request, understand it, and be ready to answer a
 review without the model. Text or code you have not read, or cannot
 explain, is closed without review.
 
+**For a pull request the agent opened, whoever approves it reads every
+line and answers for it as their own**, the agent being `claude[bot]`,
+run on an issue by [section 10][s10]'s `reusable-claude-implement.yml`.
+The agent signs off nothing, since a bot cannot certify the [Developer
+Certificate of Origin][dco], so the approval is the certification.
+
 **Write plainly**, in the tree and on the forge: the point first, plain
 words, one fact per sentence. On the forge, the title and the first
 sentence carry the point; a body is at most two short paragraphs before
@@ -79,8 +85,8 @@ exactly them, so a red run there is a local run that was not done.
 naming its author**, which certifies the [Developer Certificate of
 Origin][dco]. `git commit -s` adds it, and `git rebase --signoff <base>`
 adds it to commits already made. The `Sign-off` check is required, so
-only an administrator can merge a pull request whose commits lack the
-trailer: *Landing it* says why `--admin` waits for no required check.
+only an administrator can merge a pull request with a commit the check
+refuses: *Landing it* says why `--admin` waits for no required check.
 The check's failure prints the command that adds the trailer. [The
 standard's *Signatures*][s-sigs] says why a signature does not replace
 it, and which commits the `Sign-off` job skips.
@@ -263,6 +269,7 @@ settings and why they are what they are.
 [s-what]: https://github.com/btclib-org/.github#what-this-repository-is
 [s11]: https://github.com/btclib-org/.github#11-github-settings
 [s9]: https://github.com/btclib-org/.github#9-prose-comments-and-docstrings
+[s10]: https://github.com/btclib-org/.github#10-workflows
 [s12]: https://github.com/btclib-org/.github#12-releasing
 [s-title]: https://github.com/btclib-org/.github#what-a-pull-request-says-it-is
 [s-rev]: https://github.com/btclib-org/.github#review
