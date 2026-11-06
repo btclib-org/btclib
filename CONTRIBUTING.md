@@ -720,21 +720,20 @@ without a row fails the suite, and so does a row left behind by one
 renamed or removed. What the cells say is nobody's to check but the
 reader's.
 
-Why so little gates is one number: the ceiling GitHub Free puts on an
-organization's concurrent jobs, shared across every repository in it.
-REPOSITORY.md measures what a wider gate cost against that ceiling,
-and the consequence is this table's: at that ceiling a pull request's
-wall clock is the wait for a slot rather than the suite. `os-macos.yml` and
-`os-windows.yml` each carry the measurement for their own cells, the
-queueing and the runner seconds. `codeql` spends against that same
-ceiling on every pull request too now, for the OpenSSF Scorecard's
-`SAST` check rather than for this table's arithmetic — REPOSITORY.md has
-that trade — but it still does not gate the merge: no matrix cell of its
-`analyze` job is nameable in the branch rule on its own, and the
-aggregate that is nameable, `codeql: every job passed`, is a name the
-rule does not ask for. `zizmor` in `lint` reads
-these same workflow files for an injected expression on every pull
-request, which is a different question from what `codeql` asks.
+So few checks gate a merge because the plan caps the jobs the whole organization
+may run at once, and `REPOSITORY.md`'s *Plan-gated settings* records that
+ceiling. REPOSITORY.md measures what a wider gate cost against that ceiling, and
+the consequence is this table's: at that ceiling a pull request's wall clock is
+the wait for a slot rather than the suite. `os-macos.yml` and `os-windows.yml`
+each carry the measurement for their own cells, the queueing and the runner
+seconds. `codeql` spends against that same ceiling on every pull request too
+now, for the OpenSSF Scorecard's `SAST` check rather than for this table's
+arithmetic — REPOSITORY.md has that trade — but it still does not gate the
+merge: no matrix cell of its `analyze` job is nameable in the branch rule on its
+own, and the aggregate that is nameable, `codeql: every job passed`, is a name
+the rule does not ask for. `zizmor` in `lint` reads these same workflow files
+for an injected expression on every pull request, which is a different question
+from what `codeql` asks.
 
 The trade, stated here rather than discovered later: the gate does not
 refuse a regression on `3.11`, on arm, on PyPy or on a platform. It sits
