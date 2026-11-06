@@ -155,7 +155,7 @@ for PyPI anyway: `pypi` and `testpypi` are two registrations, and only
 the tag exercises the first.
 
 1. On GitHub, Actions → release → Run workflow, and pick the branch to
-   rehearse (usually `main`). A release that breaks the public API is
+   rehearse (usually `main`). A release with any public-API finding is
    rehearsed from the release pull request's branch, after its notes are
    written: before, `public-api` reads the previous release's section and
    fails.
@@ -316,19 +316,21 @@ request, next to `deps-latest`'s own result.
    step to read; `release.yml`'s `public-api` job skips its check for the
    same reason.
 
-   The two report breakage only: a public object removed, a parameter that
+   The two report each break — a public object removed, a parameter that
    changed kind or default, an attribute whose value moved, a changed return
-   annotation. An addition is silent, so the output is short and every line
-   of it wants an entry — what the step asks is that nothing they name is
-   missing from RELEASE_NOTES.md. The converse is not theirs to answer: an
-   entry describing a break they did not find is a claim about the prose,
-   which review still has to read. Not a hook and not a job of `lint.yml`,
-   deliberately: the comparison is against the previous *release*, so a
-   break lands on `main` on purpose and remains a finding until the release
-   that announces it, leaving every pull request in between red for
-   something no branch introduced. Each exits 1 on a finding, so the day
-   that reasoning stops holding — a cycle that means to break nothing —
-   making the step a gate is a line per command.
+   annotation — and an annotation change that breaks nothing, such as a
+   parameter's widened or one only spelled anew (`Optional[int]` to `int |
+   None`). An addition is silent, so the output is short and every line of it
+   wants an entry — what the step asks is that nothing they name is missing
+   from RELEASE_NOTES.md. The converse is not theirs to answer: an entry
+   describing a break they did not find is a claim about the prose, which
+   review still has to read. Not a hook and not a job of `lint.yml`,
+   deliberately: the comparison is against the previous *release*, so a break
+   lands on `main` on purpose and remains a finding until the release that
+   announces it, leaving every pull request in between red for something no
+   branch introduced. Each exits 1 on a finding, so the day that reasoning
+   stops holding — a cycle that means to break nothing — making the step a
+   gate is a line per command.
 
    griffe also exits 1 when it fails on an error it does not catch, such
    as a tag the repository lacks: its output is then a Python traceback,
@@ -337,15 +339,14 @@ request, next to `deps-latest`'s own result.
    exit is the tool failing, which answers nothing: read its error before
    going on.
 
-   `release.yml` asks the same question again as its `public-api` job. A
-   red one there is a break `RELEASE_NOTES.md` does not name, or one of the
-   two tools failing: read the job's log to tell which. The job gates
-   nothing, its own comment saying why, and every job behind it opens its
-   `if:` with `always()` and names the results it does require, so a red
-   `public-api` costs the release nothing. What it costs is the run's own
-   badge, red while every job that matters is green, which is why the step
-   after the approval below reads the run job by job rather than as a
-   whole.
+   `release.yml` asks the same question again as its `public-api` job. A red
+   one there is a finding `RELEASE_NOTES.md` does not name, or one of the two
+   tools failing: read the job's log to tell which. The job gates nothing, its
+   own comment saying why, and every job behind it opens its `if:` with
+   `always()` and names the results it does require, so a red `public-api`
+   costs the release nothing. What it costs is the run's own badge, red while
+   every job that matters is green, which is why the step after the approval
+   below reads the run job by job rather than as a whole.
 
 1. Name in RELEASE_NOTES.md every change to the release's assets or to how they
    are verified — a file name, a signer, a `--source-ref` — in the release that
@@ -522,11 +523,12 @@ request, next to `deps-latest`'s own result.
      --jq '.verification.verified'
    ```
 
-1. Approve the `pypi` environment when the workflow asks. Up to here
-   nothing is public and the tag can still be deleted; the upload that
-   follows is the point of no return — the upload, and not the approval,
-   the token exchange happening after it. A registration that does not
-   match the claims fails there having uploaded nothing, and a version
+1. Approve the `pypi` environment when the workflow asks, a red `public-api`
+   read first: `Publish to PyPI` lists it in `needs:`, so it has ended by
+   then. Up to here nothing is public and the tag can still be deleted; the
+   upload that follows is the point of no return — the upload, and not the
+   approval, the token exchange happening after it. A registration that does
+   not match the claims fails there having uploaded nothing, and a version
    survives a failed exchange: delete the tag, fix the registration, tag
    again.
 
@@ -574,22 +576,23 @@ request, next to `deps-latest`'s own result.
    ```
 
    On a tag `Publish to TestPyPI` is `skipped`, its trigger being the
-   dispatch, and `public-api` is red as the public API step above says. `Run
-   the lint workflow / lint / Dependency review` and `Run the lint workflow
-   / lint / Sign-off` are `skipped` on every run, as they run only on a
-   `pull_request`; a tagged commit had both checks on its own pull request.
-   Every other job reads `success`, the ones behind `public-api` included:
-   each of them opens its `if:` with `always()` and names the results it
-   does require, so a red `public-api` costs the release nothing, and a
-   `skipped` among them is a defect in `release.yml` rather than a red to
-   look past. A rehearsal is the mirror image, `Publish to PyPI` skipped and
-   with it whatever is guarded on its success, and `documented` skipped on
-   its own account, its guard being the push. `gh run rerun` does not reach
-   a skipped job, `--failed` rerunning `failure` and `--job` refusing a skip
-   outright, so what recovers one is doing by hand what it would have done:
-   for `github-release` the script "If something goes wrong" gives, for
-   `published` a dispatch of `pypi-install.yml`, which installs what the
-   index serves at the time.
+   dispatch. `public-api` is red only for the reasons the public API step
+   above gives, and otherwise reads `success`; a red one is read before the
+   approval, as the approval step says. `Run the lint workflow / lint /
+   Dependency review` and `Run the lint workflow / lint / Sign-off` are
+   `skipped` on every run, as they run only on a `pull_request`; a tagged
+   commit had both checks on its own pull request. Every other job reads
+   `success`, the ones behind `public-api` included: each of them opens its
+   `if:` with `always()` and names the results it does require, so a red
+   `public-api` costs the release nothing, and a `skipped` among them is a
+   defect in `release.yml` rather than a red to look past. A rehearsal is the
+   mirror image, `Publish to PyPI` skipped and with it whatever is guarded on
+   its success, and `documented` skipped on its own account, its guard being
+   the push. `gh run rerun` does not reach a skipped job, `--failed` rerunning
+   `failure` and `--job` refusing a skip outright, so what recovers one is
+   doing by hand what it would have done: for `github-release` the script "If
+   something goes wrong" gives, for `published` a dispatch of
+   `pypi-install.yml`, which installs what the index serves at the time.
 
    Read the Docs builds a tag on its first push only: a deleted and
    re-pushed tag is rebuilt by hand from the builds page, and `documented`
@@ -646,15 +649,14 @@ request, next to `deps-latest`'s own result.
    ```
 
    `release not found` is the failure "If something goes wrong" ends with.
-   `author` is the cheap second question: `github-actions` is the workflow
-   having cut it, any other login a release recreated by hand. Its notes
-   are the tag's section of RELEASE_NOTES.md, and the distribution files are
-   attached, `<tag>.intoto.jsonl` and the bill of materials beside
-   them. A run that logs
-   `RELEASE_NOTES.md has no v<version> section` generated the notes from the
-   merged pull requests instead — the fallback `version-check` exists to make
-   unreachable, not a second way to write release notes — and they are worth
-   replacing by hand if it ever fires.
+   `author` is the cheap second question: `github-actions[bot]` is the
+   workflow having cut it, any other login a release recreated by hand. Its
+   notes are the tag's section of RELEASE_NOTES.md, and the distribution files
+   are attached, `<tag>.intoto.jsonl` and the bill of materials beside them. A
+   run that logs `RELEASE_NOTES.md has no v<version> section` generated the
+   notes from the merged pull requests instead — the fallback `version-check`
+   exists to make unreachable, not a second way to write release notes — and
+   they are worth replacing by hand if it ever fires.
 
 1. Read the bill of materials attached to the release,
    `<dist>-<version>.cdx.json` with the `-` of `dist` written `_`: a
