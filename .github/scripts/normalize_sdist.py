@@ -50,7 +50,7 @@ Run it after `uv build` and before anything reads dist/:
         .github/scripts/normalize_sdist.py dist/
 
 RELEASING.md has the command that verifies a published release against a
-rebuild of its tag, and the two bounds on what that proves.
+rebuild of its tag, and the bounds on what that proves.
 """
 
 from __future__ import annotations

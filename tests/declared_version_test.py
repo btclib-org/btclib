@@ -8,7 +8,7 @@ The version is declared once, in pyproject.toml, and
 `btclib.__version__` reads it back from the installed metadata -- so a
 checkout declaring a version that has already been tagged reports itself
 as that release, which is what a bug report quotes. RELEASING.md's
-step *Open the next cycle's version* is what keeps it from happening:
+step *Open the next cycle* is what keeps it from happening:
 it sets a generic next version without the day, "so a checkout of `main`
 reports itself as work in progress rather than as a release it is not".
 Skipping it is what left `main` declaring `2026.9.3` while `v2026.9.3`
@@ -144,7 +144,7 @@ def _verdict(version: str, tag: str | None, head: str | None) -> tuple[str, str]
         (
             f"pyproject.toml declares {version!r} and v{version} resolves at"
             f" {tag}, which is not this commit: RELEASING.md's 'Open the next"
-            " cycle's version' is the step that has not been taken"
+            " cycle' is the step that has not been taken"
         ),
     )
 
@@ -222,7 +222,7 @@ def test_a_release_tagged_elsewhere_fails() -> None:
         (
             "pyproject.toml declares '2026.9.3' and v2026.9.3 resolves at"
             " e0fbd112, which is not this commit: RELEASING.md's 'Open the"
-            " next cycle's version' is the step that has not been taken"
+            " next cycle' is the step that has not been taken"
         ),
     )
 
