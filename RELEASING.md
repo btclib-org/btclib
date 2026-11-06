@@ -247,7 +247,7 @@ request, next to `deps-latest`'s own result.
    rot, so read it from the file itself:
 
    ```shell
-   grep -n 'uses: \./\.github/workflows/' .github/workflows/release.yml
+   grep -n 'uses: [.$]/\.github/workflows/' .github/workflows/release.yml
    ```
 
    It is not caught anywhere else: every one of those workflows is
@@ -260,12 +260,13 @@ request, next to `deps-latest`'s own result.
    is what landed rather than what is nearly landed.
 
 1. Read the public API against the previous release, before the notes that
-   describe it are declared final. `RELEASE_NOTES.md`
-   promises that a breaking change is announced there, the calendar version
-   promising nothing, and nothing else reads that promise: the suite judges the
-   code, and a reviewer weighs what the prose says rather than what it leaves
-   out. griffe and `api_gaps.py` read both revisions and answer that second
-   question — not whether the list is right, but whether it is complete:
+   describe it are declared final. `RELEASE_NOTES.md` promises that a breaking
+   change is announced there, the calendar version promising nothing, and
+   nothing else reads that promise: the suite judges the code, and a reviewer
+   weighs what the prose says rather than what it leaves out. griffe and
+   `api_gaps.py` read both revisions and answer that second question for the
+   breaks they compare — not whether the list is right, but whether it is
+   complete:
 
    ```shell
    tag=v<previous version>
@@ -316,21 +317,26 @@ request, next to `deps-latest`'s own result.
    step to read; `release.yml`'s `public-api` job skips its check for the
    same reason.
 
-   The two report each break — a public object removed, a parameter that
-   changed kind or default, an attribute whose value moved, a changed return
-   annotation — and an annotation change that breaks nothing, such as a
+   The two report each break they compare — a public object removed, a parameter
+   that changed kind or default, an attribute whose value moved, a changed
+   return annotation — and an annotation change that breaks nothing, such as a
    parameter's widened or one only spelled anew (`Optional[int]` to `int |
    None`). An addition is silent, so the output is short and every line of it
-   wants an entry — what the step asks is that nothing they name is missing
-   from RELEASE_NOTES.md. The converse is not theirs to answer: an entry
-   describing a break they did not find is a claim about the prose, which
-   review still has to read. Not a hook and not a job of `lint.yml`,
-   deliberately: the comparison is against the previous *release*, so a break
-   lands on `main` on purpose and remains a finding until the release that
-   announces it, leaving every pull request in between red for something no
-   branch introduced. Each exits 1 on a finding, so the day that reasoning
-   stops holding — a cycle that means to break nothing — making the step a
-   gate is a line per command.
+   wants an entry — what the step asks is that nothing they name is missing from
+   RELEASE_NOTES.md. The converse is not theirs to answer: an entry describing a
+   break they did not find is a claim about the prose, which review still has to
+   read. Not a hook and not a job of `lint.yml`, deliberately: the comparison is
+   against the previous *release*, so a break lands on `main` on purpose and
+   remains a finding until the release that announces it, leaving every pull
+   request in between red for something no branch introduced. Each exits 1 on a
+   finding, so the day that reasoning stops holding — a cycle that means to
+   break nothing — making the step a gate is a line per command.
+
+   Some breaks neither reports: a kind neither compares, such as an
+   `@overload`'s signatures, and what griffe alone compares on a pair it skips.
+   The docstring of the `api_gaps.py` fetched above says what is known of both.
+   Read those changes since the previous tag by hand: a break among them wants
+   an entry too.
 
    griffe also exits 1 when it fails on an error it does not catch, such
    as a tag the repository lacks: its output is then a Python traceback,
@@ -387,10 +393,12 @@ request, next to `deps-latest`'s own result.
    release in the same month, built by appending the day to the
    placeholder, names a day of the next month — a date in the future,
    which sorts above every release that next month cuts before that day.
-   `version-check` compares the tag with the declared version and reads
-   the shape, never the calendar, so nothing downstream refuses it, and
-   PyPI never accepts that version's file names again, even once the
-   release is deleted.
+   On a tag push `version-check` refuses a version that names no
+   calendar date, such as `2026.11.31`, and one dated after the date at
+   UTC+14, the time zone furthest ahead, when the job runs, so it
+   refuses the version built that way. `build` needs `version-check`, so
+   nothing is uploaded. The cost is a failed run, and a new tag once the
+   version is fixed, as "If something goes wrong" below says.
 
    **If `main` moves while the gates run, throw the branch away and redo
    these edits on top of it — never rebase it, and never merge `main` into
@@ -497,7 +505,8 @@ request, next to `deps-latest`'s own result.
 
    ```shell
    git tag -s "v${version:?}" -m "release v${version:?}" "${sha:?}" &&
-   git show "v${version:?}:pyproject.toml" | grep '^version' &&
+   git show "v${version:?}:pyproject.toml" |
+     grep -Fx "version = \"${version:?}\"" &&
    git push origin "v${version:?}"
    ```
 
@@ -509,6 +518,22 @@ request, next to `deps-latest`'s own result.
    with nothing uploaded, which is the guard doing its job; the `git show`
    above is the same check one step earlier, where it costs nothing, and
    the chain is what makes the push wait on it.
+
+   `version-check` reads the version with `uv version --short`, which
+   reads a project directory and so needs the tag checked out. `grep -Fx`
+   reads the tag's `pyproject.toml` without one, and matches only the
+   whole line `version = "${version}"`, its dots as dots, so a tag on a
+   commit that declares another version stops the chain. A tag that does
+   not exist stops it too: `git show` prints nothing on its output, and
+   `grep` finds no line.
+
+   Where the chain stops at `grep`, which prints nothing, the tag
+   `git tag -s` made is still in the local repository: on the wrong
+   commit, or under the wrong name where `version` was the wrong value.
+   Delete it with `git tag -d "v${version:?}"` while `version` still
+   holds the value it was made with, then correct the values and run the
+   fence again. A tag left in place makes `git tag -s` refuse the same
+   name, as *If something goes wrong* says.
 
 1. Read the tag's signature back from the API, now that it is pushed. It
    answers `true`: an unsigned annotated tag answers `false`, and a
@@ -592,17 +617,23 @@ request, next to `deps-latest`'s own result.
    `failure` and `--job` refusing a skip outright, so what recovers one is
    doing by hand what it would have done: for `github-release` the script "If
    something goes wrong" gives, for `published` a dispatch of
-   `pypi-install.yml`, which installs what the index serves at the time.
+   `pypi-install.yml`.
+
+   A dispatch of `pypi-install.yml` passes no version, so it waits for
+   nothing and installs what the index serves at the time. Read the
+   installed version each cell prints in its log, and dispatch again
+   where a cell installed the previous release.
 
    Read the Docs builds a tag on its first push only: a deleted and
    re-pushed tag is rebuilt by hand from the builds page, and `documented`
    stays red until it is.
 
 1. Install what was just published, in an environment of its own rather
-   than one that may already hold it, and run something with it:
+   than one that may already hold it, and run something with it.
+   `version` is the one the tagging step set:
 
    ```shell
-   uv run --isolated --no-project --with "${dist:?}" \
+   uv run --isolated --no-project --with "${dist:?}==${version:?}" \
      --refresh-package "${dist:?}" \
      python -c "${smoke:?}"
    ```
@@ -610,7 +641,11 @@ request, next to `deps-latest`'s own result.
    from a directory that belongs to no checkout of this project: run
    inside one, uv can answer from a cached build of the tree rather than
    from the index. `--refresh-package` makes uv read the index again
-   rather than its cache, which can miss a version just published.
+   rather than its cache, which can miss a version just published. The
+   pin makes the check test this release: unpinned, an index still
+   serving the previous release installs that one, and the smoke test
+   passes on it. Pinned, uv answers `No solution found` until the index
+   serves the version, and the command is run again then.
 
    then check the attestations — the JSON API answers `null` for
    `provenance` even where they exist; the simple API,
@@ -803,7 +838,13 @@ gh attestation verify "dist/${stem:?}.tar.gz" --owner btclib-org \
 gh attestation verify "dist/${stem:?}-py3-none-any.whl" --owner btclib-org \
   --signer-workflow "${signer:?}" \
   --source-ref "refs/tags/v${version:?}" --format json \
-  --jq "${cert:?}.sourceRepositoryIdentifier" | grep -qx "${id:?}" &&
+  --jq "${cert:?}.sourceRepositoryIdentifier" | grep -qx "${id:?}"
+```
+
+A release with no `.cdx.json` asset has no bill of materials to verify,
+and this last command is left out for it:
+
+```shell
 gh attestation verify "sbom/${stem:?}.cdx.json" --owner btclib-org \
   --signer-workflow "${signer:?}" \
   --source-ref "refs/tags/v${version:?}" --format json \
@@ -941,8 +982,8 @@ reading a mismatch as tampering:
   while PyPI would refuse the existing file names rather than accept a
   duplicate, the attempt itself asks for a fresh approval of the `pypi`
   environment and gates the run on nothing this repository controls. Skip
-  the workflow entirely and do by hand exactly what the job's own script
-  does, from the artifacts already sitting on the run:
+  the workflow entirely and do by hand what the job's own script does,
+  from the artifacts already sitting on the run:
 
   ```shell
   run=<run id>
@@ -956,27 +997,72 @@ reading a mismatch as tampering:
   gh run download "${run:?}" -n dist -D dist &&
   gh run download "${run:?}" -n sbom -D sbom &&
   gh run download "${run:?}" -n attestation -D attestation &&
-  shasum -a 256 dist/* &&
-  curl -s "https://pypi.org/pypi/${dist:?}/${version:?}/json" \
-    | python3 -c 'import json,sys; d=json.load(sys.stdin)
-  [print(u["filename"], u["digests"]["sha256"]) for u in d["urls"]]' &&
+  curl -fsS "https://pypi.org/pypi/${dist:?}/${version:?}/json" \
+    -o pypi.json &&
+  python3 -c '
+  import hashlib, json, os, sys
+  with open("pypi.json") as f:
+      urls = json.load(f)["urls"]
+  pypi = {u["filename"]: u["digests"]["sha256"] for u in urls}
+  local = {}
+  for path in sys.argv[1:]:
+      with open(path, "rb") as f:
+          digest = hashlib.sha256(f.read()).hexdigest()
+      local[os.path.basename(path)] = digest
+  for name in sorted(pypi.keys() | local.keys()):
+      if name not in local:
+          print("missing from dist/:", name)
+      elif name not in pypi:
+          print("not on PyPI:", name)
+      elif local[name] != pypi[name]:
+          print("digest differs:", name)
+      else:
+          print("same as PyPI:", name)
+  sys.exit(not local or local != pypi)
+  ' dist/* &&
 
-  git show "v${version:?}:RELEASE_NOTES.md" | awk -v tag="v${version:?}" '
+  git show "v${version:?}:RELEASE_NOTES.md" > tag-notes.md &&
+  awk -v tag="v${version:?}" '
     $0 ~ "^## " tag "( |$)" {found=1; next}
     /^## / && found {exit}
+    found && NF {text=1}
     found {print}
-  ' > notes.md &&
+    END {
+      if (!text) print "RELEASE_NOTES.md has no notes for " tag > "/dev/stderr"
+      exit !text
+    }
+  ' tag-notes.md > notes.md &&
   cp attestation/attestation.jsonl "v${version:?}.intoto.jsonl" &&
   gh release create "v${version:?}" dist/* sbom/* \
     "v${version:?}.intoto.jsonl" \
     --title "v${version:?}" --notes-file notes.md
   ```
 
-  The digest comparison is not optional: it is what stands in for the
-  provenance a second, unwanted publish attempt would otherwise have to
-  establish, confirming the files a human is about to attach are the
-  exact bytes the token exchange already accepted rather than a fresh
-  local build that merely claims to be.
+  Where the read fails or the tag's section has no notes, the script
+  stops before the release exists rather than publish an empty body. The
+  job creates the release anyway, as the comment on its step in
+  `reusable-github-release.yml` says. `version-check` refuses a tag whose
+  section is missing or empty before `build`, so after the upload the
+  stop means the read failed: check `version` and the tag. The tag
+  cannot change after the upload, so where its section is empty all the
+  same, write `notes.md` by hand and run the commands after the awk. The
+  awk runs only once the Python step has passed, so its message means
+  every file matched PyPI.
+
+  The Python step compares the files `gh release create` attaches from
+  `dist/` with the files PyPI holds for `version`, by name and SHA-256,
+  and prints what it found for each name. A file only one side has, or a
+  digest that differs, stops the script before the release exists: a
+  wrong `run` would otherwise attach files PyPI never accepted. A failed
+  fetch stops it too, `curl -f` exiting non-zero on an HTTP error.
+
+  A script that stopped leaves the downloaded artifacts behind, and `gh
+  run download` refuses to write a file that already exists. Remove them
+  before running the script again:
+
+  ```shell
+  rm -rf dist sbom attestation
+  ```
 
 ## This repository in particular
 
@@ -1030,12 +1116,14 @@ refuses it: the whole matrix builds and the upload fails at the end. So
 a floor is written back over it, `>=` the release that carries what this
 tree calls, and the sibling is released first.
 
-**griffe's output here has noise of known shapes.** `Attribute value was
+**griffe's output here has lines of known shapes.** `Attribute value was
 changed: Union[X, Y] -> X | Y` is PEP 604 spelling and breaks nobody, and
-`__version__` and `__copyright__` report the same way. A systemic change,
-such as one parameter going keyword-only in every class that takes it,
-prints once per site and is one entry in `RELEASE_NOTES.md`. What is left
-once these are set aside is short enough to check entry by entry.
+`__copyright__` reports the same way when its years change. Each is still
+a finding and wants its entry, as the public API step above says. A
+systemic change, such as one parameter going keyword-only in every class
+that takes it, prints once per site and is one entry in
+`RELEASE_NOTES.md`, naming each object it reports. Grouped this way, the
+output is short enough to check entry by entry.
 
 **The release pull request also moves the changelog window down by
 one.** The release below the one just cut leaves `CHANGELOG.md` for
