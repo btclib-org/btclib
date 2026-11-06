@@ -33,6 +33,7 @@ other. Past a size ceiling GitHub's contents API answers a file with an
 empty `content` at HTTP 200, which reads as an empty file rather than as
 an error, and one file per release is what keeps each of them under it.
 
+- [v2026.11.2](./changelog/v2026.11.2.md)
 - [v2026.10.30](./changelog/v2026.10.30.md)
 - [v2026.10.28](./changelog/v2026.10.28.md)
 - [v2026.10.24](./changelog/v2026.10.24.md)
@@ -57,104 +58,56 @@ an error, and one file per release is what keeps each of them under it.
 - [v2026.8.9](./changelog/v2026.8.9.md)
 - [v2026.8.7](./changelog/v2026.8.7.md)
 
-## v2026.11.2
+## v2026.11.7
 
-### Wallet-only code leaves btclib
+### ScriptFlag
 
-`btclib.exceptions` drops the exceptions only btclib-wallet raises, and
-`btclib.electrum` goes, with its tests and fuzz harness; btclib-wallet declares
-them (closes #2709).
+`DISCOURAGE_UPGRADABLE_TAPROOT_VERSION` is bit 18 and
+`DISCOURAGE_UPGRADABLE_PUBKEYTYPE` bit 20, as in Bitcoin Core, where each
+carried the other's bit (closes #2770).
 
-### btclib.alias
+### btclib requires ecc 2026.11.2
 
-`btclib.alias` imports `BinaryData`, `Integer`, `Octets`, `Point` and `String`
-from `ecc.alias`, and no longer defines the names ecc defines (closes #2710).
-
-### Networks
-
-The address, WIF and xkey-version decoders take an optional `Network`, and
-accept only its prefixes, hrp and versions, so an application decodes another
-chain's addresses with a `Network` it built (closes #2714).
-
-### btclib.testing
-
-`btclib.testing` ships the blocks btclib-wallet's tests read and, under the new
-`testing` extra, the hypothesis strategies (issue #2708).
-
-### Utreexo
-
-`btclib.utreexo` is a roots-only Utreexo accumulator, checked against
-rustreexo (issue #2590).
-
-### Core v32.1
-
-`btclib.consensus` moves to Core v32.1, and `integration-bitcoind.yml` to
-bitcoind 32.1 (closes #2850, closes #2845).
-
-### Block
-
-`Block.assert_valid_contextual_block` checks a block's contextual rules without
-its header's (closes #2836).
+SECURITY.md links ecc's lines at its v2026.11.2 tag, and the ecc floor rises
+to it (closes #2896).
 
 ### Refusals
 
-`verify_input` refuses an index naming no input (closes #2672), and
-`var_int.parse`, `var_int.serialize` and `obfuscation.obfuscate` describe a
-value `str()` cannot write instead of raising `ValueError` (closes #2863).
+`obfuscation.obfuscate` describes a negative offset `str()` cannot write
+instead of raising `ValueError` (closes #2874).
 
-### Segwit refusals
+### Homepage
 
-`assert_p2wpkh` and `assert_p2wsh` name the witness version op code in hex
-(closes #2842), and a test pins the refusal of a 35-byte script opening with
-OP_0 0x20 (closes #2890).
-
-### OpenTimestamps
-
-The suite replays OpenTimestamps proofs against btclib's block headers
-(closes #2742).
-
-### Vendored data
-
-python-bitcoinlib's licence ships beside the vectors vendored from it
-(closes #2760).
-
-### pip commands
-
-The docstrings of `btclib.p2p.bip324` and `btclib.testing.strategies` render
-their `pip install` commands with straight quotes, and a test refuses one in
-single backticks (closes #2872).
+`pyproject.toml`'s homepage is <https://btclib.org/btclib/> (closes #2893).
 
 ### Tests
 
-A witness sig-op count row covers an empty script_sig spending P2SH
-(closes #2859), and the tapscript script ratio test is bounded at 900 s
-(closes #2868).
+`strategies_test` takes the block-payload branch on every run (closes #2839),
+and `imports_test` keeps btclib free of `bip32_descriptors` imports
+(closes #2887).
 
-### Mutation
+### Documentation
 
-The low-work headers sync is mutated in a scope of its own (closes #2832).
+`conf.py`'s `BLOB` names `main` (closes #2911), and the prose names
+btclib-org/functional-tests where bitcoin-node-tests stood (closes #2903).
 
-### Shebang hooks
+### Workflows
 
-`check-executables-have-shebangs` runs (issue #2852), and so does its converse
-once `fuzz/btcd_oracle.py` has no shebang (closes #2877).
-
-### bip32_descriptors
-
-The prose names `bip32_descriptors` for BIP32 and descriptors (closes #2882).
+The calls into btclib-org/.github move to v2026.11.5 (issue
+btclib-org/.github#1988), Sourcery runs on every pull request (issue
+btclib-org/.github#2005), and macOS runs on arm64 alone.
 
 ### Repository
 
-SECURITY.md links what changed since the security review (issue
-btclib-org/.github#1795), and the dependency groups' comments say `uv_build`
-carries a ceiling (closes btclib-org/.github#1848).
+RELEASING.md shares btclib-org/.github's text up to its own section (issue
+btclib-org/.github#1855), names the lint jobs a tag run skips (closes #2900),
+and lets a dependent adapt after the release (closes #2889).
 
-### CONTRIBUTING.md
+### Shared files
 
-Its shared part matches btclib-org/.github's: a comment's word limits, the
-`Sign-off` check and `--admin`, the advisory exception, and the reopen's merge.
+CONTRIBUTING.md and REVIEWING.md take btclib-org/.github's shared parts, and
+`.coderabbit.yaml` is carried (issue btclib-org/.github#1998).
 
 ### Dependencies
 
-The dev-tooling group moves bitcoin-core-rpc, coverage, hypothesis and ruff in
-`uv.lock`.
+The dev-tooling group, setup-uv and the pinned pre-commit hooks move.
