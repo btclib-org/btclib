@@ -325,6 +325,15 @@ wheels = [
 ]
 
 [[package]]
+name = "base58-bech32"
+version = "2026.11.7"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ff/dc/5513ecfdc21e832f2cb4b637ae336d3ad2c25ae757f6601faea203efe260/base58_bech32-2026.11.7.tar.gz", hash = "sha256:d57a7dfa018b2e2038bfff13fcaab0ef83e2ee5ca9a03c71d7f5e00aabd76ab7", size = 577217, upload-time = "2026-11-06T23:26:00.134Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/99/70/67b01c78f360aaeb70845e2b46cbac6d368c5216682fe50a4716888db26f/base58_bech32-2026.11.7-py3-none-any.whl", hash = "sha256:ebc2e2f9fb3d07152a4faaedb52a36c981fcde1db331194350747c7d33abf14e", size = 28880, upload-time = "2026-11-06T23:25:58.704Z" },
+]
+
+[[package]]
 name = "beautifulsoup4"
 version = "4.15.0"
 source = { registry = "https://pypi.org/simple" }
@@ -351,6 +360,7 @@ name = "btclib"
 version = "2026.12"
 source = { editable = "." }
 dependencies = [
+    { name = "base58-bech32" },
     { name = "ecc" },
     { name = "typing-extensions" },
 ]
@@ -457,6 +467,7 @@ testing = [
 
 [package.metadata]
 requires-dist = [
+    { name = "base58-bech32", specifier = ">=2026.11.7" },
     { name = "cryptography", marker = "extra == 'bip324'", specifier = ">=42.0.0" },
     { name = "ecc", specifier = ">=2026.11.7" },
     { name = "ecc", extras = ["secp256k1"], marker = "extra == 'secp256k1'", specifier = ">=2026.11.7" },

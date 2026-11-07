@@ -53,6 +53,12 @@ requires-python = ">=3.11"
 # moving whenever this tree starts calling something newer and a second copy
 # of the number being the one that goes stale.
 dependencies = [
+    # the Base58Check and bech32 codecs and `convertbits`, which `b58`,
+    # `b32`, `bms` and `network` import from `base58_bech32` and do not
+    # re-export. 2026.11.7 is the floor: it is the first release, and its
+    # `bech32_decode` returns the constant that verified, which
+    # `b32.witness_from_address` holds to BIP350's rule
+    "base58-bech32>=2026.11.7",
     # the curve arithmetic and the schemes built on it, which btclib
     # imports from `ecc` where it uses them and does not re-export.
     # 2026.11.7 is the floor: SECURITY.md links ecc's lines at its tag,
