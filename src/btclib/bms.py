@@ -124,8 +124,8 @@ from hashlib import sha256
 
 from base58_bech32.base58 import b58decode_check
 from base58_bech32.exceptions import Base58Bech32ValueError
+from ecc import dsa
 from ecc.curves import bytes_from_prv_key_int, secp256k1
-from ecc.ecc import dsa
 from ecc.exceptions import EccRuntimeError
 
 from btclib.alias import BinaryData, Octets, String
@@ -488,9 +488,9 @@ def _assert_structurally_valid_(addr: String, sig: Sig | String) -> Sig:
     65-octet signature, so `assert_as_valid` answers them below, on the
     `Sig` this returns.
 
-    The message is not asked here, as in `ecc.ecc.dsa` and
-    `ecc.ecc.ssa`: it is what the signature is verified about, and
-    issue #814 is where that was settled.
+    The message is not asked here, as in `ecc.dsa` and `ecc.ssa`:
+    it is what the signature is verified about, and issue #814 is
+    where that was settled.
     """
     parsed_sig = (
         sig if isinstance(sig, Sig) else Sig.b64decode(sig, check_validity=False)

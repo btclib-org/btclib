@@ -13,9 +13,9 @@ from io import BytesIO
 from typing import Any, NamedTuple
 
 import pytest
+from ecc import ssa
 from ecc.curves import secp256k1
-from ecc.ecc import ssa
-from ecc.ecc.dsa import Sig, sign_
+from ecc.dsa import Sig, sign_
 from ecc.exceptions import EccValueError
 
 from btclib.alias import TaprootScriptTree

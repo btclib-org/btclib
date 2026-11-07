@@ -78,8 +78,8 @@ _ECC = Path(ecc.__file__).parent
 _SECURITY = _ROOT / "SECURITY.md"
 
 # a path in this repository, with the line number it may carry: the
-# slash is what keeps `ecc.ecc.musig2` and the dotted names beside it
-# from reading as citations
+# slash is what keeps `ecc.musig2` and the dotted names beside it from
+# reading as citations
 _CITATION = re.compile(r"^(?P<path>[\w.-]+(?:/[\w.-]+)+\.py)(?::(?P<line>\d+))?$")
 # a dotted name, which is how the prose spells the definition a citation
 # sits inside; an anchor that is not one is read as a fragment of the

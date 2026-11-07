@@ -65,8 +65,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from ecc import ellswift as ecc_ellswift
 from ecc.curves import Curve, CurveGroup, mult, secp256k1
-from ecc.ecc import ellswift as ecc_ellswift
 
 from btclib import ellswift
 from btclib.consensus import CONSENSUS_PARAMS

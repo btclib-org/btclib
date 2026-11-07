@@ -95,8 +95,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from ecc import dsa, ellswift
 from ecc.curves import bytes_from_point, bytes_from_prv_key_int
-from ecc.ecc import dsa, ellswift
 
 from btclib import b32, b58, bms, var_bytes
 from btclib.block.block import Block

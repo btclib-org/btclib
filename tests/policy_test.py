@@ -21,7 +21,7 @@ import re
 from typing import Any
 
 import pytest
-from ecc.ecc import dsa
+from ecc import dsa
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.fee import FeeRate

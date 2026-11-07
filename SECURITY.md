@@ -169,13 +169,13 @@ commit it was read at:
     `musig_nonce_gen`'s secnonce -- an opaque 132-byte struct the
     header calls "implementation defined and not guaranteed to be
     portable between different platforms or versions" -- into
-    `ecc.ecc.musig2`'s public API, against `btclib_wallet.psbt.musig2`'s
+    `ecc.musig2`'s public API, against `btclib_wallet.psbt.musig2`'s
     own decision to hold no session state at all. What it would buy is
     measured rather than assumed: the point-multiplication side has
     been regular since #254, and `sign`'s own line, `s = (k_1_ +
     values.b * k_2_ + values.e * a * d) % secp256k1.n`
-    ([`src/ecc/ecc/musig2.py:872`](
-    https://github.com/btclib-org/ecc/blob/3a206701f22028330a031f3309f53b5ee2eec7d1/src/ecc/ecc/musig2.py#L872
+    ([`src/ecc/musig2.py:872`](
+    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/musig2.py#L872
     )), spreads 1.016x over uniform scalars
     in `[1, n-1]` -- the magnitude leak that remains shows only for
     scalars with zero high bits, keys already lost for other reasons.
@@ -205,12 +205,12 @@ commit it was read at:
     decision, not an oversight. These call sites read one of those
     straight into a Python `int`: `commit_nonce.commit_nonce_` at
     `int.from_bytes(tweaked, byteorder="big", signed=False)`
-    ([`src/ecc/ecc/commit_nonce.py:159`](
-    https://github.com/btclib-org/ecc/blob/3a206701f22028330a031f3309f53b5ee2eec7d1/src/ecc/ecc/commit_nonce.py#L159
+    ([`src/ecc/commit_nonce.py:159`](
+    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/commit_nonce.py#L159
     )) and, under `taproot.output_prvkey`, `ssa.prv_key_tweak_add` at
     `int.from_bytes(tweaked, byteorder="big", signed=False)`
-    ([`src/ecc/ecc/ssa.py:462`](
-    https://github.com/btclib-org/ecc/blob/3a206701f22028330a031f3309f53b5ee2eec7d1/src/ecc/ecc/ssa.py#L462
+    ([`src/ecc/ssa.py:462`](
+    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/ssa.py#L462
     )). A caller-owned buffer can be
     wiped once the call that filled it returns; the `int` it is read
     into cannot be, and outlives the call regardless, so taking the
@@ -219,8 +219,8 @@ commit it was read at:
     holding a private key as a Python `int`, which is a change to that
     representation and not to a call site.
     `dsa.Signer.__init__` at `self._q.to_bytes(32, "big")`
-    ([`src/ecc/ecc/dsa.py:1483`](
-    https://github.com/btclib-org/ecc/blob/3a206701f22028330a031f3309f53b5ee2eec7d1/src/ecc/ecc/dsa.py#L1483
+    ([`src/ecc/dsa.py:1483`](
+    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/dsa.py#L1483
     )) crosses the same boundary the other
     way, once, at construction: the plain `int` `scalar_from_prv_key`
     already produced becomes a transient `bytes` on the way into the
@@ -253,7 +253,7 @@ commit it was read at:
     function that is sha256 or absent, declining any other —
     `hf is not None and hf is not sha256`
     ([`src/ecc/curves/curve.py:700`](
-    https://github.com/btclib-org/ecc/blob/3a206701f22028330a031f3309f53b5ee2eec7d1/src/ecc/curves/curve.py#L700
+    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/curves/curve.py#L700
     )) — with whatever further
     conditions the call site ands onto it. The hash function is matched
     by identity rather than by what it computes, so
@@ -291,7 +291,7 @@ commit it was read at:
     `musig_nonce_process` takes a fixed 32-byte `msg32` with no length
     parameter, so a message of any other size runs the Python equation
     below regardless of the bindings, as does a session carrying the
-    adaptor extension `ecc.ecc.musig2` implements and the bindings do
+    adaptor extension `ecc.musig2` implements and the bindings do
     not. `key_agg_var`, `key_sort` and `nonce_agg_var` stay Python's alone
     either way: measured too close to the delegated arithmetic they
     already call, or run once per session rather than once per signer,
@@ -379,20 +379,20 @@ commit it was read at:
     `curve._libsecp256k1_mult` at
     `libsecp256k1_shared_point(_sec_from_point(Q), m, False)`
     ([`src/ecc/curves/curve.py:976`](
-    https://github.com/btclib-org/ecc/blob/3a206701f22028330a031f3309f53b5ee2eec7d1/src/ecc/curves/curve.py#L976
+    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/curves/curve.py#L976
     )). `dh.diffie_hellman` at
     `sec = libsecp256k1_shared_point(`
-    ([`src/ecc/ecc/dh.py:123`](
-    https://github.com/btclib-org/ecc/blob/3a206701f22028330a031f3309f53b5ee2eec7d1/src/ecc/ecc/dh.py#L123
+    ([`src/ecc/dh.py:123`](
+    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/dh.py#L123
     )), `sec_point._mult_sec` at
     `libsecp256k1_shared_point(sec, m or 1, False)`
     ([`src/ecc/curves/sec_point.py:444`](
-    https://github.com/btclib-org/ecc/blob/3a206701f22028330a031f3309f53b5ee2eec7d1/src/ecc/curves/sec_point.py#L444
+    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/curves/sec_point.py#L444
     )), under `sec_point.mult_pub_key`, and
     `sec_point._mult_sec_compressed` at
     `libsecp256k1_shared_point(sec, m, True)`
     ([`src/ecc/curves/sec_point.py:466`](
-    https://github.com/btclib-org/ecc/blob/3a206701f22028330a031f3309f53b5ee2eec7d1/src/ecc/curves/sec_point.py#L466
+    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/curves/sec_point.py#L466
     )), under `ecies.derive_keys`, make the same call on the octets they
     already hold.
     `double_mult_var` and `multi_mult_var`, and `ssa.batch_verify`, are
@@ -406,13 +406,13 @@ commit it was read at:
     scalars are secrets, is a `mult` of each and their sum instead —
     `pedersen._commit` at
     `return _add(mult(r, ec.G, ec), mult(v, gen, ec), ec)`
-    ([`src/ecc/ecc/pedersen.py:384`](
-    https://github.com/btclib-org/ecc/blob/3a206701f22028330a031f3309f53b5ee2eec7d1/src/ecc/ecc/pedersen.py#L384
+    ([`src/ecc/pedersen.py:384`](
+    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/pedersen.py#L384
     )), under `pedersen.commit`,
     `rangeproof.sign` and `rangeproof.rewind`. The sum is
     `curve._add` at `return _libsecp256k1_sum((P, Q))`
     ([`src/ecc/curves/curve.py:1450`](
-    https://github.com/btclib-org/ecc/blob/3a206701f22028330a031f3309f53b5ee2eec7d1/src/ecc/curves/curve.py#L1450
+    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/curves/curve.py#L1450
     )): `secp256k1_ec_pubkey_combine`,
     whose group law `secp256k1_gej_add_ge` and whose inversion
     `secp256k1_fe_inv` are constant time. A commitment to a zero value
@@ -438,13 +438,13 @@ commit it was read at:
     twice over one message is safe only because the committed value
     reaches the nonce derivation: that is what keeps two such signatures
     from sharing an untweaked nonce and handing out the key. The
-    derivation is `ecc.ecc.commit_nonce`, and the property is worth
+    derivation is `ecc.commit_nonce`, and the property is worth
     knowing about for anyone building the anti-exfil protocol on top,
     which btclib does not yet offer: there, the ordering matters as
     well — the signer must publish its `R` before learning the host's
     randomness, and `sign` alone cannot enforce that
-- **a `ecc.ecc.borromean` ring signature made before issue #1053's fix
-    names its own signer.** The real signer's s-value was the only one
+- **a `ecc.borromean` ring signature made before issue #1053's fix names
+    its own signer.** The real signer's s-value was the only one
     computed rather than drawn, and the only one left unreduced: it ran
     to about twice the bit length of the forged values beside it, so the
     longest s in a ring was the real signer's position, read off a
@@ -462,7 +462,7 @@ commit it was read at:
     module: the auxiliary randomness of BIP340 signing and the private
     keys of the key generation helpers. Nothing here seeds a generator
     of its own
-- `ecc.ecc.ecies` ships no block cipher and takes AES-128-CBC as two
+- `ecc.ecies` ships no block cipher and takes AES-128-CBC as two
     callables, so the cipher's own resistance to timing and side-channel
     attack is whatever the caller passed in — btclib neither provides it
     nor can check it. That is the point of the parameter rather than a gap

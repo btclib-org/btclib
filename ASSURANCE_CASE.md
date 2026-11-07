@@ -92,8 +92,8 @@ vulnerabilities*:
 - memory disclosure: a secret in a Python object is not zeroized
 - a secret handed to a delegated `_var` multiplication, which is
   variable time in its scalar
-- the block cipher `ecc.ecc.ecies` takes from its caller, whose
-  resistance to side channels is the caller's
+- the block cipher `ecc.ecies` takes from its caller, whose resistance
+  to side channels is the caller's
 - the operating system's random number generator, which btclib uses
   through `secrets` rather than seeding one of its own
 

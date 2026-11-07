@@ -13,7 +13,7 @@ different messages, one per position.
 import itertools
 
 import pytest
-from ecc.ecc import ssa
+from ecc import ssa
 
 from btclib.exceptions import ScriptError, ScriptErrorCode
 from btclib.script import Witness, sig_hash
