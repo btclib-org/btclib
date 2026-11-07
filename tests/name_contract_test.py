@@ -107,10 +107,9 @@ _PERMITTED_DIFFICULTY_TRANSITION_IS_CORES_OWN_NAME = (
 )
 
 _POLICY_IS_CORES_OWN_NAME = (
-    "Bitcoin Core spells these `AreInputsStandard` and"
-    " `SpendsNonAnchorWitnessProg` (`src/policy/policy.cpp`, at"
-    " bitcoin/bitcoin@9be056a8a7): `btclib.policy` keeps the names a"
-    " reader of Core's mempool looks for"
+    "Bitcoin Core spells this `SpendsNonAnchorWitnessProg`"
+    " (`src/policy/policy.cpp`, at bitcoin/bitcoin@f0de87f040):"
+    " `btclib.policy` keeps the name a reader of Core's mempool looks for"
 )
 
 _ENGLISH_PREDICATE: dict[str, str] = {
@@ -120,7 +119,6 @@ _ENGLISH_PREDICATE: dict[str, str] = {
     "btclib.block.proof_of_work.permitted_difficulty_transition": (
         _PERMITTED_DIFFICULTY_TRANSITION_IS_CORES_OWN_NAME
     ),
-    "btclib.policy.are_inputs_standard": _POLICY_IS_CORES_OWN_NAME,
     "btclib.policy.spends_non_anchor_witness_prog": _POLICY_IS_CORES_OWN_NAME,
 }
 

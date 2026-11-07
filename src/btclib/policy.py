@@ -4,8 +4,8 @@
 
 """Bitcoin Core's relay policy: which valid transactions a node relays.
 
-A port of `policy/policy.{h,cpp}`, read at bitcoin/bitcoin@9be056a8a7
-(v31.1). A standard transaction is a valid one that a node also relays
+A port of `policy/policy.{h,cpp}`, read at bitcoin/bitcoin@f0de87f040
+(v32.1). A standard transaction is a valid one that a node also relays
 and mines; what a block may carry is consensus, and
 `btclib.script.engine` is where that is checked.
 
@@ -64,13 +64,13 @@ __all__ = [
     "MIN_STANDARD_TX_NONWITNESS_SIZE",
     "TX_MAX_STANDARD_VERSION",
     "TX_MIN_STANDARD_VERSION",
-    "are_inputs_standard",
     "assert_standard_tx",
     "dust_outputs",
     "is_dust",
     "is_witness_standard",
     "sig_ops_adjusted_weight",
     "spends_non_anchor_witness_prog",
+    "validate_inputs_standardness",
     "virtual_size",
 ]
 
@@ -235,34 +235,64 @@ def _assert_standard_outputs(
             raise BTClibValueError("bare-multisig")
 
 
-def are_inputs_standard(prevouts: Sequence[TxOut], tx: Tx) -> bool:
-    """Answer Core's `AreInputsStandard`.
+def _nonstandard_inputs(details: str) -> BTClibValueError:
+    """Return Core's refusal of the inputs: its reject reason, then why."""
+    return BTClibValueError(f"bad-txns-nonstandard-inputs, {details}")
 
-    A transaction is refused where
-    `btclib.tx.tx_context.assert_bip54_sig_ops` refuses it. Then each
-    input is refused for spending a script_pub_key `solver` calls
-    "nonstandard" or "witness_unknown", or a p2sh one whose script_sig
-    leaves no redeem script or one announcing more than
-    `MAX_P2SH_SIGOPS` checks. A coinbase is standard.
+
+def validate_inputs_standardness(prevouts: Sequence[TxOut], tx: Tx) -> None:
+    """Refuse the inputs Core's `ValidateInputsStandardness` refuses.
+
+    The message of the `BTClibValueError` is the `reject-details` that
+    `testmempoolaccept` reports: "bad-txns-nonstandard-inputs, " then
+    Core's words for the first rule broken.
+
+    The transaction is refused where
+    `btclib.tx.tx_context.assert_bip54_sig_ops` refuses it, "non-witness
+    sigops exceed bip54 limit". Then the input at index `i` is refused
+    where:
+
+    - `solver` calls the script_pub_key it spends "nonstandard", "input
+      i script unknown", or "witness_unknown", "input i witness program
+      is undefined";
+    - it spends p2sh and its script_sig fails, "p2sh scriptsig malformed
+      (input i: e)", `e` being the `description` of the
+      `ScriptErrorCode`; leaves an empty stack, "input i P2SH
+      redeemscript missing"; or leaves a redeem script announcing `n`
+      checks, more than `MAX_P2SH_SIGOPS`, "p2sh redeemscript sigops
+      exceed limit (input i: n > 15)".
+
+    A coinbase is standard.
     """
     _assert_prevouts(prevouts, tx)
     if tx.is_coinbase:
-        return True
+        return
 
     if not _legacy_sig_ops_within_limit(tx, prevouts):
-        return False
+        raise _nonstandard_inputs("non-witness sigops exceed bip54 limit")
 
-    for tx_in, prevout in zip(tx.vin, prevouts, strict=True):
+    for i, (tx_in, prevout) in enumerate(zip(tx.vin, prevouts, strict=True)):
         tx_out_type, _ = solver(prevout.script_pub_key.script)
-        if tx_out_type in ("nonstandard", "witness_unknown"):
-            return False
-        if tx_out_type == "scripthash":
-            redeem_script = _redeem_script(tx_in.script_sig)
-            if redeem_script is None:
-                return False
-            if sig_op_count(redeem_script, accurate=True) > MAX_P2SH_SIGOPS:
-                return False
-    return True
+        if tx_out_type == "nonstandard":
+            raise _nonstandard_inputs(f"input {i} script unknown")
+        if tx_out_type == "witness_unknown":
+            raise _nonstandard_inputs(f"input {i} witness program is undefined")
+        if tx_out_type != "scripthash":
+            continue
+        stack, error = eval_script(tx_in.script_sig)
+        if error:
+            description = error.code.description
+            raise _nonstandard_inputs(
+                f"p2sh scriptsig malformed (input {i}: {description})"
+            )
+        if not stack:
+            raise _nonstandard_inputs(f"input {i} P2SH redeemscript missing")
+        sig_ops = sig_op_count(stack[-1], accurate=True)
+        if sig_ops > MAX_P2SH_SIGOPS:
+            raise _nonstandard_inputs(
+                "p2sh redeemscript sigops exceed limit"
+                f" (input {i}: {sig_ops} > {MAX_P2SH_SIGOPS})"
+            )
 
 
 def is_witness_standard(prevouts: Sequence[TxOut], tx: Tx) -> bool:

@@ -4,10 +4,10 @@
 
 """Tests for the `btclib.policy` module.
 
-Core's own cases come first, read at bitcoin/bitcoin@9be056a8a7: from
+Core's own cases come first, read at bitcoin/bitcoin@f0de87f040: from
 src/test/transaction_tests.cpp `test_Get`, `test_IsStandard`,
 `max_standard_legacy_sigops` and `spends_witness_prog`; from
-src/test/script_p2sh_tests.cpp `AreInputsStandard`; and from
+src/test/script_p2sh_tests.cpp `ValidateInputsStandardness`; and from
 test/functional/p2p_segwit.py `test_non_standard_witness` and
 test/functional/mempool_accept.py's witness on a pay-to-anchor spend.
 Keys are fixed where Core generates them, and a signature nothing
@@ -17,6 +17,7 @@ the port.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import pytest
@@ -36,13 +37,13 @@ from btclib.policy import (
     MAX_TX_LEGACY_SIGOPS,
     MIN_STANDARD_TX_NONWITNESS_SIZE,
     TX_MAX_STANDARD_VERSION,
-    are_inputs_standard,
     assert_standard_tx,
     dust_outputs,
     is_dust,
     is_witness_standard,
     sig_ops_adjusted_weight,
     spends_non_anchor_witness_prog,
+    validate_inputs_standardness,
     virtual_size,
 )
 from btclib.script import serialize
@@ -141,6 +142,13 @@ def _assert_not_standard(tx: Tx, reason: str, **kwargs: Any) -> None:
         assert_standard_tx(tx, **kwargs)
 
 
+def _assert_inputs_not_standard(prevouts: list[TxOut], tx: Tx, details: str) -> None:
+    """Refused, Core's reject reason followed by its debug message."""
+    message = f"bad-txns-nonstandard-inputs, {details}"
+    with pytest.raises(BTClibValueError, match=f"^{re.escape(message)}$"):
+        validate_inputs_standardness(prevouts, tx)
+
+
 def test_get() -> None:
     """Core's `test_Get`: p2pk and p2pkh prevouts are standard inputs."""
     prevouts = [
@@ -156,7 +164,7 @@ def test_get() -> None:
             serialize([b"\x00" * 65, b"\x04" * 33]),
         ],
     )
-    assert are_inputs_standard(prevouts, tx)
+    validate_inputs_standardness(prevouts, tx)
 
 
 def _is_standard_base() -> Tx:
@@ -430,18 +438,19 @@ def test_max_standard_legacy_sigops() -> None:
 
     prevouts = [TxOut(424242 + i, _p2sh(redeem_script)) for i in range(p2sh_count)]
     # 2490 sigops
-    assert are_inputs_standard(prevouts, _spend(prevouts, [script_sig] * p2sh_count))
+    validate_inputs_standardness(prevouts, _spend(prevouts, [script_sig] * p2sh_count))
     # 2505
     prevouts.append(TxOut(424242, _p2sh(redeem_script)))
     script_sigs = [script_sig] * len(prevouts)
-    assert not are_inputs_standard(prevouts, _spend(prevouts, script_sigs))
+    tx = _spend(prevouts, script_sigs)
+    _assert_inputs_not_standard(prevouts, tx, "non-witness sigops exceed bip54 limit")
 
     # the limit reached with p2pk outputs too: 2490 + 10
     prevouts = prevouts[:p2sh_count] + [
         TxOut(212121 + i, _p2pk(KEY_1)) for i in range(10)
     ]
     script_sigs = [script_sig] * p2sh_count + [b""] * 10
-    assert are_inputs_standard(prevouts, _spend(prevouts, script_sigs))
+    validate_inputs_standardness(prevouts, _spend(prevouts, script_sigs))
 
     # witness sigops are not legacy ones
     witness_script = _p2pk(KEY_1)
@@ -451,12 +460,13 @@ def test_max_standard_legacy_sigops() -> None:
         TxOut(141414, _p2tr(X_ONLY)),
     ]
     script_sigs += [b""] * 3
-    assert are_inputs_standard(prevouts, _spend(prevouts, script_sigs))
+    validate_inputs_standardness(prevouts, _spend(prevouts, script_sigs))
 
     # one p2pk more: 2501
     prevouts.append(TxOut(212121, _p2pk(KEY_1)))
     script_sigs.append(b"")
-    assert not are_inputs_standard(prevouts, _spend(prevouts, script_sigs))
+    tx = _spend(prevouts, script_sigs)
+    _assert_inputs_not_standard(prevouts, tx, "non-witness sigops exceed bip54 limit")
 
 
 def test_bip54_counts_the_script_sig() -> None:
@@ -467,14 +477,15 @@ def test_bip54_counts_the_script_sig() -> None:
     script_sigs = [b""] * (len(prevouts) - 1) + [
         serialize(["OP_1", "OP_CHECKMULTISIG"])
     ]
-    assert are_inputs_standard(prevouts, _spend(prevouts, script_sigs))
+    validate_inputs_standardness(prevouts, _spend(prevouts, script_sigs))
 
     script_sigs[-1] = serialize(["OP_2", "OP_CHECKMULTISIG"])
-    assert not are_inputs_standard(prevouts, _spend(prevouts, script_sigs))
+    tx = _spend(prevouts, script_sigs)
+    _assert_inputs_not_standard(prevouts, tx, "non-witness sigops exceed bip54 limit")
 
 
-def test_are_inputs_standard_p2sh() -> None:
-    """Core's `AreInputsStandard` of script_p2sh_tests.cpp."""
+def test_validate_inputs_standardness() -> None:
+    """Core's `ValidateInputsStandardness` of script_p2sh_tests.cpp."""
     keys = [KEY_1, KEY_2, KEY_3]
     pay_1 = _p2pkh(KEY_1)
     # 1-of-3 and 2-of-3, standard only inside p2sh
@@ -514,41 +525,118 @@ def test_are_inputs_standard_p2sh() -> None:
         serialize(["OP_11", "OP_11", one_and_two]),
         serialize([fifteen_sigops]),
     ]
-    assert are_inputs_standard(prevouts, _spend(prevouts, script_sigs))
+    validate_inputs_standardness(prevouts, _spend(prevouts, script_sigs))
 
-    for redeem_script in (sixteen_sigops, twenty_sigops):
+    # txToNonStd1 and txToNonStd2
+    for redeem_script, sig_ops in ((sixteen_sigops, 16), (twenty_sigops, 20)):
         prevouts = [TxOut(5000, _p2sh(redeem_script))]
         tx = _spend(prevouts, [serialize([redeem_script])])
-        assert not are_inputs_standard(prevouts, tx)
+        details = f"p2sh redeemscript sigops exceed limit (input 0: {sig_ops} > 15)"
+        _assert_inputs_not_standard(prevouts, tx, details)
+    # txToNonStd2_no_scriptSig
+    prevouts = [TxOut(3000, _p2sh(twenty_sigops))]
+    details = "input 0 P2SH redeemscript missing"
+    _assert_inputs_not_standard(prevouts, _spend(prevouts), details)
+
+    # txToNonStd3: an empty script_pub_key
+    prevouts = [TxOut(1000, b"")]
+    _assert_inputs_not_standard(prevouts, _spend(prevouts), "input 0 script unknown")
+    # txToNonStd4: the script_sig is the redeem script, OP_RETURN
+    prevouts = [TxOut(1000, _p2sh(OP_RETURN))]
+    tx = _spend(prevouts, [OP_RETURN])
+    details = "p2sh scriptsig malformed (input 0: OP_RETURN was encountered)"
+    _assert_inputs_not_standard(prevouts, tx, details)
+    # txWitnessUnknown
+    prevouts = [TxOut(1000, serialize(["OP_16", (1).to_bytes(32, "little")]))]
+    details = "input 0 witness program is undefined"
+    _assert_inputs_not_standard(prevouts, _spend(prevouts), details)
 
 
 @pytest.mark.parametrize(
-    "script_pub_key, script_sig, standard",
+    "script_pub_key, script_sig, details",
     [
         # Solver's nonstandard and witness_unknown are refused
-        (OP_1, b"", False),
-        (serialize(["OP_2", b"\x00" * 32]), b"", False),
-        (serialize(["OP_0", b"\x00" * 21]), b"", False),
+        (OP_1, b"", "input 0 script unknown"),
+        (
+            serialize(["OP_2", b"\x00" * 32]),
+            b"",
+            "input 0 witness program is undefined",
+        ),
+        (serialize(["OP_0", b"\x00" * 21]), b"", "input 0 script unknown"),
         # the anchor is a type of its own, and standard
-        (ANCHOR, b"", True),
-        (serialize(["OP_RETURN"]), b"", True),
+        (ANCHOR, b"", None),
+        (serialize(["OP_RETURN"]), b"", None),
         # a p2sh spend whose script_sig leaves nothing, or fails
-        (_p2sh(b""), b"", False),
-        (_p2sh(OP_1), serialize(["OP_RETURN"]), False),
-        (_p2sh(OP_1), serialize(["OP_0", "OP_DROP"]), False),
+        (_p2sh(b""), b"", "input 0 P2SH redeemscript missing"),
+        (
+            _p2sh(OP_1),
+            serialize(["OP_RETURN"]),
+            "p2sh scriptsig malformed (input 0: OP_RETURN was encountered)",
+        ),
+        (
+            _p2sh(OP_1),
+            serialize(["OP_0", "OP_DROP"]),
+            "input 0 P2SH redeemscript missing",
+        ),
         # a script_sig need not be push-only to leave a redeem script
-        (_p2sh(OP_1), serialize(["OP_0", "OP_DROP", OP_1]), True),
+        (_p2sh(OP_1), serialize(["OP_0", "OP_DROP", OP_1]), None),
         # and a push over 520 bytes fails the script_sig, push-only or not
-        (_p2sh(OP_1 * 521), serialize([OP_1 * 521]), False),
+        (
+            _p2sh(OP_1 * 521),
+            serialize([OP_1 * 521]),
+            "p2sh scriptsig malformed (input 0: Push value size limit exceeded)",
+        ),
     ],
 )
-def test_are_inputs_standard_edges(
-    script_pub_key: bytes, script_sig: bytes, standard: bool
+def test_validate_inputs_standardness_edges(
+    script_pub_key: bytes, script_sig: bytes, details: str | None
 ) -> None:
     """What Core's cases leave out: each refusal on its own."""
     prevouts = [TxOut(1000, script_pub_key)]
     tx = _spend(prevouts, [script_sig])
-    assert are_inputs_standard(prevouts, tx) is standard
+    if details is None:
+        validate_inputs_standardness(prevouts, tx)
+    else:
+        _assert_inputs_not_standard(prevouts, tx, details)
+
+
+@pytest.mark.parametrize(
+    "script_pub_key, script_sig, details",
+    [
+        (OP_1, b"", "input 1 script unknown"),
+        (
+            serialize(["OP_2", b"\x00" * 32]),
+            b"",
+            "input 1 witness program is undefined",
+        ),
+        (
+            _p2sh(OP_1),
+            serialize(["OP_RETURN"]),
+            "p2sh scriptsig malformed (input 1: OP_RETURN was encountered)",
+        ),
+        (_p2sh(OP_1), b"", "input 1 P2SH redeemscript missing"),
+        (
+            _p2sh(serialize(["OP_16", "OP_CHECKMULTISIG"])),
+            serialize([serialize(["OP_16", "OP_CHECKMULTISIG"])]),
+            "p2sh redeemscript sigops exceed limit (input 1: 16 > 15)",
+        ),
+    ],
+)
+def test_the_refused_input_is_named(
+    script_pub_key: bytes, script_sig: bytes, details: str
+) -> None:
+    """The index is that of the first input refused, counted from 0.
+
+    A standard input comes first, and a nonstandard one after the refused
+    one, so that neither 0 nor the last index passes for it.
+    """
+    prevouts = [
+        TxOut(1000, _p2pkh(KEY_1)),
+        TxOut(1000, script_pub_key),
+        TxOut(1000, b""),
+    ]
+    tx = _spend(prevouts, [serialize([SIG, KEY_1]), script_sig, b""])
+    _assert_inputs_not_standard(prevouts, tx, details)
 
 
 @pytest.mark.parametrize(
@@ -568,7 +656,7 @@ def test_the_script_sig_checks_no_signature(check: bytes) -> None:
     script_sig = check + serialize(["OP_IF", "OP_RETURN", "OP_ENDIF", OP_1])
     prevouts = [TxOut(1000, _p2sh(OP_1))]
     tx = _spend(prevouts, [script_sig])
-    assert are_inputs_standard(prevouts, tx)
+    validate_inputs_standardness(prevouts, tx)
 
 
 def test_coinbase() -> None:
@@ -579,7 +667,7 @@ def test_coinbase() -> None:
         [TxIn(OutPoint(), b"\x01\x01", 0xFFFFFFFF, Witness([b"\x00" * 32]))],
         [TxOut(50, OP_1)],
     )
-    assert are_inputs_standard([], coinbase)
+    validate_inputs_standardness([], coinbase)
     assert is_witness_standard([], coinbase)
     assert not spends_non_anchor_witness_prog([], coinbase)
 
@@ -760,7 +848,7 @@ def test_invalid_arguments() -> None:
     """A wrong type is a BTClibTypeError, a wrong value a BTClibValueError."""
     tx = _is_standard_base()
     prevouts = [TxOut(1000, _p2pkh(KEY_1))]
-    for function in (are_inputs_standard, is_witness_standard):
+    for function in (validate_inputs_standardness, is_witness_standard):
         with pytest.raises(BTClibTypeError, match="invalid tx type"):
             function(prevouts, "tx")  # type: ignore[arg-type]
         with pytest.raises(BTClibTypeError, match="invalid prevouts type"):

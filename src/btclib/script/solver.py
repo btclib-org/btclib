@@ -9,7 +9,7 @@ bitcoin/bitcoin@f0de87f040, with the helpers it calls in
 `script/script.cpp`. Where `script_pub_key.type_and_payload` answers one
 payload and names its types its own way, this answers Core's types and the
 list of solutions Core fills, which is what `IsStandardTx`,
-`AreInputsStandard` and the wallet read.
+`ValidateInputsStandardness` and the wallet read.
 
 The two differ on purpose (issue #211), and on more than names:
 
