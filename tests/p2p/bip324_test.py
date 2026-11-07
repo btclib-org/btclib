@@ -288,11 +288,12 @@ def test_the_length_cipher_is_its_own_inverse_across_rekeyings() -> None:
 
 
 def test_the_message_ids_are_core_s() -> None:
-    """The table's ends and its unassigned ids, as in Core."""
+    """The table's ends and its unimplemented ids, as in Core."""
     assert bip324.MESSAGE_IDS[0] == ""
     assert bip324.MESSAGE_IDS[1:4] == ("addr", "block", "blocktxn")
     assert bip324.MESSAGE_IDS[28] == "addrv2"
-    assert set(bip324.MESSAGE_IDS[29:]) == {""}
+    assert set(bip324.MESSAGE_IDS[29:37]) == {""}
+    assert bip324.MESSAGE_IDS[37:] == ("feature",)
     named = [t for t in bip324.MESSAGE_IDS if t]
     assert len(set(named)) == len(named)
 
@@ -317,6 +318,14 @@ def test_any_other_message_is_a_nul_and_twelve_bytes(command: str) -> None:
     assert bip324.message_from_contents(contents) == (command, b"payload")
 
 
+def test_feature_is_short_id_37() -> None:
+    """BIP434's `feature` is sent and read as short id 37, as in Core."""
+    contents = bip324.contents_from_message("feature", b"payload")
+
+    assert contents == b"\x25payload"
+    assert bip324.message_from_contents(contents) == ("feature", b"payload")
+
+
 def test_a_long_type_may_spell_a_short_id_command() -> None:
     """The long spelling of a short-id command is read as the command."""
     contents = b"\x00" + b"ping".ljust(12, b"\x00") + b"nonce"
@@ -335,7 +344,7 @@ def test_a_command_that_is_not_twelve_printable_bytes_is_refused(command: str) -
     "contents, match",
     [
         (b"", "empty contents"),
-        (b"\x21", "unknown short message id"),
+        (b"\x26", "unknown short message id"),
         (b"\xff", "unknown short message id"),
         (b"\x00" + b"ping", "long message type too short"),
         (b"\x00" + b"pi\x00ng".ljust(12, b"\x00"), "invalid command padding"),
@@ -350,7 +359,7 @@ def test_contents_without_a_type_are_refused(contents: bytes, match: str) -> Non
         bip324.message_from_contents(contents)
 
 
-@pytest.mark.parametrize("short_id", [29, 30, 31, 32])
+@pytest.mark.parametrize("short_id", range(29, 37))
 def test_an_unimplemented_short_id_has_no_command(short_id: int) -> None:
     """An id the table holds without a type reads as `""`."""
     assert bip324.message_from_contents(bytes([short_id]) + b"x") == ("", b"x")

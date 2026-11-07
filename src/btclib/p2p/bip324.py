@@ -91,9 +91,9 @@ SALT_PREFIX = b"bitcoin_v2_shared_secret"
 
 _MESSAGE_TYPE_LEN = 12
 
-# Core's V2_MESSAGE_IDS (src/net.cpp, v31.1): the type of each short id,
-# "" for id 0, which announces 12 bytes of type, and for ids 29 to 32,
-# which the table holds without a type
+# Core's V2_MESSAGE_IDS (src/net.cpp at bitcoin/bitcoin@f0de87f040): the
+# type of each short id, "" for id 0, which announces 12 bytes of type,
+# and for ids 29 to 36, which the table holds without a type
 MESSAGE_IDS = (
     "",
     "addr",
@@ -128,6 +128,11 @@ MESSAGE_IDS = (
     "",
     "",
     "",
+    "",
+    "",
+    "",
+    "",
+    "feature",
 )
 _SHORT_ID = {t: i for i, t in enumerate(MESSAGE_IDS) if t}
 
