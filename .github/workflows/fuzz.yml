@@ -182,10 +182,17 @@ jobs:
       # fuzzer (issue #2614).
       #
       # Not `-max_len`: it caps the inputs libFuzzer reads and generates,
-      # and does not make it read the zip. With none given, libFuzzer
-      # takes the largest corpus file, so the cap follows the seed.
-      # Not `force_unpack`: the libFuzzer engine never sets it, and this
-      # action has no input that does.
+      # and does not make it read the zip. With none given, the cap is the
+      # largest corpus file, held between 4096 bytes and 1 MiB
+      # (`ReadAndExecuteSeedCorpora` in LLVM's
+      # compiler-rt/lib/fuzzer/FuzzerLoop.cpp, read at LLVM cb2f0d0a5f14,
+      # the OUR_LLVM_REVISION of google/oss-fuzz's
+      # infra/base-images/base-clang/checkout_build_install_llvm.sh), so a
+      # seed longer than 4096 bytes raises it. run_fuzzers adds none:
+      # build.sh writes no `.options` file, and clusterfuzz's `get_engine`,
+      # read at the same 2.5.9, turns off the strategy that would pick one
+      # at random. Not `force_unpack`: the libFuzzer engine never sets it,
+      # and this action has no input that does.
       #
       # The download extracts the stored corpus into an existing
       # directory without emptying it, and `extractall` overwrites a file
