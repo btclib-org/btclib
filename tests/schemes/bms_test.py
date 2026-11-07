@@ -792,8 +792,9 @@ def test_the_file_carries_the_high_s_vectors_the_case_rests_on() -> None:
     of this tree.
 
     88 is the size of the interoperability gap issue 695 measured against
-    a node: Bitcoin Core v31.1.0's `verifymessage` answers true for all
-    200 of these, and these 88 are the ones btclib refused.
+    a node: the `verifymessage` of the Bitcoin Core release
+    `integration-bitcoind.yml` pins answers true for all 200 of these,
+    and these 88 are the ones btclib refused.
     """
     high_s = 0
     for vector in load("schemes", "_data", "python-bitcoinlib", "signmessage.json"):
@@ -1031,7 +1032,7 @@ def test_recoverable_signing_answers_the_key_id_the_search_finds(
 
 
 # Bitcoin Core's own functional test, rpc_signmessagewithprivkey.py at
-# bitcoin/bitcoin@9be056a8a7 (v31.1): the key, the message, the signature
+# bitcoin/bitcoin@f0de87f040: the key, the message, the signature
 # `signmessagewithprivkey` answers and the regtest address of the key
 _CORE_WIF = "cUeKHd5orzT3mz8P9pxyREHfsWtVfgsfDjiZZBcjUBAaGk1BTj7N"
 _CORE_MSG = b"This is just a test message"
@@ -1056,11 +1057,12 @@ def _b64(raw: bytes) -> str:
 
 
 def test_message_verify_answers_the_four_rows_of_issue_2487() -> None:
-    """Each row is what bitcoind v31.1.0's `verifymessage` answers on regtest.
+    """Each row is what bitcoind's `verifymessage` answers on regtest.
 
-    `verify` answers the second differently, raises on the third and the
-    fourth is a value it reads: it is the Electrum and BIP137 scheme, and
-    stays so.
+    The bitcoind is the release `integration-bitcoind.yml` pins. `verify`
+    answers the second differently, raises on the third and the fourth
+    is a value it reads: it is the Electrum and BIP137 scheme, and stays
+    so.
     """
     assert _core() is _Result.OK
 

@@ -19,7 +19,7 @@ pre-mining candidate can pass; what this adds is the one coinbase shape
 it cannot build. `build.build_coinbase` always commits to a height
 (BIP34), and every network's genesis predates that rule: its script_sig
 is the literal timestamp message Bitcoin Core's `CreateGenesisBlock`
-hardcodes (`kernel/chainparams.cpp`, at bitcoin/bitcoin@9be056a8a7), not
+hardcodes (`kernel/chainparams.cpp`, at bitcoin/bitcoin@f0de87f040), not
 a general-purpose builder's output. `mainnet`, `testnet`, `regtest` and
 `signet` share that message, the same public key, and `OP_CHECKSIG` --
 `tests/block/build_test.py`'s own mainnet vector already builds that
@@ -96,7 +96,7 @@ class _GenesisParams:
 
 
 # time, bits and nonce transcribed from Bitcoin Core's own
-# kernel/chainparams.cpp, at bitcoin/bitcoin@9be056a8a7, one
+# kernel/chainparams.cpp, at bitcoin/bitcoin@f0de87f040, one
 # CreateGenesisBlock call per network; message and script_pub_key from
 # the same file, the standard pair everywhere but testnet4 and
 # testnet4's own there

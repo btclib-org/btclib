@@ -5,13 +5,13 @@
 """Tests for the `btclib.block.header_context` module.
 
 The four `next_bits_required` mainnet vectors are Bitcoin Core's own
-`src/test/pow_tests.cpp`, at bitcoin/bitcoin@9be056a8a7 (v31.1): each
-puts a real height, timestamp and `bits` beside the retarget it computed
-from them, and the comment names the block each timestamp belongs to.
-Every chain built to carry one is a placeholder except at the two
-heights the vector names -- `next_bits_required` reads only the parent
-and the period's first header, so what sits between them cannot change
-the answer, only the cost of the walk to it.
+`src/test/pow_tests.cpp`, at bitcoin/bitcoin@f0de87f040: each puts a
+real height, timestamp and `bits` beside the retarget it computed from
+them, and the comment names the block each timestamp belongs to. Every
+chain built to carry one is a placeholder except at the two heights the
+vector names -- `next_bits_required` reads only the parent and the
+period's first header, so what sits between them cannot change the
+answer, only the cost of the walk to it.
 
 The BIP54 timestamp rules are held to bip-0054's own `timestamps.json`,
 under `tests/block/_data/` and pinned in `tests/_data/README.md`: mainnet

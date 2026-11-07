@@ -4,7 +4,7 @@
 
 """The Coin dataclass: a prevout, and what a rule about spending it needs.
 
-Bitcoin Core's `Coin` (`src/coins.h`, at bitcoin/bitcoin@9be056a8a7) is
+Bitcoin Core's `Coin` (`src/coins.h`, at bitcoin/bitcoin@f0de87f040) is
 the shape matched -- an output, the height of the block that created it,
 and whether that block's own coinbase created it -- and not matched in
 full: Core's `Coin` also runs the output through `TxOutCompression`, a

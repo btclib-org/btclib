@@ -56,9 +56,10 @@ def test_every_flag_is_checked_and_every_check_is_a_flag() -> None:
 
 
 # the position of each name in Bitcoin Core's `script_verify_flag_name`,
-# src/script/interpreter.h at v32.1, whose `script_verify_flags` sets bit
-# `1 << position` (src/script/verify_flags.h). Written out, not derived,
-# so that a member given another bit fails
+# src/script/interpreter.h at bitcoin/bitcoin@f0de87f040, whose
+# `script_verify_flags` sets bit `1 << position`
+# (src/script/verify_flags.h). Written out, not derived, so that a member
+# given another bit fails
 CORE_BIT = {
     "P2SH": 0,
     "STRICTENC": 1,

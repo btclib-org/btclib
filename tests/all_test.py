@@ -93,7 +93,7 @@ def _reexports(*groups: tuple[ModuleType, list[str]]) -> dict[str, ModuleType]:
 #
 # `btclib.policy`'s MAX_TX_LEGACY_SIGOPS is another: BIP54 makes it a
 # consensus bound, defined in `btclib.tx.limits`, and policy.h is where
-# Core v31.1 declares it.
+# Core declares it.
 #
 # `btclib.alias` is the one entry naming another distribution's objects:
 # the type aliases of `ecc.alias`, which btclib's modules and callers spell

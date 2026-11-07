@@ -514,9 +514,9 @@ def test_fix_signature_high_s() -> None:
 def lax_encodings(der: bytes) -> dict[str, bytes]:
     """Re-encode a strict DER signature the ways Core's lax parser reads.
 
-    Each is an encoding a regtest node of Core v31.1.0 mined below its
-    DERSIG activation height, moved out for the run, and refused with
-    SIG_DER above it.
+    Each is an encoding a regtest node of the Bitcoin Core release
+    `integration-bitcoind.yml` pins mined below its DERSIG activation
+    height, moved out for the run, and refused with SIG_DER above it.
     """
     r_end = 4 + der[3]
     return {

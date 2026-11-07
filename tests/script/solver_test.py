@@ -6,7 +6,7 @@
 
 The first two groups are Core's `script_standard_Solver_success` and
 `script_standard_Solver_failure` (src/test/script_standard_tests.cpp at
-bitcoin/bitcoin@9be056a8a7), case by case, with fixed keys where Core
+bitcoin/bitcoin@f0de87f040), case by case, with fixed keys where Core
 generates them. The rest are the edges of the port.
 """
 

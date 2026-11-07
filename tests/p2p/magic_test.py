@@ -4,10 +4,11 @@
 
 """Tests for the `btclib.p2p.magic` module.
 
-`_CORE` is `pchMessageStart` as `src/kernel/chainparams.cpp` writes it at
-Bitcoin Core v31.1, the tag the module cites. The `bitcoin-core-rpc`
-package keeps a copy of the same table and the same derivation, and the
-tests below compare btclib's answers with that copy as well.
+`_CORE` is `pchMessageStart` as Bitcoin Core's
+`src/kernel/chainparams.cpp` writes it, at the commit the module cites.
+The `bitcoin-core-rpc` package keeps a copy of the same table and the
+same derivation, and the tests below compare btclib's answers with that
+copy as well.
 """
 
 from __future__ import annotations

@@ -101,7 +101,7 @@ _CAN_ADDRV1_ASKS_CAPACITY_NOT_VALIDITY = (
 
 _PERMITTED_DIFFICULTY_TRANSITION_IS_CORES_OWN_NAME = (
     "Bitcoin Core spells this `PermittedDifficultyTransition`"
-    " (`src/pow.cpp`, at bitcoin/bitcoin@9be056a8a7): an `is_` would"
+    " (`src/pow.cpp`, at bitcoin/bitcoin@f0de87f040): an `is_` would"
     " rename the check a headers presync (Core's `HeadersSyncState`)"
     " asks by that exact name (issue #2418)"
 )

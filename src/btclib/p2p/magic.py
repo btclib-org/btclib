@@ -13,11 +13,11 @@ from its block challenge: `magic_from_signet_challenge` answers for it.
 That is why `Network` has no `magic` field: a field keyed by the name
 "signet" would be wrong for every custom signet.
 
-The values are transcribed from `src/kernel/chainparams.cpp` at Bitcoin
-Core v31.1 (bitcoin/bitcoin@9be056a8a7), and `tests/p2p/magic_test.py`
-holds each one to that transcription. Signet's entry is a copy of the
-derived value rather than a derivation at import: the test derives it
-from `DEFAULT_SIGNET_CHALLENGE`.
+The values are transcribed from Bitcoin Core's
+`src/kernel/chainparams.cpp` at bitcoin/bitcoin@f0de87f040, and
+`tests/p2p/magic_test.py` holds each one to that transcription.
+Signet's entry is a copy of the derived value rather than a derivation
+at import: the test derives it from `DEFAULT_SIGNET_CHALLENGE`.
 """
 
 from types import MappingProxyType
@@ -34,9 +34,9 @@ __all__ = [
     "magic_from_signet_challenge",
 ]
 
-# `pchMessageStart` per network, chainparams.cpp lines 125-128 (main),
-# 251-254 (testnet3), 359-362 (testnet4) and 599-602 (regtest); signet's
-# is the derivation of lines 507-511 applied to the default challenge
+# `pchMessageStart` per network, chainparams.cpp lines 149-152 (main),
+# 274-277 (testnet3), 381-384 (testnet4) and 620-623 (regtest); signet's
+# is the derivation of lines 529-533 applied to the default challenge
 _MAGIC_FROM_NETWORK: Final = MappingProxyType(
     {
         "mainnet": bytes.fromhex("f9beb4d9"),
@@ -49,7 +49,7 @@ _MAGIC_FROM_NETWORK: Final = MappingProxyType(
 
 # the block challenge of the default signet, the one a Bitcoin Core node
 # started without -signetchallenge uses: SigNetParams in
-# src/kernel/chainparams.cpp, line 442 at v31.1
+# src/kernel/chainparams.cpp, line 470 at bitcoin/bitcoin@f0de87f040
 DEFAULT_SIGNET_CHALLENGE: Final = bytes.fromhex(
     # split at a push boundary: OP_1 and the first key, then the second key
     # with OP_2 and OP_CHECKMULTISIG, a 1-of-2 multisig. The allowlist
@@ -77,7 +77,8 @@ def magic_from_signet_challenge(challenge: Octets) -> bytes:
 
     Core: "message start is defined as the first 4 bytes of the sha256d of
     the block script", the script serialized with its CompactSize length
-    (chainparams.cpp lines 507-511 at v31.1). BIP325 defines the challenge.
+    (chainparams.cpp lines 529-533 at bitcoin/bitcoin@f0de87f040). BIP325
+    defines the challenge.
 
     `challenge` is hex, as a config file and `getblockchaininfo` write it,
     or the octets a parser holds. Core reads any hex for

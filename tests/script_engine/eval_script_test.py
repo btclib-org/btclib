@@ -5,9 +5,9 @@
 """Tests for `eval_script`: the stack a script stops on is Core's.
 
 Each expectation is read off `EvalScript` in `src/script/interpreter.cpp`
-of bitcoin/bitcoin@9be056a8a7 (v31.1), at the lines its case names, and
-not off what btclib answers. Core's own tests assert no stack where an op
-code refuses, so the source is the ground and these cases are its hand
+of bitcoin/bitcoin@f0de87f040, at the lines its case names, and not off
+what btclib answers. Core's own tests assert no stack where an op code
+refuses, so the source is the ground and these cases are its hand
 reading: what an op code pops, and when.
 """
 
@@ -43,27 +43,28 @@ class _Case(NamedTuple):
     initial: tuple[bytes, ...] = ()
 
 
-# Core's EvalScript in src/script/interpreter.cpp, v31.1, by line
+# Core's EvalScript in src/script/interpreter.cpp, at the commit the module
+# docstring names, by line
 _CASES: dict[str, _Case] = {
     # (false -- false) and return: the false stays
     "OP_VERIFY on a false": _Case(
-        b"\x00\x69", [b""], NO_FLAGS, _CODE.VERIFY, 1, "653-665"
+        b"\x00\x69", [b""], NO_FLAGS, _CODE.VERIFY, 1, "663-675"
     ),
     "OP_VERIFY on nothing": _Case(
-        b"\x69", [], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 0, "657-658"
+        b"\x69", [], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 0, "667-668"
     ),
     # the false result is pushed, then tested, and kept
     "OP_EQUALVERIFY on unequal": _Case(
-        b"\x51\x52\x88", [b""], NO_FLAGS, _CODE.EQUALVERIFY, 2, "902-911"
+        b"\x51\x52\x88", [b""], NO_FLAGS, _CODE.EQUALVERIFY, 2, "912-921"
     ),
     "OP_EQUALVERIFY on one element": _Case(
-        b"\x51\x88", [b"\x01"], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 1, "892-893"
+        b"\x51\x88", [b"\x01"], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 1, "902-903"
     ),
     "OP_EQUALVERIFY on nothing": _Case(
-        b"\x88", [], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 0, "892-893"
+        b"\x88", [], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 0, "902-903"
     ),
     "OP_NUMEQUALVERIFY on unequal": _Case(
-        b"\x51\x52\x9d", [b""], NO_FLAGS, _CODE.NUMEQUALVERIFY, 2, "988-998"
+        b"\x51\x52\x9d", [b""], NO_FLAGS, _CODE.NUMEQUALVERIFY, 2, "998-1008"
     ),
     # a CScriptNum is built from stacktop() before anything is popped
     "OP_ADD on a number too long": _Case(
@@ -72,7 +73,7 @@ _CASES: dict[str, _Case] = {
         NO_FLAGS,
         _CODE.SCRIPTNUM,
         2,
-        "960-963, 1226-1229",
+        "970-973, 1236-1239",
     ),
     "OP_1ADD on a number too long": _Case(
         _PUSH_FIVE_BYTES + b"\x8b",
@@ -80,7 +81,7 @@ _CASES: dict[str, _Case] = {
         NO_FLAGS,
         _CODE.SCRIPTNUM,
         1,
-        "927-929, 1226-1229",
+        "937-939, 1236-1239",
     ),
     "OP_WITHIN on a number too long": _Case(
         b"\x51\x52" + _PUSH_FIVE_BYTES + b"\xa5",
@@ -88,7 +89,7 @@ _CASES: dict[str, _Case] = {
         NO_FLAGS,
         _CODE.SCRIPTNUM,
         3,
-        "1005-1009",
+        "1015-1019",
     ),
     # OP_PICK and OP_ROLL pop the index, then fail on it
     "OP_PICK past the stack": _Case(
@@ -97,7 +98,7 @@ _CASES: dict[str, _Case] = {
         NO_FLAGS,
         _CODE.INVALID_STACK_OPERATION,
         3,
-        "830-833",
+        "840-843",
     ),
     "OP_ROLL past the stack": _Case(
         b"\x51\x52\x55\x7a",
@@ -105,7 +106,7 @@ _CASES: dict[str, _Case] = {
         NO_FLAGS,
         _CODE.INVALID_STACK_OPERATION,
         3,
-        "830-833",
+        "840-843",
     ),
     "OP_PICK of a negative index": _Case(
         b"\x51\x4f\x79",
@@ -113,7 +114,7 @@ _CASES: dict[str, _Case] = {
         NO_FLAGS,
         _CODE.INVALID_STACK_OPERATION,
         2,
-        "830-833",
+        "840-843",
     ),
     "OP_PICK on a number too long": _Case(
         b"\x51" + _PUSH_FIVE_BYTES + b"\x79",
@@ -121,17 +122,17 @@ _CASES: dict[str, _Case] = {
         NO_FLAGS,
         _CODE.SCRIPTNUM,
         2,
-        "830, 1226-1229",
+        "840, 1236-1239",
     ),
     "OP_PICK on one element": _Case(
-        b"\x51\x79", [b"\x01"], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 1, "828-829"
+        b"\x51\x79", [b"\x01"], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 1, "838-839"
     ),
     # the depth is checked before anything is popped
     "OP_2DROP on one element": _Case(
-        b"\x51\x6d", [b"\x01"], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 1, "698-699"
+        b"\x51\x6d", [b"\x01"], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 1, "708-709"
     ),
     "OP_NIP on one element": _Case(
-        b"\x51\x77", [b"\x01"], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 1, "807-808"
+        b"\x51\x77", [b"\x01"], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 1, "817-818"
     ),
     "OP_ROT on two elements": _Case(
         b"\x51\x52\x7b",
@@ -139,13 +140,13 @@ _CASES: dict[str, _Case] = {
         NO_FLAGS,
         _CODE.INVALID_STACK_OPERATION,
         2,
-        "846-847",
+        "856-857",
     ),
     "OP_TUCK on one element": _Case(
-        b"\x51\x7d", [b"\x01"], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 1, "865-866"
+        b"\x51\x7d", [b"\x01"], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 1, "875-876"
     ),
     "OP_EQUAL on one element": _Case(
-        b"\x51\x87", [b"\x01"], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 1, "892-893"
+        b"\x51\x87", [b"\x01"], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 1, "902-903"
     ),
     "OP_2SWAP on three elements": _Case(
         b"\x51\x52\x53\x72",
@@ -153,7 +154,7 @@ _CASES: dict[str, _Case] = {
         NO_FLAGS,
         _CODE.INVALID_STACK_OPERATION,
         3,
-        "759-760",
+        "769-770",
     ),
     # EvalChecksig fails before the two operands are popped
     "OP_CHECKSIG on a signature STRICTENC refuses": _Case(
@@ -162,7 +163,7 @@ _CASES: dict[str, _Case] = {
         ScriptFlag.STRICTENC,
         _CODE.SIG_DER,
         2,
-        "201-209, 1063-1070",
+        "211-219, 1073-1080",
     ),
     "OP_CHECKSIG on a key STRICTENC refuses": _Case(
         b"\x00\x21" + _ZERO_KEY + b"\xac",
@@ -170,7 +171,7 @@ _CASES: dict[str, _Case] = {
         ScriptFlag.STRICTENC,
         _CODE.PUBKEYTYPE,
         2,
-        "218-221, 1063-1070",
+        "228-231, 1073-1080",
     ),
     "OP_CHECKSIG on a failed signature under NULLFAIL": _Case(
         b"\x01\x01" + _PUSH_PUB + b"\xac",
@@ -178,14 +179,14 @@ _CASES: dict[str, _Case] = {
         ScriptFlag.NULLFAIL,
         _CODE.SIG_NULLFAIL,
         2,
-        "339-342, 1063-1070",
+        "349-352, 1073-1080",
     ),
     "OP_CHECKSIG on one element": _Case(
-        _PUSH_PUB + b"\xac", [_PUB], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 1, "1063"
+        _PUSH_PUB + b"\xac", [_PUB], NO_FLAGS, _CODE.INVALID_STACK_OPERATION, 1, "1073"
     ),
     # a BaseSignatureChecker verifies nothing: the false is a result
     "OP_CHECKSIG that fails to verify": _Case(
-        b"\x00" + _PUSH_PUB + b"\xac", [b""], NO_FLAGS, None, None, "1066-1073"
+        b"\x00" + _PUSH_PUB + b"\xac", [b""], NO_FLAGS, None, None, "1076-1083"
     ),
     "OP_CHECKSIGVERIFY that fails to verify": _Case(
         b"\x00" + _PUSH_PUB + b"\xad",
@@ -193,7 +194,7 @@ _CASES: dict[str, _Case] = {
         NO_FLAGS,
         _CODE.CHECKSIGVERIFY,
         2,
-        "1071-1080",
+        "1081-1090",
     ),
     "OP_CHECKMULTISIGVERIFY that fails to verify": _Case(
         b"\x00\x00\x51" + _PUSH_PUB + b"\x51\xaf",
@@ -201,10 +202,10 @@ _CASES: dict[str, _Case] = {
         NO_FLAGS,
         _CODE.CHECKMULTISIGVERIFY,
         5,
-        "1203-1213",
+        "1213-1223",
     ),
     "OP_CHECKMULTISIG that verifies": _Case(
-        b"\x00\x00\x00\xae", [b"\x01"], NO_FLAGS, None, None, "1105-1205"
+        b"\x00\x00\x00\xae", [b"\x01"], NO_FLAGS, None, None, "1115-1215"
     ),
     # the arguments stay until the signatures are checked, the dummy
     # counted among them
@@ -214,7 +215,7 @@ _CASES: dict[str, _Case] = {
         NO_FLAGS,
         _CODE.INVALID_STACK_OPERATION,
         4,
-        "1133-1136",
+        "1143-1146",
     ),
     "OP_CHECKMULTISIG with more signatures than keys": _Case(
         b"\x00\x52" + _PUSH_PUB + b"\x51\xae",
@@ -222,10 +223,10 @@ _CASES: dict[str, _Case] = {
         NO_FLAGS,
         _CODE.SIG_COUNT,
         4,
-        "1130-1132",
+        "1140-1142",
     ),
     "OP_CHECKMULTISIG with too many keys": _Case(
-        b"\x01\x15\xae", [b"\x15"], NO_FLAGS, _CODE.PUBKEY_COUNT, 1, "1116-1118"
+        b"\x01\x15\xae", [b"\x15"], NO_FLAGS, _CODE.PUBKEY_COUNT, 1, "1126-1128"
     ),
     # NULLFAIL is asked as the signatures are popped, the top one first:
     # an empty one goes, a non-empty one stops the script
@@ -235,7 +236,7 @@ _CASES: dict[str, _Case] = {
         ScriptFlag.NULLFAIL,
         _CODE.SIG_NULLFAIL,
         7,
-        "1183-1191",
+        "1193-1201",
     ),
     # the dummy is asked about last, once the arguments are gone
     "OP_CHECKMULTISIG under NULLDUMMY": _Case(
@@ -244,7 +245,7 @@ _CASES: dict[str, _Case] = {
         ScriptFlag.NULLDUMMY,
         _CODE.SIG_NULLDUMMY,
         5,
-        "1193-1202",
+        "1203-1212",
     ),
     # BaseSignatureChecker::CheckLockTime and CheckSequence answer false
     "OP_CHECKLOCKTIMEVERIFY": _Case(
@@ -253,10 +254,10 @@ _CASES: dict[str, _Case] = {
         ScriptFlag.CHECKLOCKTIMEVERIFY,
         _CODE.UNSATISFIED_LOCKTIME,
         1,
-        "546-556",
+        "556-566",
     ),
     "OP_CHECKLOCKTIMEVERIFY without its flag": _Case(
-        b"\x51\xb1", [b"\x01"], NO_FLAGS, None, None, "524-527"
+        b"\x51\xb1", [b"\x01"], NO_FLAGS, None, None, "534-537"
     ),
     "OP_CHECKSEQUENCEVERIFY": _Case(
         b"\x51\xb2",
@@ -264,7 +265,7 @@ _CASES: dict[str, _Case] = {
         ScriptFlag.CHECKSEQUENCEVERIFY,
         _CODE.UNSATISFIED_LOCKTIME,
         1,
-        "574-590",
+        "584-600",
     ),
     "OP_CHECKSEQUENCEVERIFY on the disable flag": _Case(
         _PUSH_SEQUENCE_DISABLED + b"\xb2",
@@ -272,23 +273,23 @@ _CASES: dict[str, _Case] = {
         ScriptFlag.CHECKSEQUENCEVERIFY,
         None,
         None,
-        "585-586",
+        "595-596",
     ),
-    "OP_RETURN": _Case(b"\x51\x6a", [b"\x01"], NO_FLAGS, _CODE.OP_RETURN, 1, "667-669"),
+    "OP_RETURN": _Case(b"\x51\x6a", [b"\x01"], NO_FLAGS, _CODE.OP_RETURN, 1, "677-679"),
     "a disabled op code": _Case(
-        b"\x51\x7e", [b"\x01"], NO_FLAGS, _CODE.DISABLED_OPCODE, 1, "457-472"
+        b"\x51\x7e", [b"\x01"], NO_FLAGS, _CODE.DISABLED_OPCODE, 1, "467-482"
     ),
     "a push running past the end": _Case(
-        b"\x51\x4c", [b"\x01"], NO_FLAGS, _CODE.BAD_OPCODE, 1, "445-446"
+        b"\x51\x4c", [b"\x01"], NO_FLAGS, _CODE.BAD_OPCODE, 1, "455-456"
     ),
     # the end of the loop, which has no op code to point at
     "a branch never closed": _Case(
-        b"\x51\x63\x51", [b"\x01"], NO_FLAGS, _CODE.UNBALANCED_CONDITIONAL, None, "1235"
+        b"\x51\x63\x51", [b"\x01"], NO_FLAGS, _CODE.UNBALANCED_CONDITIONAL, None, "1245"
     ),
     # sized at the end of each command: the refusal is the one that grew
     # the stack, and the stack the script starts on is not sized
     "an op code past the stack size": _Case(
-        b"\x51" * 1001, [b"\x01"] * 1001, NO_FLAGS, _CODE.STACK_SIZE, 1000, "1221-1223"
+        b"\x51" * 1001, [b"\x01"] * 1001, NO_FLAGS, _CODE.STACK_SIZE, 1000, "1231-1233"
     ),
     "a push past the stack size": _Case(
         b"\x01\x01" * 1001,
@@ -296,22 +297,22 @@ _CASES: dict[str, _Case] = {
         NO_FLAGS,
         _CODE.STACK_SIZE,
         1000,
-        "1221-1223",
+        "1231-1233",
     ),
     "a stack past its size, brought back": _Case(
-        b"\x6d", [b""] * 999, NO_FLAGS, None, None, "1221-1223", (b"",) * 1001
+        b"\x6d", [b""] * 999, NO_FLAGS, None, None, "1231-1233", (b"",) * 1001
     ),
     "a stack past its size, no command": _Case(
-        b"", [b""] * 1001, NO_FLAGS, None, None, "439", (b"",) * 1001
+        b"", [b""] * 1001, NO_FLAGS, None, None, "449", (b"",) * 1001
     ),
     "a script too long": _Case(
-        b"\x61" * 10001, [], NO_FLAGS, _CODE.SCRIPT_SIZE, None, "428-430"
+        b"\x61" * 10001, [], NO_FLAGS, _CODE.SCRIPT_SIZE, None, "438-440"
     ),
     "the altstack is not the stack": _Case(
-        b"\x51\x6b", [], NO_FLAGS, None, None, "677-684"
+        b"\x51\x6b", [], NO_FLAGS, None, None, "687-694"
     ),
     "a script that ends": _Case(
-        b"\x93", [b"\x03"], NO_FLAGS, None, None, "945-990", (b"\x01", b"\x02")
+        b"\x93", [b"\x03"], NO_FLAGS, None, None, "955-1000", (b"\x01", b"\x02")
     ),
 }
 

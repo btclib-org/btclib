@@ -4,9 +4,9 @@
 
 """Tests for the `btclib.tx.tx_context` module.
 
-The cases of the rules Core v31.1 enforces are synthetic and
-hand-computed against its own `src/consensus/tx_verify.cpp`
-(bitcoin/bitcoin@9be056a8a7): each needs a chain around the transaction
+The cases of the rules Core enforces are synthetic and hand-computed
+against its own `src/consensus/tx_verify.cpp`
+(bitcoin/bitcoin@f0de87f040): each needs a chain around the transaction
 that no vector file carries, and Core's own coverage of them lives in the
 functional suite (`feature_cltv.py`, `feature_csv_activation.py`), which
 drives a running node rather than a table of inputs and outputs.

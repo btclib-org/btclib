@@ -19,8 +19,8 @@ the retarget window `pow_target_spacing`/`pow_target_timespan` -- and
 lives; this module is the walk that feeds it a period's first header and the
 two chain-wide readings that do not need the whole retarget.
 
-Bitcoin Core v31.1 (bitcoin/bitcoin@9be056a8a7) is the reference for
-every rule but BIP54's, `src/chain.h`, `src/pow.cpp` and
+Bitcoin Core at bitcoin/bitcoin@f0de87f040 is the reference for every
+rule but BIP54's, `src/chain.h`, `src/pow.cpp` and
 `src/validation.cpp`'s `ContextualCheckBlockHeader`, cited beside the
 code that transcribes it. `assert_bip54_timestamps` follows BIP54, as
 `btclib.tx.tx_context`'s docstring explains.
@@ -239,7 +239,7 @@ def next_bits_required(
     It does not check the BIP94 timewarp bound: Core asks it after
     time-too-old, so `assert_not_timewarp` is a call of its own, and the
     caller puts it where Core does (`ContextualCheckBlockHeader`,
-    `src/validation.cpp` at bitcoin/bitcoin@9be056a8a7: bad-diffbits,
+    `src/validation.cpp` at bitcoin/bitcoin@f0de87f040: bad-diffbits,
     time-too-old, time-timewarp-attack).
 
     At a period boundary and `consensus.enforce_bip94`, the retarget

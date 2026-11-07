@@ -373,7 +373,7 @@ def permitted_difficulty_transition(
     only where it repeats `old_bits`.
 
     Bitcoin Core spells this `PermittedDifficultyTransition`
-    (`src/pow.cpp:89-135` at bitcoin/bitcoin@9be056a8a7, the v31.1 tag).
+    (`src/pow.cpp:89-135` at bitcoin/bitcoin@f0de87f040).
     """
     if not is_integer(height):
         raise BTClibTypeError(f"invalid height type: {type(height).__name__}")

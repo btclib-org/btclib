@@ -66,9 +66,9 @@ _TEST_TIMEOUT = 120.0
 _BIND_ATTEMPTS = 5
 
 # what Core writes to debug.log of a port that is taken, read at Bitcoin
-# Core commit cce32b16874e and at v32.1, the release the workflow pins.
-# The p2p listener says so (src/net.cpp), and so does the rpc server, in
-# the warning it logs for an endpoint it cannot bind (src/httpserver.cpp).
+# Core commit cce32b16874e and at bitcoin/bitcoin@f0de87f040. The p2p
+# listener says so (src/net.cpp), and so does the rpc server, in the
+# warning it logs for an endpoint it cannot bind (src/httpserver.cpp).
 # That server has one endpoint (`-rpcallowip` below) and, where it cannot
 # bind it, exits with "Unable to bind any endpoint for RPC server". The
 # warning v31.1 logs there gives no reason, and on a port picked a moment

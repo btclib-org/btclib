@@ -5,8 +5,8 @@
 """MuHash3072: a rolling, order-independent commitment to a multiset.
 
 Core's `MuHash3072` (`src/crypto/muhash.h`/`.cpp`, at
-bitcoin/bitcoin@9be056a8a7, tag v31.1) represents a multiset as a
-fraction of two 3072-bit numbers modulo the largest 3072-bit safe prime,
+bitcoin/bitcoin@f0de87f040) represents a multiset as a fraction of two
+3072-bit numbers modulo the largest 3072-bit safe prime,
 `2**3072 - 1103717`: inserting an element multiplies it into the
 numerator, removing one multiplies it into the denominator, and the two
 operations are exact inverses of each other regardless of order, or of
@@ -88,7 +88,7 @@ from btclib.utils import bytes_from_octets
 __all__ = ["MuHash3072"]
 
 # 2**3072 - 1103717, the largest 3072-bit safe prime -- muhash.cpp's own
-# MAX_PRIME_DIFF, at bitcoin/bitcoin@9be056a8a7 (v31.1)
+# MAX_PRIME_DIFF, at bitcoin/bitcoin@f0de87f040
 _MODULUS = (1 << 3072) - 1_103_717
 
 # Num3072::BYTE_SIZE (muhash.h) and ChaCha20Aligned::BLOCKLEN (64):

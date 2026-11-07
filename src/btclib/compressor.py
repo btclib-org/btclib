@@ -5,9 +5,9 @@
 """Bitcoin Core's coin compression: `VARINT`, amounts and scripts.
 
 What a snapshot made by `dumptxoutset` and the `chainstate` database
-write for a coin, at bitcoin/bitcoin@9be056a8a7, the v31.1 tag:
-`VARINT` (`src/serialize.h`), `CompressAmount` and `DecompressAmount`,
-and `ScriptCompression` (`src/compressor.cpp`, `src/compressor.h`).
+write for a coin, at bitcoin/bitcoin@f0de87f040: `VARINT`
+(`src/serialize.h`), `CompressAmount` and `DecompressAmount`, and
+`ScriptCompression` (`src/compressor.cpp`, `src/compressor.h`).
 
 Core's `VARINT` is not `btclib.var_int`, which is CompactSize. Each byte
 but the last carries a continuation bit, and the number is less one for

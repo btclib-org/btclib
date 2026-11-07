@@ -116,7 +116,7 @@ def coinbase_witness_commitment(transactions: Sequence[Tx], nonce: Octets) -> by
     """Return the coinbase's BIP141 commitment over every witness.
 
     Bitcoin Core's `GenerateCoinbaseCommitment` (`src/validation.cpp`, at
-    bitcoin/bitcoin@9be056a8a7): hash256 of the witness merkle root,
+    bitcoin/bitcoin@f0de87f040): hash256 of the witness merkle root,
     concatenated with `nonce` -- the other half of the preimage, which a
     real block carries in the coinbase's own witness stack rather than
     here.
@@ -685,19 +685,19 @@ class Block:
         The merkle root, the size bounds, exactly one coinbase and it
         first, every transaction on its own, the sigop bound -- in that
         order, CheckBlock's own (validation.cpp, read at
-        bitcoin/bitcoin@9be056a8a7, the v31.1 tag) -- then the witness
-        commitment and the weight, which Core asks in a later function,
-        ContextualCheckBlock, and which assert_valid_weight's own
-        docstring says why this still runs them last. Everything
-        `assert_valid` asks except `BlockHeader.assert_valid` and
-        `assert_valid_pow`, which it calls immediately before this and
-        which a pre-mining candidate cannot pass. `block.build.build_block`
-        is the other caller: a header `mining.candidate_block_header` has
-        already validated structurally, over a block that has no
-        proof-of-work yet and cannot be asked for one, and everything
-        below still has to hold of it -- the two coinbases, the
-        over-weight block and the over-the-sigop-bound block this refuses
-        are exactly what a builder must not hand back silently.
+        bitcoin/bitcoin@f0de87f040) -- then the witness commitment and the
+        weight, which Core asks in a later function, ContextualCheckBlock,
+        and which assert_valid_weight's own docstring says why this still
+        runs them last. Everything `assert_valid` asks except
+        `BlockHeader.assert_valid` and `assert_valid_pow`, which it calls
+        immediately before this and which a pre-mining candidate cannot
+        pass. `block.build.build_block` is the other caller: a header
+        `mining.candidate_block_header` has already validated
+        structurally, over a block that has no proof-of-work yet and
+        cannot be asked for one, and everything below still has to hold of
+        it -- the two coinbases, the over-weight block and the
+        over-the-sigop-bound block this refuses are exactly what a builder
+        must not hand back silently.
         """
         # CheckBlock asks this right after the header and its
         # proof-of-work, and before anything else: "All

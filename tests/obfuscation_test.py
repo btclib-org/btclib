@@ -4,8 +4,8 @@
 
 """Tests for the `btclib.obfuscation` module.
 
-Core's own vectors are from `src/test/streams_tests.cpp` at Bitcoin Core
-v31.1 (9be056a8a7), cited by line where each is used.
+Core's own vectors are from `src/test/streams_tests.cpp` at
+bitcoin/bitcoin@f0de87f040, cited by line where each is used.
 """
 
 from fractions import Fraction
@@ -51,24 +51,24 @@ _MEMPOOL_DAT = bytes.fromhex(
 
 
 def test_streams_serializedata_xor() -> None:
-    """`streams_serializedata_xor`, streams_tests.cpp lines 303-325."""
-    # lines 306-308: the empty stream, with the null key
+    """`streams_serializedata_xor`, streams_tests.cpp lines 343-365."""
+    # lines 346-348: the empty stream, with the null key
     assert obfuscation.obfuscate(b"", bytes(8)) == b""
-    # lines 311-316
+    # lines 351-356
     assert obfuscation.obfuscate("0ff0", "ff" * 8) == bytes.fromhex("f00f")
-    # lines 319-324
+    # lines 359-364
     assert obfuscation.obfuscate("f00f", "ff0fff0fff0fff0f") == bytes.fromhex("0f00")
 
 
 def test_xor_file() -> None:
-    """`xor_file`, streams_tests.cpp lines 95-145: key, bytes on disk, reads.
+    """`xor_file`, streams_tests.cpp lines 109-169: key, bytes on disk, reads.
 
     The file holds the vectors `[1, 2, 3]` and `[4, 5]`, each behind its
     compact size, written through the key `ff00ff00ff00ff00`.
     """
     key = "ff00ff00ff00ff00"
     plain = bytes.fromhex("03010203" + "020405")
-    on_disk = bytes.fromhex("fc01fd03fd04fa")  # line 128
+    on_disk = bytes.fromhex("fc01fd03fd04fa")  # line 142
     assert obfuscation.obfuscate(plain, key) == on_disk
     assert obfuscation.obfuscate(on_disk, key) == plain
     # `ignore(4)`, then reading the second vector: the offset is 4
@@ -120,7 +120,7 @@ def test_xor_random_chunks(data: bytes, key: bytes, data_cuts: st.DataObject) ->
 
 
 def test_mempool_dat_from_bitcoind() -> None:
-    """A v2 `mempool.dat` that bitcoind v31.1.0 wrote is read back.
+    """A v2 `mempool.dat` that bitcoind wrote is read back.
 
     The payload starts at offset 17, which is not a multiple of eight. It
     holds a `u64` count, each transaction with its `i64` time and `i64`

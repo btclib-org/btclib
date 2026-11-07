@@ -747,7 +747,7 @@ def test_virtual_size() -> None:
 
 
 def test_constants() -> None:
-    """The values policy.h states at bitcoin/bitcoin@9be056a8a7."""
+    """The values policy.h states at bitcoin/bitcoin@f0de87f040."""
     assert (MIN_STANDARD_TX_NONWITNESS_SIZE, MAX_STANDARD_TX_SIGOPS_COST) == (
         65,
         16_000,
