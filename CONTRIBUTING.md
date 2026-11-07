@@ -1742,9 +1742,9 @@ on the other party's public encoding and whose `mult` is blinded. A named
 exception stops the carry, so its callers are not reached.
 
 Outside the rule: `compressor.compress_amount` loops on the trailing zeros
-of an amount, an amount being none of the rule's operands, and `base58`'s
-conversions of octets to digits and back follow the length of the octets
-past their leading zeros.
+of an amount, an amount being none of the rule's operands, and the
+conversions of octets to digits and back that `b58` calls in
+`base58_bech32` follow the length of the octets past their leading zeros.
 
 Three tiers of duration follow, of which only the first is constant-time:
 

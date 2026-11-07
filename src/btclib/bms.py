@@ -122,6 +122,8 @@ from dataclasses import dataclass
 from enum import Enum
 from hashlib import sha256
 
+from base58_bech32.base58 import b58decode_check
+from base58_bech32.exceptions import Base58Bech32ValueError
 from ecc.curves import bytes_from_prv_key_int, secp256k1
 from ecc.ecc import dsa
 from ecc.exceptions import EccRuntimeError
@@ -135,7 +137,6 @@ from btclib.b58 import (
     prv_key_data_from_wif,
     wif_from_prv_key,
 )
-from btclib.base58 import decode as b58decode
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160, magic_message
 from btclib.key import PrvKeyData, PubKeyData
@@ -582,8 +583,8 @@ def _core_key_hash(addr: str, network: str) -> bytes | MessageVerificationResult
         return MessageVerificationResult.ERR_INVALID_ADDRESS
 
     try:
-        payload = b58decode(addr.strip(string.whitespace), 21)
-    except BTClibValueError:
+        payload = b58decode_check(addr.strip(string.whitespace), out_size=21)
+    except Base58Bech32ValueError:
         return MessageVerificationResult.ERR_INVALID_ADDRESS
     if payload[:1] == net.p2pkh:
         return payload[1:]

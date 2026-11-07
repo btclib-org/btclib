@@ -60,8 +60,8 @@ elsewhere a module reaches up where its subject asks for it, as
   btclib's `ellswift` and `bms` beside them
 - **bitcoin's hashes, integers and constants**: `hashes`, `var_int`,
   `var_bytes`, `obfuscation`, `consensus`, `amount`, `compressor`
-- **networks, keys and addresses**: `network`, `base58`, `bech32`, `key`,
-  `b58`, `b32`
+- **networks, keys and addresses**: `network`, `key`, `b58`, `b32`, on
+  the codecs of `base58_bech32`, in a distribution of their own
 - **the chain**: `script`, `tx`, `block`, `fee`, `policy`, `coinstats`,
   `muhash`, `utreexo`
 - **the wire**: `p2p`
@@ -86,14 +86,17 @@ asserts.
 
 | the codec or the arithmetic | the bitcoin semantics on top |
 | --- | --- |
-| `btclib.base58`: the encoding | `btclib.b58`: WIF, p2pkh, p2sh |
-| `btclib.bech32`: the encoding | `btclib.b32`: p2wpkh, p2wsh, p2tr |
+| `base58_bech32.base58`: Base58Check | `btclib.b58`: WIF, p2pkh, p2sh |
+| `base58_bech32.bech32`: bech32, bech32m | `btclib.b32`: p2wpkh, p2wsh, p2tr |
 
 The right column imports the left one, and the left never imports the
-right. So `btclib.b58` for an address, and `btclib.base58` for the
-encoding on its own. Each of these modules states its direction in its
-docstring, and `tests/imports_test.py` holds `btclib.base58` and
-`btclib.bech32` to closures that do not reach the other column.
+right. So `btclib.b58` for an address, and
+[base58-bech32](https://github.com/btclib-org/base58-bech32), a required
+dependency, for the encoding on its own. That distribution imports the
+standard library alone, which its own `tests/imports_test.py` asserts.
+btclib publishes none of its names, and re-raises its refusals as
+`BTClibValueError` and `BTClibTypeError`, so that a caller of `b58`,
+`b32`, `bms` and `network` catches this library's exceptions.
 
 The same split lies between ecc's `curves` and its `ecc`, which
 btclib imports in place of a pair of its own.

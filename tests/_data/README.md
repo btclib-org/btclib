@@ -119,13 +119,12 @@ Every entry was last re-checked against its upstream on 2026-07-30, and
 whatever had drifted was refreshed, so `behind` is 0 wherever a refresh
 was possible at all. The files vendored since are the exception by date
 alone, all of them taken at the tip of their path on 2026-08-02, which is
-what their `pulled` says: the Core files `key_io_valid.json`,
-`key_io_invalid.json` and `base58_encode_decode.json`, and the
-python-bitcoinlib block files added here; Core's `blockfilters.json`
-followed on 2026-08-03, at the tip of its path too, and Core's
-`siphash.json` on 2026-08-20, Core's `chacha20_vectors.json` and
-`muhash_vectors.json`, both transcribed from `crypto_tests.cpp`, on
-2026-09-03, at the tip of that path, and
+what their `pulled` says: the Core files `key_io_valid.json` and
+`key_io_invalid.json`, and the python-bitcoinlib block files added here;
+Core's `blockfilters.json` followed on 2026-08-03, at the tip of its path
+too, and Core's `siphash.json` on 2026-08-20, Core's
+`chacha20_vectors.json` and `muhash_vectors.json`, both transcribed from
+`crypto_tests.cpp`, on 2026-09-03, at the tip of that path, and
 bitcoin-core/secp256k1's `src` for `secp256k1_symbols.txt` on 2026-09-10,
 refreshed again on 2026-09-14, 2026-10-07 and 2026-10-26, at the tip of its
 path each time.
@@ -426,24 +425,6 @@ refused by all four of the entry points that could be handed one —
 `b58.h160_from_address`, `b32.witness_from_address`,
 `ScriptPubKey.from_address` and `b58.prv_key_data_from_wif` — every
 refusal a `BTClibValueError`.
-
-### `tests/_data/base58_encode_decode.json`
-
-```text
-repo    bitcoin/bitcoin
-path    src/test/data/base58_encode_decode.json
-commit  5dd3a0d8a899e4c7263d5b999135f4d7584e1244  2025-01-04
-blob    7255fd45c8003ad99ee95c507d8c54f49b50e4c2
-pulled  2026-08-02
-behind  0 revisions; that commit is the tip of the path
-```
-
-Verdict: **identical**, 21 rows of `[hex, base58]`. Core's
-`EncodeBase58`/`DecodeBase58`, i.e. the codec with no checksum on it, so
-what reads them is `base58._b58encode`/`_b58decode` and not the checked
-`encode`/`decode` — one row is 256 bytes, 348 base58 characters,
-which the checked decoder would refuse on `MAX_LENGTH` before looking at
-it.
 
 ### `tests/_data/siphash.json`
 
@@ -1369,13 +1350,13 @@ git ls-files 'tests/_data/*' 'tests/*/_data/*' 'src/btclib/testing/_data/*' |
 Against a pinned upstream blob:
 
 - identical byte for byte: `taproot_test_vector.json`,
-  `sig_hash_legacy_test_vectors.json`, `script_tests.json`,
-  `tx_valid.json`, `tx_invalid.json`, `key_io_valid.json`,
-  `key_io_invalid.json`, `base58_encode_decode.json`, `siphash.json`,
-  `blockfilters.json`, `checkblock_valid.json`, `checkblock_invalid.json`,
-  `txsize.json`, opentimestamps-client's proofs and `LICENSE` under
-  `tests/block/_data/opentimestamps/`, python-bitcoinlib's `LICENSE`, and
-  gnulib's `COPYINGv3` beside both `LICENSE` files.
+  `sig_hash_legacy_test_vectors.json`, `script_tests.json`, `tx_valid.json`,
+  `tx_invalid.json`, `key_io_valid.json`, `key_io_invalid.json`,
+  `siphash.json`, `blockfilters.json`, `checkblock_valid.json`,
+  `checkblock_invalid.json`, `txsize.json`, opentimestamps-client's proofs
+  and `LICENSE` under `tests/block/_data/opentimestamps/`,
+  python-bitcoinlib's `LICENSE`, and gnulib's `COPYINGv3` beside both
+  `LICENSE` files.
 - identical byte for byte, from rustreexo: `test_cases.json`,
   `update_data_tests.json`, `cached_proof_tests.json`.
 - identical but for a trailing newline: `script_assets_test.json`,

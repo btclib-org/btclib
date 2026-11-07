@@ -419,7 +419,7 @@ def test_no_module_exports_a_name_it_imported() -> None:
 
 
 def test_no_module_exports_another_distributions_name() -> None:
-    """No `__all__` names an object `ecc` or `bitcoin_core_rpc` owns.
+    """No `__all__` names an object of a distribution `foreign` names.
 
     `REEXPORTED` records what btclib aliases from itself, and this is the
     half it cannot be: a name whose canonical module is in another
@@ -433,7 +433,7 @@ def test_no_module_exports_another_distributions_name() -> None:
     `__module__` is `types`, `typing` or `builtins`, by interpreter, so the
     object does not say it is `ecc`'s.
     """
-    foreign = ("ecc", "bitcoin_core_rpc")
+    foreign = ("ecc", "base58_bech32", "bitcoin_core_rpc")
     for module in library_modules():
         for name in module.__all__:
             value = getattr(module, name)

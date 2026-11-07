@@ -82,8 +82,6 @@ __all__ = [
     "amount",
     "b32",
     "b58",
-    "base58",
-    "bech32",
     "block",
     "bms",
     "coinstats",

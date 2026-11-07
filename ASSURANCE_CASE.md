@@ -200,10 +200,10 @@ describes beside them.
   so a caller can tell a forgery from a mistake (CONTRIBUTING.md's *The
   public surface*).
 - **Layering.** The curve arithmetic does not import the schemes built
-  on it, which ecc's `tests/imports_test.py` holds. The codecs do
-  not import the bitcoin semantics on top of them, and nothing in btclib
-  imports `bip32_descriptors` or `btclib_wallet`: btclib's
-  `tests/imports_test.py` holds both.
+  on it, which ecc's `tests/imports_test.py` holds. The codecs import the
+  standard library alone, which base58-bech32's `tests/imports_test.py`
+  holds. Nothing in btclib imports `bip32_descriptors` or
+  `btclib_wallet`, which btclib's `tests/imports_test.py` holds.
 
 **Constant time where it is claimed.** It is claimed only of
 libsecp256k1: CONTRIBUTING.md's `_var` section sets out the tiers of

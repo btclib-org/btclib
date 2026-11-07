@@ -22,10 +22,10 @@ from typing import Any
 import pytest
 from ecc.exceptions import EccTypeError
 
-from btclib import base58, bech32, var_int
+from btclib import var_int
 from btclib.alias import TaprootScriptTree
 from btclib.amount import valid_sats_amount
-from btclib.b32 import power_of_2_base_conversion
+from btclib.b32 import address_from_witness, power_of_2_base_conversion
 from btclib.b58 import wif_from_prv_key
 from btclib.block import BlockHeader
 from btclib.block.block import bip34_commitment
@@ -98,10 +98,9 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("dust threshold", lambda v: valid_sats_amount(1, dust=v)),
     ("output size", lambda v: bytes_from_octets(b"x", v)),
     ("output size in an iterable", lambda v: bytes_from_octets(b"x", [v])),
-    ("base58 output size", lambda v: base58.decode(base58.encode(b"x"), v)),
     ("var_int", var_int.serialize),
     ("var_int max_size", lambda v: var_int.parse(b"\x01", max_size=v)),
-    ("bech32 5-bit value", lambda v: bech32.encode("bc", [v])),
+    ("witness version", lambda v: address_from_witness(v, b"\x00" * 20)),
     ("base conversion value", lambda v: power_of_2_base_conversion([v], 1, 8)),
     ("base conversion from_bits", lambda v: power_of_2_base_conversion([1], v, 8)),
     ("base conversion to_bits", lambda v: power_of_2_base_conversion([1], 8, v)),
@@ -214,10 +213,11 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert wif_from_prv_key(1).startswith("Kw")
     assert bytes_from_octets(b"x", 1) == b"x"
     assert bytes_from_octets(b"xx", [1, 2]) == b"xx"
-    assert base58.decode(base58.encode(b"x"), 1) == b"x"
     assert var_int.serialize(1) == b"\x01"
     assert var_int.parse(b"\x01", max_size=1) == 1
-    assert bech32.encode("bc", [1]) == b"bc1pdg93mv"
+    assert address_from_witness(1, b"\x00" * 20) == (
+        "bc1pqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqmmente"
+    )
     assert power_of_2_base_conversion([1], 1, 8) == [128]
     assert power_of_2_base_conversion([1], 8, 1) == [0, 0, 0, 0, 0, 0, 0, 1]
     assert input_script_sig(None, _SCRIPT_TREE, 0)[0] == ["OP_1"]
@@ -251,8 +251,6 @@ def test_what_is_no_integer_at_all_is_refused_the_same_way() -> None:
             bytes_from_octets(b"x", out_size)  # type: ignore[arg-type]
     with pytest.raises(BTClibTypeError, match="invalid output size type"):
         bytes_from_octets(b"x", [1.5])  # type: ignore[list-item]
-    with pytest.raises(BTClibTypeError, match="invalid output size type"):
-        base58.decode(base58.encode(b"x"), 1.0)  # type: ignore[arg-type]
 
     for not_a_count in (1.5, "1", object()):
         with pytest.raises(BTClibTypeError, match="non-integer var_int"):
@@ -275,7 +273,6 @@ def test_an_int_subclass_that_is_not_a_bool_is_still_an_integer() -> None:
     assert valid_sats_amount(Sighash.ALL) == 1
     assert FeeRate(sats_per_kvbyte=Sighash.ALL).sats_per_kvbyte == 1
     assert bytes_from_octets(b"x", Sighash.ALL) == b"x"
-    assert base58.decode(base58.encode(b"x"), Sighash.ALL) == b"x"
     assert var_int.serialize(Sighash.ALL) == b"\x01"
     assert var_int.parse(b"\x01", max_size=Sighash.ALL) == 1
 

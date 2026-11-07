@@ -13,10 +13,11 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
+from base58_bech32.base58 import b58decode_check
+from base58_bech32.exceptions import Base58Bech32ValueError
 from typing_extensions import override
 
-from btclib.b58 import prv_key_data_from_wif, wif_from_prv_key
-from btclib.base58 import decode
+from btclib.b58 import h160_from_address, prv_key_data_from_wif, wif_from_prv_key
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.key import PrvKeyData
@@ -64,17 +65,24 @@ def test_refused_network_name() -> None:
     assert str(KEY) not in str(type_refusal.value)
 
 
-def test_non_ascii_base58_chains_nothing() -> None:
-    """A non-ASCII base58 string is refused with no cause or context."""
+def test_non_ascii_base58_chains_only_the_codec_refusal() -> None:
+    """A non-ASCII base58 address is refused, its chain holding no string.
+
+    The cause is the codec's own refusal, which btclib re-raises as a
+    `BTClibValueError`; the codec chains nothing behind it.
+    """
     bad = WIF[:-1] + "\u00e9"
     with pytest.raises(BTClibValueError, match="non-ascii character") as refusal:
-        decode(bad)
+        h160_from_address(bad)
     where = len(WIF) - 1
     assert str(refusal.value) == (
         f"non-ascii character in base58 string at position {where}"
     )
-    assert refusal.value.__cause__ is None
-    assert refusal.value.__context__ is None
+    cause = refusal.value.__cause__
+    assert isinstance(cause, Base58Bech32ValueError)
+    assert cause.__cause__ is None
+    assert cause.__context__ is None
+    assert_secret_free(refusal.value, [WIF, bad])
 
 
 def test_non_ascii_wif_chain_holds_no_key() -> None:
@@ -97,9 +105,9 @@ def test_bad_checksum_does_not_quote_the_expected_one() -> None:
     """A WIF mistyped in its last character does not confirm a guess."""
     bad = WIF[:-1] + ("2" if WIF[-1] != "2" else "3")
     with pytest.raises(BTClibValueError) as refusal:
-        decode(bad)
-    assert str(refusal.value) == "invalid checksum"
-    expected = hash256(decode(WIF))[:4]
+        prv_key_data_from_wif(bad)
+    assert str(refusal.value) == "not a WIF (invalid checksum)"
+    expected = hash256(b58decode_check(WIF))[:4]
     assert_secret_free(refusal.value, [expected, "0x" + expected.hex(), expected.hex()])
 
 

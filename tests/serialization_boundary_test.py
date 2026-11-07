@@ -488,7 +488,7 @@ def test_the_text_boundary_refuses_what_is_no_text(
     Three of these left a native exception: the base64 decoders handed
     what is neither `str` nor `bytes` to `base64` -- "argument should be
     a bytes-like object or ASCII string" -- or to `.strip`, and
-    `b58decode` to the cache in front of `base58.decode`, which keys on
+    `b58decode` to the cache in front of the base58 decoder, which keys on
     the argument and so refused an unhashable one for being unhashable.
     """
     for wrong in _WRONG_TYPES:

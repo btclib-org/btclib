@@ -26,7 +26,7 @@ from typing import Any
 import pytest
 from ecc.ecc import dsa
 
-from btclib import base58, bms, obfuscation, var_int
+from btclib import bms, obfuscation, var_int
 from btclib.alias import TaprootScriptTree
 from btclib.b32 import bytes_from_witness_program, power_of_2_base_conversion
 from btclib.block import Block, BlockHeader
@@ -140,11 +140,6 @@ def _reconstruct(index: int) -> object:
 _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
     ("var_int", _HUGE, var_int.serialize),
     ("output size", _HUGE, lambda v: bytes_from_octets(b"x", v)),
-    (
-        "base58 output size",
-        _HUGE,
-        lambda v: base58.decode(base58.encode(b"\x00" * 20), v),
-    ),
     (
         "obfuscation offset",
         -_HUGE,

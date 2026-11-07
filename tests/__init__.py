@@ -261,14 +261,13 @@ class KeyPairSpellings(NamedTuple):
 def key_pair_spellings() -> KeyPairSpellings:
     """Build one `KeyPairSpellings`, computed on call rather than at import.
 
-    `btclib.base58` and `ecc.curves` are imported
+    `base58_bech32.base58` and `ecc.curves` are imported
     inside this function rather than at the top of the module, for the
     reason the block comment above gives: a top-level import would run at
     collection, the same moment `Q = mult(q)` would.
     """
+    from base58_bech32.base58 import b58encode_check  # noqa: PLC0415
     from ecc.curves import mult  # noqa: PLC0415
-
-    from btclib.base58 import encode as b58encode  # noqa: PLC0415
 
     q = 12
     q_bytes = q.to_bytes(32, byteorder="big", signed=False)
@@ -279,8 +278,8 @@ def key_pair_spellings() -> KeyPairSpellings:
     # their hex, naming neither a network nor a compression
     plain_prv_keys: list[bytes | str] = [q_hexstring, q_hexstring2]
 
-    wif_compressed_string = b58encode(b"\x80" + q_bytes + b"\x01").decode("ascii")
-    wif_uncompressed_string = b58encode(b"\x80" + q_bytes).decode("ascii")
+    wif_compressed_string = b58encode_check(b"\x80" + q_bytes + b"\x01").decode("ascii")
+    wif_uncompressed_string = b58encode_check(b"\x80" + q_bytes).decode("ascii")
 
     # BIP32's serialization: version, depth, parent fingerprint, child
     # index, chain code, and the key behind a zero octet
@@ -293,7 +292,7 @@ def key_pair_spellings() -> KeyPairSpellings:
         + b"\x00"
         + q_bytes
     )
-    xprv_string = b58encode(xprv_bytes).decode("ascii")
+    xprv_string = b58encode_check(xprv_bytes).decode("ascii")
 
     Q = mult(q)
     x_Q_bytes = Q[0].to_bytes(32, byteorder="big", signed=False)

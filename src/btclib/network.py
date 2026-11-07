@@ -53,13 +53,18 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, overload
 
+from base58_bech32.bech32 import BECH32_1_CONST, bech32_encode
 from ecc.curves import CURVES, Curve
 
 from btclib.alias import NetworkField, NetworkName, NetworkType, Octets
-from btclib.bech32 import assert_valid_hrp
 from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import assert_type, bytes_from_octets, fields_from_json_object
+from btclib.utils import (
+    _btclib_errors,
+    assert_type,
+    bytes_from_octets,
+    fields_from_json_object,
+)
 
 # `docs/source/btclib.rst` passes `:members:` to `automodule::`, which
 # renders the classes and functions below and not the three module-level
@@ -351,7 +356,10 @@ class Network:
         # bytes fields, TypeError being what they raise for a field
         # rebound to something else
         assert_type(self.hrp, str, "hrp")
-        assert_valid_hrp(self.hrp)
+        # and one the bech32 encoder accepts, which encoding no data asks
+        # with no length limit
+        with _btclib_errors():
+            bech32_encode(self.hrp, [], m=BECH32_1_CONST, limit=None)
 
         # the row a dict points at is resolved by from_dict, so what this
         # catches is a Network built in code with something else in the
