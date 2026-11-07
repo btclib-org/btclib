@@ -17,6 +17,7 @@ import importlib.util
 import io
 import json
 import re
+import runpy
 import sys
 import tarfile
 from pathlib import Path
@@ -386,3 +387,26 @@ def test_both_probes_fit_in_half_the_job(cmp: Any) -> None:
     assert len(minutes) == 1
     half_the_job = int(minutes[0]) * 60 / 2
     assert half_the_job >= 2 * cmp._TIMEOUT
+
+
+def test_the_main_guard_runs_the_script_as___main__(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Cover `if __name__ == "__main__":` without a subprocess.
+
+    This project collects no coverage from a child interpreter, so a real
+    subprocess would leave the guard uncovered. `runpy.run_path` executes
+    the file fresh with `__name__` set to `"__main__"` in this one, and
+    `--probe` keeps the run in this interpreter.
+    """
+    request = {"entries": {"h": ["btclib.var_int:parse"]}, "inputs": [["h", "x", "00"]]}
+    monkeypatch.setattr(sys, "argv", ["prog", "--probe"])
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(request)))
+
+    with pytest.raises(SystemExit) as excinfo:
+        runpy.run_path(str(_SCRIPT), run_name="__main__")
+
+    assert excinfo.value.code == 0
+    assert json.loads(capsys.readouterr().out)["records"] == [
+        ["h", "btclib.var_int:parse", "x", "accepted 0"]
+    ]

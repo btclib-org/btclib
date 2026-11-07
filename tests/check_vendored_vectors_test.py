@@ -1127,6 +1127,19 @@ def test_a_path_absent_at_the_commit_is_a_mismatch(
     assert "as blob None" in mismatch
 
 
+def test_upstream_s_blob_is_read_from_the_entry_of_that_name(
+    checker: ModuleType,
+    fake_gh: FakeGh,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A sibling listed first in upstream's tree is passed over, not read."""
+    path = _vendored(tmp_path, monkeypatch, fake_gh)
+    own = fake_gh.trees["r", f"{_COMMIT}:up"]
+    fake_gh.trees["r", f"{_COMMIT}:up"] = {"e.json": _UPSTREAM_BLOB} | own
+    assert checker.find_mismatches(path) == ([], [], 1, 1)
+
+
 def test_ours_is_what_the_file_is_held_to_and_blob_what_upstream_is(
     checker: ModuleType,
     fake_gh: FakeGh,
