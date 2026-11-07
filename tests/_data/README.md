@@ -127,18 +127,15 @@ followed on 2026-08-03, at the tip of its path too, and Core's
 `muhash_vectors.json`, both transcribed from `crypto_tests.cpp`, on
 2026-09-03, at the tip of that path, and
 bitcoin-core/secp256k1's `src` for `secp256k1_symbols.txt` on 2026-09-10,
-refreshed again on 2026-09-14, 2026-09-29, 2026-10-07 and 2026-10-26, at the
-tip of its path each time.
+refreshed again on 2026-09-14, 2026-10-07 and 2026-10-26, at the tip of its
+path each time.
 BIP324's `packet_encoding_test_vectors.csv` followed on 2026-09-27, at the
-tip of its path, rust-bitcoin's `huge_witness.bin` on 2026-10-12,
-opentimestamps-client's examples and their licence on 2026-10-21,
-rustreexo's `test_values/` files on 2026-10-21, and bip-0054's vector
-files on 2026-10-26, each at the tip of its path.
-python-bitcoinlib's `LICENSE` followed on 2026-10-26, at the tip of its
-path, and its `COPYING` the same day, at the tip of its path before
-upstream deleted it.
-gnulib's `COPYINGv3`, beside opentimestamps-client's and python-bitcoinlib's
-licences, followed on 2026-10-30, at the tip of its path.
+tip of its path, rust-bitcoin's `huge_witness.bin` on 2026-10-12, and
+bip-0054's vector files on 2026-10-27, each at the tip of its path.
+On 2026-11-02 followed opentimestamps-client's examples and their licence,
+rustreexo's `test_values/` files, python-bitcoinlib's `LICENSE` and
+`COPYING`, and gnulib's `COPYINGv3` beside both projects' licences, each
+at the tip of its path, `COPYING` at the tip before upstream deleted it.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -204,7 +201,7 @@ path    bip-0067.mediawiki
 commit  24e96e870fffaa257b465ce1f0370c14aac588e8  2026-01-12
 blob    c21da80bec381ceb435fb8c3be3005677c1347d6
 ours    e76f22e604d112b7277a3d4e1d4423bd844220ad
-pulled  2020-05-31, re-pinned to the tip 2026-08-06
+pulled  2020-05-31
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -248,7 +245,7 @@ path    bip-0054/test_vectors/sigops.json
 commit  4f94c5f01f1eb098dd96e5241a6b2d81c5cf1bb0  2026-03-13
 blob    056bea027cf740293ba80d5659ac9ec559a9a753
 ours    58cbe393809fd169e428a2438df2345667bdd29f
-pulled  2026-10-26
+pulled  2026-10-27
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -269,7 +266,7 @@ repo    bitcoin/bips
 path    bip-0054/test_vectors/txsize.json
 commit  fa608987ea064050535c72e8ddf16f0dcffc4dd4  2026-03-16
 blob    50540b619e2d35f1c0f36a842d264709ba8791b4
-pulled  2026-10-26
+pulled  2026-10-27
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -284,7 +281,7 @@ path    bip-0054/test_vectors/coinbases.json
 commit  4f94c5f01f1eb098dd96e5241a6b2d81c5cf1bb0  2026-03-13
 blob    6510a5ae22b1c774a5b5991d15d564de52d5ed2d
 ours    3548f12125b21e305e8f3b78d95ee81465da7a5d
-pulled  2026-10-26
+pulled  2026-10-27
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -305,7 +302,7 @@ path    bip-0054/test_vectors/timestamps.json
 commit  977300dad63161839693b77fe1b7e9d9a02cbd57  2026-03-16
 blob    41e67d01f714f0cbb02ac2ee0a0964ced348b0ca
 ours    a71a21c34a8ed776256ef215072a6d77b060aa84
-pulled  2026-10-26
+pulled  2026-10-27
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -342,7 +339,7 @@ repo    bitcoin/bitcoin
 path    src/test/data/script_tests.json
 commit  d206226b4993f0330d809ca81851fb6976574ee7  2026-11-05
 blob    e2b616cc9666ba65039a5ef47cd09f3f83d2d885
-pulled  2023-07-08, refreshed 2026-09-02, 2026-10-07, 2026-10-12, 2026-10-27, 2026-11-07
+pulled  2023-07-08, refreshed 2026-07-30, 2026-09-02, 2026-10-07, 2026-10-12, 2026-10-27, 2026-11-07
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -479,7 +476,7 @@ path    src/test/crypto_tests.cpp
 commit  b388f9bd0d2bcc259d488638d479ba09a30ba040  2026-09-17
 blob    2fdb83576e984dfaa19c17629f70bc425dc6d796
 ours    00196b37dfdb71ffcc386e83d315ef743af96b4a
-pulled  2026-09-21
+pulled  2026-09-03
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -510,7 +507,7 @@ path    src/test/crypto_tests.cpp
 commit  b388f9bd0d2bcc259d488638d479ba09a30ba040  2026-09-17
 blob    2fdb83576e984dfaa19c17629f70bc425dc6d796
 ours    24b220c049abd9b7b87a4f13358a4e5ea3976869
-pulled  2026-09-21
+pulled  2026-09-03
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -662,7 +659,7 @@ repo    bitcoin-core/secp256k1
 path    src
 commit  1c088b64867d63f489d9d2ec58219e21f28357dd  2026-11-03
 ours    a8f306732166cf782473ecbd2b90030616953689
-pulled  2026-09-10, refreshed 2026-09-14, 2026-09-29, 2026-10-07 and 2026-10-26
+pulled  2026-09-10, refreshed 2026-09-14, 2026-10-07 and 2026-10-26
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -754,7 +751,7 @@ path     LICENSE
 commit   8ff7d8b64b0c7ceefb678c8883cb1d01d1d6e5cc  2014-09-07
 blob     a4cfc1c29796086e96bc58ae30ef66de1412a094
 licence  LGPL-3.0-or-later
-pulled   2026-10-26
+pulled   2026-11-02
 behind   0 revisions; that commit is the only one to touch the path
 ```
 
@@ -772,7 +769,7 @@ repo     coreutils/gnulib
 path     doc/COPYINGv3
 commit   d64d66cc4897d605f543257dcd038524a0a55215  2017-10-02
 blob     f288702d2fa16d3cdf0035b15a9fcbc552cd88e7
-pulled   2026-10-30
+pulled   2026-11-02
 behind   0 revisions; still the blob on master
 ```
 
@@ -811,7 +808,7 @@ commit   cfdc2a397d686f667b56bab42351def0f3cee76d  2013-08-28
 blob     fec0301a468177e870de69be60303d05ded7a42c
 ours     d050d83442fa61873d096732f9919e3996026da5
 licence  MIT
-pulled   2026-10-26
+pulled   2026-11-02
 behind   1 revision; 8ff7d8b6 (2014-09-07) deleted the path
 ```
 
@@ -933,7 +930,7 @@ path     LICENSE
 commit   f47a4ec046649ac3efa1543bd83a9fa5affcc8d3  2016-08-22
 blob     4165418d146712fb294cb39d94e7c28b2d26055b
 licence  LGPL-3.0-or-later
-pulled   2026-10-21
+pulled   2026-11-02
 behind   0 revisions; that commit is the tip of the path
 ```
 
@@ -958,7 +955,7 @@ path     examples/sha1/a-or-b.ots
 commit   185a5997cf315402747223a1feae18e669ae08f2  2023-10-20
 blob     346e86a865507d57034847e1cae4b118ffb8e9dc
 licence  LGPL-3.0-or-later
-pulled   2026-10-21
+pulled   2026-11-02
 behind   0 revisions; that commit is the only one to touch the path
 ```
 
@@ -972,7 +969,7 @@ path     examples/bad-stamp.txt.ots
 commit   5d5d325b2a7083e93a7c685a679edc3f6b8f27d7  2016-09-14
 blob     897b46dba45e4dbef2667d1323acad0ee1c431e6
 licence  LGPL-3.0-or-later
-pulled   2026-10-21
+pulled   2026-11-02
 behind   0 revisions; that commit is the tip of the path
 ```
 
@@ -986,7 +983,7 @@ path     examples/bitcoin.pdf.ots
 commit   34bbebd50ec20d26a72cf200d8eae2506f47bc2d  2021-01-22
 blob     c2114bafba315ce4efcf46c711d9ee06b3b181ad
 licence  LGPL-3.0-or-later
-pulled   2026-10-21
+pulled   2026-11-02
 behind   0 revisions; that commit is the only one to touch the path
 ```
 
@@ -1000,7 +997,7 @@ path     examples/different-blockchains.txt.ots
 commit   afa0640501f5bf26a9a4c0eb86b14acf57c21cd7  2017-05-28
 blob     95013bb5d6c34a0f91c80faac062bef884ca7634
 licence  LGPL-3.0-or-later
-pulled   2026-10-21
+pulled   2026-11-02
 behind   0 revisions; that commit is the only one to touch the path
 ```
 
@@ -1014,7 +1011,7 @@ path     examples/empty.ots
 commit   5d5d325b2a7083e93a7c685a679edc3f6b8f27d7  2016-09-14
 blob     c4c3ea3e811a12490a95832e3974cc1b19942d57
 licence  LGPL-3.0-or-later
-pulled   2026-10-21
+pulled   2026-11-02
 behind   0 revisions; that commit is the tip of the path
 ```
 
@@ -1028,7 +1025,7 @@ path     examples/gdp2q25-2nd.pdf.ots
 commit   cd71c7609421bed2a07b9642a3c02a58c9fd2cdf  2026-02-07
 blob     3779b5ce648ea9aca6aff04e50991b5ee91c41a7
 licence  LGPL-3.0-or-later
-pulled   2026-10-21
+pulled   2026-11-02
 behind   0 revisions; that commit is the only one to touch the path
 ```
 
@@ -1042,7 +1039,7 @@ path     examples/hello-world.txt.ots
 commit   5d5d325b2a7083e93a7c685a679edc3f6b8f27d7  2016-09-14
 blob     d8357eb50f9f26136a367bcc7e8365b2ddd7e0f5
 licence  LGPL-3.0-or-later
-pulled   2026-10-21
+pulled   2026-11-02
 behind   0 revisions; that commit is the tip of the path
 ```
 
@@ -1056,7 +1053,7 @@ path     examples/incomplete.txt.ots
 commit   5d5d325b2a7083e93a7c685a679edc3f6b8f27d7  2016-09-14
 blob     f49cd3595c50ed52d8ffada5f8f84ceb18f4c1ca
 licence  LGPL-3.0-or-later
-pulled   2026-10-21
+pulled   2026-11-02
 behind   0 revisions; that commit is the tip of the path
 ```
 
@@ -1069,7 +1066,7 @@ repo     coreutils/gnulib
 path     doc/COPYINGv3
 commit   d64d66cc4897d605f543257dcd038524a0a55215  2017-10-02
 blob     f288702d2fa16d3cdf0035b15a9fcbc552cd88e7
-pulled   2026-10-30
+pulled   2026-11-02
 behind   0 revisions; still the blob on master
 ```
 
@@ -1103,7 +1100,7 @@ repo    mit-dci/rustreexo
 path    test_values/test_cases.json
 commit  8869ed90130464a50821054622437ba1ebf42961  2022-10-20
 blob    9290de291a4a2d66801e4708ffa0c0aaa4f49d0f
-pulled  2026-10-21
+pulled  2026-11-02
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1119,7 +1116,7 @@ repo    mit-dci/rustreexo
 path    test_values/update_data_tests.json
 commit  ae74e64e5a238add561261a9961640ee46169320  2023-01-13
 blob    30d6eea8936999d8f88a255d3fb2d748d7f32304
-pulled  2026-10-21
+pulled  2026-11-02
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1134,7 +1131,7 @@ repo    mit-dci/rustreexo
 path    test_values/cached_proof_tests.json
 commit  d7e3b1bd3922238309bd8ab01c765c35fe75ff4e  2023-01-23
 blob    810134b0f1b6077757cefff400c19aa8e6bc5126
-pulled  2026-10-21
+pulled  2026-11-02
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1259,7 +1256,7 @@ confirm them.
 ```text
 source  Esplora: api/block-height/<height>, then api/block/<hash>/header
 hosts   mempool.space and blockstream.info, which answered the same bytes
-pulled  2026-10-21
+pulled  2026-11-02
 ```
 
 Verdict: **recorded**. Each key is a height that a proof under

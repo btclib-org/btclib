@@ -427,7 +427,7 @@ source-exclude = [
     # above asks for.
     # These three lines were measured by planting and building, which is
     # btclib-node's method for its own list: a planted
-    # tests/.hypothesis/, tests/ecc/.ruff_cache/,
+    # tests/.hypothesis/, tests/schemes/.ruff_cache/,
     # docs/source/.pytest_cache/ and src/btclib/.mypy_cache/ are each
     # absent from the sdist built next, and each is carried by the sdist
     # the same tree builds with these lines taken out.
@@ -585,13 +585,14 @@ addopts = "-ra --cov --durations=8 -n auto --dist worksteal --strict-config --st
 #
 # Its position is load-bearing, and this is the one line where that is
 # said: --cov takes an *optional* value, so as the last token here it
-# swallows the first argument the command line goes on to give. `pytest
-# tests/ecc/dsa_test.py` became `--cov=tests/ecc/dsa_test.py` with no
-# path left to select on -- the whole suite ran, measured a directory
-# that is in `omit` below, and reported 0.00% against a fail_under of
-# 100. Green under `pytest -q tests/...`, which is what hid it: a token
-# starting with `-` is not consumed. Anywhere but last is safe, and
-# --durations=8 after it is what keeps it that way
+# swallows the first argument the command line goes on to give. When this
+# was found, `pytest tests/ecc/dsa_test.py`, a module this tree no longer
+# has, became `--cov=tests/ecc/dsa_test.py` with no path left to select
+# on -- the whole suite ran, measured a directory that is in `omit`
+# below, and reported 0.00% against a fail_under of 100. Green under
+# `pytest -q tests/...`, which is what hid it: a token starting with `-`
+# is not consumed. Anywhere but last is safe, and --durations=8 after it
+# is what keeps it that way
 # a test that was expected to fail and passed is a fixed bug still marked
 # as broken: strict turns it red instead of reporting xpass
 xfail_strict = true
