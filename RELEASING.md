@@ -1087,9 +1087,6 @@ runs `__init__.py` alone, and `btclib.network` reads those files by path
 when it is first imported, so a wheel missing one passes `import btclib`
 and fails here.
 
-The job the steps above call `published` is `pypi-install` in this
-tree's `release.yml` (issue #2925).
-
 **`deps-latest`'s `suite-bindings-latest` job is the one to read
 closely.** It upgrades btclib-secp256k1 alone and runs the suite, so it
 asks whether the newest release of the bindings works with this tree
