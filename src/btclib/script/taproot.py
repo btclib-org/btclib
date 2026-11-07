@@ -20,6 +20,7 @@ import heapq
 from io import BytesIO
 from typing import cast
 
+from ecc.alias import Public
 from ecc.curves import bytes_from_prv_key_int, scalar_from_prv_key, secp256k1
 from ecc.ecc.ssa import prv_key_tweak_add, pub_key_tweak_add_var
 from ecc.exceptions import EccValueError
@@ -471,7 +472,8 @@ def _tweaked_pubkey_var(pub_key: PubKeyData, h: bytes) -> tuple[bytes, int]:
     one x (issue 887). An uncompressed key goes whole, so that its y is
     proved to be its x's. The refusal is ecc's class, read into btclib's.
     """
-    t = _tap_tweak(pub_key.sec[1:33], h)
+    # the tweak hashes the public key and h, so it is public
+    t = Public(_tap_tweak(pub_key.sec[1:33], h))
     key = pub_key.sec[1:33] if pub_key.is_compressed else pub_key.sec
     try:
         x_Q, parity = pub_key_tweak_add_var(key, t)
@@ -651,7 +653,8 @@ def check_output_pubkey(q: Octets, script: Octets, control: Octets) -> bool:
     _assert_control_block_size(control)
     k = _merkle_root(leaf_hash(control[0] & 0xFE, script), control)
     p_bytes = control[1:33]
-    t = _tap_tweak(p_bytes, k)
+    # public for the reason `_tweaked_pubkey_var` gives
+    t = Public(_tap_tweak(p_bytes, k))
     # libsecp256k1's secp256k1_xonly_pubkey_tweak_add_check is this tweak
     # and a comparison of what it answers. An internal key that is not a
     # point is refused with ecc's class, read into btclib's
