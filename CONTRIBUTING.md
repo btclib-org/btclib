@@ -1536,8 +1536,8 @@ parameter; and a **reduction outside the `try`**, which refuses a message
 `verify_` would answer False about.
 
 **Which of those a function is, its name says**, and the vocabulary is
-closed: a public function that answers a `bool` carries one of the four
-prefixes below, or is one of the English predicates
+closed: a public function that answers a `bool` carries one of the prefixes
+below, or is one of the English predicates
 `tests/name_contract_test.py` names — `BasicBlockFilter.match` among them,
 where the name is the standard's and `is_` would cost the reading. A bool
 that is neither fails that gate, so a new one is a prefix or a decision
@@ -1562,10 +1562,11 @@ is a bound method, and every bound method is true. mypy's
 `truthy-function` names that, and mypy is a gate here, but a shape that
 cannot go wrong beats a checker that catches it going wrong.
 
-What the four prefixes buy is a promise read off the name:
+What the prefixes buy is a promise read off the name:
 
 - `assert_*` refuses and returns `None`, and is the reason half of the
   pair above.
+- `validate_*` refuses and returns `None`, as `assert_*` does.
 - `is_*` answers a `bool` about a value, and is total over the declared
   types: `is_p2sh` is False for bytes that are not a p2sh script.
 - `verify*` answers a `bool` about a signature or a proof, on the same
@@ -1584,7 +1585,7 @@ saying four things and therefore nothing (issue #814). A converter is
 named for what it returns -- `bytes_from_octets`,
 `b32.bytes_from_witness_program` -- and a query for what it answers.
 
-**`check_validity` is a parameter and not one of those four**, which is
+**`check_validity` is a parameter and not one of those prefixes**, which is
 worth saying now that the prefix means something: there `check` is a verb
 governing an object — "check the validity" — where a prefix on a function
 name classifies what the call answers, and a caller passes this one

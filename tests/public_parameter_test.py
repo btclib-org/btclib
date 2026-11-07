@@ -4,16 +4,16 @@
 
 """Every `int` parameter of a `_var` function is `Public`, or says why not.
 
-`CONTRIBUTING.md`'s *A `_var` suffix means the operand decides the work*
-is the rule: an integer whose value decides the work is annotated
+`CONTRIBUTING.md`'s *A `_var` suffix means the operand decides the work* is
+the rule: an integer whose value decides the work is annotated
 `ecc.alias.Public`, and mypy then refuses a plain `int` at every call. What
 mypy cannot tell is whether a parameter that should carry the type does:
 this walk reads every `_var` function, at any depth of a module, private
-ones, methods and `async def` included, and fails on a parameter, `*args`
-and `**kwargs` included, whose annotation names `int` or `Integer`, a union
-or a container of them included, that is neither `Public` nor in
-`_NOT_OPERANDS` below with its reason. An alias under another name is not
-read.
+ones, methods, `async def` and each definition of a name defined twice
+included, and fails on a parameter, `*args` and `**kwargs` included, whose
+annotation names `int` or `Integer`, a union or a container of them
+included, that is neither `Public` nor in `_NOT_OPERANDS` below with its
+reason. An alias under another name is not read.
 
 A point, octets or a key is out of the walk: `Public` is an integer, and
 for those the suffix alone states the contract.
@@ -43,8 +43,10 @@ _NOT_OPERANDS: dict[str, str] = {}
 
 # a function, a private one, a method, a sequence and a `_var_`, each with
 # a `Public` parameter; an `int` one; a plain name, which is not walked;
-# an `int` parameter in each place a walk of the top level would miss; and
-# an alias of `int` under another name, which the walk does not read
+# an `int` parameter in each place a walk of the top level would miss; an
+# `int` and a `Public` definition of one name, in the two branches of an
+# `if`; and an alias of `int` under another name, which the walk does not
+# read
 _CONTROL = """
 def double_mult_var(u: Public, w: int) -> None: ...
 def _jacobi_var(a: Public) -> None: ...
@@ -64,14 +66,18 @@ def outer() -> None:
 def star_var(*n: int, **k: int) -> None: ...
 _Position = int
 def leaf_var(p: _Position) -> None: ...
+if TYPE_CHECKING:
+    def twice_var(a: int) -> None: ...
+else:
+    def twice_var(a: Public) -> None: ...
 """
 
 _Function = ast.FunctionDef | ast.AsyncFunctionDef
 
 
-def _var_functions(module: str, source: str) -> dict[str, _Function]:
-    """Map each `_var` function of a module, at any depth, to its node."""
-    functions: dict[str, _Function] = {}
+def _var_functions(module: str, source: str) -> dict[str, list[_Function]]:
+    """Map each `_var` function of a module, at any depth, to its nodes."""
+    functions: dict[str, list[_Function]] = {}
 
     # every node is visited, with the dotted name of the functions and
     # classes around it: a `def` under an `if` is the module's own
@@ -79,7 +85,7 @@ def _var_functions(module: str, source: str) -> dict[str, _Function]:
         for child in ast.iter_child_nodes(node):
             if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef):
                 if child.name.endswith(("_var", "_var_")):
-                    functions[f"{prefix}{child.name}"] = child
+                    functions.setdefault(f"{prefix}{child.name}", []).append(child)
                 visit(child, f"{prefix}{child.name}.")
             elif isinstance(child, ast.ClassDef):
                 visit(child, f"{prefix}{child.name}.")
@@ -90,49 +96,56 @@ def _var_functions(module: str, source: str) -> dict[str, _Function]:
     return functions
 
 
-def _integer_parameters(functions: dict[str, _Function]) -> dict[str, str]:
-    """Map each walked parameter of a `_var` function to its annotation."""
-    found: dict[str, str] = {}
-    for name, function in functions.items():
-        arguments = function.args
-        for argument in [
-            *arguments.posonlyargs,
-            *arguments.args,
-            *([arguments.vararg] if arguments.vararg else []),
-            *arguments.kwonlyargs,
-            *([arguments.kwarg] if arguments.kwarg else []),
-        ]:
-            # mypy runs strict over the package: no parameter but
-            # `self` lacks an annotation
-            if argument.annotation is None:
-                continue
-            annotation = ast.unparse(argument.annotation)
-            if annotation in _PUBLIC or _INTEGER.search(annotation):
-                found[f"{name}.{argument.arg}"] = annotation
+def _integer_parameters(
+    functions: dict[str, list[_Function]],
+) -> dict[str, list[str]]:
+    """Map each walked parameter of a `_var` function to its annotations.
+
+    One per definition of the function: a name defined twice keeps both.
+    """
+    found: dict[str, list[str]] = {}
+    for name, definitions in functions.items():
+        for function in definitions:
+            arguments = function.args
+            for argument in [
+                *arguments.posonlyargs,
+                *arguments.args,
+                *([arguments.vararg] if arguments.vararg else []),
+                *arguments.kwonlyargs,
+                *([arguments.kwarg] if arguments.kwarg else []),
+            ]:
+                # mypy runs strict over the package: no parameter but
+                # `self` lacks an annotation
+                if argument.annotation is None:
+                    continue
+                annotation = ast.unparse(argument.annotation)
+                if annotation in _PUBLIC or _INTEGER.search(annotation):
+                    key = f"{name}.{argument.arg}"
+                    found.setdefault(key, []).append(annotation)
     return found
 
 
-def _package_functions() -> dict[str, _Function]:
-    """Map each `_var` function of the package to its node."""
-    functions: dict[str, _Function] = {}
+def _package_functions() -> dict[str, list[_Function]]:
+    """Map each `_var` function of the package to its nodes."""
+    functions: dict[str, list[_Function]] = {}
     for path in sorted(_PACKAGE.rglob("*.py")):
         module = ".".join(path.relative_to(_PACKAGE.parent).with_suffix("").parts)
         functions |= _var_functions(module, path.read_text(encoding="utf-8"))
     return functions
 
 
-def _unexplained(found: dict[str, str], not_operands: dict[str, str]) -> set[str]:
+def _unexplained(found: dict[str, list[str]], not_operands: dict[str, str]) -> set[str]:
     """Return the integer parameters neither Public nor given a reason."""
     return {
         name
-        for name, annotation in found.items()
-        if annotation not in _PUBLIC and name not in not_operands
+        for name, annotations in found.items()
+        if not set(annotations) <= _PUBLIC and name not in not_operands
     }
 
 
-def _stale(found: dict[str, str], not_operands: dict[str, str]) -> set[str]:
+def _stale(found: dict[str, list[str]], not_operands: dict[str, str]) -> set[str]:
     """Return the reasons naming no integer parameter that is not Public."""
-    return {name for name in not_operands if found.get(name, "Public") in _PUBLIC}
+    return {name for name in not_operands if set(found.get(name, [])) <= _PUBLIC}
 
 
 _FUNCTIONS = _package_functions()
@@ -157,31 +170,36 @@ def test_the_walk_reaches_what_it_claims() -> None:
     assert "btclib.muhash.MuHash3072.digest_var" in _FUNCTIONS
     found = _integer_parameters(_var_functions("control", _CONTROL))
     assert found == {
-        "control.double_mult_var.u": "Public",
-        "control.double_mult_var.w": "int",
-        "control._jacobi_var.a": "Public",
-        "control.CurveGroup.y_var.x": "Public",
-        "control.multi_mult_var.scalars": "Sequence[Public]",
+        "control.double_mult_var.u": ["Public"],
+        "control.double_mult_var.w": ["int"],
+        "control._jacobi_var.a": ["Public"],
+        "control.CurveGroup.y_var.x": ["Public"],
+        "control.multi_mult_var.scalars": ["Sequence[Public]"],
         # a name ending in `_var_`, the suffix before a trailing underscore
-        "control._libsecp256k1_multi_mult_var_.scalars": "Sequence[Public]",
+        "control._libsecp256k1_multi_mult_var_.scalars": ["Sequence[Public]"],
         # under an `if`, in a nested class, an `async def`, in a function,
         # and `*args` and `**kwargs`
-        "control.guarded_var.a": "int",
-        "control.Outer.Inner.nested_var.a": "int",
-        "control.async_var.a": "int",
-        "control.outer.inner_var.a": "int",
-        "control.star_var.n": "int",
-        "control.star_var.k": "int",
+        "control.guarded_var.a": ["int"],
+        "control.Outer.Inner.nested_var.a": ["int"],
+        "control.async_var.a": ["int"],
+        "control.outer.inner_var.a": ["int"],
+        "control.star_var.n": ["int"],
+        "control.star_var.k": ["int"],
+        # both definitions of one name, the `int` one not hidden by the
+        # `Public` one after it
+        "control.twice_var.a": ["int", "Public"],
     }
     # a plain name is not walked, an int operand of its own notwithstanding
     assert "control.mod_inv.a" not in found
     # nor is an alias that does not spell `int` or `Integer`
     assert "control.leaf_var.p" not in found
-    ints = {name for name, annotation in found.items() if annotation == "int"}
+    ints = {name for name, annotations in found.items() if "int" in annotations}
     assert _unexplained(found, {}) == ints
     assert not _unexplained(found, dict.fromkeys(ints, "window"))
     reasons = {"control.double_mult_var.w": "window", "control._jacobi_var.a": "x"}
     assert _stale(found, reasons) == {"control._jacobi_var.a"}
+    # a reason for a name defined twice holds while either definition is int
+    assert not _stale(found, {"control.twice_var.a": "x"})
     # a reason naming no parameter at all is stale too
     assert _stale(found, {"control.double_mult_var.v": "x"}) == {
         "control.double_mult_var.v"

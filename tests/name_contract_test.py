@@ -5,10 +5,10 @@
 """The gate for what a public function's name promises about its answer.
 
 CONTRIBUTING.md's "Every public function validates its inputs" states the
-vocabulary: `assert_*` refuses and returns None, `is_*` and `verify*`
-answer a bool about a value of a declared type, and `check_*` answers a
-bool *and* refuses what cannot be an answer -- the one prefix that warns
-a caller it still needs an `except`.
+vocabulary: `assert_*` and `validate_*` refuse and return None, `is_*`
+and `verify*` answer a bool about a value of a declared type, and
+`check_*` answers a bool *and* refuses what cannot be an answer -- the
+one prefix that warns a caller it still needs an `except`.
 
 This file is why the statement is worth making. `check_` had drifted to
 four meanings at once -- nine refusals returning None, two verdicts, a
@@ -41,11 +41,13 @@ _LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 # anywhere in the name and not only at the front: `batch_verify_`,
 # `partial_sig_verify` and `anti_exfil_host_verify` are verifications,
 # and reading the front alone is what left them out of issue #814's first
-# census
+# census. The others are matched at the front only, the underscore
+# included, so `validated_network_name`, a converter, promises nothing
 _PROMISED: dict[str, str] = {
     "assert_": "None",
     "check_": "bool",
     "is_": "bool",
+    "validate_": "None",
     "verify": "bool",
 }
 
@@ -79,7 +81,7 @@ _OTHER_CONTRACT: dict[str, str] = {
 }
 
 
-# A bool need not carry one of the four prefixes: an English predicate is
+# A bool need not carry one of the prefixes: an English predicate is
 # the same family and the same contract, and `is_` would cost the reading.
 # Each entry carries the reason it keeps the name it has -- and the
 # ratchet below is what closes the vocabulary all the same, an entry that
@@ -155,6 +157,22 @@ def _return_type(returns: ast.expr) -> str:
     return unparsed
 
 
+def _named_in(module: str, source: str) -> dict[str, str]:
+    """Return every public function of a module whose name promises a type."""
+    found: dict[str, str] = {}
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
+            continue
+        if _promised_by(node.name) is None:
+            continue
+        # every function of this package is annotated, mypy running
+        # strict over it, so an unannotated one is a state the tree
+        # does not reach
+        assert node.returns is not None
+        found[f"{module}.{node.name}"] = _return_type(node.returns)
+    return found
+
+
 def _named() -> dict[str, str]:
     """Return every public function whose name promises a return type.
 
@@ -168,17 +186,7 @@ def _named() -> dict[str, str]:
     found: dict[str, str] = {}
     for path in sorted(_LIBRARY.rglob("*.py")):
         module = ".".join(path.relative_to(_LIBRARY.parent).with_suffix("").parts)
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
-                continue
-            if _promised_by(node.name) is None:
-                continue
-            # every function of this package is annotated, mypy running
-            # strict over it, so an unannotated one is a state the tree
-            # does not reach
-            assert node.returns is not None
-            found[f"{module}.{node.name}"] = _return_type(node.returns)
+        found |= _named_in(module, path.read_text(encoding="utf-8"))
     return found
 
 
@@ -343,6 +351,7 @@ def test_the_walk_reaches_what_it_claims() -> None:
     assert _NAMED["btclib.script.engine.script.dsa_verify"] == "bool"
     assert _NAMED["btclib.block.merkle_proof.verify"] == "bool"
     assert _NAMED["btclib.bms.assert_as_valid"] == "None"
+    assert _NAMED["btclib.policy.validate_inputs_standardness"] == "None"
     # a method, and a property among them
     assert _NAMED["btclib.key.is_compressed"] == "bool"
 
@@ -352,6 +361,30 @@ def test_the_walk_reaches_what_it_claims() -> None:
     # a private name, and a name that promises nothing
     assert "btclib.bms._assert_p2pkh" not in _NAMED
     assert "btclib.utils.bytes_from_octets" not in _NAMED
+
+
+# a `validate_` that refuses, one that answers a bool, and a name that
+# carries the word without the prefix
+_VALIDATE_CONTROL = """
+def validate_refusal(a: int) -> None: ...
+def validate_answer(a: int) -> bool: ...
+def validated_name(a: str) -> str: ...
+"""
+
+
+def test_a_validate_answering_a_bool_breaks_its_promise() -> None:
+    """The rule fails a `validate_` that answers a bool.
+
+    btclib's own `validate_` functions all refuse, so the rule above never
+    fails on one: this source holds the case that must.
+    """
+    named = _named_in("control", _VALIDATE_CONTROL)
+    assert named == {
+        "control.validate_refusal": "None",
+        "control.validate_answer": "bool",
+    }
+    broken = {d for d in named if named[d] != _promised_by(d.rpartition(".")[2])}
+    assert broken == {"control.validate_answer"}
 
 
 def test_check_says_one_thing() -> None:
@@ -371,7 +404,7 @@ def test_check_says_one_thing() -> None:
 
 @pytest.mark.parametrize("dotted", _PUBLIC_BOOLS)
 def test_every_public_bool_is_named_by_the_vocabulary(dotted: str) -> None:
-    """A bool carries one of the four prefixes, or is named in the list.
+    """A bool carries one of the prefixes, or is named in the list.
 
     What this closes is the gap the prefixes alone leave: they promise a
     shape to a caller who sees one, and say nothing about a bool that
