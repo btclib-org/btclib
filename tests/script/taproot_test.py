@@ -19,6 +19,7 @@ from contextlib import nullcontext
 from typing import Any
 
 import pytest
+from ecc.alias import Public
 from ecc.curves import (
     Curve,
     bytes_from_point,
@@ -246,7 +247,7 @@ def test_the_python_output_key_lifts_the_internal_x_once(
     # name cannot be read, only set. The binding patched is
     # ecc's own, where the lift takes its root: the arithmetic
     # is that package's, and the count is of what btclib asks of it
-    def counting(a: int, p_: int) -> int:
+    def counting(a: Public, p_: int) -> int:
         nonlocal roots_taken
         roots_taken += 1
         return mod_sqrt_var(a, p_)
