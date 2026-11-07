@@ -1781,11 +1781,10 @@ the declaration at the call site rather than tracing where the value came
 from.
 
 `tests/public_parameter_test.py` holds every parameter of a `_var`
-function annotated with `int` or `Integer` to the type, or to the reason
-it names why it is not `Public`; an alias under another name is not read.
-A plain-named function is not walked, and annotating it is the author's
-part. The type is an integer: for a point, octets or a key the suffix
-alone states the contract.
+function whose annotation names `int` or `Integer` to the type, or to the
+reason it names why it is not `Public`. A plain-named function is not
+walked, and annotating it is the author's part. The type is an integer:
+for a point, octets or a key the suffix alone states the contract.
 
 Add the suffix when adding a function whose work follows the operand, and
 not where it does not: a suffix on everything says nothing about anything.
