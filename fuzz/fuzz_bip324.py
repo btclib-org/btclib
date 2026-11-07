@@ -40,11 +40,11 @@ ENTRY_POINTS = ("btclib.p2p.bip324:message_from_contents",)
 REQUIRES = ("cryptography",)
 # packets, which only the cipher reads.
 #
-# rekey_ping.bin is REKEY_INTERVAL empty decoys, then a ping under the
-# keys they rekey to. A packet is at least EXPANSION bytes, so no input
-# libFuzzer generates holds REKEY_INTERVAL of them unless a seed this
-# long raises its length cap, as fuzz.yml's "Seed the stored corpora"
-# step says.
+# rekey_ping.bin is empty decoys enough for the receiving side to rekey,
+# then a ping under the keys they rekey to. A packet is at least
+# EXPANSION bytes, so no input libFuzzer generates holds REKEY_INTERVAL
+# of them unless a seed this long raises its length cap, as fuzz.yml's
+# "Seed the stored corpora" step says.
 STATEFUL_SEEDS = ("packet_ping.bin", "packets_vector.bin", "rekey_ping.bin")
 
 # the in_idx 1 row of BIP324's packet_encoding_test_vectors.csv
