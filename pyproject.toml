@@ -360,6 +360,7 @@ source-exclude = [
     # depth would be an accident rather than a decision.
     # tests/build_system_test.py checks that every test its own reader
     # recognizes as reaching .github or fuzz/ is named here
+    "/tests/assert_bindings_serving_test.py",
     "/tests/check_vendored_vectors_test.py",
     "/tests/compare_release_test.py",
     "/tests/docs_commands_test.py",
@@ -848,20 +849,11 @@ extend-glob = ["CHANGELOG.md", "RELEASE_NOTES.md", ".pre-commit-config.yaml"]
 extend-ignore-re = ['`[^`]*`']
 
 [tool.coverage.run]
-# what the ratchet measures, named here rather than on the command line
-# that starts it. Unnamed, `--cov` measures every file the run imports,
-# and that reaches `.github/scripts`'s own modules through the tests
-# that load them by path -- `compare_release.py`'s `if __name__ ==
-# "__main__":` guard, untouched by anything in `tests/`, is one that stays
-# uncovered. So a bare `uv run pytest --cov` fails on a pristine
-# checkout while the coverage-py job passes -- a local gate stricter
-# than the one it exists to reproduce, which is the worse of the two
-# directions: it asks for a fix that CI does not want. Named, the job
-# and the local run are the same command, and the scripts lose nothing
-# by it, mypy taking them as CONTRIBUTING.md's command says. Covering
-# that guard instead would mean a test calling it in-process, for the
-# sake of the measurement alone
-source = ["btclib", "tests"]
+# what the ratchet measures, named here rather than on the command line:
+# unnamed, `--cov` measures every file the run imports. .github/scripts
+# is not an importable package, and coverage measures it by path all the
+# same
+source = ["btclib", "tests", ".github/scripts"]
 # tests/integration is omitted because the ratchet measures what an
 # ordinary run executes, and those tests skip themselves without their
 # variable: their bodies would be uncovered lines of tests/ at
