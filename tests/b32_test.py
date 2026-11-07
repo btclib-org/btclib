@@ -38,7 +38,7 @@ import string
 
 import pytest
 from base58_bech32.bech32 import BECH32_1_CONST, BECH32_M_CONST, bech32_decode
-from base58_bech32.exceptions import Base58Bech32TypeError, Base58Bech32ValueError
+from base58_bech32.exceptions import Base58Bech32ValueError
 from ecc.curves import bytes_from_point, point_from_octets_var
 from hypothesis import given
 from hypothesis import strategies as st
@@ -273,18 +273,20 @@ def test_the_codec_refusals_are_btclib_value_errors(address: str, err_msg: str) 
     assert isinstance(refusal.value.__cause__, Base58Bech32ValueError)
 
 
-@pytest.mark.parametrize("wit_ver", [True, False, 0.0, 1.0])
+@pytest.mark.parametrize("wit_ver", [True, False, 0.0, 1.0, "1", None])
 def test_a_witness_version_that_is_no_int_is_a_btclib_type_error(
     wit_ver: object,
 ) -> None:
-    """A bool or a float witness version is btclib's type error.
+    """A witness version that is no int, a bool included, is a type error.
 
-    It passes `bytes_from_witness_program`'s range check, and the encoder
-    refuses it as a 5-bit value.
+    `bytes_from_witness_program` refuses it before its range check, which a
+    bool or a float in 0..16 would pass, and the address path reaches the
+    same refusal.
     """
-    with pytest.raises(BTClibTypeError, match="^invalid 5-bit value type: ") as refusal:
-        b32.address_from_witness(wit_ver, b"\x00" * 20)  # type: ignore[arg-type]
-    assert isinstance(refusal.value.__cause__, Base58Bech32TypeError)
+    match = f"^invalid witness version type: {type(wit_ver).__name__}$"
+    for call in (b32.bytes_from_witness_program, b32.address_from_witness):
+        with pytest.raises(BTClibTypeError, match=match):
+            call(wit_ver, b"\x00" * 20)  # type: ignore[arg-type]
 
 
 def test_a_refused_address_is_not_quoted() -> None:

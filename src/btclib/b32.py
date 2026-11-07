@@ -67,7 +67,7 @@ from base58_bech32.bech32 import (
 
 from btclib.alias import Octets, String
 from btclib.consensus import MAX_SCRIPT_SIZE
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.key import PubKeyData
 from btclib.network import (
@@ -82,6 +82,7 @@ from btclib.utils import (
     _message_text,
     assert_type,
     bytes_from_octets,
+    is_integer,
     str_from_string,
 )
 
@@ -124,9 +125,12 @@ def power_of_2_base_conversion(
 def bytes_from_witness_program(wit_ver: int, wit_prg: Octets) -> bytes:
     """Return the witness program, refusing what BIP141 does not define.
 
-    A version outside 0..16, a program outside 2..40 bytes, or a v0
+    A version that is no int, a bool included, is a type error. A
+    version outside 0..16, a program outside 2..40 bytes, or a v0
     program that is neither 20 nor 32 bytes is refused.
     """
+    if not is_integer(wit_ver):
+        raise BTClibTypeError(f"invalid witness version type: {type(wit_ver).__name__}")
     if not 0 <= wit_ver < 17:
         err_msg = "invalid witness version: "
         err_msg += f"{_message_text(wit_ver)} not in 0..16"
@@ -167,9 +171,8 @@ def _decode_with_constant(addr: str) -> tuple[str, list[int]]:
 def _address_from_witness(wit_ver: int, wit_prg: Octets, hrp: str) -> str:
     wit_prg = bytes_from_witness_program(wit_ver, wit_prg)
     # the hrp is a valid Network's, which assert_valid checks with no
-    # length limit, and the program's values are 5-bit digits. A witness
-    # version that is no int, a bool or a float in 0..16, is what the
-    # encoder refuses here. m None is BIP350's choice by the version
+    # length limit, and every value is a 5-bit digit, the version
+    # included. m None is BIP350's choice by the version
     data = [wit_ver, *convertbits(wit_prg, 8, 5)]
     with _btclib_errors():
         bytes_ = bech32_encode(hrp, data, limit=None)
