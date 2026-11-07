@@ -175,10 +175,10 @@ The four aliases:
     (issue #1188). It does not take an extended
     key: ``dsa.sign(msg, xprv)`` does not work; pass
     ``bip32_descriptors.bip32.prv_keyinfo_from_xprv(xprv)[0]``.
-    ``btclib.bms`` is narrower still: message signing wants the network
-    and the compression too, so it takes the ``btclib.key.PrvKeyData`` a WIF
-    and a scalar both resolve to — ``b58.prv_key_data_from_wif(wif)`` for the
-    one, ``btclib.key.PrvKeyData(q)`` for the other.
+    ``bms.sign`` reads no scalar: message signing wants the network and
+    the compression too, so it takes a ``btclib.key.PrvKeyData``,
+    ``btclib.key.PrvKeyData(q)`` for a scalar, or a WIF as a ``str``,
+    which it reads with ``b58.prv_key_data_from_wif``.
 
 ``btclib.key.PubKeyData``
     A public key parsed once and carried: the SEC octets, compressed or
@@ -577,9 +577,7 @@ byte for byte, with no trimming of your own.
 >>> address = b58.p2pkh(b58.prv_key_data_from_wif(wif).pub)
 >>> address
 '13eeg4y5wYGxNTxBEuWLPFauoMJQLxdoip'
->>> signature = bms.sign(
-...     b"paid invoice 42 on 2026-01-01", b58.prv_key_data_from_wif(wif)
-... )
+>>> signature = bms.sign(b"paid invoice 42 on 2026-01-01", wif)
 >>> signature.b64encode()
 'IPn1BZ4xi86uCS5NrSrX+2g+RSsHgm94QX5+krikMl4Fd25te6nrF53iI9amQ5XtAcM4fMggHPybYOxufoR8MVA='
 >>> bms.verify(b"paid invoice 42 on 2026-01-01", address, signature)
