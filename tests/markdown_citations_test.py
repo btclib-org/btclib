@@ -40,20 +40,19 @@ character class stops at the newline, so `tests/` ending one line and
 silence about such a path is not a verdict on it. Folding the wrap away
 before matching is not the repair, the two foldings being exactly
 complementary: joining the halves with nothing does see a wrapped path,
-and also fuses a *command* wrapped at a space, which `CHANGELOG.md`
-carries -- `pytest` and `tests/ecc/dsa_test.py` on either side of a break
-become one path -- while joining them with a space fuses neither and sees
-neither, a path having no space to be broken at. What keeps that fused
-path from reddening a correct citation today is the directory half alone,
-this tree having no `pytesttests/ecc`, which is luck and not the rule
-(issue #1969). The rule is blind by construction in one more way, and
-that one is deliberate: a cited path whose file name this tree does not
-have anywhere is another project's as far as this reads, whether or not
-it is. A `./` in front of one of this tree's own files is blind the same
-way and for the same reason -- `.` is a directory no `git ls-files` path
-carries, so the directory half excuses `` `./SECURITY.md` ``, which
-CONTRIBUTING.md cites -- and a rename would go unflagged in that
-spelling.
+and also fuses a *command* wrapped at a space, which
+`changelog/v2026.8.21.md` carries -- `pytest` and `tests/ecc/dsa_test.py`
+on either side of a break become one path -- while joining them with a
+space fuses neither and sees neither, a path having no space to be broken
+at. What keeps that fused path from reddening a correct citation today is
+luck and not the rule: this tree has no `pytesttests/ecc` directory and no
+`dsa_test.py` (issue #1969). The rule is blind by construction in one more
+way, and that one is deliberate: a cited path whose file name this tree
+does not have anywhere is another project's as far as this reads, whether
+or not it is. A `./` in front of one of this tree's own files is blind the
+same way and for the same reason -- `.` is a directory no `git ls-files`
+path carries, so the directory half excuses `` `./SECURITY.md` ``, which
+CONTRIBUTING.md cites -- and a rename would go unflagged in that spelling.
 
 Both halves accept a path another repository owns whose file name *and*
 whose directory this tree also has, and which this tree does not itself
@@ -424,8 +423,8 @@ def test_a_citation_broken_across_the_wrap_is_not_read() -> None:
     """The limit above, executable rather than stated.
 
     A fold that made this answer with the path would also fuse the
-    command `CHANGELOG.md` wraps at a space, so a change here is a
-    decision about that trade and not a widening (issue #1969).
+    command `changelog/v2026.8.21.md` wraps at a space, so a change here
+    is a decision about that trade and not a widening (issue #1969).
     """
     assert _cited_paths("the module is `tests/\ndescriptors_test.py`.") == set()
     assert _cited_paths("the module is `tests/descriptors_test.py`.") == {
