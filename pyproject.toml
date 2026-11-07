@@ -248,6 +248,10 @@ test = [
     { include-group = "harness" },
     { include-group = "bindings" },
     { include-group = "bip324" },
+    # tests/docs_conf_test.py executes docs/source/conf.py, which imports
+    # it. No marker, unlike `docs`: deps-latest.yml gates coverage on 3.11
+    # too, where the test would skip, and 9.0.4 installs there
+    "sphinx>=9.0.4",
 ]
 lint = [
     { include-group = "bindings" },
