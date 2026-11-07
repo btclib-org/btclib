@@ -260,9 +260,9 @@ def test_merkle_root_empty() -> None:
     ComputeMerkleRoot's reduction loop never runs for zero hashes
     (`while (hashes.size() > 1)` is false at zero), so it falls through
     to `return uint256()` rather than raising -- read at
-    bitcoin/bitcoin@9be056a8a7, src/consensus/merkle.cpp, the v31.1 tag
-    (issue #2427). Not mutated either: CVE-2012-2459 is about two equal
-    siblings, and there is no sibling at all.
+    bitcoin/bitcoin@f0de87f040, src/consensus/merkle.cpp (issue #2427).
+    Not mutated either: CVE-2012-2459 is about two equal siblings, and
+    there is no sibling at all.
     """
     assert merkle_root([], hash256) == b"\x00" * 32
     assert merkle_root_and_mutated([], hash256) == (b"\x00" * 32, False)

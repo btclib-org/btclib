@@ -6,7 +6,7 @@
 
 Each holds for every input the strategies draw; `proof_of_work_test.py` and
 `header_context_test.py` check chosen cases. The rules are those of Bitcoin
-Core v31.1 (bitcoin/bitcoin@9be056a8a7):
+Core at bitcoin/bitcoin@f0de87f040:
 
 - `pow_transition` in `src/test/fuzz/pow.cpp`: the target
   `CalculateNextWorkRequired` gives is one `PermittedDifficultyTransition`

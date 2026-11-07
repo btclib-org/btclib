@@ -6,16 +6,16 @@
 
 `HeadersSyncState` is Bitcoin Core's class of the same name
 (`src/headerssync.h` and `src/headerssync.cpp`, at
-bitcoin/bitcoin@9be056a8a7, the v31.1 tag), and
-`anti_dos_work_threshold` is its `GetAntiDoSWorkThreshold`
-(`src/net_processing.cpp`, same tag). In `PRESYNC` the peer's headers
-are counted and, every `commitment_period` headers from a secret offset,
-one salted bit of a header's hash is kept. Once the work reaches the
-threshold, `REDOWNLOAD` asks for the same chain again from its start,
-checks each kept bit against it, and releases a header only once
-`redownload_buffer_size` more have been checked behind it, or once the
-redownloaded chain reaches the threshold itself. So a chain that never
-reaches the threshold costs the bits and the buffer, and nothing else.
+bitcoin/bitcoin@f0de87f040), and `anti_dos_work_threshold` is its
+`GetAntiDoSWorkThreshold` (`src/net_processing.cpp`, same commit). In
+`PRESYNC` the peer's headers are counted and, every `commitment_period`
+headers from a secret offset, one salted bit of a header's hash is kept.
+Once the work reaches the threshold, `REDOWNLOAD` asks for the same
+chain again from its start, checks each kept bit against it, and
+releases a header only once `redownload_buffer_size` more have been
+checked behind it, or once the redownloaded chain reaches the threshold
+itself. So a chain that never reaches the threshold costs the bits and
+the buffer, and nothing else.
 
 The sync is handed headers and the time, and hands back headers and a
 locator: sending `getheaders` and reading `headers` is the caller's.
@@ -133,7 +133,7 @@ def anti_dos_work_threshold(
     """Return the work below which a peer's chain is synced before it is kept.
 
     Core's `GetAntiDoSWorkThreshold` (`src/net_processing.cpp`, at
-    bitcoin/bitcoin@9be056a8a7): the active tip's chain work less 144
+    bitcoin/bitcoin@f0de87f040): the active tip's chain work less 144
     blocks of the tip's own work, and never less than
     `minimum_chain_work`, which is Core's `-minimumchainwork` and
     defaults to the network's `ConsensusParams.minimum_chain_work`.
@@ -317,8 +317,8 @@ class HeadersSyncState:
         A clock a whole second or more past `MAX_FUTURE_BLOCK_TIME` behind
         the chain start's median time past is refused, the time since the
         start truncated to whole seconds as Core's `Ticks` truncates it.
-        Core at bitcoin/bitcoin@310071f8d0, the v32.0rc4 tag, refuses it
-        with `SystemClockError`.
+        Core at bitcoin/bitcoin@f0de87f040 refuses it with
+        `SystemClockError`.
         """
         assert_type(consensus, ConsensusParams, "consensus")
         assert_type(params, HeadersSyncParams, "params")

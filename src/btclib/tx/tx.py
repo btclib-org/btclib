@@ -48,9 +48,10 @@ __all__ = [
 # not built yet, which pays for them in its weight
 SEGWIT_MARKER = b"\x00\x01"
 
-# Core v31.1's policy.h, TX_MIN_STANDARD_VERSION through
-# TX_MAX_STANDARD_VERSION: 1 and 2 are what v27.2 and v31.1 agree on, 3
-# is BIP431's TRUC, standard since v28.0 (issue #387)
+# Core's policy.h at bitcoin/bitcoin@f0de87f040,
+# TX_MIN_STANDARD_VERSION through TX_MAX_STANDARD_VERSION: 1 and 2 are
+# standard in v27.2 too, 3 is BIP431's TRUC, standard since v28.0
+# (issue #387)
 _TX_MIN_STANDARD_VERSION = 1
 _TX_MAX_STANDARD_VERSION = 3
 
@@ -299,11 +300,11 @@ class Tx:  # noqa: PLW1641
     def assert_standard(self) -> None:
         """Refuse what assert_valid refuses, plus a non-standard version.
 
-        Core v31.1's relay policy, `TX_MIN_STANDARD_VERSION` through
-        `TX_MAX_STANDARD_VERSION`: 1 and 2 both v27.2 and v31.1 relay,
-        3 is BIP431's TRUC, standard since v28.0, and every version
-        outside that window fails here and not in assert_valid, whose
-        four-byte range takes it.
+        Core's relay policy at bitcoin/bitcoin@f0de87f040,
+        `TX_MIN_STANDARD_VERSION` through `TX_MAX_STANDARD_VERSION`: 1
+        and 2 are standard in v27.2 too, 3 is BIP431's TRUC, standard
+        since v28.0, and every version outside that window fails here
+        and not in assert_valid, whose four-byte range takes it.
         """
         self.assert_valid()
 

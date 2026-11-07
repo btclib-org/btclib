@@ -4,11 +4,12 @@
 
 """Tests for `script_to_asm`, which is Bitcoin Core's `ScriptToAsmStr`.
 
-Every row of `CASES` was put to bitcoind v31.1.0: `decodescript` gives
-the second column, and `decoderawtransaction` on a transaction whose
-`scriptSig` is the script gives the third, the one Core asks the sighash
-decode for. `tests/integration/script_asm_test.py` puts the same rows,
-and a generated corpus, to a live node.
+Every row of `CASES` was put to the bitcoind `integration-bitcoind.yml`
+pins: `decodescript` gives the second column, and `decoderawtransaction`
+on a transaction whose `scriptSig` is the script gives the third, the
+one Core asks the sighash decode for.
+`tests/integration/script_asm_test.py` puts the same rows, and a
+generated corpus, to a live node.
 """
 
 from __future__ import annotations

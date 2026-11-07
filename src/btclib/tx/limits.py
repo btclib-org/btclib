@@ -24,9 +24,9 @@ The minimum sizes are the same arithmetic's other half, and they are
 
 `LOCKTIME_THRESHOLD`, `SEQUENCE_FINAL` and the four `SEQUENCE_LOCKTIME_*`
 constants are Core's `src/script/script.h` and `src/primitives/
-transaction.h`, at bitcoin/bitcoin@9be056a8a7; `COINBASE_MATURITY` is
-`src/consensus/consensus.h`, same tag. `block/limits.py` used to carry a
-paragraph explaining why `COINBASE_MATURITY` was absent from it -- "a
+transaction.h`, at bitcoin/bitcoin@f0de87f040; `COINBASE_MATURITY` is
+`src/consensus/consensus.h`, same commit. `block/limits.py` used to carry
+a paragraph explaining why `COINBASE_MATURITY` was absent from it -- "a
 rule about spending an output, so it needs the chain the output was
 created on" -- and that reasoning is what put it here instead: a
 `btclib.tx.coin.Coin` carrying its own creation height is that chain, so
@@ -36,9 +36,9 @@ that reads it rather than beside `block/limits.py`'s header rules, which
 
 `MAX_TX_LEGACY_SIGOPS` and `INVALID_TX_NONWITNESS_SIZE` are BIP54's
 bounds on a transaction, read by `btclib.tx.tx_context`'s
-`assert_bip54_*` rules. Core v31.1 declares the first in
-`src/policy/policy.h`, as a relay limit, and `btclib.policy` re-exports
-it.
+`assert_bip54_*` rules. Core declares the first in
+`src/policy/policy.h`, at the same commit, as a relay limit, and
+`btclib.policy` re-exports it.
 """
 
 from btclib.consensus import MAX_BLOCK_WEIGHT, WITNESS_SCALE_FACTOR

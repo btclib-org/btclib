@@ -20,9 +20,9 @@ read off the module; and `script_flags_at` is compared against Core's
 every block, the four gated on a buried deployment, and the exception
 looked up by hash -- rather than against a table of answers.
 
-The blob is Bitcoin Core v32.1, `bitcoin/bitcoin@f0de87f040`. A tag and
-not a branch tip, so the line numbers beside each row cannot move under
-the citation; `src/btclib/consensus.py` says why that release.
+The blob is `bitcoin/bitcoin@f0de87f040`. A tag and not a branch tip,
+so the line numbers beside each row cannot move under the citation;
+`src/btclib/consensus.py` says why that release.
 """
 
 from __future__ import annotations

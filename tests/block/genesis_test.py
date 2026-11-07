@@ -64,7 +64,7 @@ def test_genesis_block_testnet4_differs_from_the_others() -> None:
 
     The issue that opened this module said every network shared the
     mainnet coinbase; true of every network but testnet4, and corrected
-    here rather than repeated -- bitcoin/bitcoin@9be056a8a7's
+    here rather than repeated -- bitcoin/bitcoin@f0de87f040's
     kernel/chainparams.cpp gives testnet4 its own message and an output
     script that pays to thirty-three zero bytes rather than to Satoshi's
     pubkey.

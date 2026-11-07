@@ -1419,7 +1419,7 @@ def test_parse_reports_bad_blk_length_before_a_tx_reject_reason() -> None:
     """CheckBlock asks every corruption question before CheckTransaction.
 
     Core answers `bad-blk-length` before it ever runs `CheckTransaction`
-    on a single transaction (bitcoin/bitcoin@9be056a8a7, validation.cpp,
+    on a single transaction (bitcoin/bitcoin@f0de87f040, validation.cpp,
     "All potential-corruption validation must be done before we do any
     transaction validation"). A block whose only defect is one
     oversize transaction must therefore answer under the block's own

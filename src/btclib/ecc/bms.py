@@ -617,7 +617,7 @@ def message_verify(
     network, a message that is not octets: that is the caller's mistake,
     not an answer.
 
-    Read at bitcoin/bitcoin@9be056a8a7 (v31.1): `MessageVerify` in
+    Read at bitcoin/bitcoin@f0de87f040: `MessageVerify` in
     `src/common/signmessage.cpp`, `DecodeBase64` in
     `src/util/strencodings.cpp`, `CPubKey::RecoverCompact` in
     `src/pubkey.cpp`.

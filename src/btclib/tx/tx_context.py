@@ -20,17 +20,17 @@ block index: btclib must not learn what either is, the same precedent
 `btclib.block.header_context`'s `ParentOf` sets for a header walking the
 chain through a callable rather than an index.
 
-Bitcoin Core v31.1 (bitcoin/bitcoin@9be056a8a7) is the reference for
-every rule but BIP54's, `src/consensus/tx_verify.cpp` and
+Bitcoin Core at bitcoin/bitcoin@f0de87f040 is the reference for every
+rule but BIP54's, `src/consensus/tx_verify.cpp` and
 `src/validation.cpp`, cited beside the code that transcribes it.
 
 The `assert_bip54_*` functions are BIP54 (Consensus Cleanup), a soft
-fork Core v31.1 does not enforce. Its specification is the reference,
-https://github.com/bitcoin/bips/blob/master/bip-0054.md, and the reject
-reasons are those of bitcoin/bitcoin#35793, Core's implementation of it.
-Each function applies its rule unconditionally: whether BIP54 is active
-is the caller's to decide, as BIP68's is for `assert_sequence_locks`
-(below).
+fork Core does not enforce at that commit. Its specification is the
+reference, https://github.com/bitcoin/bips/blob/master/bip-0054.md, and
+the reject reasons are those of bitcoin/bitcoin#35793, Core's
+implementation of it. Each function applies its rule unconditionally:
+whether BIP54 is active is the caller's to decide, as BIP68's is for
+`assert_sequence_locks` (below).
 
 ## What each function does not take, and why
 
@@ -110,7 +110,7 @@ def is_final(tx: Tx, height: int, block_time: int) -> bool:
     """Answer whether `tx` is final at `height`, against a `block_time` cutoff.
 
     Core's `IsFinalTx` (`src/consensus/tx_verify.cpp`, at
-    bitcoin/bitcoin@9be056a8a7): a zero `lock_time` is always final;
+    bitcoin/bitcoin@f0de87f040): a zero `lock_time` is always final;
     otherwise `tx` is final once `height` or `block_time` -- whichever
     `lock_time`'s own units name, decided against `LOCKTIME_THRESHOLD` --
     has passed it, or regardless if every one of `tx`'s own inputs opts
@@ -148,7 +148,7 @@ def assert_sequence_locks(
 
     Core's `CalculateSequenceLocks` and `EvaluateSequenceLocks`, combined
     as `SequenceLocks` is (`src/consensus/tx_verify.cpp`, at
-    bitcoin/bitcoin@9be056a8a7): `prevouts` aligned with `tx.vin`, one
+    bitcoin/bitcoin@f0de87f040): `prevouts` aligned with `tx.vin`, one
     `Coin` per input, in place of a freshly-read `CCoinsViewCache`.
 
     A transaction below version 2 is skipped, matching BIP68 -- the
@@ -214,7 +214,7 @@ def assert_coinbase_maturity(prevouts: Sequence[Coin], spend_height: int) -> Non
 
     Core's `Consensus::CheckTxInputs`, `bad-txns-premature-spend-of-coinbase`
     (`src/consensus/tx_verify.cpp`, at
-    bitcoin/bitcoin@9be056a8a7): `spend_height - coin.height <
+    bitcoin/bitcoin@f0de87f040): `spend_height - coin.height <
     COINBASE_MATURITY`, for whichever of `prevouts` is a coinbase output.
 
     `spend_height` is not always the height of the block connecting the
@@ -236,7 +236,7 @@ def assert_coinbase_value(coinbase: Tx, subsidy: int, fees: int) -> None:
     """Refuse a coinbase paying more than the subsidy plus the fees it collects.
 
     Core's `bad-cb-amount` (`ConnectBlock`, `src/validation.cpp`, at
-    bitcoin/bitcoin@9be056a8a7): `blockReward = nFees +
+    bitcoin/bitcoin@f0de87f040): `blockReward = nFees +
     GetBlockSubsidy(...)`, refused if `coinbase.GetValueOut() >
     blockReward`. `subsidy` is `btclib.consensus.subsidy`'s answer at the
     block's own height; `fees` is the caller's own sum of what every

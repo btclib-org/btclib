@@ -55,7 +55,7 @@ __all__ = [
 ]
 
 # BIP141's own default, and Bitcoin Core's: `GenerateCoinbaseCommitment`
-# (`src/validation.cpp`, at bitcoin/bitcoin@9be056a8a7) writes an
+# (`src/validation.cpp`, at bitcoin/bitcoin@f0de87f040) writes an
 # all-zero nonce into every block it assembles, nothing here reading a
 # random one back -- a real miner's privacy is not what the nonce is for
 _ZERO_WITNESS_NONCE = b"\x00" * 32

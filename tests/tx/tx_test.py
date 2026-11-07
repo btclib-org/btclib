@@ -219,7 +219,8 @@ def test_the_top_of_the_four_byte_range_round_trips() -> None:
     versions, which is the other half of the boundary: `assert_valid`
     takes the whole four-byte range and `assert_standard` refuses this
     end of it -- what Core's own field is, signed in v27.2 and unsigned
-    in v31.1, is a different question, and no assertion here needs it.
+    since v28.0, is a different question, and no assertion here needs
+    it.
     """
     tx = Tx(
         0xFFFFFFFF,
@@ -237,13 +238,14 @@ def test_the_top_of_the_four_byte_range_round_trips() -> None:
     assert parsed == tx
 
 
-def test_a_standard_version_is_core_v31_1s_window() -> None:
+def test_a_standard_version_is_core_s_window() -> None:
     """Versions 1 through 3 are standard; 0, 4 and a set top bit are not.
 
-    Core v31.1's policy.h: 1 and 2 are standard for v27.2 and v31.1
-    alike, 3 is BIP431's TRUC, standard since v28.0, and everything
-    outside 1..3 is refused, immediately below and above it as well as
-    every version whose top bit is set (issue #387).
+    Core's policy.h at bitcoin/bitcoin@f0de87f040: 1 and 2 are
+    standard in v27.2 too, 3 is BIP431's TRUC, standard since v28.0,
+    and everything outside 1..3 is refused, immediately below and
+    above it as well as every version whose top bit is set (issue
+    #387).
 
     What the low end is worth saying is that these are valid versions:
     `assert_valid` takes zero and takes 0xFFFFFFFF, standardness being the
@@ -1292,10 +1294,10 @@ def test_a_marker_over_one_non_empty_witness_is_accepted() -> None:
 
 
 # version 1, no input, one output of value 0 and an empty script, lock
-# time 0: with `iswitness` unset or false, Bitcoin Core v31.1's
-# decoderawtransaction answers it, and with `iswitness` true it does not.
-# The octets: version, `00 01`, the output's 8-byte value and empty
-# script, the lock time
+# time 0: with `iswitness` unset or false, the decoderawtransaction of
+# the Bitcoin Core release `integration-bitcoind.yml` pins answers it,
+# and with `iswitness` true it does not. The octets: version, `00 01`,
+# the output's 8-byte value and empty script, the lock time
 _NO_INPUT_ONE_OUTPUT = bytes.fromhex("01000000000100000000000000000000000000")
 
 

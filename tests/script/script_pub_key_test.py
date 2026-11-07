@@ -1407,12 +1407,12 @@ def test_p2ms_counts_are_written_as_core_writes_them() -> None:
 def test_p2ms_16_of_20_is_the_address_core_creates() -> None:
     """A 16-of-20 in a p2wsh is Core's own `createmultisig` output.
 
-    The address is what bitcoind v31.1.0 answered to `createmultisig` over
-    these keys with address type bech32 (issue #2348), and its descriptor
-    is `wsh(multi(16,...))`: Core's `ParseScript` bounds the keys of a
-    multi() by MAX_PUBKEYS_PER_MULTISIG in every context. A key more is
-    refused by the builder, and a count of 21 pushed is refused by the
-    parser.
+    The address is what the bitcoind `integration-bitcoind.yml` pins
+    answers to `createmultisig` over these keys with address type bech32
+    (issue #2348), and its descriptor is `wsh(multi(16,...))`: Core's
+    `ParseScript` bounds the keys of a multi() by MAX_PUBKEYS_PER_MULTISIG
+    in every context. A key more is refused by the builder, and a count of
+    21 pushed is refused by the parser.
     """
     keys = [PrvKeyData(i, network="regtest").pub for i in range(1, 21)]
     redeem_script = ScriptPubKey.p2ms(16, keys, lexicographic_sorting=False).script

@@ -4,8 +4,8 @@
 
 """Tests for the `btclib.compressor` module.
 
-The vectors are Bitcoin Core's, at bitcoin/bitcoin@9be056a8a7 (the v31.1
-tag): `src/test/serialize_tests.cpp` for `VARINT` and
+The vectors are Bitcoin Core's, at bitcoin/bitcoin@f0de87f040:
+`src/test/serialize_tests.cpp` for `VARINT` and
 `src/test/compress_tests.cpp` for the amounts and the scripts.
 """
 
@@ -38,19 +38,19 @@ G_Y = secp256k1.G[1].to_bytes(32, "big")
 # x = 5 has no point on secp256k1: 5**3 + 7 = 132 is not a square mod p
 OFF_CURVE_X = (5).to_bytes(32, "big")
 
-# `varints_bitpatterns`, serialize_tests.cpp lines 140-155 (the unsigned
+# `varints_bitpatterns`, serialize_tests.cpp lines 141-156 (the unsigned
 # ones); a number and its encoding
 VARINT_BITPATTERNS = [
-    (0, "00"),  # line 140
-    (0x7F, "7f"),  # 141
-    (0x80, "8000"),  # 143, 144
-    (0x1234, "a334"),  # 145, 146
-    (0xFFFF, "82fe7f"),  # 147, 148
-    (0x123456, "c7e756"),  # 149, 150
-    (0x80123456, "86ffc7e756"),  # 151, 152
-    (0xFFFFFFFF, "8efefefe7f"),  # 153
-    (0x7FFFFFFFFFFFFFFF, "fefefefefefefefe7f"),  # 154
-    (0xFFFFFFFFFFFFFFFF, "80fefefefefefefefe7f"),  # 155
+    (0, "00"),  # line 141
+    (0x7F, "7f"),  # 142
+    (0x80, "8000"),  # 144, 145
+    (0x1234, "a334"),  # 146, 147
+    (0xFFFF, "82fe7f"),  # 148, 149
+    (0x123456, "c7e756"),  # 150, 151
+    (0x80123456, "86ffc7e756"),  # 152, 153
+    (0xFFFFFFFF, "8efefefe7f"),  # 154
+    (0x7FFFFFFFFFFFFFFF, "fefefefefefefefe7f"),  # 155
+    (0xFFFFFFFFFFFFFFFF, "80fefefefefefefefe7f"),  # 156
 ]
 
 
@@ -62,7 +62,7 @@ def test_varint_bitpatterns(number: int, hex_: str) -> None:
 
 
 def test_varint_loops() -> None:
-    """The two loops of `varints`, serialize_tests.cpp lines 109-135."""
+    """The two loops of `varints`, serialize_tests.cpp lines 110-136."""
     numbers = list(range(100000))
     numbers += range(0, 100000000000, 999999937)
     stream = BytesIO(b"".join(serialize_varint(n) for n in numbers))

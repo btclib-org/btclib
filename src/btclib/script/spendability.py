@@ -4,12 +4,12 @@
 
 """Whether an output can ever be spent, from its script_pub_key alone.
 
-Bitcoin Core's `CScript::IsUnspendable` (`script/script.h:563-566`, at
-bitcoin/bitcoin@9be056a8a7, tag v31.1): a leading OP_RETURN, or a script
-longer than `MAX_SCRIPT_SIZE`. `CCoinsViewCache::AddCoin`
-(`coins.cpp:91`) returns without adding such an output to the UTXO set
-at all, so it is what a node's own set never carries and what an output
-worth anything at all still cannot be paid out of.
+Bitcoin Core's `CScript::IsUnspendable` (`script/script.h:564-567`, at
+bitcoin/bitcoin@f0de87f040): a leading OP_RETURN, or a script longer
+than `MAX_SCRIPT_SIZE`. `CCoinsViewCache::AddCoin` (`coins.cpp:82`)
+returns without adding such an output to the UTXO set at all, so it is
+what a node's own set never carries and what an output worth anything at
+all still cannot be paid out of.
 
 A module of its own rather than part of `script_pub_key.py`, which is
 the classification of the standard shapes and pairs an `assert_x` with

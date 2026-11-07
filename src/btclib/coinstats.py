@@ -5,12 +5,12 @@
 """What `gettxoutsetinfo` reports about a UTXO set, as arithmetic.
 
 Bitcoin Core's `CoinStatsIndex` (`src/index/coinstatsindex.cpp`, at
-bitcoin/bitcoin@9be056a8a7, tag v31.1) maintains a MuHash commitment
-to the unspent output set incrementally, and beside it the running
-counters `m_transaction_output_count`, `m_total_amount` and
-`m_bogo_size` the same way. `CoinStats` below is the commitment and
-those counters together, and each of `insert` and `remove` is one
-output's contribution to every one of them.
+bitcoin/bitcoin@f0de87f040) maintains a MuHash commitment to the
+unspent output set incrementally, and beside it the running counters
+`m_transaction_output_count`, `m_total_amount` and `m_bogo_size` the
+same way. `CoinStats` below is the commitment and those counters
+together, and each of `insert` and `remove` is one output's
+contribution to every one of them.
 
 `btclib.muhash` is the accumulator and knows nothing about outputs;
 what this module adds is the bitcoin on top of it -- which bytes an
@@ -41,7 +41,7 @@ reverse of its serialization; `digest_var` is the serialization.
 ## What is committed to, and what is not
 
 `btclib.script.is_unspendable` gates both `insert` and `remove`:
-`CCoinsViewCache::AddCoin` (`coins.cpp:91`) returns without adding such
+`CCoinsViewCache::AddCoin` (`coins.cpp:82`) returns without adding such
 an output to Core's own set at all, so `ApplyCoinHash` never sees one
 and no counter here ever counts one. The gate is here rather than left
 to the caller because it is the difference between reproducing
@@ -53,7 +53,7 @@ Two exclusions Core's own set makes are the caller's and not this
 module's, both being facts about a chain rather than about an output:
 the genesis block's coinbase, which is spendable-looking and
 unspendable, and the coinbase of either mainnet block
-`IsBIP30Unspendable` (`validation.cpp:6230-6234`) names by height and
+`IsBIP30Unspendable` (`validation.cpp:6213-6217`) names by height and
 hash, each duplicated verbatim by a later one.
 """
 

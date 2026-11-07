@@ -6,8 +6,8 @@
 
 Core's own `headers_sync_chainwork_tests`
 (`src/test/headers_sync_chainwork_tests.cpp`, at
-bitcoin/bitcoin@310071f8d0, the v32.0rc4 tag) are ported first, constant
-for constant, then btclib-node's tests of its copy of this class
+bitcoin/bitcoin@f0de87f040) are ported first, constant for constant,
+then btclib-node's tests of its copy of this class
 (`tests/unit/p2p/headers_sync_test.py`, at
 btclib-org/btclib-node@eb2a8851), where they test the state machine and
 not the node.
@@ -332,10 +332,12 @@ def test_system_clock_lagging_behind_chain_start() -> None:
 def test_the_commitment_is_core_s_siphash_of_the_uint256() -> None:
     """The bit is SipHash's over the hash in Core's own byte order.
 
-    Core's `PresaltedSipHasher` vector (`src/test/hash_tests.cpp`, at
-    bitcoin/bitcoin@9be056a8a7, the v31.1 tag): its `uint256` is written
-    the way `BlockHeader.hash` displays a hash. Over a chain's hashes the
-    bit is the one of that order, and not of the displayed one, which
+    Core's `PresaltedSipHasher` vector: `siphash_test_vectors`
+    (`src/test/hash_tests.cpp`, at bitcoin/bitcoin@f0de87f040) hashes the
+    row of `src/test/data/siphash.json` whose input is the bytes `00` to
+    `1f`, in the order a `uint256` holds them. `displayed` is that hash
+    the way `BlockHeader.hash` displays it. Over a chain's hashes the bit
+    is the one of the held order, and not of the displayed one, which
     gives a different bit for some of them.
     """
     displayed = bytes.fromhex(

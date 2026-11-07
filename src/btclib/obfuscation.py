@@ -4,10 +4,11 @@
 
 """Core's file obfuscation: XOR with a repeating 8-byte key.
 
-Bitcoin Core v31.1 obfuscates a v2 `mempool.dat`, and the block and undo
-files written with `-blocksxor`, with `Obfuscation`
-(`src/util/obfuscation.h`). The byte at absolute offset `p` of the file is
-XORed with `key[p % 8]`. The same operation obfuscates and de-obfuscates.
+Bitcoin Core obfuscates a v2 `mempool.dat`, and the block and undo files
+written with `-blocksxor`, with `Obfuscation` (`src/util/obfuscation.h`,
+bitcoin/bitcoin@f0de87f040). The byte at absolute offset `p` of the file
+is XORed with `key[p % 8]`. The same operation obfuscates and
+de-obfuscates.
 
 A file stores its key as a `var_bytes` of eight bytes. A v2 `mempool.dat`
 begins with the version as a little-endian `u64`, then that key, and only
