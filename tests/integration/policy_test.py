@@ -9,9 +9,9 @@ agree on whether it is standard and, where it is not, on the reason.
 Core checks `IsStandardTx` before it looks the inputs up, so a
 transaction spending outputs that do not exist is refused for its
 standardness first and for "missing-inputs" only once it is standard.
-`AreInputsStandard` and `IsWitnessStandard` need the outputs spent, so
-those transactions spend outputs mined here with `generateblock`, which
-takes what the mempool would refuse.
+`ValidateInputsStandardness` and `IsWitnessStandard` need the outputs
+spent, so those transactions spend outputs mined here with
+`generateblock`, which takes what the mempool would refuse.
 
 Skipped unless `BTCLIB_INTEGRATION=1` and a `bitcoind` is available; the
 conftest beside this says which switch was off.
@@ -31,9 +31,9 @@ from btclib.exceptions import BTClibValueError
 from btclib.policy import (
     MAX_P2SH_SIGOPS,
     MAX_TX_LEGACY_SIGOPS,
-    are_inputs_standard,
     assert_standard_tx,
     is_witness_standard,
+    validate_inputs_standardness,
 )
 from btclib.script import serialize
 from btclib.script.witness import Witness
@@ -109,11 +109,22 @@ def _standardness_cases() -> list[Tx]:
     return cases
 
 
-def _reason(node: BitcoinCoreRpcClient, tx: Tx) -> str | None:
-    """Return Core's reject reason, None for a transaction it accepts."""
+def _reject(node: BitcoinCoreRpcClient, tx: Tx) -> tuple[str, str | None] | None:
+    """Return Core's reject reason and details, None for a tx it accepts.
+
+    "missing-inputs" comes with no details.
+    """
     hex_tx = tx.serialize(include_witness=True).hex()
     result: dict[str, Any] = node.call("testmempoolaccept", [[hex_tx]])[0]
-    return None if result["allowed"] else str(result["reject-reason"])
+    if result["allowed"]:
+        return None
+    return str(result["reject-reason"]), result.get("reject-details")
+
+
+def _reason(node: BitcoinCoreRpcClient, tx: Tx) -> str | None:
+    """Return Core's reject reason, None for a transaction it accepts."""
+    reject = _reject(node, tx)
+    return None if reject is None else reject[0]
 
 
 def test_is_standard_tx_agrees_with_core(node: BitcoinCoreRpcClient) -> None:
@@ -157,6 +168,8 @@ def _input_cases() -> list[tuple[list[bytes], list[bytes], list[list[bytes]]]]:
         (_p2sh(fifteen), serialize([fifteen]), []),
         (_p2sh(sixteen), serialize([sixteen]), []),
         (_p2sh(_OP_TRUE), b"", []),
+        (_p2sh(OP_1 * 521), serialize([OP_1 * 521]), []),
+        (_p2sh(_OP_TRUE), serialize(["OP_1", "OP_RESERVED"]), []),
         (ANCHOR, b"", []),
         (ANCHOR, b"", [_PAD]),
         (_p2pkh(KEY_1), serialize([SIG, KEY_1]), [_PAD]),
@@ -221,7 +234,10 @@ def _mine_outputs(node: BitcoinCoreRpcClient, script_pub_keys: list[bytes]) -> b
 
 
 def test_inputs_agree_with_core(node: BitcoinCoreRpcClient) -> None:
-    """Core refuses the inputs or the witness exactly where btclib does."""
+    """Core refuses the inputs or the witness exactly where btclib does.
+
+    For the inputs, Core's `reject-details` is btclib's message.
+    """
     cases = _input_cases()
     script_pub_keys = [prevout for prevouts, _, _ in cases for prevout in prevouts]
     txid = _mine_outputs(node, script_pub_keys)
@@ -236,20 +252,29 @@ def test_inputs_agree_with_core(node: BitcoinCoreRpcClient) -> None:
         tx = Tx(2, 0, vin, [TxOut(50_000, _p2wpkh(KEY_2))])
         assert_standard_tx(tx)
         tx_outs = [TxOut(_VALUE, prevout) for prevout in prevouts]
-        if not are_inputs_standard(tx_outs, tx):
-            expected = "bad-txns-nonstandard-inputs"
-        elif tx.is_segwit and not is_witness_standard(tx_outs, tx):
-            expected = "bad-witness-nonstandard"
+        expected: str | None = None
+        try:
+            validate_inputs_standardness(tx_outs, tx)
+        except BTClibValueError as e:
+            expected = str(e)
         else:
-            expected = None
+            if tx.is_segwit and not is_witness_standard(tx_outs, tx):
+                expected = "bad-witness-nonstandard"
         verdicts.append(expected)
 
-        reason = _reason(node, tx)
+        reject = _reject(node, tx)
         policy = {"bad-txns-nonstandard-inputs", "bad-witness-nonstandard"}
-        assert (reason if reason in policy else None) == expected, (tx, reason)
-    # each of the three answers is asked
-    assert set(verdicts) == {
+        details = reject[1] if reject is not None and reject[0] in policy else None
+        assert details == expected, (tx, reject)
+    # every answer is asked, each reason the inputs can be refused for included
+    inputs = "bad-txns-nonstandard-inputs, "
+    assert {v if v is None else v.split(" (input")[0] for v in verdicts} == {
         None,
-        "bad-txns-nonstandard-inputs",
         "bad-witness-nonstandard",
+        inputs + "non-witness sigops exceed bip54 limit",
+        inputs + "input 0 script unknown",
+        inputs + "input 0 witness program is undefined",
+        inputs + "p2sh scriptsig malformed",
+        inputs + "input 0 P2SH redeemscript missing",
+        inputs + "p2sh redeemscript sigops exceed limit",
     }
