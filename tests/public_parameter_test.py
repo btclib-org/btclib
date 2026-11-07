@@ -2,16 +2,18 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Every integer parameter of a `_var` function is `Public`, or says why not.
+"""Every `int` parameter of a `_var` function is `Public`, or says why not.
 
 `CONTRIBUTING.md`'s *A `_var` suffix means the operand decides the work*
 is the rule: an integer whose value decides the work is annotated
 `ecc.alias.Public`, and mypy then refuses a plain `int` at every call. What
 mypy cannot tell is whether a parameter that should carry the type does:
 this walk reads every `_var` function, at any depth of a module, private
-ones, methods and `async def` included, and fails on an integer parameter,
-`*args` and `**kwargs` included, that is neither `Public` nor in
-`_NOT_OPERANDS` below with its reason.
+ones, methods and `async def` included, and fails on a parameter, `*args`
+and `**kwargs` included, whose annotation names `int` or `Integer`, a union
+or a container of them included, that is neither `Public` nor in
+`_NOT_OPERANDS` below with its reason. An alias under another name is not
+read.
 
 A point, octets or a key is out of the walk: `Public` is an integer, and
 for those the suffix alone states the contract.
@@ -89,7 +91,7 @@ def _var_functions(module: str, source: str) -> dict[str, _Function]:
 
 
 def _integer_parameters(functions: dict[str, _Function]) -> dict[str, str]:
-    """Map each integer parameter of a `_var` function to its annotation."""
+    """Map each walked parameter of a `_var` function to its annotation."""
     found: dict[str, str] = {}
     for name, function in functions.items():
         arguments = function.args

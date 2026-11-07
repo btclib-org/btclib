@@ -1780,9 +1780,10 @@ longer secret in libsecp256k1's constant-time analysis. A reviewer reads
 the declaration at the call site rather than tracing where the value came
 from.
 
-`tests/public_parameter_test.py` holds every integer parameter of a `_var`
-function to the type, or to the reason it names why it is not `Public`. A
-plain-named function is not walked, and annotating it is the author's
+`tests/public_parameter_test.py` holds every parameter of a `_var`
+function annotated with `int` or `Integer` to the type, or to the reason
+it names why it is not `Public`; an alias under another name is not read.
+A plain-named function is not walked, and annotating it is the author's
 part. The type is an integer: for a point, octets or a key the suffix
 alone states the contract.
 
