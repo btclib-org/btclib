@@ -97,6 +97,19 @@ source_suffix = [".rst", ".md"]
 # xref an unset key makes of every one of them
 myst_heading_anchors = 6
 
+# the ecc release uv.lock pins, read from the lock as the release above is
+# from pyproject.toml, so that a lock bump moves the ecc inventory below
+# with no edit here. ecc's `latest` docs follow its main branch, which can
+# rename what the pinned release defines (issue #2968). Read the Docs
+# builds each ecc tag under the tag's name, `v` and the version
+[ECC_VERSION] = [
+    package["version"]
+    for package in tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))[
+        "package"
+    ]
+    if package["name"] == "ecc"
+]
+
 # -n on the build (CONTRIBUTING.md's documented command, and docs.yml)
 # turns an unresolved cross-reference into a warning for -W to fail on.
 # Without an inventory to resolve against, a name from outside this tree
@@ -111,7 +124,7 @@ intersphinx_mapping = {
     # the classes of ecc that btclib's signatures name; the pages here
     # document none of that package
     "ecc": (
-        "https://btclib-ecc.readthedocs.io/en/latest",
+        f"https://btclib-ecc.readthedocs.io/en/v{ECC_VERSION}",
         (None, "_inventories/ecc.inv"),
     ),
 }
@@ -123,10 +136,11 @@ intersphinx_mapping = {
 # and source above:
 # curl -fsSL -o docs/source/_inventories/python.inv https://docs.python.org/3/objects.inv
 # `_inventories/ecc.inv` is the same for ecc: a copy of the inventory that
-# https://btclib-ecc.readthedocs.io/en/latest/objects.inv served on
-# 2026-10-22, read only when that site fails. To refresh it, run this from
-# the repository root and rewrite the date:
-# curl -fsSL -o docs/source/_inventories/ecc.inv https://btclib-ecc.readthedocs.io/en/latest/objects.inv
+# https://btclib-ecc.readthedocs.io/en/v2026.11.7/objects.inv served on
+# 2026-11-07, read only when that site fails. To refresh it, run this from
+# the repository root, with the version uv.lock pins, and rewrite the
+# version and date:
+# curl -fsSL -o docs/source/_inventories/ecc.inv https://btclib-ecc.readthedocs.io/en/v<version>/objects.inv
 
 # What the mapping above does not answer for is the shapes below, and each
 # entry carries its own reason rather than a nitpick_ignore_regex that
