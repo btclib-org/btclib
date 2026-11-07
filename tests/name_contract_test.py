@@ -67,7 +67,7 @@ _A_MESSAGE_VERIFY_HAS_SIX_ANSWERS = (
 )
 
 _OTHER_CONTRACT: dict[str, str] = {
-    "btclib.ecc.bms.message_verify": _A_MESSAGE_VERIFY_HAS_SIX_ANSWERS,
+    "btclib.bms.message_verify": _A_MESSAGE_VERIFY_HAS_SIX_ANSWERS,
     "btclib.script.engine.__init__.verify_amounts": _A_SCRIPT_FAILURE_SAYS_WHERE,
     "btclib.script.engine.__init__.verify_input": _A_SCRIPT_FAILURE_SAYS_WHERE,
     "btclib.script.engine.__init__.verify_transaction": _A_SCRIPT_FAILURE_SAYS_WHERE,
@@ -344,7 +344,7 @@ def test_the_walk_reaches_what_it_claims() -> None:
     assert _NAMED["btclib.script.taproot.check_output_pubkey"] == "bool"
     assert _NAMED["btclib.script.engine.script.dsa_verify"] == "bool"
     assert _NAMED["btclib.block.merkle_proof.verify"] == "bool"
-    assert _NAMED["btclib.ecc.bms.assert_as_valid"] == "None"
+    assert _NAMED["btclib.bms.assert_as_valid"] == "None"
     # a method, and a property among them
     assert _NAMED["btclib.key.is_compressed"] == "bool"
 
@@ -352,7 +352,7 @@ def test_the_walk_reaches_what_it_claims() -> None:
     assert "btclib.script.engine.script_op_codes.op_verify" not in _NAMED
     assert "btclib.script.engine.script_op_codes.op_checklocktimeverify" not in _NAMED
     # a private name, and a name that promises nothing
-    assert "btclib.ecc.bms._assert_p2pkh" not in _NAMED
+    assert "btclib.bms._assert_p2pkh" not in _NAMED
     assert "btclib.utils.bytes_from_octets" not in _NAMED
 
 
@@ -429,7 +429,7 @@ def test_the_walk_reaches_both_shapes() -> None:
     assert _ARGUMENT_LESS_BOOLS["btclib.key.is_compressed"] is True
     # a bool of an argument is a function of it, and no property can be
     assert "btclib.script.script_pub_key.is_p2sh" not in _ARGUMENT_LESS_BOOLS
-    assert "btclib.ecc.bms.verify" not in _ARGUMENT_LESS_BOOLS
+    assert "btclib.bms.verify" not in _ARGUMENT_LESS_BOOLS
 
 
 @pytest.mark.parametrize("dotted", sorted(_CLASS_MEMBERS))

@@ -1733,13 +1733,13 @@ So do `script.taproot._tweaked_pubkey_var` and
 `ssa.pub_key_tweak_add_var`, the bindings' `tweak_add` where they serve and
 the lift and an addition where they do not, as `curve.TweakChain.point`
 does in ecc.
-`compressor.decompress_script` keeps the plain name, that parse being one
-path of a dispatch on the script type, as do `script.engine.script.dsa_verify`
-and `script.taproot.check_output_pubkey`, which are verifications,
+`compressor.decompress_script` keeps the plain name, that parse being one path
+of a dispatch on the script type, as do `script.engine.script.dsa_verify` and
+`script.taproot.check_output_pubkey`, which are verifications,
 `script.script_pub_key.addresses`, where the parse is one step among the
-hashing and encoding of each address, and `btclib.ecc.ellswift.xdh`, whose
-`decode_var` is on the other party's public encoding and whose `mult` is
-blinded. A named exception stops the carry, so its callers are not reached.
+hashing and encoding of each address, and `ellswift.xdh`, whose `decode_var` is
+on the other party's public encoding and whose `mult` is blinded. A named
+exception stops the carry, so its callers are not reached.
 
 Outside the rule: `compressor.compress_amount` loops on the trailing zeros
 of an amount, an amount being none of the rule's operands, and `base58`'s

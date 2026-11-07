@@ -25,8 +25,8 @@ fix.
 
 ## What belongs here, and what belongs upstream
 
-The elliptic curve arithmetic and the schemes built on it, `btclib.ecc.bms` and
-`btclib.ecc.ellswift.xdh` excepted, are
+The elliptic curve arithmetic and the schemes built on it, `btclib.bms` and
+`btclib.ellswift.xdh` excepted, are
 [ecc](https://github.com/btclib-org/ecc/security/advisories/new)'s,
 the Python arithmetic included: btclib imports them and does not
 re-export them. A flaw in them belongs there.
@@ -48,7 +48,7 @@ What belongs here is everything btclib does around the arithmetic:
     addresses, signatures, scripts, transactions — and the validation
     that decides what is accepted
 - the script engine, and the taproot construction it validates against
-- `btclib.ecc.bms` and `btclib.ecc.ellswift.xdh`, which btclib builds on that
+- `btclib.bms` and `btclib.ellswift.xdh`, which btclib builds on that
     arithmetic
 - the distributions published to PyPI and their provenance
 - a refusal that prints more of a value that may be secret than
@@ -153,7 +153,7 @@ written against, and the argument for what this file does promise.
 These are known and inherent. They are worth stating because btclib is
 used to teach and to prototype as much as to build.
 
-The curve arithmetic and the schemes, `btclib.ecc.bms` and `btclib.ecc.ellswift.xdh`
+The curve arithmetic and the schemes, `btclib.bms` and `btclib.ellswift.xdh`
 excepted, are [ecc](https://github.com/btclib-org/ecc)'s,
 which btclib imports and does not re-export, so what follows of them is said
 of that package's code, and a citation into it links its source at the

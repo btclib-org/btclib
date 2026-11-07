@@ -2,8 +2,8 @@
 
 Read this before changing a workflow, a branch rule or a repository
 setting; writing code does not need it. `AGENTS.md` points here rather
-than carrying it, so that a session fixing a bug in `ecc/` does not hold
-it in context.
+than carrying it, so that a session fixing a bug in the package does not
+hold it in context.
 
 The branch rules and the repository settings live *outside* the
 repository, and this file is where those answers are written down. What

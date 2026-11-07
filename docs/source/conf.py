@@ -108,8 +108,8 @@ myst_heading_anchors = 6
 # a docstring type field, so it draws no reference for -n to raise on
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", (None, "_inventories/python.inv")),
-    # the classes of ecc that the signatures of `btclib.ecc` name; the
-    # pages here document none of that package
+    # the classes of ecc that btclib's signatures name; the pages here
+    # document none of that package
     "ecc": (
         "https://btclib-ecc.readthedocs.io/en/latest",
         (None, "_inventories/ecc.inv"),

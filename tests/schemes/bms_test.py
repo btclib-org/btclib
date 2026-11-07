@@ -27,10 +27,9 @@ from ecc.curves import CURVES, mult, secp256k1
 from ecc.ecc import dsa
 from ecc.exceptions import EccRuntimeError, EccValueError
 
-from btclib import b32, b58
+from btclib import b32, b58, bms
 from btclib.alias import Point
 from btclib.b58 import h160_from_address
-from btclib.ecc import bms
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import magic_message
 from btclib.key import PrvKeyData, PubKeyData

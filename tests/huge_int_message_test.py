@@ -26,7 +26,7 @@ from typing import Any
 import pytest
 from ecc.ecc import dsa
 
-from btclib import base58, obfuscation, var_int
+from btclib import base58, bms, obfuscation, var_int
 from btclib.alias import TaprootScriptTree
 from btclib.b32 import bytes_from_witness_program, power_of_2_base_conversion
 from btclib.block import Block, BlockHeader
@@ -43,7 +43,6 @@ from btclib.block.partial_merkle_tree import PartialMerkleTree
 from btclib.block.proof_of_work import hash_rate, retarget_first_height
 from btclib.coinstats import tx_out_ser
 from btclib.consensus import CONSENSUS_PARAMS, subsidy
-from btclib.ecc import bms
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import merkle_root_from_branch, sha256, siphash
 from btclib.key import PrvKeyData

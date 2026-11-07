@@ -49,16 +49,15 @@ btclib calls the bindings only through ecc.
 ## Layers
 
 Roughly bottom-up. The directions that hold without exception are the
-substrate, `btclib.ecc` without `btclib.ecc.bms`, the pairs in the next
-section and the edges to `bip32_descriptors` and `btclib_wallet` below,
-each held by a test; elsewhere a module reaches up where its subject
-asks for it, as `btclib.ecc.bms` does for the address a message
-signature names.
+substrate, `btclib.ellswift`, the pairs in the next section and the edges
+to `bip32_descriptors` and `btclib_wallet` below, each held by a test;
+elsewhere a module reaches up where its subject asks for it, as
+`btclib.bms` does for the address a message signature names.
 
 - **the substrate**: `alias`, `exceptions`, `utils`
 - **the curve and what is built on it**: ecc's `curves`,
   `number_theory`, `kdf` and `ecc`, in a distribution of their own, with
-  btclib's `btclib.ecc.ellswift` beside them
+  btclib's `ellswift` and `bms` beside them
 - **bitcoin's hashes, integers and constants**: `hashes`, `var_int`,
   `var_bytes`, `obfuscation`, `consensus`, `amount`, `compressor`
 - **networks, keys and addresses**: `network`, `base58`, `bech32`, `key`,
@@ -76,11 +75,11 @@ asserts.
 
 ### What of the curve's layer is btclib's
 
-Two modules under `btclib.ecc` are btclib's own, and `btclib.ecc` holds no other:
+`btclib.bms` and `btclib.ellswift` are btclib's own:
 
-- `btclib.ecc.bms` names its signer by an address, so it imports `b32`, `b58`,
-  `key` and `network`, and `btclib.ecc` imports it on demand rather than eagerly.
-- `btclib.ecc.ellswift` is `xdh`, `XDH_TAG` and `ELL_SIZE`, BIP324's agreement on
+- `btclib.bms` names its signer by an address, so it imports `b32`, `b58`,
+  `key` and `network`.
+- `btclib.ellswift` is `xdh`, `XDH_TAG` and `ELL_SIZE`, BIP324's agreement on
   ecc's SwiftEC map, which is btclib's.
 
 ### Each pair is one idea split in two
@@ -104,7 +103,7 @@ btclib imports in place of a pair of its own.
 A caller states which half of a pair it holds, rather than leaving a size
 or a format to decide it. `key.PubKeyData` is the SEC octets and the
 network an address builder takes, and `key.PrvKeyData` the scalar, the
-network and the compression flag `btclib.ecc.bms` signs with.
+network and the compression flag `btclib.bms` signs with.
 
 Each spelling of a key is read by the module that defines it:
 

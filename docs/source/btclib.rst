@@ -8,7 +8,6 @@ Subpackages
    :maxdepth: 4
 
    btclib.block
-   btclib.ecc
    btclib.p2p
    btclib.script
    btclib.testing
@@ -59,6 +58,13 @@ btclib.bech32 module
    :members:
    :show-inheritance:
 
+btclib.bms module
+-----------------
+
+.. automodule:: btclib.bms
+   :members:
+   :show-inheritance:
+
 btclib.coinstats module
 -----------------------
 
@@ -77,6 +83,13 @@ btclib.consensus module
 -----------------------
 
 .. automodule:: btclib.consensus
+   :members:
+   :show-inheritance:
+
+btclib.ellswift module
+----------------------
+
+.. automodule:: btclib.ellswift
    :members:
    :show-inheritance:
 

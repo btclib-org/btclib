@@ -98,12 +98,11 @@ import pytest
 from ecc.curves import bytes_from_point, bytes_from_prv_key_int
 from ecc.ecc import dsa, ellswift
 
-from btclib import b32, b58, var_bytes
+from btclib import b32, b58, bms, var_bytes
 from btclib.block.block import Block
 from btclib.block.block_header import BlockHeader
 from btclib.block.genesis import genesis_block
 from btclib.consensus import CONSENSUS_PARAMS, HEADERS_SYNC_PARAMS
-from btclib.ecc import bms
 from btclib.exceptions import BTClibTypeError
 from btclib.fee import FeeRate
 from btclib.key import PrvKeyData, PubKeyData
@@ -242,7 +241,7 @@ _KINDS = (
         optional=True,
     ),
     _Case(
-        "btclib.ecc.bms.gen_keys",
+        "btclib.bms.gen_keys",
         "compressed",
         bms.gen_keys,
     ),
@@ -688,7 +687,7 @@ def test_the_walk_reaches_what_it_claims() -> None:
     """
     found = _bool_parameters()
     # a defaulted flag, a required one, an optional annotation, a method
-    assert ("btclib.ecc.bms.gen_keys", "compressed") in found
+    assert ("btclib.bms.gen_keys", "compressed") in found
     assert ("btclib.tx.tx.join", "shuffle_inp") in found
     assert ("btclib.b58.prv_key_data_from_wif", "compressed") in found
     assert ("btclib.tx.tx.Tx.serialize", "include_witness") in found

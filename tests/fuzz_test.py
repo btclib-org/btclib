@@ -34,12 +34,11 @@ from ecc.exceptions import (
 from hypothesis import given
 from hypothesis import strategies as st
 
-from btclib import b32, b58, base58, bech32, var_bytes, var_int
+from btclib import b32, b58, base58, bech32, bms, var_bytes, var_int
 from btclib.block.block import Block
 from btclib.block.block_filter import BasicBlockFilter
 from btclib.block.block_header import BlockHeader
 from btclib.block.partial_merkle_tree import PartialMerkleTree
-from btclib.ecc import bms
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.key import PrvKeyData
 from btclib.p2p.address import Addr, NetworkAddress, TimestampedNetworkAddress

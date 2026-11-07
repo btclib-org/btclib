@@ -175,7 +175,7 @@ The four aliases:
     (issue #1188). It does not take an extended
     key: ``dsa.sign(msg, xprv)`` does not work; pass
     ``bip32_descriptors.bip32.prv_keyinfo_from_xprv(xprv)[0]``.
-    ``btclib.ecc.bms`` is narrower still: message signing wants the network
+    ``btclib.bms`` is narrower still: message signing wants the network
     and the compression too, so it takes the ``btclib.key.PrvKeyData`` a WIF
     and a scalar both resolve to — ``b58.prv_key_data_from_wif(wif)`` for the
     one, ``btclib.key.PrvKeyData(q)`` for the other.
@@ -561,7 +561,7 @@ against fault attacks, and the signature is valid either way.
 Signing a message with an address
 ---------------------------------
 
-:mod:`btclib.ecc.bms` is the "sign this text with the key behind this
+:mod:`btclib.bms` is the "sign this text with the key behind this
 address" scheme that wallets expose. It prefixes the message with the
 magic string ``"Bitcoin Signed Message:\n"``, signs the hash with ECDSA,
 and serializes the result as 65 fixed bytes — a recovery flag, then
@@ -572,7 +572,7 @@ the address.
 The message is ``Octets``, so text has to be ``bytes``. It is signed
 byte for byte, with no trimming of your own.
 
->>> from btclib.ecc import bms
+>>> from btclib import bms
 >>> wif = b58.wif_from_prv_key(prv_key)
 >>> address = b58.p2pkh(b58.prv_key_data_from_wif(wif).pub)
 >>> address
@@ -598,8 +598,8 @@ p2wpkh-p2sh.
 The whole point of the scheme is proving control of an address, so sign
 something that cannot be replayed out of context: a date, a
 counterparty, and what the statement is for. The module docstring of
-:mod:`btclib.ecc.bms` says the same at more length, and it is worth
-reading before you use this for anything that matters.
+:mod:`btclib.bms` says the same at more length, and it is worth reading
+before you use this for anything that matters.
 
 Where to go next
 ----------------
