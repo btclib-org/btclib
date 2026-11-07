@@ -157,11 +157,18 @@ def _return_type(returns: ast.expr) -> str:
     return unparsed
 
 
-def _named_in(module: str, source: str) -> dict[str, str]:
-    """Return every public function of a module whose name promises a type."""
-    found: dict[str, str] = {}
+_Function = ast.FunctionDef | ast.AsyncFunctionDef
+
+
+def _named_in(module: str, source: str) -> dict[str, list[str]]:
+    """Map each public name of a module that promises a type to its returns.
+
+    A name defined twice, in two classes or in two branches of an `if`,
+    lists both return types, so neither hides the other.
+    """
+    found: dict[str, list[str]] = {}
     for node in ast.walk(ast.parse(source)):
-        if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
+        if not isinstance(node, _Function) or node.name.startswith("_"):
             continue
         if _promised_by(node.name) is None:
             continue
@@ -169,12 +176,12 @@ def _named_in(module: str, source: str) -> dict[str, str]:
         # strict over it, so an unannotated one is a state the tree
         # does not reach
         assert node.returns is not None
-        found[f"{module}.{node.name}"] = _return_type(node.returns)
+        found.setdefault(f"{module}.{node.name}", []).append(_return_type(node.returns))
     return found
 
 
-def _named() -> dict[str, str]:
-    """Return every public function whose name promises a return type.
+def _named() -> dict[str, list[str]]:
+    """Map every public function whose name promises a type, as `_named_in`.
 
     Methods included, a property being one: `BIP32KeyData.is_private`
     promises a bool as much as `script_pub_key.is_p2sh` does.
@@ -183,49 +190,77 @@ def _named() -> dict[str, str]:
     package module, which is what `input_validation_test.py`'s walk does
     and is importable either way: one spelling across the two gates.
     """
-    found: dict[str, str] = {}
+    found: dict[str, list[str]] = {}
     for path in sorted(_LIBRARY.rglob("*.py")):
         module = ".".join(path.relative_to(_LIBRARY.parent).with_suffix("").parts)
         found |= _named_in(module, path.read_text(encoding="utf-8"))
     return found
 
 
-def _argument_less_bools() -> dict[str, bool]:
-    """Return every public argument-less bool, and whether it is a property.
+def _breaks_its_promise(dotted: str, returns: list[str]) -> bool:
+    """Return whether a definition under the name breaks its promise."""
+    promised = _promised_by(dotted.rpartition(".")[2])
+    return any(returned != promised for returned in returns)
+
+
+def _argument_less_bools_in(module: str, source: str) -> dict[str, list[bool]]:
+    """Return each public argument-less bool of a module, property or not.
 
     "No argument" means none besides `self`: a bool about the object it is
     read off, which is the family the question applies to. One that takes
-    something is a function of it, and `@property` is not open to it.
+    something is a function of it, and `@property` is not open to it. An
+    `async def` is not recorded, for the reason `_class_members` gives.
+
+    The dotted name drops the class, as `_named` does, and the value lists
+    each definition: a method is not hidden by a property of the same name
+    in another class.
     """
-    found: dict[str, bool] = {}
+    found: dict[str, list[bool]] = {}
+
+    def record(node: ast.FunctionDef) -> None:
+        if node.name.startswith("_"):
+            return
+        if node.returns is None or ast.unparse(node.returns) != "bool":
+            return
+        arguments = [
+            a.arg
+            for a in [
+                *node.args.posonlyargs,
+                *node.args.args,
+                *node.args.kwonlyargs,
+            ]
+            if a.arg != "self"
+        ]
+        if arguments:
+            return
+        decorated = {ast.unparse(d) for d in node.decorator_list}
+        found.setdefault(f"{module}.{node.name}", []).append(_is_a_read(decorated))
+
+    # every node is visited once, and a function only inside a class: a
+    # property is a class thing, which is what `_class_members` below says
+    # in as many words, so a module-level function is out of scope however
+    # few arguments it takes and cannot be told to become one
+    def visit(node: ast.AST, in_class: bool) -> None:
+        for child in ast.iter_child_nodes(node):
+            if in_class and isinstance(child, ast.FunctionDef):
+                record(child)
+            visit(child, in_class or isinstance(child, ast.ClassDef))
+
+    visit(ast.parse(source), in_class=False)
+    return found
+
+
+def _is_called(reads: list[bool]) -> bool:
+    """Return whether a definition under the name is a method, not a read."""
+    return not all(reads)
+
+
+def _argument_less_bools() -> dict[str, list[bool]]:
+    """Map every public argument-less bool, as `_argument_less_bools_in`."""
+    found: dict[str, list[bool]] = {}
     for path in sorted(_LIBRARY.rglob("*.py")):
         module = ".".join(path.relative_to(_LIBRARY.parent).with_suffix("").parts)
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        # classes and what is in them, not `ast.walk(tree)`: a property is
-        # a class thing, which is what `_class_members` below says in as
-        # many words, so a module-level function is out of scope however
-        # few arguments it takes and cannot be told to become one
-        for cls in ast.walk(tree):
-            if not isinstance(cls, ast.ClassDef):
-                continue
-            for node in ast.walk(cls):
-                if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
-                    continue
-                if node.returns is None or ast.unparse(node.returns) != "bool":
-                    continue
-                arguments = [
-                    a.arg
-                    for a in [
-                        *node.args.posonlyargs,
-                        *node.args.args,
-                        *node.args.kwonlyargs,
-                    ]
-                    if a.arg != "self"
-                ]
-                if arguments:
-                    continue
-                decorated = {ast.unparse(d) for d in node.decorator_list}
-                found[f"{module}.{node.name}"] = _is_a_read(decorated)
+        found |= _argument_less_bools_in(module, path.read_text(encoding="utf-8"))
     return found
 
 
@@ -265,11 +300,14 @@ def _is_not_a_read(name: str) -> bool:
 
 
 def _class_members_in(module: str, source: str) -> dict[str, bool]:
-    """Return every argument-less member of a public class of a module."""
+    """Return every argument-less member of a public class of a module.
+
+    The key is the member's dotted path, each enclosing class and function
+    included, so two nested classes of one name are two keys.
+    """
     found: dict[str, bool] = {}
-    for cls in ast.walk(ast.parse(source)):
-        if not isinstance(cls, ast.ClassDef) or cls.name.startswith("_"):
-            continue
+
+    def record(cls: ast.ClassDef, prefix: str) -> None:
         for node in cls.body:
             if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
                 continue
@@ -289,8 +327,20 @@ def _class_members_in(module: str, source: str) -> dict[str, bool]:
             ]
             if arguments or node.args.vararg or node.args.kwarg:
                 continue
-            key = f"{module}.{cls.name}.{node.name}"
-            found[key] = _is_a_read(decorated)
+            found[f"{prefix}{cls.name}.{node.name}"] = _is_a_read(decorated)
+
+    # every node is visited, with the dotted path of the classes and
+    # functions around it, as `public_parameter_test.py`'s walk does
+    def visit(node: ast.AST, prefix: str) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.ClassDef) and not child.name.startswith("_"):
+                record(child, prefix)
+            if isinstance(child, ast.ClassDef | _Function):
+                visit(child, f"{prefix}{child.name}.")
+            else:
+                visit(child, prefix)
+
+    visit(ast.parse(source), f"{module}.")
     return found
 
 
@@ -299,7 +349,8 @@ def _class_members() -> dict[str, bool]:
 
     A property is a class thing, so a module-level function is out of
     scope however few arguments it takes. Methods of a private class
-    are out too: `_Decoder` is not API.
+    are out too: `_Decoder` is not API. So is an `async def`: its caller
+    awaits it, which makes it a call.
     """
     found: dict[str, bool] = {}
     for path in sorted(_LIBRARY.rglob("*.py")):
@@ -308,22 +359,29 @@ def _class_members() -> dict[str, bool]:
     return found
 
 
-def _public_bools() -> list[str]:
-    """Return every public function that answers a bool, however named.
+def _public_bools_in(module: str, source: str) -> set[str]:
+    """Return every public function of a module that answers a bool.
 
     The dotted name drops the class, as `_named` above does: a method and
     a module function of one name are one entry, which is the spelling
-    `input_validation_test.py` uses too.
+    `input_validation_test.py` uses too. The gate below reads the name
+    alone, so one entry judges every definition under it.
     """
-    found: list[str] = []
+    found: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, _Function) or node.name.startswith("_"):
+            continue
+        if node.returns is not None and _return_type(node.returns) == "bool":
+            found.add(f"{module}.{node.name}")
+    return found
+
+
+def _public_bools() -> list[str]:
+    """Return every public function that answers a bool, however named."""
+    found: set[str] = set()
     for path in sorted(_LIBRARY.rglob("*.py")):
         module = ".".join(path.relative_to(_LIBRARY.parent).with_suffix("").parts)
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
-                continue
-            if node.returns is not None and _return_type(node.returns) == "bool":
-                found.append(f"{module}.{node.name}")
+        found |= _public_bools_in(module, path.read_text(encoding="utf-8"))
     return sorted(found)
 
 
@@ -338,7 +396,7 @@ _CLASS_MEMBERS = _class_members()
 def test_the_name_says_what_the_answer_is(dotted: str) -> None:
     """The rule, over every public name that carries one of the prefixes."""
     promised = _promised_by(dotted.rpartition(".")[2])
-    assert _NAMED[dotted] == promised, (
+    assert not _breaks_its_promise(dotted, _NAMED[dotted]), (
         f"{dotted} returns {_NAMED[dotted]} where its name promises {promised}"
     )
 
@@ -347,7 +405,7 @@ def test_the_name_says_what_the_answer_is(dotted: str) -> None:
 def test_what_is_excepted_still_needs_to_be(dotted: str) -> None:
     """An entry of `_OTHER_CONTRACT` cannot outlive the reason for it."""
     promised = _promised_by(dotted.rpartition(".")[2])
-    assert _NAMED[dotted] != promised, (
+    assert _breaks_its_promise(dotted, _NAMED[dotted]), (
         f"{dotted} now returns {promised}: delete its line from _OTHER_CONTRACT"
     )
 
@@ -357,15 +415,15 @@ def test_the_walk_reaches_what_it_claims() -> None:
 
     A walk that found nothing would pass the test above.
     """
-    assert _NAMED["btclib.script.script_pub_key.is_p2sh"] == "bool"
-    assert _NAMED["btclib.script.engine.script.check_pub_key"] == "bool"
-    assert _NAMED["btclib.script.taproot.check_output_pubkey"] == "bool"
-    assert _NAMED["btclib.script.engine.script.dsa_verify"] == "bool"
-    assert _NAMED["btclib.block.merkle_proof.verify"] == "bool"
-    assert _NAMED["btclib.bms.assert_as_valid"] == "None"
-    assert _NAMED["btclib.policy.validate_inputs_standardness"] == "None"
+    assert _NAMED["btclib.script.script_pub_key.is_p2sh"] == ["bool"]
+    assert _NAMED["btclib.script.engine.script.check_pub_key"] == ["bool"]
+    assert _NAMED["btclib.script.taproot.check_output_pubkey"] == ["bool"]
+    assert _NAMED["btclib.script.engine.script.dsa_verify"] == ["bool"]
+    assert _NAMED["btclib.block.merkle_proof.verify"] == ["bool"]
+    assert _NAMED["btclib.bms.assert_as_valid"] == ["None"]
+    assert _NAMED["btclib.policy.validate_inputs_standardness"] == ["None"]
     # a method, and a property among them
-    assert _NAMED["btclib.key.is_compressed"] == "bool"
+    assert _NAMED["btclib.key.is_compressed"] == ["bool"]
 
     # an op code is named for the op code
     assert "btclib.script.engine.script_op_codes.op_verify" not in _NAMED
@@ -394,11 +452,91 @@ def test_a_validate_answering_a_bool_breaks_its_promise() -> None:
     """
     named = _named_in("control", _VALIDATE_CONTROL)
     assert named == {
-        "control.validate_refusal": "None",
-        "control.validate_answer": "bool",
+        "control.validate_refusal": ["None"],
+        "control.validate_answer": ["bool"],
     }
-    broken = {d for d in named if named[d] != _promised_by(d.rpartition(".")[2])}
+    broken = {d for d, returns in named.items() if _breaks_its_promise(d, returns)}
     assert broken == {"control.validate_answer"}
+
+
+# a name defined twice, in two classes and in two branches of an `if`,
+# the definition that breaks the rule first, where the second would
+# overwrite it; a property of a nested class, defined once; two nested
+# classes of one name under two outer classes; a class inside a function;
+# and an `async def` taking only `self`, which `_named_in` and
+# `_public_bools_in` record and `_argument_less_bools_in` and
+# `_class_members_in` do not
+_REDEFINED_CONTROL = """
+class Block:
+    def is_final(self) -> bool: ...
+    async def is_ready(self) -> bool: ...
+class Tx:
+    @property
+    def is_final(self) -> bool: ...
+class Outer:
+    class Inner:
+        @property
+        def is_inner(self) -> bool: ...
+class Left:
+    class Node:
+        @property
+        def depth(self) -> int: ...
+class Right:
+    class Node:
+        def depth(self) -> int: ...
+def f() -> None:
+    class K:
+        @property
+        def size(self) -> int: ...
+if TYPE_CHECKING:
+    def verify_tx(a: int) -> int: ...
+else:
+    def verify_tx(a: int) -> bool: ...
+"""
+
+
+def test_a_second_definition_hides_no_first() -> None:
+    """No definition of a name hides another one.
+
+    `_named_in` and `_argument_less_bools_in` list each definition once,
+    and `_public_bools_in` keeps the name, which is all it judges.
+    `_named_in` and `_public_bools_in` record `async def`, and
+    `_argument_less_bools_in` and `_class_members_in` do not. btclib holds
+    no prefixed name whose definitions disagree, and no `async def`: this
+    source holds both.
+    """
+    named = _named_in("control", _REDEFINED_CONTROL)
+    assert named == {
+        "control.is_final": ["bool", "bool"],
+        "control.is_ready": ["bool"],
+        "control.is_inner": ["bool"],
+        "control.verify_tx": ["int", "bool"],
+    }
+    broken = {d for d, returns in named.items() if _breaks_its_promise(d, returns)}
+    assert broken == {"control.verify_tx"}
+
+    assert _public_bools_in("control", _REDEFINED_CONTROL) == {
+        "control.is_final",
+        "control.is_ready",
+        "control.is_inner",
+        "control.verify_tx",
+    }
+    # the method of `Block` is not a property, whatever `Tx` holds, and the
+    # nested property is listed once, not once per enclosing class
+    argument_less = _argument_less_bools_in("control", _REDEFINED_CONTROL)
+    assert argument_less == {
+        "control.is_final": [False, True],
+        "control.is_inner": [True],
+    }
+    assert _is_called(argument_less["control.is_final"])
+    assert _class_members_in("control", _REDEFINED_CONTROL) == {
+        "control.Block.is_final": False,
+        "control.Tx.is_final": True,
+        "control.Outer.Inner.is_inner": True,
+        "control.Left.Node.depth": True,
+        "control.Right.Node.depth": False,
+        "control.f.K.size": True,
+    }
 
 
 def test_check_says_one_thing() -> None:
@@ -462,7 +600,7 @@ def test_a_bool_about_the_object_is_a_property(dotted: str) -> None:
     mypy is a gate here; a property makes it unsayable, which is the
     stronger of the two.
     """
-    assert _ARGUMENT_LESS_BOOLS[dotted], (
+    assert not _is_called(_ARGUMENT_LESS_BOOLS[dotted]), (
         f"{dotted} answers a bool about the object and takes nothing:"
         " it is a @property, not a method"
     )
@@ -470,8 +608,8 @@ def test_a_bool_about_the_object_is_a_property(dotted: str) -> None:
 
 def test_the_walk_reaches_both_shapes() -> None:
     """One of each shape, so the filter is doing work rather than nothing."""
-    assert _ARGUMENT_LESS_BOOLS["btclib.tx.tx.is_segwit"] is True
-    assert _ARGUMENT_LESS_BOOLS["btclib.key.is_compressed"] is True
+    assert _ARGUMENT_LESS_BOOLS["btclib.tx.tx.is_segwit"] == [True]
+    assert _ARGUMENT_LESS_BOOLS["btclib.key.is_compressed"] == [True]
     # a bool of an argument is a function of it, and no property can be
     assert "btclib.script.script_pub_key.is_p2sh" not in _ARGUMENT_LESS_BOOLS
     assert "btclib.bms.verify" not in _ARGUMENT_LESS_BOOLS
