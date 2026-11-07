@@ -20,9 +20,9 @@ import dataclasses
 import json
 
 import pytest
+from base58_bech32.base58 import b58encode_check
 
 from btclib import b32, b58
-from btclib.base58 import encode as b58encode
 from btclib.exceptions import (
     BTClibTypeError,
     BTClibValueError,
@@ -79,7 +79,7 @@ def test_the_other_chain_is_not_in_networks() -> None:
 def test_h160_from_address() -> None:
     """Decode the other chain's base58 addresses, and refuse mainnet's."""
     for script_type, prefix in (("p2pkh", OTHER.p2pkh), ("p2sh", OTHER.p2sh)):
-        addr = b58encode(prefix + H160).decode("ascii")
+        addr = b58encode_check(prefix + H160).decode("ascii")
         assert b58.h160_from_address(addr, OTHER) == (script_type, H160, OTHER)
         with pytest.raises(BTClibValueError, match="invalid base58 address prefix"):
             b58.h160_from_address(addr)
@@ -128,9 +128,9 @@ def test_prv_key_data_from_wif() -> None:
         b58.prv_key_data_from_wif(wif, NETWORKS["mainnet"])
 
     other_wif = b58.wif_from_prv_key(1, OTHER)
-    assert other_wif == b58encode(OTHER.wif + (1).to_bytes(32, "big") + b"\x01").decode(
-        "ascii"
-    )
+    assert other_wif == b58encode_check(
+        OTHER.wif + (1).to_bytes(32, "big") + b"\x01"
+    ).decode("ascii")
     key = b58.prv_key_data_from_wif(other_wif, OTHER)
     assert key == PrvKeyData(1, OTHER)
     assert key.network is OTHER
@@ -166,8 +166,8 @@ def test_from_address() -> None:
 
     for addr in (
         b32._address_from_witness(0, H160, OTHER.hrp),
-        b58encode(OTHER.p2pkh + H160).decode("ascii"),
-        b58encode(OTHER.p2sh + H160).decode("ascii"),
+        b58encode_check(OTHER.p2pkh + H160).decode("ascii"),
+        b58encode_check(OTHER.p2sh + H160).decode("ascii"),
     ):
         script_pub_key = ScriptPubKey.from_address(addr, OTHER)
         assert script_pub_key.network is OTHER
@@ -188,7 +188,9 @@ def test_the_encoders_take_the_other_chain() -> None:
     key = PubKeyData(b"\x02" + bytes(range(1, 33)), OTHER, check_validity=False)
     assert key.network is OTHER
     key.assert_valid()
-    assert b58.p2pkh(key) == b58encode(OTHER.p2pkh + hash160(key.sec)).decode("ascii")
+    assert b58.p2pkh(key) == b58encode_check(OTHER.p2pkh + hash160(key.sec)).decode(
+        "ascii"
+    )
     assert b32.p2wpkh(key).startswith("xyz1")
     assert b58.p2wpkh_p2sh(key) == b58.address_from_h160(
         "p2sh", hash160(b"\x00\x14" + hash160(key.sec)), OTHER

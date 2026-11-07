@@ -3,7 +3,6 @@
 # its test read straight off the disk. `-text` is what keeps a checkout
 # with `core.autocrlf=true` (Git for Windows' default) from converting
 # them, so those bytes are the ones on disk on every platform.
-tests/_data/base58_encode_decode.json -text
 tests/_data/chacha20_vectors.json -text
 tests/_data/key_io_invalid.json -text
 tests/_data/key_io_valid.json -text

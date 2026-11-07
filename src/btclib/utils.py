@@ -57,11 +57,13 @@ from __future__ import annotations
 
 import string
 import sys
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Iterator, Mapping
+from contextlib import contextmanager
 from io import BytesIO
 from numbers import Number
 from typing import Any, BinaryIO
 
+from base58_bech32.exceptions import Base58Bech32TypeError, Base58Bech32ValueError
 from typing_extensions import TypeIs
 
 from btclib.alias import BinaryData, Integer, Octets, String
@@ -536,6 +538,24 @@ def assert_type(value: Any, expected: Any, what: str) -> None:
     """
     if not isinstance(value, expected):
         raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+
+
+@contextmanager
+def _btclib_errors() -> Iterator[None]:
+    """Re-raise a refusal of `base58_bech32` as this library's own.
+
+    The codecs raise `Base58Bech32ValueError` and `Base58Bech32TypeError`,
+    which derive from `ValueError` and `TypeError` and not from
+    `BTClibException`. `b58`, `b32` and `network` call them inside this,
+    so that their callers get the `BTClibValueError` or the
+    `BTClibTypeError` this library documents. The message is the codec's.
+    """
+    try:
+        yield
+    except Base58Bech32TypeError as e:
+        raise BTClibTypeError(str(e)) from e
+    except Base58Bech32ValueError as e:
+        raise BTClibValueError(str(e)) from e
 
 
 class _JsonObject(dict[str, Any]):

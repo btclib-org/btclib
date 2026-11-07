@@ -34,7 +34,7 @@ from ecc.exceptions import (
 from hypothesis import given
 from hypothesis import strategies as st
 
-from btclib import b32, b58, base58, bech32, bms, var_bytes, var_int
+from btclib import b32, b58, bms, var_bytes, var_int
 from btclib.block.block import Block
 from btclib.block.block_filter import BasicBlockFilter
 from btclib.block.block_header import BlockHeader
@@ -189,8 +189,6 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     # trailing hash that is either exactly thirty-two octets or absent
     "Reject.parse": Reject.parse,
     "bms.Sig.parse": bms.Sig.parse,
-    "base58.decode": base58.decode,
-    "bech32.decode": bech32.decode,
 }
 
 # The same contract, for what a user pastes rather than what a peer
@@ -202,8 +200,6 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
 # is not canonical, a length no multiple of four -- and that is a layer
 # the binary entry point never sees
 TEXT_PARSERS: dict[str, Callable[[str], Any]] = {
-    "base58.decode": base58.decode,
-    "bech32.decode": bech32.decode,
     "b32.witness_from_address": b32.witness_from_address,
     "b58.h160_from_address": b58.h160_from_address,
     "bms.Sig.b64decode": bms.Sig.b64decode,

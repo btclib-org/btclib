@@ -149,8 +149,6 @@ _EXEMPT: dict[str, str] = {
     "for them: it renders the five types `type_and_payload` names and a future": _UPSTREAM_FACT,
     "Verdict: **identical**, 70 strings, each a one-element array. All 70 are": _UPSTREAM_FACT,
     "refused by all four of the entry points that could be handed one —": _UPSTREAM_FACT,
-    "Verdict: **identical**, 21 rows of `[hex, base58]`. Core's": _UPSTREAM_FACT,
-    "`encode`/`decode` — one row is 256 bytes, 348 base58 characters,": _UPSTREAM_FACT,
     "Verdict: **identical**, 146 cases. Each carries a key, an input split": _UPSTREAM_FACT,
     "of two constructions this library implements one of:": _UPSTREAM_FACT,
     "`expected.siphash24` is standard SipHash-2-4, what `hashes.siphash`": _UPSTREAM_FACT,

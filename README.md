@@ -107,9 +107,7 @@ Included features are:
 - the x-only ECDH of
   [BIP324](https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki),
   over the ElligatorSwift encoding of a public key
-- Base58 encoding/decoding
 - p2pkh/p2sh addresses and WIFs
-- Bech32 encoding/decoding
 - p2wpkh/p2wsh native segwit addresses and their legacy p2sh-wrapped versions
 - Script encoding/decoding
 - nulldata, p2pk, p2ms, p2pkh, p2sh, p2wpkh, p2wsh and p2tr ScriptPubKeys
@@ -164,6 +162,10 @@ which btclib depends on and does not re-export: import them from
   over an arbitrary generator and an optional message
 - ECIES in the BIE1 layout, the block cipher supplied by the caller
 - Pedersen commitment
+
+The Base58Check, bech32 and bech32m codecs are the
+[base58-bech32](https://github.com/btclib-org/base58-bech32) distribution,
+imported as `base58_bech32`, which btclib depends on and does not re-export.
 
 BIP32 key derivation and output descriptors are the `bip32-descriptors`
 distribution, imported as `bip32_descriptors`. The rest of the wallet side —

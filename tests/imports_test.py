@@ -345,39 +345,10 @@ def test_ellswift_stays_stdlib_light() -> None:
     )
 
 
-def test_the_codecs_stay_stdlib_light() -> None:
-    """`btclib.base58` and `btclib.bech32` stay in `btclib` under issue #2129.
-
-    Codecs with no bitcoin in them (ARCHITECTURE.md), and not a
-    package of their own: their consumers spread over rows 4 and 5 of
-    that issue's table, so no single package is short of them. One
-    allowlist for the pair, the two being held to the same reach. `base58`
-    reaches `hashes` for its checksum, and `_ripemd160` and `var_int`
-    arrive with it; `bech32` reaches nothing of btclib's beyond the
-    substrate.
-    """
-    loaded = _loaded_after_importing("btclib.base58")
-    loaded_both = set(loaded) | set(_loaded_after_importing("btclib.bech32"))
-    btclib_loaded = {m for m in loaded_both if m == "btclib" or m.startswith("btclib.")}
-    assert btclib_loaded <= {
-        "btclib",
-        "btclib.alias",
-        "btclib.exceptions",
-        "btclib.utils",
-        "btclib.base58",
-        "btclib.bech32",
-        "btclib.hashes",
-        "btclib._ripemd160",
-        "btclib.var_int",
-    }
-    assert not loaded_both & set(_HEAVY_MODULES)
-
-
 def test_hashes_stays_stdlib_light() -> None:
     """`btclib.hashes`, with `_ripemd160`, stays in `btclib` under issue #2129.
 
-    Not a package of its own, for the reason `base58` and `bech32` are
-    not. `_hashlib_has_ripemd160` makes whether this interpreter's hashlib
+    `_hashlib_has_ripemd160` makes whether this interpreter's hashlib
     carries RIPEMD-160 a runtime question rather than an import; this
     checks that the module reaches nothing heavy rather than assumes it.
     """

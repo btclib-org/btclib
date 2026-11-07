@@ -27,17 +27,16 @@
 version, the human-readable part of each network, and the length rules a
 witness program has to satisfy.
 
-The encoding itself is btclib.bech32, which knows nothing about bitcoin, and
-the rule between the two is that direction: this module imports bech32, never
-the other way round. `base58` and `b58` are the same pair for the base58
-address encoding.
+The encoding itself is bech32 and bech32m, imported from
+`base58_bech32.bech32`, which knows nothing about bitcoin. A refusal of the
+codec leaves this module as a `BTClibValueError` or a `BTClibTypeError`.
 
 The whole surface is exported, the two facilities below the addresses
-included: `power_of_2_base_conversion` is the `convertbits` of the
-reference implementation, which a caller reading or writing a witness
-program in five-bit groups needs as much as this module does, and
-`bytes_from_witness_program` is BIP141's length rule, which `btclib.b58`
-asks for the p2sh-wrapped forms.
+included: `power_of_2_base_conversion` is `base58_bech32.bech32.convertbits`,
+the `convertbits` of the reference implementation, which a caller reading
+or writing a witness program in five-bit groups needs as much as this module
+does, and `bytes_from_witness_program` is BIP141's length rule, which
+`btclib.b58` asks for the p2sh-wrapped forms.
 
 Some of these functions are originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
@@ -47,9 +46,9 @@ with the following modifications:
 * avoided returning None or (None, None), throwing Exceptions instead
 * detailed error messages and extended safety checks
 * check that bech32 addresses are not longer than 90 characters,
-  a bound bech32.decode deliberately leaves to this module
+  a bound the codec leaves to this module
 * check BIP350's constant rule: version 0 is bech32, any other version
-  bech32m, whichever constants the codec accepts
+  bech32m, against the constant the codec says verified
 """
 
 from __future__ import annotations
@@ -58,10 +57,17 @@ import string
 from collections.abc import Iterable
 from typing import overload
 
+from base58_bech32.bech32 import (
+    BECH32_1_CONST,
+    BECH32_M_CONST,
+    bech32_decode,
+    bech32_encode,
+    convertbits,
+)
+
 from btclib.alias import Octets, String
-from btclib.bech32 import BECH32_1_CONST, BECH32_M_CONST, decode, encode
 from btclib.consensus import MAX_SCRIPT_SIZE
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.key import PubKeyData
 from btclib.network import (
@@ -72,10 +78,10 @@ from btclib.network import (
     network_from_key_value,
 )
 from btclib.utils import (
+    _btclib_errors,
     _message_text,
     assert_type,
     bytes_from_octets,
-    is_integer,
     str_from_string,
 )
 
@@ -108,62 +114,11 @@ def power_of_2_base_conversion(
 ) -> list[int]:
     """Convert a power-of-two digit sequence to another power-of-two base.
 
-    Both widths are integers from 1 to 64 and every value is an integer of at
-    most `from_bits` bits, anything else being refused: a wider value
-    would come out as the conversion of a different sequence, `[256]`
-    from 8 to 5 bits as `[0]` does, and a zero `to_bits` would never
-    leave the regrouping loop. A bool is an integer nowhere in this
-    library, here included.
+    `base58_bech32.bech32.convertbits`, whose docstring says what it
+    refuses, raising this library's exceptions.
     """
-    assert_type(pad, bool, "pad")
-    for what, width in (("from_bits", from_bits), ("to_bits", to_bits)):
-        if not is_integer(width):
-            raise BTClibTypeError(f"invalid {what} type: {type(width).__name__}")
-        if width < 1:
-            raise BTClibValueError(f"invalid {what}: {_message_text(width)} < 1")
-        if width > 64:
-            raise BTClibValueError(f"invalid {what}: {_message_text(width)} > 64")
-    assert_type(data, Iterable, "data")
-
-    values = list(data)
-    for value in values:
-        if not is_integer(value):
-            raise BTClibTypeError(f"invalid value type: {type(value).__name__}")
-        if value < 0 or (value >> from_bits):
-            raise BTClibValueError(f"invalid value: {_message_text(value)}")
-    return _power_of_2_base_conversion(values, from_bits, to_bits, pad)
-
-
-def _power_of_2_base_conversion(
-    data: Iterable[int], from_bits: int, to_bits: int, pad: bool
-) -> list[int]:
-    # the validating wrapper's work, for a caller whose digits are integers
-    # of `from_bits` bits by construction: the octets of a witness program,
-    # and the five-bit digits `bech32.decode` looks up in its alphabet
-    acc = 0
-    bits = 0
-    ret = []
-    maxv = (1 << to_bits) - 1
-    max_acc = (1 << (from_bits + to_bits - 1)) - 1
-    for value in data:
-        acc = ((acc << from_bits) | value) & max_acc
-        bits += from_bits
-        while bits >= to_bits:
-            bits -= to_bits
-            ret.append((acc >> bits) & maxv)
-
-    if pad:
-        if bits:
-            ret.append((acc << (to_bits - bits)) & maxv)
-    elif bits >= from_bits:
-        err_msg = f"zero padding of more than {from_bits - 1} bits"
-        err_msg += f" in {from_bits}-to-{to_bits} conversion"
-        raise BTClibValueError(err_msg)
-    elif (acc << (to_bits - bits)) & maxv:
-        err_msg = f"non-zero padding in {from_bits}-to-{to_bits} conversion"
-        raise BTClibValueError(err_msg)
-
-    return ret
+    with _btclib_errors():
+        return convertbits(data, from_bits, to_bits, pad)
 
 
 def bytes_from_witness_program(wit_ver: int, wit_prg: Octets) -> bytes:
@@ -192,16 +147,12 @@ def bytes_from_witness_program(wit_ver: int, wit_prg: Octets) -> bytes:
 def _decode_with_constant(addr: str) -> tuple[str, list[int]]:
     """Decode a segwit address, held to BIP350's constant rule.
 
-    Version 0 is bech32 and any other version is bech32m. The rule is
-    applied here, from the constant that verified the checksum, and not
-    left to the codec's choice when it is given none.
+    Version 0 is bech32 and any other version is bech32m. The codec
+    accepts either constant and says which one verified; the rule is
+    applied here.
     """
-    try:
-        hrp, data = decode(addr, BECH32_1_CONST)
-        m = BECH32_1_CONST
-    except BTClibValueError:
-        hrp, data = decode(addr, BECH32_M_CONST)
-        m = BECH32_M_CONST
+    with _btclib_errors():
+        hrp, data, m = bech32_decode(addr)
 
     if not data:
         raise BTClibValueError("empty data in bech32 address")
@@ -215,8 +166,13 @@ def _decode_with_constant(addr: str) -> tuple[str, list[int]]:
 
 def _address_from_witness(wit_ver: int, wit_prg: Octets, hrp: str) -> str:
     wit_prg = bytes_from_witness_program(wit_ver, wit_prg)
-    data = [wit_ver, *_power_of_2_base_conversion(wit_prg, 8, 5, True)]
-    bytes_ = encode(hrp, data)
+    # the hrp is a valid Network's, which assert_valid checks with no
+    # length limit, and the program's values are 5-bit digits. A witness
+    # version that is no int, a bool or a float in 0..16, is what the
+    # encoder refuses here. m None is BIP350's choice by the version
+    data = [wit_ver, *convertbits(wit_prg, 8, 5)]
+    with _btclib_errors():
+        bytes_ = bech32_encode(hrp, data, limit=None)
     return bytes_.decode("ascii")
 
 
@@ -267,7 +223,8 @@ def witness_from_address(
     hrp, data = _decode_with_constant(addr)
 
     wit_ver = data[0]
-    wit_prog = bytes(_power_of_2_base_conversion(data[1:], 5, 8, False))
+    with _btclib_errors():
+        wit_prog = bytes(convertbits(data[1:], 5, 8, False))
     wit_prog = bytes_from_witness_program(wit_ver, wit_prog)
 
     if network is not None:

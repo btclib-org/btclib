@@ -8,10 +8,9 @@
 addresses, and of private keys as WIFs: the version prefixes, the networks,
 p2pkh, p2sh, and the p2sh-wrapped segwit forms.
 
-The encoding itself is btclib.base58, which knows nothing about bitcoin, and
-the rule between the two is that direction: this module imports base58, never
-the other way round. `bech32` and `b32` are the same pair for the segwit
-address encoding.
+The encoding itself is Base58Check, imported from `base58_bech32.base58`,
+which knows nothing about bitcoin. A refusal of the codec leaves this module
+as a `BTClibValueError`.
 
 A WIF is this module's object in both directions. `wif_from_prv_key` writes
 one from a scalar, a network and a compression flag, and
@@ -24,13 +23,13 @@ from __future__ import annotations
 import string
 from typing import Literal, overload
 
+from base58_bech32.base58 import b58decode_check, b58encode_check
+from base58_bech32.exceptions import Base58Bech32ValueError
 from ecc.curves import scalar_from_prv_key
 
 from btclib import b32
 from btclib.alias import Integer, Octets, ScriptType, String
 from btclib.b32 import _v0_witness_program_from_key, _v0_witness_program_from_script
-from btclib.base58 import decode as b58decode
-from btclib.base58 import encode as b58encode
 from btclib.consensus import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.exceptions import BTClibValueError, InvalidPrvKeyError, NotAPrvKeyError
 from btclib.hashes import hash160
@@ -42,7 +41,12 @@ from btclib.network import (
     _normalized_network,
     network_from_key_value,
 )
-from btclib.utils import assert_type, bytes_from_octets, str_from_string
+from btclib.utils import (
+    _btclib_errors,
+    assert_type,
+    bytes_from_octets,
+    str_from_string,
+)
 
 __all__ = [
     "address_from_h160",
@@ -78,7 +82,7 @@ def wif_from_prv_key(
             b"\x01" if compressed else b"",
         ]
     )
-    return b58encode(payload).decode("ascii")
+    return b58encode_check(payload).decode("ascii")
 
 
 def _wif_network(prefix: bytes, network: str | Network | None) -> str | Network:
@@ -181,11 +185,12 @@ def prv_key_data_from_wif(
     # only from a caller that happened to pass a str (issue #2297)
     wif = str_from_string(wif, "WIF").strip(string.whitespace)
 
-    # only a value no WIF has is re-classed: a wrong type leaves b58decode
-    # as the BTClibTypeError it is, that being the caller's own mistake.
+    # a wrong type has already left str_from_string above as the
+    # BTClibTypeError it is, that being the caller's own mistake, so what
+    # the codec refuses is a value no WIF has
     try:
-        payload = b58decode(wif)
-    except BTClibValueError as e:
+        payload = b58decode_check(wif)
+    except Base58Bech32ValueError as e:
         raise NotAPrvKeyError(f"not a WIF ({e})") from e
 
     net = _wif_network(payload[:1], network)
@@ -226,7 +231,7 @@ def address_from_h160(
         raise BTClibValueError(f"invalid script type: {script_type}")
 
     payload = prefix + bytes_from_octets(h160, 20)
-    return b58encode(payload).decode("ascii")
+    return b58encode_check(payload).decode("ascii")
 
 
 @overload
@@ -257,7 +262,8 @@ def h160_from_address(
     # surrounding whitespace is trimmed from bytes input too rather than
     # only from a caller that happened to pass a str (issue #2297)
     b58addr = str_from_string(b58addr, "address").strip(string.whitespace)
-    payload = b58decode(b58addr, 21)
+    with _btclib_errors():
+        payload = b58decode_check(b58addr, out_size=21)
     prefix = payload[:1]
 
     # the two script types a base58 address encodes -- and, the same two

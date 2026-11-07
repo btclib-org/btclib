@@ -9,6 +9,8 @@ from __future__ import annotations
 import string
 
 import pytest
+from base58_bech32.base58 import b58decode_check, b58encode, b58encode_check
+from base58_bech32.exceptions import Base58Bech32ValueError
 from ecc.curves import bytes_from_point, point_from_octets_var, secp256k1
 from ecc.exceptions import EccValueError
 from hypothesis import given
@@ -16,8 +18,6 @@ from hypothesis import strategies as st
 
 from btclib import b32, b58
 from btclib.alias import ScriptList, ScriptType
-from btclib.base58 import decode as b58decode
-from btclib.base58 import encode as b58encode
 from btclib.exceptions import BTClibValueError, InvalidPrvKeyError, NotAPrvKeyError
 from btclib.hashes import hash160, hash256, sha256
 from btclib.key import PubKeyData
@@ -64,7 +64,7 @@ def test_prv_key_data_from_wif() -> None:
     """The malformed WIFs, and the two error classes they fall into."""
     bad_q = ec.n.to_bytes(ec.n_size, byteorder="big", signed=False)
     payload = b"\x80" + bad_q
-    badwif = b58encode(payload)
+    badwif = b58encode_check(payload)
     # a well-formed WIF -- base58, checksum, 0x80 prefix, right size --
     # carrying a scalar equal to n. The format is recognised, so the
     # fault in it is reported rather than swallowed as "not a WIF"
@@ -74,7 +74,7 @@ def test_prv_key_data_from_wif() -> None:
     # not a WIF at all: 33 bytes wrapped as if it were a scalar's payload
     bad_q = 33 * b"\x02"
     payload = b"\x80" + bad_q
-    badwif = b58encode(payload)
+    badwif = b58encode_check(payload)
     # 34 bytes is the compressed-WIF size, so the trailing byte is what is
     # wrong with it, and 0x80 makes it a fault in a WIF rather than a
     # reason to try the string as something else
@@ -85,20 +85,20 @@ def test_prv_key_data_from_wif() -> None:
     # Not a WIF: missing leading 0x80
     good_q = 32 * b"\x02"
     payload = b"\x81" + good_q
-    badwif = b58encode(payload)
+    badwif = b58encode_check(payload)
     with pytest.raises(NotAPrvKeyError, match="not a WIF") as exc_info:
         b58.prv_key_data_from_wif(badwif)
     assert "invalid prefix 0x81" in str(exc_info.value)
 
     # Not a compressed WIF: missing trailing 0x01
     payload = b"\x80" + good_q + b"\x00"
-    badwif = b58encode(payload)
+    badwif = b58encode_check(payload)
     with pytest.raises(InvalidPrvKeyError, match=err_msg):
         b58.prv_key_data_from_wif(badwif)
 
     # Not a WIF: wrong size (35)
     payload = b"\x80" + good_q + b"\x01\x00"
-    badwif = b58encode(payload)
+    badwif = b58encode_check(payload)
     with pytest.raises(InvalidPrvKeyError, match="wrong WIF size: 35"):
         b58.prv_key_data_from_wif(badwif)
 
@@ -143,7 +143,7 @@ def test_a_mistyped_wif_is_reported_as_one() -> None:
 
     # nor the checksum of the key it carries: the typo is in the last
     # characters, so the key is intact and that checksum confirms a guess
-    good_checksum = hash256(b58decode(good))[:4].hex()
+    good_checksum = hash256(b58decode_check(good))[:4].hex()
     assert good_checksum not in message
     assert exc_info.value.__cause__ is not None
     assert good_checksum not in str(exc_info.value.__cause__)
@@ -385,11 +385,37 @@ def test_address_from_wif() -> None:
                 b58.p2wpkh_p2sh(data.pub)
 
 
+@pytest.mark.parametrize(
+    "address, err_msg",
+    [
+        ("0OIl", "^Base58 string contains invalid characters$"),
+        ("1" * 113, "^too many base58 characters: 113, max is 112$"),
+        (
+            b58encode(b"123").decode("ascii"),
+            "^not enough bytes for checksum, invalid base58 decoded size: 3$",
+        ),
+        (
+            b58encode_check(b"\x00" * 20).decode("ascii"),
+            "^valid checksum, invalid decoded size: 20 bytes instead of 21$",
+        ),
+        ("1\u00e8", "^non-ascii character in base58 string at position 1$"),
+    ],
+)
+def test_the_codec_refusals_are_btclib_value_errors(address: str, err_msg: str) -> None:
+    """What base58_bech32 refuses leaves `h160_from_address` as btclib's.
+
+    The codec's own exception is the cause, and its message is kept.
+    """
+    with pytest.raises(BTClibValueError, match=err_msg) as refusal:
+        b58.h160_from_address(address)
+    assert isinstance(refusal.value.__cause__, Base58Bech32ValueError)
+
+
 def test_exceptions() -> None:
     """Refuse an unknown address prefix and a key of the wrong size."""
     pub_key = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
     payload = b"\xf5" + hash160(pub_key)
-    invalid_address = b58encode(payload)
+    invalid_address = b58encode_check(payload)
     with pytest.raises(BTClibValueError, match="invalid base58 address prefix: "):
         b58.h160_from_address(invalid_address)
 

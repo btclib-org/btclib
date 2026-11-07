@@ -44,20 +44,6 @@ btclib.b58 module
    :members:
    :show-inheritance:
 
-btclib.base58 module
---------------------
-
-.. automodule:: btclib.base58
-   :members:
-   :show-inheritance:
-
-btclib.bech32 module
---------------------
-
-.. automodule:: btclib.bech32
-   :members:
-   :show-inheritance:
-
 btclib.bms module
 -----------------
 
