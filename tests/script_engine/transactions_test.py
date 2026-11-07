@@ -159,14 +159,13 @@ def test_verify_input_does_not_touch_the_tx(vector: dict[str, Any]) -> None:
 def legacy_vectors(fname: str) -> list[Any]:
     """Every vector of a Bitcoin Core tx_valid/tx_invalid.json, comments aside.
 
-    The files keep Core's names because they are Core's files entire --
-    121 valid and 93 invalid vectors here, 121 and 93 upstream -- so a
+    The files keep Core's names because they are Core's files entire, so a
     `_legacy` in the file names would read as a subsetting that never
-    happens; nor is the content legacy, 2 valid and 14 invalid vectors
-    naming WITNESS in their flags (issue 168). The `legacy` of the test
-    names below is another matter and stays: it distinguishes the pre-taproot
-    validation path these vectors drive from the BIP341 ones
-    above, and issue 129 cites `test_invalid_legacy` by name.
+    happens; nor is the content legacy, both naming WITNESS in some vectors'
+    flags (issue 168). The `legacy` of the test names below is another
+    matter and stays: it distinguishes the pre-taproot validation path these
+    vectors drive from the BIP341 ones above, and issue 129 cites
+    `test_invalid_legacy` by name.
 
     Nothing is filtered here: skipping whatever `Tx.parse` refuses hides
     genuine failures. It hid btclib bounding an amount by the issued

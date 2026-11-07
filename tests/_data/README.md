@@ -340,17 +340,17 @@ the way in; the content is Core's `sighash.json` untouched.
 ```text
 repo    bitcoin/bitcoin
 path    src/test/data/script_tests.json
-commit  5a4cd70547096af6247167d8dde6145a1b548642  2026-10-11
-blob    89141dd7b8850f8072ca951368db98c192a2eb74
-pulled  2023-07-08, refreshed 2026-09-02, 2026-10-07, 2026-10-12 and 2026-10-27
+commit  d206226b4993f0330d809ca81851fb6976574ee7  2026-11-05
+blob    e2b616cc9666ba65039a5ef47cd09f3f83d2d885
+pulled  2023-07-08, refreshed 2026-09-02, 2026-10-07, 2026-10-12, 2026-10-27, 2026-11-07
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical**. 1323 entries, 1263 vectors once the comment lines
-are dropped: five cases added since the previous pin, Core's P2SH
-scriptSig stack-size boundary tests.
+Verdict: **identical**. 1342 entries, 1280 vectors once the comment lines
+are dropped: 17 cases added since the previous pin, the interpreter edge
+cases of `bitcoin/bitcoin#36458`.
 
-Seven of the 1263 are TAPSCRIPT cases whose witness and output script are
+Seven of the 1280 are TAPSCRIPT cases whose witness and output script are
 placeholders — `#SCRIPT#`, `#CONTROLBLOCK#`, `#TAPROOTOUTPUT#` — that
 Core's `script_tests.cpp` generates at run time. `taproot_placeholders`
 in `tests/script_engine/script_test.py` generates them here, from the
@@ -379,14 +379,14 @@ which engine the vectors feed (issue 168).
 ```text
 repo    bitcoin/bitcoin
 path    src/test/data/tx_invalid.json
-commit  429ec1aaaaafab150f11e27fcf132a99b57c4fc7  2024-06-07
-blob    486469ddefb36333c78cb8986508f98e31385a21
-pulled  2023-07-08, renamed and refreshed 2026-07-30
+commit  5d2fb8d3098703bc4d23d582eb4987cb2dbeda7a  2026-10-07
+blob    9e43130841001b87bbafbcb92ca03900d90bf1c2
+pulled  2023-07-08, renamed and refreshed 2026-07-30, refreshed 2026-11-07
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical**, 93 vectors — Core's entire file, here too, with
-14 of the 93 naming WITNESS in their flags.
+Verdict: **identical**, 97 vectors — Core's entire file, here too, with
+14 of the 97 naming WITNESS in their flags.
 
 ### `tests/_data/key_io_valid.json`
 
