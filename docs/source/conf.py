@@ -195,14 +195,17 @@ html_theme = "furo"
 # Some pages of the toctree are this repository's root markdown files,
 # each pulled into a *_link.md shim by a myst {include}. The shims are what
 # the code below reads, so adding one needs no edit here.
-# Those files are written for the two places that read them unrendered --
-# the GitHub file view and the PyPI long description -- so "./SECURITY.md"
-# is the correct spelling there and the one links.yml checks, resolving it
-# as a path relative to the file. Sphinx sees them lifted out of the tree
-# that makes it correct, and myst resolves not one of those links.
+# Those files are written for the places that read them unrendered: the
+# GitHub file view and, for README.md, the PyPI long description. So a
+# root file links another as "./SECURITY.md", the spelling links.yml
+# checks, resolving it as a path relative to the file. Sphinx sees them
+# lifted out of the tree that makes it correct, and myst resolves not one
+# of those links. README.md links it as BLOB plus its path, PyPI
+# resolving no relative link against the tree (section 2 of the
+# organization standard), and myst renders that as a link to GitHub.
 #
-# What it emits instead is the reason this needs code rather than a
-# warning filter: what myst emits for a target it cannot resolve is a
+# What myst emits for a relative link is the reason this needs code
+# rather than a warning filter: for a target it cannot resolve, a
 # warning, and then an anchor on the page the link is already on,
 # href="#./SECURITY.md", an id nothing has. A filter on the subtype would
 # take the warning and leave the anchor, and lychee reads the sources,
@@ -210,10 +213,11 @@ html_theme = "furo"
 #
 # The transform below answers each link from the repository rather than
 # from a table that would have to be kept in step with this directory: a
-# path a *_link.md shim includes becomes a reference to that page, any
-# other path that exists in the tree becomes a link to the file on GitHub,
-# and a path that exists nowhere is left to myst -- which reports it, and
-# -W then fails.
+# path a *_link.md shim includes becomes a reference to that page,
+# whether written relative or as BLOB plus the path; any other relative
+# path that exists in the tree becomes a link to the file on GitHub, and
+# a relative path that exists nowhere is left to myst -- which reports
+# it, and -W then fails.
 #
 # It also reads a link written this way *outside* a shim, resolved
 # against the document that wrote it rather than against ROOT. A page
@@ -269,11 +273,18 @@ BLOB = f"{PYPROJECT['project']['urls']['repository']}/blob/main/"
 
 
 class RootFileLinks(SphinxPostTransform):
-    """Resolve the repository-relative links naming a file of this tree."""
+    """Resolve the links naming a file of this tree."""
 
     # ahead of myst's own resolver, which runs at 9 and is what turns an
     # unresolved target into that anchor
     default_priority = 5
+
+    @staticmethod
+    def _to_page(node: pending_xref, target: str, anchor: str | None) -> None:
+        """Point a myst xref at the page rendering the included `target`."""
+        node["refdomain"] = "doc"
+        node["reftarget"] = INCLUDED[target]
+        node["reftargetid"] = anchor or None
 
     def _broken_doc_target(self, node: pending_xref) -> tuple[Path, str | None] | None:
         """Recover the file behind a "doc" xref `path2doc` resolved wrong.
@@ -312,7 +323,7 @@ class RootFileLinks(SphinxPostTransform):
         return origin / raw, anchor or None
 
     def run(self, **kwargs: Any) -> None:
-        """Rewrite every myst xref naming a file of this repository."""
+        """Rewrite every link naming a file of this repository."""
         # the list is taken before the tree is edited: replace_self on a
         # node the generator is standing on reparents its children under it
         for node in list(self.document.findall(pending_xref)):
@@ -343,9 +354,7 @@ class RootFileLinks(SphinxPostTransform):
                 # handed back to myst as the link it would have been
                 # written as, so the page title and the caption are its
                 # business and not this file's
-                node["refdomain"] = "doc"
-                node["reftarget"] = INCLUDED[target]
-                node["reftargetid"] = anchor or None
+                self._to_page(node, target, anchor)
             elif (ROOT / target).is_file():
                 fragment = f"#{anchor}" if anchor else ""
                 reference = nodes.reference(
@@ -353,6 +362,30 @@ class RootFileLinks(SphinxPostTransform):
                 )
                 reference.extend(node.children)
                 node.replace_self(reference)
+        self._blob_links()
+
+    def _blob_links(self) -> None:
+        """Turn a BLOB link to an included file into a link to its page.
+
+        myst made each BLOB link an external reference: one naming an
+        included file becomes the xref myst makes from a relative link,
+        which myst's resolver then renders alike.
+        """
+        for node in list(self.document.findall(nodes.reference)):
+            url, _, anchor = node.get("refuri", "").partition("#")
+            target = url.removeprefix(BLOB)
+            if target == url or target not in INCLUDED:
+                continue
+            xref = pending_xref(
+                "",
+                nodes.inline("", "", *node.children, classes=["xref", "myst"]),
+                reftype="myst",
+                refexplicit=True,
+                refdoc=self.env.docname,
+            )
+            xref.source, xref.line = node.source, node.line
+            self._to_page(xref, target, anchor)
+            node.replace_self(xref)
 
 
 def setup(app: Sphinx) -> None:

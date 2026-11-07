@@ -1271,8 +1271,8 @@ this grep exits 0:
 grep -rn 'href="#\.\.\?/' docs/build/html --include='*.html'
 ```
 
-A link between the root markdown files — `./SECURITY.md` in README.md, the
-spelling GitHub and PyPI need and the one lychee checks — is
+A link between the root markdown files — `./SECURITY.md` in
+CONTRIBUTING.md, the spelling GitHub needs and the one lychee checks — is
 one sphinx cannot resolve on its own, and what MyST emits for a target it
 cannot resolve is a warning, before falling back to an anchor on the page it
 is already on. `docs/source/conf.py` resolves those links and suppresses no

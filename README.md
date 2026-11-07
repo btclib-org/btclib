@@ -71,8 +71,8 @@ Ferdinando Ametrano's
 course, it is used in production today (still marked as beta
 because it is often refactored for improved clarity — [CONTRIBUTING.md's
 *Breaking a caller is not an
-argument*](./CONTRIBUTING.md#breaking-a-caller-is-not-an-argument) says
-what that promises a caller and what it does not).
+argument*](https://github.com/btclib-org/btclib/blob/main/CONTRIBUTING.md#breaking-a-caller-is-not-an-argument)
+says what that promises a caller and what it does not).
 
 The test suite covers virtually the whole code base, a floor the build
 enforces, and it answers to vectors their authors publish: the BIPs' own
@@ -227,18 +227,18 @@ build renders this README with myst, which mints no heading ids, so a
 fragment naming one is an unresolved reference and fails sphinx-build -W.
 The section is named in the prose instead, which costs the reader one
 scroll and the build nothing. -->
-[SECURITY](./SECURITY.md)'s "Limitations, not vulnerabilities" states each
-condition exactly — which arguments delegate, which do not, and what the
-Python path does hide — and is the canonical text; this section is the
-pointer to it.
+[SECURITY](https://github.com/btclib-org/btclib/blob/main/SECURITY.md)'s
+"Limitations, not vulnerabilities" states each condition exactly — which
+arguments delegate, which do not, and what the Python path does hide —
+and is the canonical text; this section is the pointer to it.
 
 ---
 
 ## Module layout
 
-[ARCHITECTURE](./ARCHITECTURE.md) is the design: which module holds what,
-the import edges the tests hold, and the two arithmetic paths behind
-secp256k1.
+[ARCHITECTURE](https://github.com/btclib-org/btclib/blob/main/ARCHITECTURE.md)
+is the design: which module holds what, the import edges the tests hold,
+and the two arithmetic paths behind secp256k1.
 
 ---
 
@@ -264,11 +264,15 @@ PowerShell, `source venv_btclib/Scripts/activate` in Git bash.
 Development is LLM-based: humans are welcome, as long as they are
 comfortable with agentic development ;-). A contribution must have been
 read and understood by the person who submits it.
-[`CONTRIBUTING.md`](./CONTRIBUTING.md#working-with-an-llm) has the rules.
+[`CONTRIBUTING.md`](https://github.com/btclib-org/btclib/blob/main/CONTRIBUTING.md#working-with-an-llm)
+has the rules.
 
-[CONTRIBUTING](./CONTRIBUTING.md) is for development,
-[REVIEWING](./REVIEWING.md) for what a pull request is answered against,
-[SECURITY](./SECURITY.md) for reporting a vulnerability.
+[CONTRIBUTING](https://github.com/btclib-org/btclib/blob/main/CONTRIBUTING.md)
+is for development,
+[REVIEWING](https://github.com/btclib-org/btclib/blob/main/REVIEWING.md)
+for what a pull request is answered against,
+[SECURITY](https://github.com/btclib-org/btclib/blob/main/SECURITY.md)
+for reporting a vulnerability.
 
 How the organization decides, and who holds which role, is its
 [GOVERNANCE.md](https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md);

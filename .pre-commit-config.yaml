@@ -520,6 +520,18 @@ repos:
         entry: |-
           (?<![\x60!\[])(?:!?\[(?:[^]]|\]\([^)]*\))*\]\(|^\x20{0,3}\[[^]]+\]:\s*)(?!\.\.?/|#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]
         types: [markdown]
+        exclude: ^README\.md$
+      # the root README.md is the package's page on the index, where a
+      # relative link reaches nothing: section 2 of the organization
+      # standard is the rule. The pattern above with "./" and "../" no
+      # longer admitted, its backtick "\x60" for the reason given there
+      - id: readme-absolute-link
+        name: the root README.md links a file of the tree absolutely
+        language: pygrep
+        entry: |-
+          (?<![\x60!\[])(?:!?\[(?:[^]]|\]\([^)]*\))*\]\(|^\x20{0,3}\[[^]]+\]:\s*)(?!#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]
+        files: ^README\.md$
+        types: [markdown]
       # a line that ends inside a word, at that word's own hyphen.
       # Section 4 of the organization standard is the rule: what such a
       # line renders as, why nothing else here catches it, what this
