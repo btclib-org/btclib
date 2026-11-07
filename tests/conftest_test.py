@@ -475,12 +475,13 @@ def test_cov_is_not_the_last_token_of_addopts() -> None:
     """`--cov` last in addopts eats the first argument of the command.
 
     It takes an optional value, so as the final token it is handed
-    whatever the command line goes on to say: `pytest
-    tests/ecc/dsa_test.py` became `--cov=tests/ecc/dsa_test.py`, leaving
-    no path to select on. The whole suite then ran, measured a directory
-    `omit` excludes, and reported 0.00% against a `fail_under` of 100 --
-    which is how the regtest job, whose command is `pytest
-    tests/integration`, went red on a branch that had touched none of it.
+    whatever the command line goes on to say. When this was found,
+    `pytest tests/ecc/dsa_test.py`, a module this tree no longer has,
+    became `--cov=tests/ecc/dsa_test.py`, leaving no path to select on.
+    The whole suite then ran, measured a directory `omit` excludes, and
+    reported 0.00% against a `fail_under` of 100 -- which is how the
+    regtest job, whose command is `pytest tests/integration`, went red on
+    a branch that had touched none of it.
 
     `pytest -q tests/...` hides it, a token starting with `-` not being
     consumed, so the habitual spelling is green and the documented one is

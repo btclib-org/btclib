@@ -846,11 +846,10 @@ repos:
   # catches the stale lock in the same run, but only after this one has
   # already produced a verdict on the wrong environment, and the lint
   # workflow runs this file, so CI inherits that.
-  # .github/scripts is in the scope because what lives there imports btclib
-  # and no test collects it: the smoke script needs a node, so a workflow
-  # dispatch is the only thing that runs it, and strict mode is the whole of
-  # what reads it in between. A bound method used as a truth value is what
-  # that buys -- in a script of checks, a check that cannot fail.
+  # .github/scripts is in the scope because the workflows run what lives
+  # there, and strict mode holds it to the types src/btclib and tests are
+  # held to. A bound method used as a truth value is what that buys -- in a
+  # script of checks, a check that cannot fail.
   - repo: local
     hooks:
       - id: mypy

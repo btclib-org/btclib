@@ -224,20 +224,19 @@ def replace_unchecked(instance: Any, **changes: Any) -> Any:
 
 
 # --------------------------------------------------------------------------
-# One key pair's spellings, shared by `ecc/dsa_test.py` and `hashes_test.py`.
+# One key pair's spellings, which `hashes_test.py` reads.
 #
 # Built inside a function rather than at module scope: this package is
 # imported by every test module before that module's own body runs, so a
 # value computed here at import time would run inside every module's own
 # measured reach. `key_pair_spellings` below is not called until
-# `ecc/dsa_test.py` or `hashes_test.py` calls it, so a module that asks no
-# question about a key pair never reaches the curve arithmetic that builds
-# one (issue #2120).
+# `hashes_test.py` calls it, so a module that asks no question about a key
+# pair never reaches the curve arithmetic that builds one (issue #2120).
 # --------------------------------------------------------------------------
 
 
 class KeyPairSpellings(NamedTuple):
-    """One key pair, in every spelling ecc/dsa_test.py and hashes_test.py read.
+    """One key pair, in every spelling hashes_test.py reads.
 
     The WIF and the xprv are here for the refusals alone: `ecc` takes a
     scalar and a point, and a spelling that carries a network is read
