@@ -19,6 +19,20 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.11.7
+
+- **btclib requires `ecc` 2026.11.2** (closes #2896). Act on it if you pin
+  `ecc` below 2026.11.2.
+
+### Breaking changes
+
+- **`ScriptFlag.DISCOURAGE_UPGRADABLE_TAPROOT_VERSION` is `1 << 18` and
+  `ScriptFlag.DISCOURAGE_UPGRADABLE_PUBKEYTYPE` is `1 << 20`**, Bitcoin Core's
+  bits, where each held the other's (closes #2770). `ScriptFlag(n)` for a Core
+  mask `n` reads them as Core does. Act on it if you build a `ScriptFlag` from
+  an integer built from btclib's old values, or unpickle one pickled by an
+  earlier release: build it from the member names.
+
 ## v2026.11.2
 
 - **btclib-wallet 2026.10.29 breaks against this release.** Its `wallet`,
