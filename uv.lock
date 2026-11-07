@@ -348,7 +348,7 @@ wheels = [
 
 [[package]]
 name = "btclib"
-version = "2026.11.7"
+version = "2026.12"
 source = { editable = "." }
 dependencies = [
     { name = "ecc" },
