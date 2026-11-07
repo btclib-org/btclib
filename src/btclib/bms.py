@@ -128,7 +128,13 @@ from ecc.exceptions import EccRuntimeError
 
 from btclib.alias import BinaryData, Octets, String
 from btclib.b32 import is_segwit_prefixed, p2wpkh, witness_from_address
-from btclib.b58 import h160_from_address, p2pkh, p2wpkh_p2sh, wif_from_prv_key
+from btclib.b58 import (
+    h160_from_address,
+    p2pkh,
+    p2wpkh_p2sh,
+    prv_key_data_from_wif,
+    wif_from_prv_key,
+)
 from btclib.base58 import decode as b58decode
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160, magic_message
@@ -290,15 +296,26 @@ def gen_keys(network: str = "mainnet", compressed: bool = True) -> tuple[str, st
     return wif, p2pkh(PubKeyData(sec, network, check_validity=False))
 
 
-def sign(msg: Octets, prv_key: PrvKeyData, addr: String | None = None) -> Sig:
+def sign(msg: Octets, prv_key: PrvKeyData | str, addr: String | None = None) -> Sig:
     """Generate address-based compact signature for the provided message.
 
-    The key is the parsed form and not a spelling of one. What signs is
-    the scalar, and what names the address is the network and the
-    compression flag beside it -- the three a WIF carries, which
-    `b58.prv_key_data_from_wif` reads once, and which a caller holding a
-    scalar states with `PrvKeyData(q, network, compressed)`.
+    The key is a `key.PrvKeyData`, or a WIF as a `str`, which
+    `b58.prv_key_data_from_wif` reads into one: the WIF `gen_keys`
+    returns signs as it is. What signs is the scalar, and what names the
+    address is the network and the compression flag beside it -- the
+    three a WIF carries, and which a caller holding a scalar states with
+    `PrvKeyData(q, network, compressed)`.
+
+    A regtest WIF carries testnet's prefix and reads as a testnet key, so
+    it signs for its p2wpkh address only once parsed with its network:
+    `b58.prv_key_data_from_wif(wif, "regtest")`.
+
+    Any other type is refused, bytes and a bare scalar included: in this
+    library those spell a scalar, which carries neither the network nor
+    the compression.
     """
+    if isinstance(prv_key, str):
+        prv_key = prv_key_data_from_wif(prv_key)
     # asked here whatever `check_validity` the object was built with: a
     # key the constructor was told not to check is one a caller may hold
     assert_type(prv_key, PrvKeyData, "prv_key")

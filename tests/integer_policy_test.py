@@ -130,9 +130,9 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     # test apiece. The address builders are not among
     # them: they take a `PubKeyData` and refuse a bool through
     # `assert_type`, as any other wrong type, and `bms.sign` likewise
-    # takes a `PrvKeyData` and refuses one through `assert_type` (issue
-    # #1188) -- refusals `built_object_contract_test.py` and
-    # `key_test.py` hold, not this census
+    # takes a `PrvKeyData` or a WIF `str` and refuses one through
+    # `assert_type` (issue #1188) -- refusals `built_object_contract_test.py`,
+    # `key_test.py` and `schemes/bms_test.py` hold, not this census
     ("integer coercion", int_from_integer),
     ("hex string", hex_string),
     ("WIF private key", wif_from_prv_key),

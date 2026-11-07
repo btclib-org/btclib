@@ -30,7 +30,7 @@ from ecc.exceptions import EccRuntimeError, EccValueError
 from btclib import b32, b58, bms
 from btclib.alias import Point
 from btclib.b58 import h160_from_address
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError, NotAPrvKeyError
 from btclib.hashes import magic_message
 from btclib.key import PrvKeyData, PubKeyData
 from tests import (
@@ -1472,6 +1472,46 @@ def test_a_drawn_key_takes_the_network_it_is_asked_for() -> None:
     assert addr == b58.p2pkh(b58.prv_key_data_from_wif(wif).pub)
     # and the default, which is the same call with the name left out
     assert b58.prv_key_data_from_wif(bms.gen_keys()[0]).network == "mainnet"
+
+
+def test_the_wif_gen_keys_returns_signs_as_it_is() -> None:
+    """`sign` reads a WIF `str` as `b58.prv_key_data_from_wif` does.
+
+    Issue 2936's reproduction: `gen_keys`, then `sign`, then `verify`.
+    """
+    msg = b"Viva Bitcoin!"
+    wif, addr = bms.gen_keys()
+    sig = bms.sign(msg, wif)
+    assert bms.verify(msg, addr, sig)
+    assert sig == bms.sign(msg, b58.prv_key_data_from_wif(wif))
+    # the address is checked against the key the WIF names
+    assert sig == bms.sign(msg, wif, addr)
+    _other_wif, other_addr = bms.gen_keys()
+    with pytest.raises(BTClibValueError, match="mismatch between private key"):
+        bms.sign(msg, wif, other_addr)
+
+    # a str that is no WIF is the parser's refusal
+    with pytest.raises(NotAPrvKeyError):
+        bms.sign(msg, "not a wif")
+
+    # bytes and a bare scalar spell a scalar here, not a WIF; a bool is
+    # an int, and refused as one
+    wif_bytes = wif.encode("ascii")
+    for prv_key in (wif_bytes, bytearray(wif_bytes), 1, True, None):
+        with pytest.raises(BTClibTypeError, match="invalid prv_key type: "):
+            bms.sign(msg, prv_key)  # type: ignore[arg-type]
+
+
+def test_a_regtest_wif_signs_for_its_p2wpkh_address_once_parsed() -> None:
+    """A regtest WIF reads as testnet, whose bech32 prefix is not regtest's."""
+    msg = b"regtest"
+    wif, _addr = bms.gen_keys("regtest")
+    prv_key = b58.prv_key_data_from_wif(wif, "regtest")
+    addr = b32.p2wpkh(prv_key.pub)
+    with pytest.raises(BTClibValueError, match="mismatch between private key"):
+        bms.sign(msg, wif, addr)
+    sig = bms.sign(msg, prv_key, addr)
+    assert bms.verify(msg, addr, sig)
 
 
 def test_verify_tells_a_malformed_argument_from_a_signature_that_fails() -> None:
