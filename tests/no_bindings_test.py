@@ -93,7 +93,7 @@ sys.meta_path.insert(0, RefuseTheBindings())
 
 import btclib
 from ecc.curves import is_libsecp256k1_serving, mult
-from btclib.ecc import ellswift
+from btclib import ellswift
 from ecc.ecc import dh, dsa, ssa
 from btclib.script import taproot
 from btclib.script.engine import script as engine_script
@@ -152,9 +152,9 @@ def test_btclib_answers_with_the_bindings_out_of_reach() -> None:
     The child imports modules beyond the ones it then calls:
     `src/btclib/__init__.py` imports nothing eagerly, so `import btclib` is
     the metadata lookup and no module at all. `ecc.ecc.dh`,
-    `btclib.ecc.ellswift`, `script.taproot` and `script.engine.tapscript`
-    are the ones the calls below would not reach on their own, and each
-    has to import without the bindings.
+    `btclib.ellswift`, `script.taproot` and `script.engine.tapscript` are
+    the ones the calls below would not reach on their own, and each has to
+    import without the bindings.
     """
     # the same question this process answers with the bindings serving
     assert importlib.util.find_spec("btclib_secp256k1") is not None

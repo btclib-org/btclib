@@ -32,8 +32,8 @@ from ecc.exceptions import (
     EccValueError,
 )
 
+from btclib import bms
 from btclib.block import Block, BlockHeader, PartialMerkleTree
-from btclib.ecc import bms
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.key import PrvKeyData
 from btclib.p2p import (

@@ -44,7 +44,7 @@ from cryptography.hazmat.primitives.ciphers.algorithms import ChaCha20
 from ecc.kdf import hkdf_expand, hkdf_extract
 
 from btclib.alias import Integer, Octets
-from btclib.ecc.ellswift import xdh
+from btclib.ellswift import xdh
 from btclib.exceptions import BTClibValueError
 from btclib.p2p.message import _command_from_bytes
 from btclib.utils import assert_type, bytes_from_octets

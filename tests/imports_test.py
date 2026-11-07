@@ -327,24 +327,22 @@ def _assert_stays_within(entry_point: str, allowed_btclib_modules: set[str]) -> 
     assert not set(loaded) & set(_HEAVY_MODULES)
 
 
-# the units `btclib.ecc` may load: itself, and the substrate
-# `btclib.ecc.ellswift.xdh` reads its octets with
-_ECC_UNITS = frozenset({"ecc", "alias", "exceptions", "utils"})
+def test_ellswift_stays_stdlib_light() -> None:
+    """`btclib.ellswift` loads the substrate and itself, nothing else.
 
-
-def test_ecc_stays_stdlib_light() -> None:
-    """`btclib.ecc` loads the substrate and itself, nothing else.
-
-    `ecc/__init__.py` imports `ellswift` eagerly, so this is the whole of
-    the package as a caller gets it, and `bms` is asserted absent from it.
+    `xdh` reads its octets with the substrate, and `bms`, which reaches
+    `b32`, `b58`, `key` and `network`, is not among what it loads.
     """
-    loaded = _loaded_after_importing("btclib.ecc")
-    # the package itself is loaded under any of its modules
-    btclib_loaded = {m for m in loaded if _is_btclib(m) and m != "btclib"}
-    assert "btclib.ecc.ellswift" in btclib_loaded
-    assert "btclib.ecc.bms" not in btclib_loaded
-    assert sorted(m for m in btclib_loaded if m.split(".")[1] not in _ECC_UNITS) == []
-    assert not set(loaded) & set(_HEAVY_MODULES)
+    _assert_stays_within(
+        "btclib.ellswift",
+        {
+            "btclib",
+            "btclib.alias",
+            "btclib.exceptions",
+            "btclib.utils",
+            "btclib.ellswift",
+        },
+    )
 
 
 def test_the_codecs_stay_stdlib_light() -> None:

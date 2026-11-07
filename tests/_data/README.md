@@ -232,7 +232,7 @@ repository is LF throughout, which `mixed-line-ending` enforces with
 `tests/schemes/ellswift_test.py` reads the columns of the x-only ECDH --
 `in_priv_ours`, `in_ellswift_ours`, `in_ellswift_theirs`,
 `in_initiating`, `mid_x_shared` and `mid_shared_secret` -- and holds
-`btclib.ecc.ellswift.xdh` to every row on the bindings and on the Python
+`btclib.ellswift.xdh` to every row on the bindings and on the Python
 arithmetic. `mid_x_ours` and `mid_x_theirs` are the x-coordinates the
 encodings decode to, a question for ecc's map, and are not
 asserted. `tests/p2p/bip324_test.py` reads the session id, the garbage

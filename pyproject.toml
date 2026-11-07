@@ -1326,12 +1326,11 @@ ignore = [
 # preview mode's undefined-export does not special-case a module-level
 # __getattr__ (astral-sh/ruff#18504, open): these modules publish this
 # way, as each docstring says, and F822 sees no import to bind the name
-# to. btclib, btclib.ecc and btclib.script publish submodules.
+# to. btclib and btclib.script publish submodules.
 # tests/all_test.py already walks `__all__` with getattr and fails on the
 # same drift this rule would catch, so nothing here goes unchecked while
 # the upstream rule does not know the pattern
 "src/btclib/__init__.py" = ["F822"]
-"src/btclib/ecc/__init__.py" = ["F822"]
 "src/btclib/script/__init__.py" = ["F822"]
 # T20 is selected for the library, which writes to no stream of its own;
 # a script whose caller is a workflow step is the case it is not about.

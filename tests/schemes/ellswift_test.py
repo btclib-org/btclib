@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Tests for the `btclib.ecc.ellswift` module's own `xdh`.
+"""Tests for the `btclib.ellswift` module's own `xdh`.
 
 The encoding is ecc's, and its tests are that package's. What
 is btclib's is BIP324's x-only ECDH over two encodings. It is held to
@@ -21,7 +21,7 @@ import pytest
 from ecc.curves import CURVES, mult, secp256k1
 from ecc.ecc import ellswift as ecc_ellswift
 
-from btclib.ecc import ellswift
+from btclib import ellswift
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from tests import needs_bindings, no_bindings_anywhere, vector_id
 

@@ -25,8 +25,7 @@ from ecc.ecc import dsa
 from ecc.ecc import ellswift as ecc_ellswift
 from ecc.exceptions import EccException
 
-from btclib import exceptions
-from btclib.ecc import ellswift
+from btclib import ellswift, exceptions
 from btclib.exceptions import (
     BTClibException,
     BTClibRuntimeError,

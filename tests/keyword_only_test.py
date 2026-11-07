@@ -89,12 +89,12 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.block:PartialMerkleTree.from_txids": ["check_validity"],
     "btclib.block:PartialMerkleTree.parse": ["check_validity"],
     "btclib.block:PartialMerkleTree.serialize": ["check_validity"],
-    "btclib.ecc.bms:Sig.__init__": ["check_validity"],
-    "btclib.ecc.bms:Sig.b64decode": ["check_validity"],
-    "btclib.ecc.bms:Sig.b64encode": ["check_validity"],
-    "btclib.ecc.bms:Sig.parse": ["check_validity"],
-    "btclib.ecc.bms:Sig.serialize": ["check_validity"],
-    "btclib.ecc.bms:message_verify": ["network"],
+    "btclib.bms:Sig.__init__": ["check_validity"],
+    "btclib.bms:Sig.b64decode": ["check_validity"],
+    "btclib.bms:Sig.b64encode": ["check_validity"],
+    "btclib.bms:Sig.parse": ["check_validity"],
+    "btclib.bms:Sig.serialize": ["check_validity"],
+    "btclib.bms:message_verify": ["network"],
     "btclib.fee:FeeRate.__init__": ["sats_per_kvbyte"],
     "btclib.fee:FeeRate.from_btc_per_kvbyte": ["round_up"],
     "btclib.fee:FeeRate.from_sats_per_vbyte": ["round_up"],
@@ -268,8 +268,8 @@ def _resolve(label: str) -> Any:
     """Import `module:Class.method` or `module:function` back to the object.
 
     The colon is the split point rather than the last dot: a module name
-    is dotted too (`btclib.ecc.bms`), so the pair is stored apart instead
-    of concatenated and re-split.
+    is dotted too (`btclib.bms`), so the pair is stored apart instead of
+    concatenated and re-split.
     """
     module_name, _, attr_path = label.partition(":")
     obj: Any = import_module(module_name)

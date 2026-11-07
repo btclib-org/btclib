@@ -2,4 +2,4 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Non-regression tests for btclib.ecc."""
+"""Non-regression tests for btclib.bms and btclib.ellswift."""

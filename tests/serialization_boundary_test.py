@@ -84,9 +84,8 @@ from typing import Any
 
 import pytest
 
-from btclib import var_bytes, var_int
+from btclib import bms, var_bytes, var_int
 from btclib.block import BasicBlockFilter, Block, BlockHeader, PartialMerkleTree
-from btclib.ecc import bms
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS, Network
 from btclib.p2p import (

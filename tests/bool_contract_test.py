@@ -78,9 +78,8 @@ import pytest
 from ecc.ecc import dsa, ssa
 from ecc.hashes import reduce_to_hlen
 
-from btclib import b58
+from btclib import b58, bms
 from btclib.block import merkle_proof
-from btclib.ecc import bms
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.script.engine import script as engine_script
 from btclib.script.engine import tapscript as engine_tapscript

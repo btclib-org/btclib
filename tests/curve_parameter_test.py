@@ -68,8 +68,8 @@ import pytest
 from ecc.curves import Curve, CurveGroup, mult, secp256k1
 from ecc.ecc import ellswift as ecc_ellswift
 
+from btclib import ellswift
 from btclib.consensus import CONSENSUS_PARAMS
-from btclib.ecc import ellswift
 from btclib.exceptions import BTClibTypeError
 from btclib.network import NETWORKS, Network
 
@@ -120,7 +120,7 @@ class _Case:
 
 _CASES = (
     _Case(
-        "btclib.ecc.ellswift.xdh",
+        "btclib.ellswift.xdh",
         ellswift.xdh,
         {"ell_a": _ELL, "ell_b": _ELL_2, "prv_key": _PRV_KEY, "party": 0},
     ),
@@ -251,9 +251,9 @@ def test_the_walk_reaches_what_it_claims() -> None:
     """
     found = _curve_parameters()
     # a defaulted ec, and a constructor's spelled `curve`
-    assert "btclib.ecc.ellswift.xdh" in found
+    assert "btclib.ellswift.xdh" in found
     assert "btclib.network.Network.__init__" in found
 
     # a private function taking an ec, and one with no ec at all
-    assert "btclib.ecc.ellswift._ell_from_octets" not in found
+    assert "btclib.ellswift._ell_from_octets" not in found
     assert "btclib.hashes.sha256" not in found

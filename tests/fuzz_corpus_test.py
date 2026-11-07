@@ -206,11 +206,10 @@ def _canonical_spec(module: str, remote: str, attr: str) -> str:
     """Return "module:Qual.name", telling a submodule bind from a class one.
 
     `from btclib import var_bytes; var_bytes.parse(...)` binds a module,
-    where `parse` is that module's own function; `from btclib.ecc.bms
-    import Sig; Sig.b64decode(...)` binds a class, where `b64decode` is a
-    method on it. Trying the submodule import is what
-    tells the two apart, both being an ordinary `from X import Y` to the
-    AST alone.
+    where `parse` is that module's own function; `from btclib.bms import
+    Sig; Sig.b64decode(...)` binds a class, where `b64decode` is a method
+    on it. Trying the submodule import is what tells the two apart, both
+    being an ordinary `from X import Y` to the AST alone.
     """
     try:
         importlib.import_module(f"{module}.{remote}")
@@ -596,7 +595,7 @@ def test_round_trip_of_a_b64decode_entry_point() -> None:
     No harness declares a b64decode entry point, so both branches are
     exercised on bare objects rather than on any seed.
     """
-    spec = "btclib.ecc.bms:Sig.b64decode"
+    spec = "btclib.bms:Sig.b64decode"
     assert _round_trip(spec, _Armored(), b"YQ==") is True
     assert _round_trip(spec, _Armored(), b"Yg==") is False
     assert _round_trip(spec, object(), b"") is None

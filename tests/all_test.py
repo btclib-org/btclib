@@ -38,7 +38,6 @@ import ecc.alias
 import pytest
 
 import btclib
-import btclib.ecc
 import btclib.script
 from btclib import consensus
 from btclib.script import script_pub_key
@@ -144,10 +143,6 @@ CHILD_MODULES = {
             "partial_merkle_tree",
         ],
     },
-    "btclib.ecc": {
-        "groups": ["bms", "ellswift"],
-        "unpublished": [],
-    },
     "btclib.p2p": {
         "groups": [],
         "unpublished": [
@@ -217,7 +212,7 @@ def library_modules() -> list[ModuleType]:
     Found rather than listed: one added to btclib is one these tests ask
     about, and the walk is the whole tree rather than the top level, the
     packages having submodules a caller reaches by name --
-    `btclib.ecc.bms`, `btclib.script.sig_hash` -- and a command line
+    `btclib.block.mining`, `btclib.script.sig_hash` -- and a command line
     reaching them through `__all__` alone.
 
     `btclib._ripemd160` is out, and so is anything under a private name: a
@@ -292,29 +287,6 @@ def defined_public_names(module: ModuleType) -> set[str]:
         and name not in imported
         and not isinstance(value, ModuleType)
     }
-
-
-def test_ecc_exports_the_two_schemes_that_are_bitcoins() -> None:
-    """Guards against `bms` and `ellswift` dropping out of the export list.
-
-    The curve arithmetic and every other scheme are `ecc`'s, and a
-    name added here for one of them is the re-export this package does
-    not make.
-    """
-    assert sorted(btclib.ecc.__all__) == ["bms", "ellswift"]
-
-    # importing the package is enough to reach them, which is the point:
-    # guards against btclib.ecc.ellswift raising AttributeError until
-    # something else in the process happens to import the submodule
-    for name in ("bms", "ellswift"):
-        module = getattr(btclib.ecc, name)
-        assert module.__name__ == f"btclib.ecc.{name}"
-
-    # bms is the one scheme the package imports on demand (issue #2282):
-    # offered to a prompt like the other, and no answer for anything else
-    assert set(btclib.ecc.__all__) <= set(dir(btclib.ecc))
-    with pytest.raises(AttributeError, match="has no attribute 'bmss'"):
-        _ = btclib.ecc.bmss
 
 
 def test_script_exports_both_halves_of_every_pair() -> None:
@@ -399,12 +371,12 @@ def test_every_exported_name_exists() -> None:
 def test_no_module_exports_a_name_it_imported() -> None:
     """A module exports what it defines, which is what packages do not.
 
-    A package's `__all__` is re-export by design -- `btclib.ecc` names
-    `bms`, defined a module away -- and for a module the same thing is a
-    leak: `Octets` reached through `btclib.b58` is that module's import
-    section, where `btclib.alias.Octets` is the name a caller wants. A
-    module with a reason to re-export something is a conversation to have
-    with this test, not around it.
+    A package's `__all__` is re-export by design -- `btclib.script` names
+    `taproot`, defined a module away -- and for a module the same thing
+    is a leak: `Octets` reached through `btclib.b58` is that module's
+    import section, where `btclib.alias.Octets` is the name a caller
+    wants. A module with a reason to re-export something is a
+    conversation to have with this test, not around it.
 
     `REEXPORTED` is that conversation, one name-to-canonical mapping per
     re-exporting module, and the comment above it gives each one's reason.
@@ -508,10 +480,10 @@ def test_the_export_tree_is_walkable_to_its_leaves() -> None:
     exports no command line should offer as well as of every other.
 
     A module-valued export is also checked to be a submodule of the module
-    exporting it: `btclib.ecc.bms` is `btclib.ecc`'s to publish, and a
-    module from somewhere else in the tree would make the path a caller
-    reads off the walk -- `btclib ecc bms sign` -- name something the
-    import does not.
+    exporting it: `btclib.script.sig_hash` is `btclib.script`'s to
+    publish, and a module from somewhere else in the tree would make the
+    path a caller reads off the walk -- `btclib script sig_hash legacy` --
+    name something the import does not.
     """
     seen = {btclib.__name__}
     frontier = [btclib]
