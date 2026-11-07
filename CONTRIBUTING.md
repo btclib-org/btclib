@@ -1660,13 +1660,13 @@ the classes it holds for.
 
 ### A `_var` suffix means the operand decides the work
 
-A function ends in `_var` when the value of a valid operand decides its
-work: through a loop of its own whose count follows it, through an early
-exit taken on it, or through a `_var` function it applies to that operand
-and that is the bulk of its work. A branch that only refuses an invalid
-operand, or answers a degenerate or special case outright, such as the
-group law's doubling, does not count. The curve, and a format parameter
-the output states, are not operands.
+A function's name ends in `_var`, before any trailing underscore, when the
+value of a valid operand decides its work: through a loop of its own whose
+count follows it, through an early exit taken on it, or through a `_var`
+function it applies to that operand and that is the bulk of its work. A
+branch that only refuses an invalid operand, or answers a degenerate or
+special case outright, such as the group law's doubling, does not count.
+The curve, and a format parameter the output states, are not operands.
 
 Some loops do not count either. A loop whose extra rounds only discard a
 candidate, such as a nonce function's rejection loop, tells nothing about
@@ -1765,8 +1765,27 @@ Three tiers of duration follow, of which only the first is constant-time:
 So **a secret takes the plain name and a public value takes the `_var`
 one**, which is the opposite of an optimization default and is meant to
 be: the fail-safe direction is that forgetting to choose gives the slower
-and safer call. A reviewer should be able to tell which is which without
-tracing where each value came from.
+and safer call.
+
+**An integer whose value decides the work is `Public`**, which `ecc.alias`
+defines as `NewType("Public", int)`: a parameter of a `_var` function, and
+one of a function that keeps its plain name over variable-time work on it.
+A function whose variable-time call is one step among other work declares
+the value at that call, as `script.taproot.check_output_pubkey` does with
+the tweak it hands `ssa.pub_key_tweak_add_var`, and the curve's parameters
+are not operands. The strict mypy hook in `.pre-commit-config.yaml` refuses
+a plain `int` there, so the caller writes `Public(x)`, and that call is
+where `x` is declared public, as `secp256k1_declassify` marks memory no
+longer secret in libsecp256k1's constant-time analysis. A reviewer reads
+the declaration at the call site rather than tracing where the value came
+from.
+
+`tests/public_parameter_test.py` holds every parameter of a `_var`
+function annotated with `int` or `Integer` to the type, or to the reason
+it names why it is not `Public`; an alias under another name is not read.
+A plain-named function is not walked, and annotating it is the author's
+part. The type is an integer: for a point, octets or a key the suffix
+alone states the contract.
 
 Add the suffix when adding a function whose work follows the operand, and
 not where it does not: a suffix on everything says nothing about anything.

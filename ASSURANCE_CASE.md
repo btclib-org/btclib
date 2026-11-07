@@ -229,8 +229,10 @@ to, and what counters each.
   still accepted by its target.
 - **Uncontrolled resource consumption (CWE-400, CWE-770).** The bounds
   under *Trust boundaries*, read before anything is built.
-- **Observable timing (CWE-208).** The `_var` convention and the
-  delegation above; what is left is published in SECURITY.md.
+- **Observable timing (CWE-208).** The `_var` convention and its
+  `Public` type, which CONTRIBUTING.md's *A `_var` suffix means the
+  operand decides the work* states, and the delegation above; what is
+  left is published in SECURITY.md.
 - **Weak randomness (CWE-330, CWE-338).** Randomness comes from `secrets`
   (SECURITY.md), and ruff's flake8-bandit rules, selected with the rest
   of `ALL` in `pyproject.toml`, flag a call into the `random` module
