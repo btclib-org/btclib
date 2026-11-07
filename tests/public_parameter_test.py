@@ -30,8 +30,9 @@ from pathlib import Path
 _PACKAGE = Path(__file__).parents[1] / "src" / "btclib"
 
 _PUBLIC = {"Public", "Sequence[Public]"}
-# any annotation naming an integer that is not exactly `Public`: a union,
-# a container or an alias of one is walked too
+# any annotation naming `int` or `Integer` that is not exactly `Public`: a
+# union or a container of one is walked too, an alias under another name
+# is not
 _INTEGER = re.compile(r"\b(int|Integer)\b")
 
 # an integer parameter of a `_var` function that is not `Public`, by
@@ -40,7 +41,8 @@ _NOT_OPERANDS: dict[str, str] = {}
 
 # a function, a private one, a method, a sequence and a `_var_`, each with
 # a `Public` parameter; an `int` one; a plain name, which is not walked;
-# and an `int` parameter in each place a walk of the top level would miss
+# an `int` parameter in each place a walk of the top level would miss; and
+# an alias of `int` under another name, which the walk does not read
 _CONTROL = """
 def double_mult_var(u: Public, w: int) -> None: ...
 def _jacobi_var(a: Public) -> None: ...
@@ -58,6 +60,8 @@ async def async_var(a: int) -> None: ...
 def outer() -> None:
     def inner_var(a: int) -> None: ...
 def star_var(*n: int, **k: int) -> None: ...
+_Position = int
+def leaf_var(p: _Position) -> None: ...
 """
 
 _Function = ast.FunctionDef | ast.AsyncFunctionDef
@@ -169,8 +173,14 @@ def test_the_walk_reaches_what_it_claims() -> None:
     }
     # a plain name is not walked, an int operand of its own notwithstanding
     assert "control.mod_inv.a" not in found
+    # nor is an alias that does not spell `int` or `Integer`
+    assert "control.leaf_var.p" not in found
     ints = {name for name, annotation in found.items() if annotation == "int"}
     assert _unexplained(found, {}) == ints
     assert not _unexplained(found, dict.fromkeys(ints, "window"))
     reasons = {"control.double_mult_var.w": "window", "control._jacobi_var.a": "x"}
     assert _stale(found, reasons) == {"control._jacobi_var.a"}
+    # a reason naming no parameter at all is stale too
+    assert _stale(found, {"control.double_mult_var.v": "x"}) == {
+        "control.double_mult_var.v"
+    }
