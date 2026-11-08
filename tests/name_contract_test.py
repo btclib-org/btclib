@@ -174,6 +174,30 @@ def _answer(node: _Function, returns: ast.expr) -> str:
     return answer
 
 
+def _definitions_in(source: str) -> list[_Function]:
+    """Return each function of a module's body or of a class body.
+
+    A function inside another function is a local helper: no caller can
+    name it, so its name promises nothing. A class starts a body wherever
+    it sits, so a method of a class inside a function is returned.
+    """
+    found: list[_Function] = []
+
+    def visit(node: ast.AST, in_body: bool) -> None:
+        for child in ast.iter_child_nodes(node):
+            if in_body and isinstance(child, _Function):
+                found.append(child)
+            if isinstance(child, ast.ClassDef):
+                visit(child, in_body=True)
+            elif isinstance(child, _Function):
+                visit(child, in_body=False)
+            else:
+                visit(child, in_body)
+
+    visit(ast.parse(source), in_body=True)
+    return found
+
+
 def _named_in(module: str, source: str) -> dict[str, list[str]]:
     """Map each public name of a module that promises a type to its answers.
 
@@ -182,8 +206,8 @@ def _named_in(module: str, source: str) -> dict[str, list[str]]:
     other.
     """
     found: dict[str, list[str]] = {}
-    for node in ast.walk(ast.parse(source)):
-        if not isinstance(node, _Function) or node.name.startswith("_"):
+    for node in _definitions_in(source):
+        if node.name.startswith("_"):
             continue
         if _promised_by(node.name) is None:
             continue
@@ -419,8 +443,8 @@ def _public_bools_in(module: str, source: str) -> set[str]:
     alone, so one entry judges every definition under it.
     """
     found: set[str] = set()
-    for node in ast.walk(ast.parse(source)):
-        if not isinstance(node, _Function) or node.name.startswith("_"):
+    for node in _definitions_in(source):
+        if node.name.startswith("_"):
             continue
         if node.returns is not None and _answer(node, node.returns) == "bool":
             found.add(f"{module}.{node.name}")
@@ -750,9 +774,10 @@ def test_the_walk_reaches_both_shapes() -> None:
     assert "btclib.bms.verify" not in _ARGUMENT_LESS_BOOLS
 
 
-# an argument-less bool helper inside a method and inside an `async def`
-# method, which are no members, beside a class inside a method, whose
-# argument-less bool is one
+# bool helpers inside a method, inside an `async def` method and inside a
+# module function, the last two under a prefix: none is a member or
+# public. A class inside a method starts a body, and its argument-less
+# bool is both
 _NESTED_CONTROL = """
 class Tx:
     def size(self, a: int) -> int:
@@ -761,20 +786,27 @@ class Tx:
             def is_known(self) -> bool: ...
         return 0
     async def later(self) -> None:
-        def done() -> bool: ...
+        def is_done() -> bool: ...
+def build() -> None:
+    def is_empty() -> bool: ...
 """
 
 
-def test_a_helper_inside_a_method_is_no_member() -> None:
-    """A function inside a method is not a bool about the object.
+def test_a_nested_helper_is_neither_member_nor_public() -> None:
+    """A function inside another function is neither a member nor public.
 
-    No `@property` can make a local helper a read, so the walk records
-    only a `def` of a class body, as `_class_members_in` does.
+    No `@property` can make a local helper a read, so
+    `_argument_less_bools_in` and `_class_members_in` record only a `def`
+    of a class body. No caller can name one either, so `_public_bools_in`
+    and `_named_in` record only a `def` of a module's body or of a class
+    body.
     """
     argument_less = _argument_less_bools_in("control", _NESTED_CONTROL)
     assert argument_less == {"control.is_known": [False]}
     members = _class_members_in("control", _NESTED_CONTROL)
     assert members == {"control.Tx.size.Kind.is_known": [False]}
+    assert _public_bools_in("control", _NESTED_CONTROL) == {"control.is_known"}
+    assert _named_in("control", _NESTED_CONTROL) == {"control.is_known": ["bool"]}
 
 
 @pytest.mark.parametrize("dotted", sorted(_CLASS_MEMBERS))
