@@ -18,7 +18,7 @@ from btclib.block import BlockHeader
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, magic_message, siphash
 from btclib.utils import (
-    _message_hex,
+    _message_field,
     _message_text,
     assert_no_trailing,
     bytes_from_octets,
@@ -535,15 +535,17 @@ def test_a_json_number_is_no_string(text: str | bytes) -> None:
         BlockHeader(nonce=text, check_validity=False)  # type: ignore[arg-type]
 
 
-def test_a_message_quotes_an_int_str_can_write() -> None:
-    """Digits where `str()` writes them, sign and bit length where it cannot.
+def test_a_message_describes_every_int() -> None:
+    """Sign and bit length for every int, its digits for none.
 
+    An argument in the wrong place may be a key (issue #2998), and
     `str()` refuses an int past `sys.get_int_max_str_digits()` digits
     with ValueError, which a message quoting one would raise instead of
-    the refusal it was building (issue #2389).
+    the refusal it was building (issue #2389). A bool is no int here.
     """
-    assert _message_text(10**4000) == str(10**4000)
-    assert _message_text(-7) == "-7"
+    assert _message_text(10**4000) == "an int of 13288 bits"
+    assert _message_text(-7) == "a negative int of 3 bits"
+    assert _message_text(0) == "an int of 0 bits"
     assert _message_text(True) == "True"
     assert _message_text("1_0") == "1_0"
     assert _message_text(10**5000) == "an int of 16610 bits"
@@ -585,19 +587,16 @@ def test_a_message_describes_an_int_by_int_s_own_methods() -> None:
     assert _message_text(_UnorderedInt(10**5000)) == "an int of 16610 bits"
 
 
-def test_a_hex_message_quotes_an_int_str_can_write() -> None:
-    """Hex where `str()` writes the int, its description where it cannot.
-
-    Hex has no digit limit of its own, so the int `str()` refuses would
-    otherwise be written out in kilobytes (issue #2394).
-    """
-    assert _message_hex(255) == "0xff"
-    assert _message_hex(-255) == "-0xff"
-    assert _message_hex(10**4000) == hex(10**4000)
-    assert _message_hex(10**5000) == "an int of 16610 bits"
-    assert _message_hex(-(10**5000)) == "a negative int of 16610 bits"
-    assert _message_hex(1.5) == "1.5"
-    assert _message_hex(_Unwritable()) == "a _Unwritable str() cannot write"
+def test_a_field_message_writes_only_a_value_that_fits() -> None:
+    """The value where it fits the field, its description where it does not."""
+    assert _message_field(0, 8, "d") == "0"
+    assert _message_field(255, 8, "d") == "255"
+    assert _message_field(255, 8, "#x") == "0xff"
+    assert _message_field(256, 8, "d") == "an int of 9 bits"
+    assert _message_field(-1, 8, "d") == "a negative int of 1 bits"
+    assert _message_field(10**5000, 32, "#x") == "an int of 16610 bits"
+    assert _message_field(True, 8, "d") == "True"
+    assert _message_field(_UnorderedInt(-5), 8, "d") == "a negative int of 3 bits"
 
 
 class _UnformattableInt(int):
@@ -610,12 +609,12 @@ class _UnformattableInt(int):
         raise RuntimeError
 
 
-def test_a_hex_message_reads_an_int_through_int_s_own_methods() -> None:
+def test_a_field_message_reads_an_int_through_int_s_own_methods() -> None:
     """A subclass overriding what formats it is written all the same."""
-    # the overrides do raise, so a hex message reaching them would too
+    # the overrides do raise, so a field message reaching them would too
     with pytest.raises(RuntimeError):
         format(_UnformattableInt(255), "#x")
     with pytest.raises(RuntimeError):
         repr(_UnformattableInt(255))
-    assert _message_hex(_UnformattableInt(255)) == "0xff"
-    assert _message_hex(_UnformattableInt(10**5000)) == "an int of 16610 bits"
+    assert _message_field(_UnformattableInt(255), 8, "#x") == "0xff"
+    assert _message_field(_UnformattableInt(256), 8, "d") == "an int of 9 bits"

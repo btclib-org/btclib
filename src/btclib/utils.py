@@ -195,8 +195,20 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     if size in sizes:
         return octets
 
-    err_msg = f"invalid size: {size} bytes instead of {_message_text(out_size)}"
+    err_msg = f"invalid size: {size} bytes instead of {_sizes_text(sizes)}"
     raise BTClibValueError(err_msg)
+
+
+def _sizes_text(sizes: tuple[int, ...]) -> str:
+    """Return the sizes octets were expected to have, for a refusal's message.
+
+    A size is the library's constant or the caller's `out_size`, and no
+    field of a format, so it is written in full only where it fits four
+    bytes, through `_message_field`, and described otherwise. One size
+    stands alone, any other count of them in parentheses.
+    """
+    text = ", ".join(_message_field(size, 32, "d") for size in sizes)
+    return text if len(sizes) == 1 else f"({text})"
 
 
 def str_from_string(s: String, what: str) -> str:
@@ -330,24 +342,50 @@ def assert_no_trailing(data: BinaryData, stream: BytesIO, what: str) -> None:
 def _message_text(value: object) -> str:
     """Return the text of a value for a refusal's message, never raising.
 
-    `str()` of an int past `sys.get_int_max_str_digits()` digits, 4300 by
-    default, raises ValueError, and so does `str()` of what is written
-    with such an int, a Fraction for one; a `__str__` of the caller's own
-    can raise anything. A message quoting such a value would leave
+    An int, a bool excepted, is described by its sign and bit length and
+    never written out, in decimal or in hex: an argument in the wrong
+    place may be a key, and section 7 of the btclib-org standard, *A
+    refusal carries no secret*, lets a refusal print its length and not
+    its digits. `_message_field` is the exception, for a field the
+    format defines.
+
+    Anything else is quoted as `str()` writes it. `str()` of what is
+    written with an int past `sys.get_int_max_str_digits()` digits, a
+    Fraction for one, raises ValueError, and a `__str__` of the caller's
+    own can raise anything. A message quoting such a value would leave
     through the refusal it was building, as that error rather than this
-    library's. So a value `str()` cannot write is described and not
-    quoted: an int by its sign and bit length, anything else by its type
+    library's. So a value `str()` cannot write is described by its type
     name, never by its text.
     """
+    if isinstance(value, int) and not isinstance(value, bool):
+        return _int_description(value)
     # every Exception and not only ValueError: what is caught is a
     # failure to describe a value, and no failure of that kind may
     # replace the refusal the description is for
     try:
         return str(value)
     except Exception:  # noqa: BLE001
-        if isinstance(value, int):
-            return _int_description(value)
         return f"a {type(value).__name__} str() cannot write"
+
+
+def _message_field(value: int, bits: int, spec: str) -> str:
+    """Return a field's value for a refusal's message, never raising.
+
+    Section 7 of the btclib-org standard lets a refusal print a field
+    its format defines, of at most four bytes, where the value has the
+    length the format gives it and is one of the values the format
+    defines. A field every value of whose width is defined meets the
+    second condition wherever it meets the first, as a transaction's
+    lock time, version and sequence do: an int from 0 to `2**bits - 1`
+    is written with `format(value, spec)`, `"#x"` for hex. Any other
+    value is `_message_text`'s to write, since one wider than its field
+    may be a key passed in its place. A field whose width holds values
+    the format does not define is no field for this function.
+    """
+    # int's own methods, for the reason _int_description gives
+    if is_integer(value) and not int.__lt__(value, 0) and int.bit_length(value) <= bits:
+        return int.__format__(value, spec)
+    return _message_text(value)
 
 
 def _assert_valid_4_byte_field(name: str, value: int) -> None:
@@ -403,26 +441,6 @@ def _int_description(value: int) -> str:
     # comparison and bit_length as it overrode __str__
     sign = "a negative" if int.__lt__(value, 0) else "an"
     return f"{sign} int of {int.bit_length(value)} bits"
-
-
-def _message_hex(value: object) -> str:
-    """Return an int in hex for a refusal's message, never raising.
-
-    Hex has no digit limit, so `hex()` writes in kilobytes an int `str()`
-    refuses. Such an int is described as `_message_text` describes it
-    instead, so that one value reads the same way in every refusal, hex
-    or decimal. What is no int is `_message_text`'s to write.
-    """
-    if not isinstance(value, int):
-        return _message_text(value)
-    # int's own repr and format, for the reason _int_description gives:
-    # the repr answers whether str() can write the value, raising
-    # ValueError exactly where str() of a plain int does
-    try:
-        int.__repr__(value)
-    except ValueError:
-        return _int_description(value)
-    return int.__format__(value, "#x")
 
 
 def is_integer(value: Any) -> bool:

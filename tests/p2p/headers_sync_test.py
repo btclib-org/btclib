@@ -1061,9 +1061,17 @@ def test_the_threshold_with_no_tip_is_the_minimum() -> None:
     [
         ((1.5, _GENESIS.bits, 0), BTClibTypeError, "invalid tip_chain_work type"),
         ((True, _GENESIS.bits, 0), BTClibTypeError, "invalid tip_chain_work type"),
-        ((-1, _GENESIS.bits, 0), BTClibValueError, "invalid tip_chain_work: -1"),
+        (
+            (-1, _GENESIS.bits, 0),
+            BTClibValueError,
+            "invalid tip_chain_work: a negative int of 1 bits",
+        ),
         ((0, _GENESIS.bits, None), BTClibTypeError, "invalid minimum_chain_work type"),
-        ((0, _GENESIS.bits, -1), BTClibValueError, "invalid minimum_chain_work: -1"),
+        (
+            (0, _GENESIS.bits, -1),
+            BTClibValueError,
+            "invalid minimum_chain_work: a negative int of 1 bits",
+        ),
         ((0, b"\x00" * 4, 0), BTClibValueError, "zero proof-of-work target"),
         ((0, None, 0), BTClibTypeError, "invalid octets type"),
     ],
@@ -1093,10 +1101,18 @@ def test_a_chain_start_copies_its_header_and_is_frozen() -> None:
     "kwargs, error, match",
     [
         ({"header": "no header"}, BTClibTypeError, "invalid header type"),
-        ({"height": -1}, BTClibValueError, "invalid height: -1"),
+        ({"height": -1}, BTClibValueError, "invalid height: a negative int of 1 bits"),
         ({"height": 1.0}, BTClibTypeError, "invalid height type"),
-        ({"chain_work": -1}, BTClibValueError, "invalid chain_work: -1"),
-        ({"median_time_past": -1}, BTClibValueError, "invalid median_time_past: -1"),
+        (
+            {"chain_work": -1},
+            BTClibValueError,
+            "invalid chain_work: a negative int of 1 bits",
+        ),
+        (
+            {"median_time_past": -1},
+            BTClibValueError,
+            "invalid median_time_past: a negative int of 1 bits",
+        ),
         (
             {"median_time_past": 2**32},
             BTClibValueError,
@@ -1132,7 +1148,9 @@ def test_a_median_time_past_is_up_to_the_last_four_byte_instant() -> None:
 def test_a_chain_start_built_unchecked_is_asked_by_the_sync() -> None:
     """`check_validity=False` defers the check to the sync it starts."""
     start = ChainStart(_GENESIS, -1, _WORK, 0, (), check_validity=False)
-    with pytest.raises(BTClibValueError, match="invalid height: -1"):
+    with pytest.raises(
+        BTClibValueError, match="invalid height: a negative int of 1 bits"
+    ):
         a_sync(1, start=start)
 
 
@@ -1199,7 +1217,7 @@ def test_the_batch_size_is_a_bool(value: Any) -> None:
             (_REGTEST, HeadersSyncParams(-1, 100)),
             {},
             BTClibValueError,
-            "invalid commitment_period: -1",
+            "invalid commitment_period: a negative int of 1 bits",
         ),
         (
             (_REGTEST, HeadersSyncParams(1.5, 100)),  # type: ignore[arg-type]
@@ -1211,7 +1229,7 @@ def test_the_batch_size_is_a_bool(value: Any) -> None:
             (_REGTEST, HeadersSyncParams(600, -1)),
             {},
             BTClibValueError,
-            "invalid redownload_buffer_size: -1",
+            "invalid redownload_buffer_size: a negative int of 1 bits",
         ),
         (
             (_REGTEST, HeadersSyncParams(600, None)),  # type: ignore[arg-type]
@@ -1229,7 +1247,7 @@ def test_the_batch_size_is_a_bool(value: Any) -> None:
             (_REGTEST, HeadersSyncParams(600, 100), _START, -1),
             {},
             BTClibValueError,
-            "invalid minimum_required_work: -1",
+            "invalid minimum_required_work: a negative int of 1 bits",
         ),
         (
             (_REGTEST, HeadersSyncParams(600, 100), _START, 1.0),

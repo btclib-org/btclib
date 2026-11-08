@@ -27,7 +27,6 @@ from io import BytesIO
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
-    _message_hex,
     _message_text,
     bytesio_from_binarydata,
     hex_string,
@@ -141,4 +140,4 @@ def serialize(i: int) -> bytes:
         return b"\xfe" + i.to_bytes(4, byteorder="little", signed=False)
     if i <= 0xFFFFFFFFFFFFFFFF:  # 8 bytes
         return b"\xff" + i.to_bytes(8, byteorder="little", signed=False)
-    raise BTClibValueError(f"integer too big for var_int encoding: {_message_hex(i)}")
+    raise BTClibValueError(f"integer too big for var_int encoding: {_message_text(i)}")

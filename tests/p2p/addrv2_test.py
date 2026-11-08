@@ -831,8 +831,12 @@ def test_an_address_of_no_ip_network_has_no_addr_version_1_form() -> None:
     sixteen octets, so `IPv6Address` would take it for an IP address and
     hand back a peer that is not the one that was gossiped.
     """
+    # the network id is described, not written: section 7 lets a refusal
+    # print only a value its format defines, and a refused id need not be
     for address in (_onion(), _cjdns()):
-        with pytest.raises(BTClibValueError, match="not an ip address"):
+        with pytest.raises(
+            BTClibValueError, match="^not an ip address: network id an int of 3 bits$"
+        ):
             network_address(address)
         with pytest.raises(BTClibValueError, match="not an ip address"):
             addr_entry(address)

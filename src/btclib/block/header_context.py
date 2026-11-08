@@ -111,7 +111,7 @@ def header_at_height(
         raise BTClibValueError(f"invalid height: {_message_text(height)}")
     if not 0 <= target_height <= height:
         err_msg = f"invalid target height: {_message_text(target_height)}"
-        err_msg += f" is not between 0 and {_message_text(height)}"
+        err_msg += " is not between 0 and the height"
         raise BTClibValueError(err_msg)
 
     for _ in range(height - target_height):

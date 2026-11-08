@@ -116,10 +116,12 @@ def test_exceptions() -> None:
     # a strict comparison refuses the end itself, and one moved outward
     # lets through a version the four bytes cannot hold
     header.version = 0x7FFFFFFF + 1
-    with pytest.raises(BTClibValueError, match="invalid version: 0x80000000"):
+    with pytest.raises(BTClibValueError, match="invalid version: an int of 32 bits"):
         header.assert_valid()
     header.version = -0x80000000 - 1
-    with pytest.raises(BTClibValueError, match="invalid version: -0x80000001"):
+    with pytest.raises(
+        BTClibValueError, match="invalid version: a negative int of 32 bits"
+    ):
         header.assert_valid()
     # refusing zero and below is Core's contextual bad-version, where an
     # activation height sets a floor, not a range check (issue #2309):

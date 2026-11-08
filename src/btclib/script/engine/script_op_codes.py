@@ -45,8 +45,7 @@ from btclib.tx.limits import (
 )
 from btclib.tx.tx import Tx
 from btclib.utils import (
-    _message_hex,
-    _message_text,
+    _message_field,
     assert_type,
     decode_num,
     encode_num,
@@ -973,21 +972,23 @@ def op_checklocktimeverify(
         raise ScriptError("no transaction to hold the lock time", unsatisfied)
     # different lock time type
     if tx.lock_time >= LOCKTIME_THRESHOLD > lock_time:
+        tx_lock_time = _message_field(tx.lock_time, 32, "d")
         err_msg = (
             f"block height lock time {lock_time} against "
-            f"the timestamp lock time {_message_text(tx.lock_time)} of the transaction"
+            f"the timestamp lock time {tx_lock_time} of the transaction"
         )
         raise ScriptError(err_msg, unsatisfied)
     if lock_time >= LOCKTIME_THRESHOLD > tx.lock_time:
+        tx_lock_time = _message_field(tx.lock_time, 32, "d")
         err_msg = (
             f"timestamp lock time {lock_time} against "
-            f"the block height lock time {_message_text(tx.lock_time)} of the transaction"
+            f"the block height lock time {tx_lock_time} of the transaction"
         )
         raise ScriptError(err_msg, unsatisfied)
 
     if lock_time > tx.lock_time:
-        err_msg = f"lock time {lock_time} > {_message_text(tx.lock_time)}"
-        raise ScriptError(err_msg, unsatisfied)
+        tx_lock_time = _message_field(tx.lock_time, 32, "d")
+        raise ScriptError(f"lock time {lock_time} > {tx_lock_time}", unsatisfied)
     if tx.vin[i].sequence == 0xFFFFFFFF:
         raise ScriptError(f"final sequence for input {i}", unsatisfied)
 
@@ -1022,8 +1023,8 @@ def op_checksequenceverify(
         if tx is None:
             raise ScriptError("no transaction to hold the sequence", unsatisfied)
         if tx.version < 2:
-            err_msg = f"transaction version {_message_text(tx.version)} < 2"
-            raise ScriptError(err_msg, unsatisfied)
+            version = _message_field(tx.version, 32, "d")
+            raise ScriptError(f"transaction version {version} < 2", unsatisfied)
         if tx.vin[i].sequence & SEQUENCE_LOCKTIME_DISABLE_FLAG:
             err_msg = f"relative lock time disabled for input {i}"
             raise ScriptError(err_msg, unsatisfied)
@@ -1031,9 +1032,10 @@ def op_checksequenceverify(
             sequence & SEQUENCE_LOCKTIME_TYPE_FLAG
             != tx.vin[i].sequence & SEQUENCE_LOCKTIME_TYPE_FLAG
         ):
+            tx_sequence = _message_field(tx.vin[i].sequence, 32, "#x")
             err_msg = (
                 f"relative lock time unit mismatch: {hex(sequence)} against "
-                f"the sequence {_message_hex(tx.vin[i].sequence)} of input {i}"
+                f"the sequence {tx_sequence} of input {i}"
             )
             raise ScriptError(err_msg, unsatisfied)
         if (

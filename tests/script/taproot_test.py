@@ -1291,13 +1291,13 @@ def test_a_weighted_tree_is_no_deeper_than_max_tree_depth() -> None:
         pytest.param(
             [(0, (0xC0, ["OP_1"]))],
             BTClibValueError,
-            "invalid leaf weight: 0",
+            "invalid leaf weight: an int of 0 bits",
             id="a zero weight",
         ),
         pytest.param(
             [(1, (0xC0, ["OP_1"])), (-1, (0xC0, ["OP_2"]))],
             BTClibValueError,
-            "invalid leaf weight: -1",
+            "invalid leaf weight: a negative int of 1 bits",
             id="a negative weight",
         ),
         pytest.param(
