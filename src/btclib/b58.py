@@ -85,13 +85,15 @@ def wif_from_prv_key(
     return b58encode_check(payload).decode("ascii")
 
 
-def _wif_network(prefix: bytes, network: str | Network | None) -> str | Network:
-    """Return the network a WIF version prefix belongs to.
+def _wif_claimant(payload: bytes, network: str | Network | None) -> str | Network:
+    """Return the network that claims the version prefix of a WIF payload.
 
     NotAPrvKeyError for a prefix no network claims: the text is not a
-    WIF. InvalidPrvKeyError once a network has claimed it and the caller
-    asked for another one: that is a WIF, and the wrong one.
+    WIF. That refusal names the payload's size and not the byte, which
+    no network defines and which may be a key's: section 7 of the
+    btclib-org standard, *A refusal carries no secret*.
     """
+    prefix = payload[:1]
     # a Network NETWORKS does not hold claims its own prefix; the rest
     # is asked of NETWORKS
     if isinstance(network, Network) and prefix == network.wif:
@@ -100,10 +102,21 @@ def _wif_network(prefix: bytes, network: str | Network | None) -> str | Network:
 
     net = network_from_key_value("wif", prefix)
     if net is None:
-        raise NotAPrvKeyError(f"not a WIF (invalid prefix 0x{prefix.hex()})")
+        raise NotAPrvKeyError(f"not a WIF (invalid prefix, {len(payload)} bytes)")
+    return net
 
+
+def _wif_network(
+    prefix: bytes, claimed: str | Network, network: str | Network | None
+) -> str | Network:
+    """Return the network of a WIF whose prefix a network has claimed.
+
+    InvalidPrvKeyError where the caller asked for another network: that
+    is a WIF, and the wrong one. The refusal prints the prefix, which the
+    caller has checked to be a WIF's size as well as a claimed value.
+    """
     if network is None:
-        return net
+        return claimed
 
     # the forward check, and not a `net != network` name comparison:
     # the reverse lookup answers "testnet" for the 0xef that testnet,
@@ -123,14 +136,11 @@ def _wif_network(prefix: bytes, network: str | Network | None) -> str | Network:
     return kept
 
 
-def _wif_prv_key_and_compression(
-    payload: bytes, n_size: int, compressed: bool | None
-) -> tuple[bytes, bool]:
+def _wif_prv_key_and_compression(payload: bytes, n_size: int) -> tuple[bytes, bool]:
     """Return the key bytes of a WIF payload, and whether it is compressed.
 
     The size is what says which of the two it is, the compressed
-    spelling carrying one byte more; the caller's `compressed`, if it
-    said anything, then has to agree with the answer.
+    spelling carrying one byte more.
     """
     if len(payload) == n_size + 2:  # compressed WIF
         compr = True
@@ -142,9 +152,6 @@ def _wif_prv_key_and_compression(
         prv_key = payload[1:]
     else:
         raise InvalidPrvKeyError(f"wrong WIF size: {len(payload)}")
-
-    if compressed is not None and compr != compressed:
-        raise InvalidPrvKeyError("compression requirement mismatch")
 
     return prv_key, compr
 
@@ -171,8 +178,10 @@ def prv_key_data_from_wif(
     NotAPrvKeyError; everything after it answers "is this WIF sound", and
     a no is an InvalidPrvKeyError. Both are BTClibValueError. No message
     or chained exception echoes the input, which is candidate key
-    material, or the checksum its key hashes to; a prefix and a size are
-    not secret.
+    material, or the checksum its key hashes to. A refusal may name the
+    payload's size, and prints its prefix only where a network claims
+    that prefix and the payload has a WIF's size: anywhere else the byte
+    may be a key's.
     """
     # None is a declared value here and means "whatever the WIF says", so
     # it is the one non-bool this position takes
@@ -193,9 +202,14 @@ def prv_key_data_from_wif(
     except Base58Bech32ValueError as e:
         raise NotAPrvKeyError(f"not a WIF ({e})") from e
 
-    net = _wif_network(payload[:1], network)
-    ec = _network_from(net).curve
-    prv_key, compr = _wif_prv_key_and_compression(payload, ec.n_size, compressed)
+    claimed = _wif_claimant(payload, network)
+    ec = _network_from(claimed).curve
+    # the size before the network: a refusal of the network prints the
+    # prefix, and section 7 lets it only at the size the format gives
+    prv_key, compr = _wif_prv_key_and_compression(payload, ec.n_size)
+    net = _wif_network(payload[:1], claimed, network)
+    if compressed is not None and compr != compressed:
+        raise InvalidPrvKeyError("compression requirement mismatch")
 
     q = int.from_bytes(prv_key, byteorder="big")
     if not 0 < q < ec.n:
@@ -279,8 +293,9 @@ def h160_from_address(
         elif name := network_from_key_value(script_type, prefix):
             return script_type, payload[1:], name
 
-    err_msg = f"invalid base58 address prefix: 0x{prefix.hex()}"
-    raise BTClibValueError(err_msg)
+    # the byte is not printed: where no network defines it, it may be a
+    # key's (section 7 of the btclib-org standard)
+    raise BTClibValueError("invalid base58 address prefix")
 
 
 # 1.+2. = 3. base58 address from pub_key/script_pub_key
