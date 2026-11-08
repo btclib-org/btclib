@@ -1580,6 +1580,11 @@ What the prefixes buy is a promise read off the name:
   `script.taproot.check_output_pubkey`, where a malformed control block
   is no proof rather than a disproof.
 
+No `async def` carries one of these prefixes, and that is gated: a call
+without `await` answers a coroutine, which is true, so
+`if obj.is_ready():` always passes and an unawaited `validate_x()`
+refuses nothing.
+
 Nine functions carried `check_` while refusing and returning `None`, and
 two more while returning bytes and a pair of bools, which left the prefix
 saying four things and therefore nothing (issue #814). A converter is

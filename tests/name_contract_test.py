@@ -146,10 +146,8 @@ def _return_type(returns: ast.expr) -> str:
     `True` or `False` at runtime (PEP 742), the same as the `bool` it
     replaced on `utils.is_octets` -- so a name promising `bool` is kept
     to that promise by one, and this is the one place the annotation is
-    read for both censuses below. The caller's own `node.returns is not
-    None` already established what this takes, `ast.expr` rather than
-    `ast.FunctionDef` so mypy narrows it there instead of losing the
-    check across the call.
+    read for both censuses below. The walks' own `node.returns is not
+    None` narrows `returns` before it is passed, here and to `_answer`.
     """
     unparsed = ast.unparse(returns)
     if unparsed.startswith("TypeIs["):
@@ -160,11 +158,28 @@ def _return_type(returns: ast.expr) -> str:
 _Function = ast.FunctionDef | ast.AsyncFunctionDef
 
 
+_COROUTINE = "Coroutine["
+
+
+def _answer(node: _Function, returns: ast.expr) -> str:
+    """Return what a call to the function answers, as `_return_type` reads it.
+
+    An `async def` answers a coroutine, whatever its annotation, and a
+    coroutine keeps no prefix's promise: CONTRIBUTING.md's "Every public
+    function validates its inputs" says why.
+    """
+    answer = _return_type(returns)
+    if isinstance(node, ast.AsyncFunctionDef):
+        return f"{_COROUTINE}{answer}]"
+    return answer
+
+
 def _named_in(module: str, source: str) -> dict[str, list[str]]:
-    """Map each public name of a module that promises a type to its returns.
+    """Map each public name of a module that promises a type to its answers.
 
     A name defined twice, in two classes or in two branches of an `if`,
-    lists both return types, so neither hides the other.
+    lists both answers, each as `_answer` reads it, so neither hides the
+    other.
     """
     found: dict[str, list[str]] = {}
     for node in ast.walk(ast.parse(source)):
@@ -176,7 +191,8 @@ def _named_in(module: str, source: str) -> dict[str, list[str]]:
         # strict over it, so an unannotated one is a state the tree
         # does not reach
         assert node.returns is not None
-        found.setdefault(f"{module}.{node.name}", []).append(_return_type(node.returns))
+        answer = _answer(node, node.returns)
+        found.setdefault(f"{module}.{node.name}", []).append(answer)
     return found
 
 
@@ -201,6 +217,16 @@ def _breaks_its_promise(dotted: str, returns: list[str]) -> bool:
     """Return whether a definition under the name breaks its promise."""
     promised = _promised_by(dotted.rpartition(".")[2])
     return any(returned != promised for returned in returns)
+
+
+def _outlives_its_exception(dotted: str, returns: list[str]) -> str | None:
+    """Return why an `_OTHER_CONTRACT` entry no longer holds, or None."""
+    if not _breaks_its_promise(dotted, returns):
+        promised = _promised_by(dotted.rpartition(".")[2])
+        return f"{dotted} now returns {promised}: delete its line from _OTHER_CONTRACT"
+    if any(returned.startswith(_COROUTINE) for returned in returns):
+        return f"{dotted} is an `async def`, which no line of _OTHER_CONTRACT excuses"
+    return None
 
 
 def _argument_less_bools_in(module: str, source: str) -> dict[str, list[bool]]:
@@ -371,7 +397,7 @@ def _public_bools_in(module: str, source: str) -> set[str]:
     for node in ast.walk(ast.parse(source)):
         if not isinstance(node, _Function) or node.name.startswith("_"):
             continue
-        if node.returns is not None and _return_type(node.returns) == "bool":
+        if node.returns is not None and _answer(node, node.returns) == "bool":
             found.add(f"{module}.{node.name}")
     return found
 
@@ -403,11 +429,35 @@ def test_the_name_says_what_the_answer_is(dotted: str) -> None:
 
 @pytest.mark.parametrize("dotted", sorted(_OTHER_CONTRACT))
 def test_what_is_excepted_still_needs_to_be(dotted: str) -> None:
-    """An entry of `_OTHER_CONTRACT` cannot outlive the reason for it."""
-    promised = _promised_by(dotted.rpartition(".")[2])
-    assert _breaks_its_promise(dotted, _NAMED[dotted]), (
-        f"{dotted} now returns {promised}: delete its line from _OTHER_CONTRACT"
-    )
+    """An entry of `_OTHER_CONTRACT` cannot outlive the reason for it.
+
+    Its reason excuses the answer it gives, never a coroutine: an
+    `async def` under an excepted name fails as one under any other does.
+    """
+    outlived = _outlives_its_exception(dotted, _NAMED[dotted])
+    assert outlived is None, outlived
+
+
+# names an `_OTHER_CONTRACT` line could excuse: one that still answers
+# as its exception says, one that has come into line, and an `async def`
+_EXCEPTED_CONTROL = """
+def verify_script(a: int) -> None: ...
+def verify_amounts(a: int) -> bool: ...
+async def verify_key_path(a: int) -> None: ...
+"""
+
+
+def test_an_exception_outlived_or_awaited_fails() -> None:
+    """The check above fails an entry that is in line, or an `async def`.
+
+    Every entry of btclib's `_OTHER_CONTRACT` still needs its line, and
+    none is an `async def`: this source holds the cases that must fail.
+    """
+    named = _named_in("control", _EXCEPTED_CONTROL)
+    outlived = {
+        d for d, returns in named.items() if _outlives_its_exception(d, returns)
+    }
+    assert outlived == {"control.verify_amounts", "control.verify_key_path"}
 
 
 def test_the_walk_reaches_what_it_claims() -> None:
@@ -433,39 +483,43 @@ def test_the_walk_reaches_what_it_claims() -> None:
     assert "btclib.utils.bytes_from_octets" not in _NAMED
 
 
-# a `validate_` that refuses, one that answers a bool, and two names that
-# carry the word without the prefix: not followed by an underscore, and
-# not at the front
+# a `validate_` that refuses, one that answers a bool, an `async def` one
+# annotated as refusing, and two names that carry the word without the
+# prefix: not followed by an underscore, and not at the front
 _VALIDATE_CONTROL = """
 def validate_refusal(a: int) -> None: ...
 def validate_answer(a: int) -> bool: ...
+async def validate_later(a: int) -> None: ...
 def validated_name(a: str) -> str: ...
 def revalidate_cache(a: str) -> str: ...
 """
 
 
 def test_a_validate_answering_a_bool_breaks_its_promise() -> None:
-    """The rule fails a `validate_` that answers a bool.
+    """The rule fails a `validate_` that answers a bool or a coroutine.
 
     btclib's own `validate_` functions all refuse, so the rule above never
-    fails on one: this source holds the case that must.
+    fails on one: this source holds the cases that must.
     """
     named = _named_in("control", _VALIDATE_CONTROL)
     assert named == {
         "control.validate_refusal": ["None"],
         "control.validate_answer": ["bool"],
+        "control.validate_later": ["Coroutine[None]"],
     }
     broken = {d for d, returns in named.items() if _breaks_its_promise(d, returns)}
-    assert broken == {"control.validate_answer"}
+    assert broken == {"control.validate_answer", "control.validate_later"}
 
 
 # a name defined twice, in two classes and in two branches of an `if`,
 # the definition that breaks the rule first, where the second would
 # overwrite it; a property of a nested class, defined once; two nested
 # classes of one name under two outer classes; a class inside a function;
-# and an `async def` taking only `self`, which `_named_in` and
-# `_public_bools_in` record and `_argument_less_bools_in` and
-# `_class_members_in` do not
+# an `async def` taking only `self`, which `_named_in` records as the
+# coroutine it answers, and which `_public_bools_in`,
+# `_argument_less_bools_in` and `_class_members_in` do not record; and an
+# `async def` under each other prefix but `validate_`, which
+# `_VALIDATE_CONTROL` holds, each annotated as its prefix promises
 _REDEFINED_CONTROL = """
 class Block:
     def is_final(self) -> bool: ...
@@ -492,6 +546,9 @@ if TYPE_CHECKING:
     def verify_tx(a: int) -> int: ...
 else:
     def verify_tx(a: int) -> bool: ...
+async def assert_later(a: int) -> None: ...
+async def check_later(a: int) -> bool: ...
+async def verify_later(a: int) -> bool: ...
 """
 
 
@@ -500,24 +557,32 @@ def test_a_second_definition_hides_no_first() -> None:
 
     `_named_in` and `_argument_less_bools_in` list each definition once,
     and `_public_bools_in` keeps the name, which is all it judges.
-    `_named_in` and `_public_bools_in` record `async def`, and
-    `_argument_less_bools_in` and `_class_members_in` do not. btclib holds
+    `_named_in` records an `async def` as a coroutine, which breaks the
+    promise of its prefix; the other walks do not record it. btclib holds
     no prefixed name whose definitions disagree, and no `async def`: this
     source holds both.
     """
     named = _named_in("control", _REDEFINED_CONTROL)
     assert named == {
         "control.is_final": ["bool", "bool"],
-        "control.is_ready": ["bool"],
+        "control.is_ready": ["Coroutine[bool]"],
         "control.is_inner": ["bool"],
         "control.verify_tx": ["int", "bool"],
+        "control.assert_later": ["Coroutine[None]"],
+        "control.check_later": ["Coroutine[bool]"],
+        "control.verify_later": ["Coroutine[bool]"],
     }
     broken = {d for d, returns in named.items() if _breaks_its_promise(d, returns)}
-    assert broken == {"control.verify_tx"}
+    assert broken == {
+        "control.is_ready",
+        "control.verify_tx",
+        "control.assert_later",
+        "control.check_later",
+        "control.verify_later",
+    }
 
     assert _public_bools_in("control", _REDEFINED_CONTROL) == {
         "control.is_final",
-        "control.is_ready",
         "control.is_inner",
         "control.verify_tx",
     }
