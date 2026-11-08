@@ -325,52 +325,70 @@ def _is_not_a_read(name: str) -> bool:
     return name.startswith(_NOT_A_READ) or name in _AN_ACTION
 
 
-def _class_members_in(module: str, source: str) -> dict[str, bool]:
+def _misshapen(dotted: str, reads: list[bool]) -> bool:
+    """Return whether a definition under the name has the wrong shape.
+
+    A name that says it is not a read is never a property, and any other
+    is always one.
+    """
+    if _is_not_a_read(dotted.rpartition(".")[2]):
+        return any(reads)
+    return not all(reads)
+
+
+def _class_members_in(module: str, source: str) -> dict[str, list[bool]]:
     """Return every argument-less member of a public class of a module.
 
-    The key is the member's dotted path, each enclosing class and function
-    included, so two nested classes of one name are two keys.
+    A member is a `def` of the class's body, one under a statement such as
+    an `if` included, and not one of a nested class or function. The key
+    is the member's dotted path, each enclosing class and function
+    included, so two nested classes of one name are two keys. The value
+    lists each definition, so a property does not hide a method of the
+    same name.
     """
-    found: dict[str, bool] = {}
+    found: dict[str, list[bool]] = {}
 
-    def record(cls: ast.ClassDef, prefix: str) -> None:
-        for node in cls.body:
-            if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
-                continue
-            decorated = {ast.unparse(d) for d in node.decorator_list}
-            if {"staticmethod", "classmethod"} & decorated:
-                continue
-            # no filter for a `@x.setter`: one takes the value it
-            # sets, so the argument count below excludes it already
-            arguments = [
-                a.arg
-                for a in [
-                    *node.args.posonlyargs,
-                    *node.args.args,
-                    *node.args.kwonlyargs,
-                ]
-                if a.arg != "self"
+    def record(node: ast.FunctionDef, prefix: str) -> None:
+        if node.name.startswith("_"):
+            return
+        decorated = {ast.unparse(d) for d in node.decorator_list}
+        if {"staticmethod", "classmethod"} & decorated:
+            return
+        # no filter for a `@x.setter`: one takes the value it
+        # sets, so the argument count below excludes it already
+        arguments = [
+            a.arg
+            for a in [
+                *node.args.posonlyargs,
+                *node.args.args,
+                *node.args.kwonlyargs,
             ]
-            if arguments or node.args.vararg or node.args.kwarg:
-                continue
-            found[f"{prefix}{cls.name}.{node.name}"] = _is_a_read(decorated)
+            if a.arg != "self"
+        ]
+        if arguments or node.args.vararg or node.args.kwarg:
+            return
+        found.setdefault(f"{prefix}{node.name}", []).append(_is_a_read(decorated))
 
     # every node is visited, with the dotted path of the classes and
-    # functions around it, as `public_parameter_test.py`'s walk does
-    def visit(node: ast.AST, prefix: str) -> None:
+    # functions around it, as `public_parameter_test.py`'s walk does. It
+    # also carries whether the node is in the body of a public class; a
+    # nested class sets it to its own publicity, a nested function clears it
+    def visit(node: ast.AST, prefix: str, in_public_class: bool) -> None:
         for child in ast.iter_child_nodes(node):
-            if isinstance(child, ast.ClassDef) and not child.name.startswith("_"):
+            if in_public_class and isinstance(child, ast.FunctionDef):
                 record(child, prefix)
-            if isinstance(child, ast.ClassDef | _Function):
-                visit(child, f"{prefix}{child.name}.")
+            if isinstance(child, ast.ClassDef):
+                visit(child, f"{prefix}{child.name}.", not child.name.startswith("_"))
+            elif isinstance(child, _Function):
+                visit(child, f"{prefix}{child.name}.", in_public_class=False)
             else:
-                visit(child, prefix)
+                visit(child, prefix, in_public_class)
 
-    visit(ast.parse(source), f"{module}.")
+    visit(ast.parse(source), f"{module}.", in_public_class=False)
     return found
 
 
-def _class_members() -> dict[str, bool]:
+def _class_members() -> dict[str, list[bool]]:
     """Return every argument-less member of a public class, property or not.
 
     A property is a class thing, so a module-level function is out of
@@ -378,7 +396,7 @@ def _class_members() -> dict[str, bool]:
     are out too: `_Decoder` is not API. So is an `async def`: its caller
     awaits it, which makes it a call.
     """
-    found: dict[str, bool] = {}
+    found: dict[str, list[bool]] = {}
     for path in sorted(_LIBRARY.rglob("*.py")):
         module = ".".join(path.relative_to(_LIBRARY.parent).with_suffix("").parts)
         found |= _class_members_in(module, path.read_text(encoding="utf-8"))
@@ -511,15 +529,19 @@ def test_a_validate_answering_a_bool_breaks_its_promise() -> None:
     assert broken == {"control.validate_answer", "control.validate_later"}
 
 
-# a name defined twice, in two classes and in two branches of an `if`,
-# the definition that breaks the rule first, where the second would
-# overwrite it; a property of a nested class, defined once; two nested
-# classes of one name under two outer classes; a class inside a function;
-# an `async def` taking only `self`, which `_named_in` records as the
-# coroutine it answers, and which `_public_bools_in`,
-# `_argument_less_bools_in` and `_class_members_in` do not record; and an
-# `async def` under each other prefix but `validate_`, which
-# `_VALIDATE_CONTROL` holds, each annotated as its prefix promises
+# a name defined twice, in two classes and in two branches of an `if`, the
+# definition that breaks the rule first, where the second would overwrite
+# it; a property of a nested class, defined once; two nested classes of
+# one name under two outer classes; a method and a nested class under an
+# `if` of a class body, and a private class there; a member defined as a
+# method and as a property in the two branches of an `if`, in both orders,
+# under a read's name and under a `to_` one; a function inside a method,
+# which is not a member; a class inside a function; an `async def` taking
+# only `self`, which `_named_in` records as the coroutine it answers, and
+# which `_public_bools_in`, `_argument_less_bools_in` and
+# `_class_members_in` do not record; and an `async def` under each other
+# prefix but `validate_`, which `_VALIDATE_CONTROL` holds, each annotated
+# as its prefix promises
 _REDEFINED_CONTROL = """
 class Block:
     def is_final(self) -> bool: ...
@@ -535,9 +557,39 @@ class Left:
     class Node:
         @property
         def depth(self) -> int: ...
+    def walk(self, a: int) -> None:
+        def step() -> int: ...
 class Right:
     class Node:
         def depth(self) -> int: ...
+    if TYPE_CHECKING:
+        def width(self) -> int: ...
+        class Leaf:
+            @property
+            def width(self) -> int: ...
+        class _Hidden:
+            def width(self) -> int: ...
+class Pair:
+    if TYPE_CHECKING:
+        def width(self) -> int: ...
+    else:
+        @property
+        def width(self) -> int: ...
+    if TYPE_CHECKING:
+        @property
+        def height(self) -> int: ...
+    else:
+        def height(self) -> int: ...
+    if TYPE_CHECKING:
+        def to_dict(self) -> int: ...
+    else:
+        @property
+        def to_dict(self) -> int: ...
+    if TYPE_CHECKING:
+        @property
+        def to_list(self) -> int: ...
+    else:
+        def to_list(self) -> int: ...
 def f() -> None:
     class K:
         @property
@@ -555,12 +607,12 @@ async def verify_later(a: int) -> bool: ...
 def test_a_second_definition_hides_no_first() -> None:
     """No definition of a name hides another one.
 
-    `_named_in` and `_argument_less_bools_in` list each definition once,
-    and `_public_bools_in` keeps the name, which is all it judges.
-    `_named_in` records an `async def` as a coroutine, which breaks the
-    promise of its prefix; the other walks do not record it. btclib holds
-    no prefixed name whose definitions disagree, and no `async def`: this
-    source holds both.
+    `_named_in`, `_argument_less_bools_in` and `_class_members_in` list
+    each definition once, and `_public_bools_in` keeps the name, which is
+    all it judges. `_named_in` records an `async def` as a coroutine,
+    which breaks the promise of its prefix; the other walks do not record
+    it. btclib holds no prefixed name whose definitions disagree, and no
+    `async def`: this source holds both.
     """
     named = _named_in("control", _REDEFINED_CONTROL)
     assert named == {
@@ -594,14 +646,25 @@ def test_a_second_definition_hides_no_first() -> None:
         "control.is_inner": [True],
     }
     assert _is_called(argument_less["control.is_final"])
-    assert _class_members_in("control", _REDEFINED_CONTROL) == {
-        "control.Block.is_final": False,
-        "control.Tx.is_final": True,
-        "control.Outer.Inner.is_inner": True,
-        "control.Left.Node.depth": True,
-        "control.Right.Node.depth": False,
-        "control.f.K.size": True,
+    members = _class_members_in("control", _REDEFINED_CONTROL)
+    assert members == {
+        "control.Block.is_final": [False],
+        "control.Tx.is_final": [True],
+        "control.Outer.Inner.is_inner": [True],
+        "control.Left.Node.depth": [True],
+        "control.Right.Node.depth": [False],
+        "control.Right.width": [False],
+        "control.Right.Leaf.width": [True],
+        "control.Pair.width": [False, True],
+        "control.Pair.height": [True, False],
+        "control.Pair.to_dict": [False, True],
+        "control.Pair.to_list": [True, False],
+        "control.f.K.size": [True],
     }
+    # the definition of the wrong shape fails the member gate, whichever
+    # branch holds it
+    for pair in ("width", "height", "to_dict", "to_list"):
+        assert _misshapen(f"control.Pair.{pair}", members[f"control.Pair.{pair}"])
 
 
 def test_check_says_one_thing() -> None:
@@ -692,28 +755,28 @@ def test_an_argument_less_member_is_read_not_called(dotted: str) -> None:
     is what keeps this rule from needing one.
     """
     if _is_not_a_read(dotted.rpartition(".")[2]):
-        assert not _CLASS_MEMBERS[dotted], (
+        assert not _misshapen(dotted, _CLASS_MEMBERS[dotted]), (
             f"{dotted} is a @property and its name says it is not a read:"
             " rename it, or drop the decorator"
         )
         return
-    assert _CLASS_MEMBERS[dotted], (
+    assert not _misshapen(dotted, _CLASS_MEMBERS[dotted]), (
         f"{dotted} takes nothing but self: it is a @property, not a method"
     )
 
 
 def test_the_walk_reaches_every_shape_of_member() -> None:
     """One of each, so neither branch above is running over nothing."""
-    assert _CLASS_MEMBERS["btclib.tx.tx.Tx.vsize"] is True
-    assert _CLASS_MEMBERS["btclib.key.PrvKeyData.pub"] is True
+    assert _CLASS_MEMBERS["btclib.tx.tx.Tx.vsize"] == [True]
+    assert _CLASS_MEMBERS["btclib.key.PrvKeyData.pub"] == [True]
     # a cached_property is a read too, which testing for "property" alone
     # would have missed
-    assert _CLASS_MEMBERS["btclib.script.script.Script.asm"] is True
+    assert _CLASS_MEMBERS["btclib.script.script.Script.asm"] == [True]
     # and the shapes that are not a read
     # OutPoint's and not Tx's, which takes an `unsigned_template` and so
     # is not argument-less at all
-    assert _CLASS_MEMBERS["btclib.tx.out_point.OutPoint.assert_valid"] is False
-    assert _CLASS_MEMBERS["btclib.block.block.Block.assert_valid_weight"] is False
+    assert _CLASS_MEMBERS["btclib.tx.out_point.OutPoint.assert_valid"] == [False]
+    assert _CLASS_MEMBERS["btclib.block.block.Block.assert_valid_weight"] == [False]
 
 
 # a refusal that takes nothing but `self`, which btclib's own `validate_`
@@ -730,9 +793,8 @@ def test_a_validate_member_is_not_a_read() -> None:
     """A self-only `validate_` member stays a method, as an `assert_` does."""
     members = _class_members_in("control", _MEMBER_CONTROL)
     assert members == {
-        "control.Spend.validate_inputs": False,
-        "control.Spend.fee": True,
+        "control.Spend.validate_inputs": [False],
+        "control.Spend.fee": [True],
     }
     # the gate above fails a member whose shape and name disagree
-    broken = {d for d in members if _is_not_a_read(d.rpartition(".")[2]) == members[d]}
-    assert not broken
+    assert not any(_misshapen(d, reads) for d, reads in members.items())
