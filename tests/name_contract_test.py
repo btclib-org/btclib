@@ -262,15 +262,22 @@ def _argument_less_bools_in(module: str, source: str) -> dict[str, list[bool]]:
         decorated = {ast.unparse(d) for d in node.decorator_list}
         found.setdefault(f"{module}.{node.name}", []).append(_is_a_read(decorated))
 
-    # every node is visited once, and a function only inside a class: a
+    # every node is visited once, and a function only in a class body: a
     # property is a class thing, which is what `_class_members` below says
     # in as many words, so a module-level function is out of scope however
-    # few arguments it takes and cannot be told to become one
+    # few arguments it takes and cannot be told to become one. A class
+    # starts a body and a function ends it, so a helper inside a method is
+    # not recorded and a method of a class inside one is
     def visit(node: ast.AST, in_class: bool) -> None:
         for child in ast.iter_child_nodes(node):
             if in_class and isinstance(child, ast.FunctionDef):
                 record(child)
-            visit(child, in_class or isinstance(child, ast.ClassDef))
+            if isinstance(child, ast.ClassDef):
+                visit(child, in_class=True)
+            elif isinstance(child, _Function):
+                visit(child, in_class=False)
+            else:
+                visit(child, in_class)
 
     visit(ast.parse(source), in_class=False)
     return found
@@ -741,6 +748,33 @@ def test_the_walk_reaches_both_shapes() -> None:
     # a bool of an argument is a function of it, and no property can be
     assert "btclib.script.script_pub_key.is_p2sh" not in _ARGUMENT_LESS_BOOLS
     assert "btclib.bms.verify" not in _ARGUMENT_LESS_BOOLS
+
+
+# an argument-less bool helper inside a method and inside an `async def`
+# method, which are no members, beside a class inside a method, whose
+# argument-less bool is one
+_NESTED_CONTROL = """
+class Tx:
+    def size(self, a: int) -> int:
+        def ok() -> bool: ...
+        class Kind:
+            def is_known(self) -> bool: ...
+        return 0
+    async def later(self) -> None:
+        def done() -> bool: ...
+"""
+
+
+def test_a_helper_inside_a_method_is_no_member() -> None:
+    """A function inside a method is not a bool about the object.
+
+    No `@property` can make a local helper a read, so the walk records
+    only a `def` of a class body, as `_class_members_in` does.
+    """
+    argument_less = _argument_less_bools_in("control", _NESTED_CONTROL)
+    assert argument_less == {"control.is_known": [False]}
+    members = _class_members_in("control", _NESTED_CONTROL)
+    assert members == {"control.Tx.size.Kind.is_known": [False]}
 
 
 @pytest.mark.parametrize("dotted", sorted(_CLASS_MEMBERS))
