@@ -139,7 +139,10 @@ def test_from_tx_takes_the_separator_occurrence() -> None:
             [prevout], tx, 0, sig_hash.ALL, codesep_index=index
         ) == sig_hash.legacy(script_code, tx, 0, sig_hash.ALL)
 
-    with pytest.raises(BTClibValueError, match="OP_CODESEPARATOR index 3"):
+    with pytest.raises(
+        BTClibValueError,
+        match="OP_CODESEPARATOR index an int of 2 bits, but the script has 2",
+    ):
         sig_hash.from_tx([prevout], tx, 0, sig_hash.ALL, codesep_index=3)
     with pytest.raises(BTClibValueError, match="negative OP_CODESEPARATOR index"):
         sig_hash.from_tx([prevout], tx, 0, sig_hash.ALL, codesep_index=-1)

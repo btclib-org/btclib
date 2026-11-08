@@ -489,11 +489,17 @@ def test_subsidy_refuses_a_halving_interval_that_is_not_an_integer(
 
 def test_subsidy_refuses_a_negative_height_or_a_non_positive_interval() -> None:
     """A negative height, and an interval that would divide by zero."""
-    with pytest.raises(BTClibValueError, match="invalid height: -1"):
+    with pytest.raises(
+        BTClibValueError, match="invalid height: a negative int of 1 bits"
+    ):
         subsidy(-1)
-    with pytest.raises(BTClibValueError, match="invalid halving_interval: 0"):
+    with pytest.raises(
+        BTClibValueError, match="invalid halving_interval: an int of 0 bits"
+    ):
         subsidy(1, 0)
-    with pytest.raises(BTClibValueError, match="invalid halving_interval: -1"):
+    with pytest.raises(
+        BTClibValueError, match="invalid halving_interval: a negative int of 1 bits"
+    ):
         subsidy(1, -1)
 
 

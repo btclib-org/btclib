@@ -34,7 +34,6 @@ from btclib.tx import Tx, TxOut
 from btclib.tx.limits import LOCKTIME_THRESHOLD
 from btclib.tx.tx_context import is_final
 from btclib.utils import (
-    _message_text,
     assert_no_trailing,
     assert_type,
     bytes_from_octets,
@@ -566,7 +565,6 @@ class Block:
             time = int(self.header.time.timestamp())
             if time <= context.median_time_past:
                 err_msg = f"invalid timestamp (not after the median past): {time}"
-                err_msg += f" <= {_message_text(context.median_time_past)}"
                 raise BTClibValueError(err_msg)
 
         self.header.assert_valid_time(context.now)

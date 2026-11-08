@@ -22,7 +22,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.utils import (
     _assert_valid_4_byte_field,
-    _message_hex,
+    _message_text,
     assert_no_trailing,
     assert_type,
     bytes_from_octets,
@@ -68,7 +68,7 @@ def _assert_valid_version(value: int) -> None:
     if not isinstance(value, int):
         raise BTClibTypeError(f"invalid version type: {type(value).__name__}")
     if not -0x80000000 <= value <= 0x7FFFFFFF:
-        raise BTClibValueError(f"invalid version: {_message_hex(value)}")
+        raise BTClibValueError(f"invalid version: {_message_text(value)}")
 
 
 def _timestamp_of(time: datetime) -> int:

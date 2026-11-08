@@ -4,13 +4,13 @@
 
 """Tests for the one policy on quoting an int in a refusal's message.
 
-`str()` refuses an int past `sys.get_int_max_str_digits()` digits with
-a ValueError of its own, which a message quoting such an int would
-raise instead of the refusal it is building; `hex()` has no such limit,
-and would write the int out in kilobytes. `utils._message_text` and
-`utils._message_hex` describe such an int by sign and bit length, and
-each case below reaches a message quoting a caller's integer through
-one of them (issue #2394).
+`utils._message_text` describes every int by its sign and bit length,
+and `utils._message_field` describes one wider than its field, so that
+no digit of a key passed in an int's place reaches the message (issue
+#2998). The description is also what keeps an int `str()` cannot write,
+one past `sys.get_int_max_str_digits()` digits, from raising a
+ValueError of its own in place of the refusal (issue #2394). Each case
+below reaches a message quoting a caller's integer through one of them.
 
 One file rather than a case per module, as `integer_policy_test.py` is
 for the bool: the decision is one, and each case is the shortest call
@@ -21,13 +21,15 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime
+from io import BytesIO
 from typing import Any
 
 import pytest
 from ecc.ecc import dsa
 
-from btclib import bms, obfuscation, var_int
+from btclib import bms, compressor, obfuscation, var_int
 from btclib.alias import TaprootScriptTree
+from btclib.amount import valid_btc_amount, valid_sats_amount
 from btclib.b32 import bytes_from_witness_program, power_of_2_base_conversion
 from btclib.block import Block, BlockHeader
 from btclib.block.block_context import BlockContext
@@ -44,6 +46,7 @@ from btclib.block.proof_of_work import hash_rate, retarget_first_height
 from btclib.coinstats import tx_out_ser
 from btclib.consensus import CONSENSUS_PARAMS, subsidy
 from btclib.exceptions import BTClibValueError
+from btclib.fee import FeeRate, fee_from_vsize, package_fee
 from btclib.hashes import merkle_root_from_branch, sha256, siphash
 from btclib.key import PrvKeyData
 from btclib.p2p.address import NetworkAddress, TimestampedNetworkAddress
@@ -57,22 +60,34 @@ from btclib.p2p.compact_blocks import (
     reconstruct,
 )
 from btclib.p2p.handshake import Version
+from btclib.p2p.headers_sync import anti_dos_work_threshold
 from btclib.p2p.inventory import GetBlocks, Inventory
 from btclib.p2p.keepalive import Ping
 from btclib.p2p.negotiation import FeeFilter, SendTxRcncl
 from btclib.p2p.reject import Reject
+from btclib.policy import sig_ops_adjusted_weight
 from btclib.script import ScriptPubKey, input_script_sig, serialize, sig_hash
 from btclib.script.engine import verify_input
 from btclib.script.script import op_int
-from btclib.script.taproot import tree_helper
+from btclib.script.taproot import leaf_hash, tree_from_weights, tree_helper
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.tx.coin import Coin
 from btclib.tx.tx_context import assert_bip54_coinbase, assert_coinbase_value
-from btclib.utils import bytes_from_octets, encode_num
+from btclib.utils import bytes_from_octets, encode_num, read_exactly
+from btclib.utreexo import UpdateData
+from tests.secret_free import assert_secret_free, chained, text_of
 
 # an int past the default digit limit, and its negation: 16610 bits
 _HUGE = 10**5000
 _DESCRIPTION = "int of 16610 bits"
+
+# a fixed random scalar, as `assert_secret_free` asks: bits 22 and 31
+# clear, for the sequence case, and no byte 0x00 or 0x40, the bytes of
+# the 0x400000 the sequence case prints
+_SCALAR_BYTES = bytes.fromhex(
+    "9ed7f12938cd646f2866d454cc247f688b857424cc4ee6bec49c16f1200bd5b9"
+)
+_SCALAR = int.from_bytes(_SCALAR_BYTES, "big")
 
 _TX_ID = "01" * 32
 _NOW = datetime(2026, 8, 4, tzinfo=UTC)
@@ -139,7 +154,34 @@ def _reconstruct(index: int) -> object:
 # `_HUGE` where the upper one does
 _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
     ("var_int", _HUGE, var_int.serialize),
+    ("BTC amount", _HUGE, valid_btc_amount),
+    ("satoshi amount", _HUGE, valid_sats_amount),
+    ("compressor varint", _HUGE, compressor.serialize_varint),
+    ("compressor varint width", _HUGE, lambda v: compressor.serialize_varint(0, v)),
+    ("compressed amount", _HUGE, compressor.decompress_amount),
+    ("compressed script type", _HUGE, lambda v: compressor.decompress_script(v, b"")),
+    ("negative fee rate", -_HUGE, lambda v: FeeRate(sats_per_kvbyte=v)),
+    ("fee rate", _HUGE, lambda v: FeeRate(sats_per_kvbyte=v)),
+    ("sat/vB quote", _HUGE, FeeRate.from_sats_per_vbyte),
+    ("BTC/kvB quote", _HUGE, lambda v: FeeRate.from_btc_per_kvbyte(v, round_up=True)),
+    ("virtual size", -_HUGE, lambda v: fee_from_vsize(v, FeeRate(sats_per_kvbyte=1))),
+    (
+        "ancestor virtual size",
+        -_HUGE,
+        lambda v: package_fee(1, FeeRate(sats_per_kvbyte=1), ancestor_vsize=v),
+    ),
+    ("chain work", -_HUGE, lambda v: anti_dos_work_threshold(v, "1d00ffff", 0)),
+    (
+        "sigop-adjusted weight",
+        -_HUGE,
+        lambda v: sig_ops_adjusted_weight(v, sig_op_cost=0, bytes_per_sigop=0),
+    ),
+    ("leaf hash version", _HUGE, lambda v: leaf_hash(v, b"")),
+    ("leaf weight", -_HUGE, lambda v: tree_from_weights([(v, (0xC0, ["OP_1"]))])),
+    ("read size", _HUGE, lambda v: read_exactly(BytesIO(), v, "field")),
+    ("utreexo leaf count", _HUGE, lambda v: UpdateData(prev_num_leaves=v)),
     ("output size", _HUGE, lambda v: bytes_from_octets(b"x", v)),
+    ("output sizes", _HUGE, lambda v: bytes_from_octets(b"x", (2, v))),
     (
         "obfuscation offset",
         -_HUGE,
@@ -162,11 +204,6 @@ _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
         lambda v: tx_out_ser(
             OutPoint(_TX_ID, 0).serialize(), Coin(TxOut(1, b""), v, False)
         ),
-    ),
-    (
-        "coinbase value ceiling",
-        -_HUGE,
-        lambda v: assert_coinbase_value(_tx(), subsidy=0, fees=v),
     ),
     (
         "bip54 coinbase lock time",
@@ -201,6 +238,11 @@ _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
         lambda v: header_at_height(_header(), v, 0, lambda h: h),
     ),
     ("target height", _HUGE, lambda v: header_at_height(_header(), 0, v, lambda h: h)),
+    (
+        "target height above the height",
+        _HUGE,
+        lambda v: header_at_height(_header(), v, v + 1, lambda h: h),
+    ),
     (
         "parent height",
         -_HUGE,
@@ -302,6 +344,11 @@ _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
         lambda v: PrefilledTransaction(0, _tx()).serialize(v),
     ),
     (
+        "unchecked prefilled previous index",
+        _HUGE,
+        lambda v: PrefilledTransaction(0, _tx()).serialize(v, check_validity=False),
+    ),
+    (
         "unchecked prefilled index",
         -_HUGE,
         lambda v: _unchecked_prefilled(v).serialize(0, check_validity=False),
@@ -351,6 +398,25 @@ _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
 ]
 
 
+# the refusals that name the bound alone, and what each reads
+_BOUND_CASES: list[tuple[str, Any, Callable[[Any], object], str]] = [
+    (
+        "coinbase value ceiling",
+        -_HUGE,
+        lambda v: assert_coinbase_value(_tx(), subsidy=0, fees=v),
+        "^bad-cb-amount: an int of 1 bits above the subsidy and fees$",
+    ),
+    (
+        "median time past bound",
+        _HUGE,
+        lambda v: Block(
+            _header(), [_unchecked_coinbase(0)], check_validity=False
+        ).assert_valid_contextual(BlockContext(1, _NOW, median_time_past=v)),
+        r"^invalid timestamp \(not after the median past\): 1231459200$",
+    ),
+]
+
+
 @pytest.mark.parametrize(
     "value, call",
     [(case[1], case[2]) for case in _CASES],
@@ -363,3 +429,59 @@ def test_a_refusal_describes_an_int_str_cannot_write(
     sign = "a negative " if value < 0 else "an "
     with pytest.raises(BTClibValueError, match=sign + _DESCRIPTION):
         call(value)
+
+
+@pytest.mark.parametrize(
+    "value, call, err_msg",
+    [case[1:] for case in _BOUND_CASES],
+    ids=[case[0] for case in _BOUND_CASES],
+)
+def test_a_refusal_naming_the_bound_writes_no_int_of_it(
+    value: int, call: Callable[[Any], object], err_msg: str
+) -> None:
+    """Refused as this library's error, the bound written as no int."""
+    with pytest.raises(BTClibValueError, match=err_msg):
+        call(value)
+
+
+# the refusals whose text is base58-bech32's, which has a _message_text
+# of its own that writes the int
+_RELAYED = {"base conversion value", "base conversion width"}
+_RELAYED_MARK = pytest.mark.xfail(
+    raises=AssertionError,
+    reason="base58-bech32 writes the int (btclib-org/base58-bech32#118)",
+)
+
+
+_SCALAR_CASES = [*_CASES, *(case[:3] for case in _BOUND_CASES)]
+
+
+@pytest.mark.parametrize(
+    "value, call",
+    [
+        pytest.param(
+            value,
+            call,
+            id=name,
+            marks=[_RELAYED_MARK] if name in _RELAYED else [],
+        )
+        for name, value, call in _SCALAR_CASES
+    ],
+)
+def test_a_refusal_prints_no_digit_of_a_scalar(
+    value: int, call: Callable[[Any], object]
+) -> None:
+    """A 256-bit scalar in the int's place reaches no exception of the chain.
+
+    Section 7 of the btclib-org standard: an argument in the wrong place
+    may be a key. The scalar takes the sign of the case's value.
+    `assert_secret_free` looks for pieces longer than a byte, in decimal
+    and in hex, so each byte is also looked for as `0x` and its hex.
+    """
+    scalar = -_SCALAR if value < 0 else _SCALAR
+    with pytest.raises(BTClibValueError) as refusal:
+        call(scalar)
+    assert_secret_free(refusal.value, [_SCALAR_BYTES, str(_SCALAR)])
+    for e in chained(refusal.value):
+        text = text_of(e)
+        assert all(f"0x{byte:02x}" not in text for byte in _SCALAR_BYTES)

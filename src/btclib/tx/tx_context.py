@@ -85,7 +85,7 @@ from btclib.tx.limits import (
 )
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import _message_text, assert_type, is_integer
+from btclib.utils import _message_field, _message_text, assert_type, is_integer
 
 __all__ = [
     "AncestorMedianTimePast",
@@ -253,7 +253,7 @@ def assert_coinbase_value(coinbase: Tx, subsidy: int, fees: int) -> None:
     ceiling = subsidy + fees
     if coinbase_value > ceiling:
         err_msg = f"bad-cb-amount: {_message_text(coinbase_value)}"
-        err_msg += f" instead of {_message_text(ceiling)}"
+        err_msg += " above the subsidy and fees"
         raise BTClibValueError(err_msg)
 
 
@@ -330,8 +330,9 @@ def assert_bip54_coinbase(coinbase: Tx, height: int) -> None:
     if height == 0:
         return
     if coinbase.lock_time != height - 1:
-        err_msg = f"bad-cb-locktime: {_message_text(coinbase.lock_time)}"
-        err_msg += f" instead of {_message_text(height - 1)}"
+        lock_time = _message_field(coinbase.lock_time, 32, "d")
+        expected = _message_field(height - 1, 32, "d")
+        err_msg = f"bad-cb-locktime: {lock_time} instead of {expected}"
         raise BTClibValueError(err_msg)
     if coinbase.vin[0].sequence == SEQUENCE_FINAL:
         raise BTClibValueError("bad-cb-sequence")

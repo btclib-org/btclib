@@ -385,9 +385,11 @@ def test_a_bool_is_not_a_filter_type() -> None:
 
 def test_a_filter_type_wider_than_an_octet_is_refused() -> None:
     """One octet, BIP157's own width for the field."""
-    with pytest.raises(BTClibValueError, match="invalid filter_type: 256"):
+    with pytest.raises(BTClibValueError, match="invalid filter_type: an int of 9 bits"):
         CFHeaders(256)
-    with pytest.raises(BTClibValueError, match="invalid filter_type: -1"):
+    with pytest.raises(
+        BTClibValueError, match="invalid filter_type: a negative int of 1 bits"
+    ):
         CFCheckpt(-1)
 
 
@@ -402,7 +404,9 @@ def test_the_basic_reading_is_refused_for_any_other_type() -> None:
     octets = _genesis_cfilter().filter_bytes
     payload = CFilter(_UNKNOWN_TYPE, b"\x11" * 32, octets)
 
-    with pytest.raises(BTClibValueError, match="invalid filter_type for a basic"):
+    # described, not written: BIP157 defines no type of this code
+    err_msg = "^invalid filter_type for a basic filter: an int of 6 bits$"
+    with pytest.raises(BTClibValueError, match=err_msg):
         _ = payload.basic_filter
 
     # the same octets under the code BIP158 defines are a filter
@@ -503,9 +507,13 @@ def test_a_range_bound_needs_a_chain_and_is_therefore_not_checked() -> None:
 
 def test_a_start_height_is_four_unsigned_octets() -> None:
     """Core reads StartHeight into a `uint32_t`, so neither sign nor a fifth."""
-    with pytest.raises(BTClibValueError, match="invalid start_height: 4294967296"):
+    with pytest.raises(
+        BTClibValueError, match="invalid start_height: an int of 33 bits"
+    ):
         GetCFilters(BlockFilterType.BASIC, 1 << 32)
-    with pytest.raises(BTClibValueError, match="invalid start_height: -1"):
+    with pytest.raises(
+        BTClibValueError, match="invalid start_height: a negative int of 1 bits"
+    ):
         GetCFHeaders(BlockFilterType.BASIC, -1)
     with pytest.raises(BTClibTypeError, match="invalid start_height type: bool"):
         GetCFilters(BlockFilterType.BASIC, True)
@@ -651,7 +659,9 @@ def test_check_validity_is_the_only_thing_the_flag_turns_off() -> None:
     assert payload.serialize(check_validity=False) == b"\x00" + bytes(32) + b"\x00"
 
     wide = CFHeaders(1 << 20, bytes(32), bytes(32), check_validity=False)
-    with pytest.raises(BTClibValueError, match="invalid filter_type: 1048576"):
+    with pytest.raises(
+        BTClibValueError, match="invalid filter_type: an int of 21 bits"
+    ):
         wide.assert_valid()
 
 

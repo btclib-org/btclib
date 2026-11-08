@@ -525,7 +525,7 @@ class PrefilledTransaction:
         difference = self.index - previous_index - 1
         if difference < 0:
             err_msg = f"index {_message_text(self.index)}"
-            err_msg += f" not past previous_index {previous_index}"
+            err_msg += f" not past previous_index {_message_text(previous_index)}"
             raise BTClibValueError(err_msg)
 
         out = var_int.serialize(difference)

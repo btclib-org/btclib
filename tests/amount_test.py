@@ -546,9 +546,13 @@ def test_an_int_amount_in_range_still_reads() -> None:
     """The int bound runs ahead of `str()` and admits every int in range."""
     assert valid_btc_amount(21_000_000) == 21_000_000
     assert valid_btc_amount(0) == 0
-    with pytest.raises(BTClibValueError, match="invalid BTC amount: 21000001$"):
+    with pytest.raises(
+        BTClibValueError, match="invalid BTC amount: an int of 25 bits$"
+    ):
         valid_btc_amount(21_000_001)
-    with pytest.raises(BTClibValueError, match="invalid BTC amount: -1$"):
+    with pytest.raises(
+        BTClibValueError, match="invalid BTC amount: a negative int of 1 bits$"
+    ):
         valid_btc_amount(-1)
 
 

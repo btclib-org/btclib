@@ -180,7 +180,9 @@ def test_median_time_past_refuses_a_height_that_is_not_one() -> None:
     for not_a_height in ("0", None, 1.5):
         with pytest.raises(BTClibTypeError, match="invalid height type: "):
             median_time_past(header, not_a_height, lambda h: h)  # type: ignore[arg-type]
-    with pytest.raises(BTClibValueError, match="invalid height: -1"):
+    with pytest.raises(
+        BTClibValueError, match="invalid height: a negative int of 1 bits"
+    ):
         median_time_past(header, -1, lambda h: h)
 
 
@@ -200,11 +202,18 @@ def test_header_at_height_walks_back_to_the_target_height() -> None:
 def test_header_at_height_refuses_a_target_height_outside_the_range() -> None:
     """A target height above the header's own, or a negative one, or type."""
     headers, parent_of = a_chain([EPOCH, EPOCH], [POW_LIMIT] * 2)
-    with pytest.raises(BTClibValueError, match="invalid target height: 5"):
+    with pytest.raises(
+        BTClibValueError,
+        match="invalid target height: an int of 3 bits is not between 0 and the height",
+    ):
         header_at_height(headers[1], 1, 5, parent_of)
-    with pytest.raises(BTClibValueError, match="invalid target height: -1"):
+    with pytest.raises(
+        BTClibValueError, match="invalid target height: a negative int of 1 bits"
+    ):
         header_at_height(headers[1], 1, -1, parent_of)
-    with pytest.raises(BTClibValueError, match="invalid height: -1"):
+    with pytest.raises(
+        BTClibValueError, match="invalid height: a negative int of 1 bits"
+    ):
         header_at_height(headers[1], -1, 0, parent_of)
     for not_a_height in ("1", None, 1.5):
         with pytest.raises(BTClibTypeError, match="invalid height type: "):
@@ -534,7 +543,9 @@ def test_assert_not_timewarp_refuses_a_bad_parent_height() -> None:
     candidate = _header(b"\x00" * 32, EPOCH, HARD)
     with pytest.raises(BTClibTypeError, match="invalid parent height type: str"):
         assert_not_timewarp(candidate, candidate, "1", REGTEST)  # type: ignore[arg-type]
-    with pytest.raises(BTClibValueError, match="invalid parent height: -1"):
+    with pytest.raises(
+        BTClibValueError, match="invalid parent height: a negative int of 1 bits"
+    ):
         assert_not_timewarp(candidate, candidate, -1, REGTEST)
 
 
@@ -646,7 +657,9 @@ def test_assert_bip54_timestamps_refuses_a_bad_parent_height() -> None:
     candidate = _header(b"\x00" * 32, EPOCH, HARD)
     with pytest.raises(BTClibTypeError, match="invalid parent height type: str"):
         assert_bip54_timestamps(candidate, candidate, "1", lambda h: h, MAIN)  # type: ignore[arg-type]
-    with pytest.raises(BTClibValueError, match="invalid parent height: -1"):
+    with pytest.raises(
+        BTClibValueError, match="invalid parent height: a negative int of 1 bits"
+    ):
         assert_bip54_timestamps(candidate, candidate, -1, lambda h: h, MAIN)
 
 
@@ -667,5 +680,7 @@ def test_next_bits_required_refuses_a_parent_height_that_is_not_one() -> None:
                 parent_of,
                 MAIN,
             )
-    with pytest.raises(BTClibValueError, match="invalid parent height: -1"):
+    with pytest.raises(
+        BTClibValueError, match="invalid parent height: a negative int of 1 bits"
+    ):
         next_bits_required(candidate, headers[0], -1, parent_of, MAIN)

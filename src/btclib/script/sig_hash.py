@@ -51,7 +51,6 @@ from btclib.utils import (
 )
 from btclib.utils import (
     _assert_valid_8_byte_signed_field,
-    _message_hex,
     _message_text,
     bytes_from_octets,
     is_integer,
@@ -113,7 +112,7 @@ def assert_valid_hash_type(hash_type: int) -> None:
         err_msg = f"invalid hash_type type: {type(hash_type).__name__}"
         raise BTClibTypeError(err_msg)
     if hash_type not in SIG_HASH_TYPES:
-        raise BTClibValueError(f"invalid sig_hash type: {_message_hex(hash_type)}")
+        raise BTClibValueError(f"invalid sig_hash type: {_message_text(hash_type)}")
 
 
 def _serialized_hash_type(hash_type: int) -> bytes:
@@ -863,7 +862,7 @@ def _epoch_and_agg_mode(agg_mode: int | None, ext_flag: int) -> bytes:
         err_msg = f"invalid aggregation mode type: {type(agg_mode).__name__}"
         raise BTClibTypeError(err_msg)
     if agg_mode not in _AGG_MODES:
-        raise BTClibValueError(f"invalid aggregation mode: {_message_hex(agg_mode)}")
+        raise BTClibValueError(f"invalid aggregation mode: {_message_text(agg_mode)}")
     if is_integer(ext_flag) and 0 < ext_flag <= 0x7F:
         raise BTClibValueError("aggregation mode for a script path spend")
     return bytes([0x01, agg_mode])

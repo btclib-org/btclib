@@ -804,7 +804,8 @@ def _reference_from_sats_per_vbyte(text: str, round_up: bool) -> int | str:
             return f"negative sat/vB fee rate: {text}"
         sats_per_kvbyte += 1
     if sats_per_kvbyte < 0:
-        return f"negative fee rate: {sats_per_kvbyte} sat/kvB"
+        bits = (-sats_per_kvbyte).bit_length()
+        return f"negative fee rate: a negative int of {bits} bits sat/kvB"
     return sats_per_kvbyte
 
 
@@ -1046,12 +1047,12 @@ def test_an_int_quote_is_bounded_at_the_cap_on_either_side(round_up: bool) -> No
     """The int bound ahead of `str()` sits exactly at MAX_MONEY."""
     top = FeeRate.from_sats_per_vbyte(2_100_000_000_000_000, round_up=round_up)
     assert top == FeeRate(sats_per_kvbyte=2_100_000_000_000_000_000)
-    match = "invalid sat/vB fee rate: 2100000000000001$"
+    match = "invalid sat/vB fee rate: an int of 51 bits$"
     with pytest.raises(BTClibValueError, match=match):
         FeeRate.from_sats_per_vbyte(2_100_000_000_000_001, round_up=round_up)
     top = FeeRate.from_btc_per_kvbyte(21_000_000, round_up=round_up)
     assert top == FeeRate(sats_per_kvbyte=2_100_000_000_000_000)
-    match = "invalid BTC(/kvB fee rate| amount): 21000001$"
+    match = "invalid BTC(/kvB fee rate| amount): an int of 25 bits$"
     with pytest.raises(BTClibValueError, match=match):
         FeeRate.from_btc_per_kvbyte(21_000_001, round_up=round_up)
 
