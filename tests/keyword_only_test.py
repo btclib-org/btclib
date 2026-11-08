@@ -218,6 +218,7 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.policy:sig_ops_adjusted_weight": ["sig_op_cost", "bytes_per_sigop"],
     "btclib.policy:virtual_size": ["sig_op_cost", "bytes_per_sigop"],
     "btclib.script.sig_hash:from_tx": ["codesep_index"],
+    "btclib.script.sig_hash:taproot": ["agg_mode"],
     "btclib.script:Script.__init__": ["check_validity"],
     "btclib.script:ScriptPubKey.__init__": ["check_validity"],
     "btclib.script:ScriptPubKey.from_address": ["check_validity"],

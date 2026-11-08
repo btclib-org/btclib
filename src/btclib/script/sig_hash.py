@@ -7,7 +7,8 @@
 Three preimages for one question -- what does this input's signature
 sign: `legacy` is Satoshi's SignatureHash, `segwit_v0` is BIP143's,
 which adds the amount being spent, and `taproot` is BIP341's SigMsg,
-which commits to every spent output. The hash types -- ALL, NONE,
+which commits to every spent output; given an aggregation mode, it is
+BIP460's message instead. The hash types -- ALL, NONE,
 SINGLE, each with or without ANYONECANPAY, and taproot's DEFAULT --
 choose how much of the transaction each preimage covers, and
 `from_tx` dispatches an input to the preimage its script demands.
@@ -842,6 +843,32 @@ class _TaprootInputHashes:
         return self._output
 
 
+# BIP460's marker bytes: 0xbc names the half aggregation group and 0xbd
+# the full aggregation group
+_AGG_MODES = frozenset({0xBC, 0xBD})
+
+
+def _epoch_and_agg_mode(agg_mode: int | None, ext_flag: int) -> bytes:
+    """Return the bytes a taproot signature message starts with.
+
+    BIP341's epoch 0x00 without an aggregation mode, and with one BIP460's
+    epoch 0x01 followed by the mode. BIP460 aggregates key path spends
+    only, so a mode beside a valid nonzero extension flag is refused. An
+    extension flag that is no integer or out of range is left to
+    `_serialized_spend_type`, which names it.
+    """
+    if agg_mode is None:
+        return b"\x00"
+    if not is_integer(agg_mode):
+        err_msg = f"invalid aggregation mode type: {type(agg_mode).__name__}"
+        raise BTClibTypeError(err_msg)
+    if agg_mode not in _AGG_MODES:
+        raise BTClibValueError(f"invalid aggregation mode: {_message_hex(agg_mode)}")
+    if is_integer(ext_flag) and 0 < ext_flag <= 0x7F:
+        raise BTClibValueError("aggregation mode for a script path spend")
+    return bytes([0x01, agg_mode])
+
+
 def taproot(
     transaction: Tx,
     input_index: int,
@@ -851,8 +878,10 @@ def taproot(
     annex: Octets,
     message_extension: Octets,
     precomputed: PrecomputedTxData | None = None,
+    *,
+    agg_mode: int | None = None,
 ) -> bytes:
-    """Return the BIP341 hash one taproot input's signature commits to.
+    """Return the hash one taproot input's signature commits to.
 
     BIP341's SigMsg under the TapSighash tag: the whole-transaction
     hashes enter as their single-sha256 forms, the spent amounts and
@@ -860,7 +889,17 @@ def taproot(
     `message_extension` carry BIP342's tapleaf commitment for a script
     path -- empty for the key path. SIGHASH_SINGLE with no matching
     output is an error here, per BIP341, where legacy keeps the bug.
+
+    `agg_mode` is BIP460's marker byte of the aggregation group a key
+    path input signs for: 0xbc for half aggregation, 0xbd for full
+    aggregation. The message then starts with epoch 0x01 and that byte,
+    where BIP341's starts with epoch 0x00, and the SigMsg after them is
+    the same. None, the default, is BIP341's message, which a BIP460
+    input that opts out of aggregation also signs. Any other marker is
+    refused, and so is a marker with a nonzero `ext_flag`. Which output
+    the input spends is not checked.
     """
+    epoch_and_agg_mode = _epoch_and_agg_mode(agg_mode, ext_flag)
     return _taproot(
         transaction,
         input_index,
@@ -871,6 +910,7 @@ def taproot(
         message_extension,
         precomputed,
         _TaprootInputHashes(),
+        epoch_and_agg_mode,
     )
 
 
@@ -884,12 +924,14 @@ def _taproot(
     message_extension: Octets,
     precomputed: PrecomputedTxData | None,
     input_hashes: _TaprootInputHashes,
+    epoch_and_agg_mode: bytes,
 ) -> bytes:
     """Return `taproot`'s hash, the annex and output hashes being the caller's.
 
     The script engine keeps one `_TaprootInputHashes` for all the signature
     checks of an input, so they cost the size of the annex and of the output
-    once and not once per check.
+    once and not once per check. `epoch_and_agg_mode` is what
+    `_epoch_and_agg_mode` returns, and the message starts with it.
     """
     _assert_valid_prevouts_for(prevouts, input_index, precomputed)
     _assert_valid_vin_i(transaction, input_index)
@@ -910,7 +952,7 @@ def _taproot(
     # b"".join of the parts, as the rest of the module does, rather than
     # the += of a bytes copied whole at every one of a dozen steps
     parts = [
-        b"\x00",
+        epoch_and_agg_mode,
         hashtype.to_bytes(1, "little"),
         _serialized_4_byte_field("version", transaction.nVersion),
         _serialized_4_byte_field("lock time", transaction.nLockTime),

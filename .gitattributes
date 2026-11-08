@@ -31,6 +31,7 @@ tests/schemes/_data/packet_encoding_test_vectors.csv -text
 tests/schemes/_data/python-bitcoinlib/COPYINGv3 -text
 tests/schemes/_data/python-bitcoinlib/LICENSE -text
 tests/schemes/_data/python-bitcoinlib/signmessage.json -text
+tests/script/_data/bip-0460/wallet-test-vectors.json -text
 tests/script/_data/bip67_test_vectors.json -text
 tests/script/_data/script_assets_test.json -text
 tests/script/_data/sig_hash_legacy_test_vectors.json -text

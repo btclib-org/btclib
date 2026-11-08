@@ -577,11 +577,12 @@ environment a commit runs through is decided by where the hook was
 installed rather than by which tree the commit is made in. Run the gate
 by hand before committing, the `uv run pre-commit run --all-files` above.
 
-One of those hooks needs maintenance, and only one. The test vector
-`tests/script/_data/taproot_test_vector.json` holds private keys, so it is
-recorded in `.secrets.baseline` as already reviewed rather than excluded
-from the scan, which would leave that file unwatched for a credential that
-has no business being there.
+One of those hooks needs maintenance, and only one. The test vectors
+`tests/script/_data/taproot_test_vector.json` and
+`tests/script/_data/bip-0460/wallet-test-vectors.json` hold private keys,
+so they are recorded in `.secrets.baseline` as already reviewed rather
+than excluded from the scan, which would leave those files unwatched for a
+credential that has no business being there.
 `tests/block/_generated_files/block_481824.json` is in the baseline for a
 narrower reason: `ACCA` is one of the AWS key prefixes and is also four hex
 digits, so the block's own signatures match the detector wherever a script

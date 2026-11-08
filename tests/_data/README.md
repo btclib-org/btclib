@@ -135,6 +135,8 @@ On 2026-11-02 followed opentimestamps-client's examples and their licence,
 rustreexo's `test_values/` files, python-bitcoinlib's `LICENSE` and
 `COPYING`, and gnulib's `COPYINGv3` beside both projects' licences, each
 at the tip of its path, `COPYING` at the tip before upstream deleted it.
+bip-0460's `wallet-test-vectors.json` followed on 2026-11-08, at the tip
+of its path.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -191,6 +193,22 @@ behind  0 revisions; that commit is the only one to touch the path
 ```
 
 Verdict: **identical**.
+
+### `tests/script/_data/bip-0460/wallet-test-vectors.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0460/wallet-test-vectors.json
+commit  6ee9ac116edc46fa6e427331d47f044acd1087fb  2026-11-04
+blob    9fdb49d267c3b1a7cd601490a4dd551ea0226b83
+pulled  2026-11-08
+behind  0 revisions; that commit is the only one to touch the path
+```
+
+Verdict: **identical**. The directory keeps the file apart from
+bip-0341's file of the same name, held here as `taproot_test_vector.json`.
+`tests/script/sig_hash_bip460_test.py` reads every case: the messages
+and the individual signatures, not the aggregate signatures.
 
 ### `tests/script/_data/bip67_test_vectors.json`
 
@@ -1349,14 +1367,14 @@ git ls-files 'tests/_data/*' 'tests/*/_data/*' 'src/btclib/testing/_data/*' |
 
 Against a pinned upstream blob:
 
-- identical byte for byte: `taproot_test_vector.json`,
-  `sig_hash_legacy_test_vectors.json`, `script_tests.json`, `tx_valid.json`,
-  `tx_invalid.json`, `key_io_valid.json`, `key_io_invalid.json`,
-  `siphash.json`, `blockfilters.json`, `checkblock_valid.json`,
-  `checkblock_invalid.json`, `txsize.json`, opentimestamps-client's proofs
-  and `LICENSE` under `tests/block/_data/opentimestamps/`,
-  python-bitcoinlib's `LICENSE`, and gnulib's `COPYINGv3` beside both
-  `LICENSE` files.
+- identical byte for byte: `taproot_test_vector.json`, bip-0460's
+  `wallet-test-vectors.json`, `sig_hash_legacy_test_vectors.json`,
+  `script_tests.json`, `tx_valid.json`, `tx_invalid.json`,
+  `key_io_valid.json`, `key_io_invalid.json`, `siphash.json`,
+  `blockfilters.json`, `checkblock_valid.json`, `checkblock_invalid.json`,
+  `txsize.json`, opentimestamps-client's proofs and `LICENSE` under
+  `tests/block/_data/opentimestamps/`, python-bitcoinlib's `LICENSE`, and
+  gnulib's `COPYINGv3` beside both `LICENSE` files.
 - identical byte for byte, from rustreexo: `test_cases.json`,
   `update_data_tests.json`, `cached_proof_tests.json`.
 - identical but for a trailing newline: `script_assets_test.json`,

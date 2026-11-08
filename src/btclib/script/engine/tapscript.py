@@ -134,6 +134,8 @@ def _check_schnorr_signature(
             ext,
             precomputed,
             input_hashes or _TaprootInputHashes(),
+            # BIP341's epoch: the engine checks no BIP460 aggregate
+            b"\x00",
         )
     except BTClibValueError as e:
         raise ScriptError(str(e), ScriptErrorCode.SCHNORR_SIG_HASHTYPE) from e

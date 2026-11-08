@@ -111,6 +111,10 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
         "sig_hash input index",
         lambda v: sig_hash.taproot(_tx(), v, _PREVOUTS, 1, 0, b"", b""),
     ),
+    (
+        "sig_hash aggregation mode",
+        lambda v: sig_hash.taproot(_tx(), 0, _PREVOUTS, 1, 0, b"", b"", agg_mode=v),
+    ),
     ("script number", encode_num),
     (
         "merkle leaf index",
@@ -223,6 +227,9 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert input_script_sig(None, _SCRIPT_TREE, 0)[0] == ["OP_1"]
     assert tree_helper([(0xC0, ["OP_1"])])[0][0][0] == (0xC0, ["OP_1"])
     assert len(sig_hash.taproot(_tx(), 0, _PREVOUTS, 1, 0, b"", b"")) == 32
+    assert (
+        len(sig_hash.taproot(_tx(), 0, _PREVOUTS, 1, 0, b"", b"", agg_mode=0xBC)) == 32
+    )
     assert encode_num(1) == b"\x01"
     assert merkle_root_from_branch(b"\x00" * 32, [], 0, sha256) == b"\x00" * 32
     assert bip34_commitment(1) == b"Q"
