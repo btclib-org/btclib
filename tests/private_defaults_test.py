@@ -50,7 +50,8 @@ _LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 
 # the shapes the walk has to be reaching for the gate to mean anything: a
 # module-level function and a private method of a public class. The
-# library holds no nested function, so that shape is `_SOURCE`'s alone.
+# library holds no private nested function, so that shape is `_SOURCE`'s
+# alone.
 # A rename here is a failure worth reading rather than fixing blind --
 # what it asks for is the new name of the same shape
 _SHAPES = frozenset({"_to_num", "Block._assert_coinbase"})
