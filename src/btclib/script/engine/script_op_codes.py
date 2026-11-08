@@ -335,7 +335,8 @@ def _assert_minimal_if(
     else:
         return
     if stack[-1] not in {b"", b"\x01"}:
-        raise ScriptError(f"non-minimal {op} condition: {stack[-1].hex()}", code)
+        err_msg = f"non-minimal {op} condition of {len(stack[-1])} bytes"
+        raise ScriptError(err_msg, code)
 
 
 class ConditionStack:
