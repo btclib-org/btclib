@@ -211,7 +211,7 @@ def test_a_refused_payload_prints_no_byte_of_it(
     assert_secret_free(refusal.value, [BARE_SCALAR, encoded, decimal])
     for e in chained(refusal.value):
         text = text_of(e)
-        assert not any(f"0x{byte:02x}" in text for byte in payload)
+        assert all(f"0x{byte:02x}" not in text for byte in payload)
 
 
 def test_address_from_h160() -> None:
