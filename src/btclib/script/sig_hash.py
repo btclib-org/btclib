@@ -1042,8 +1042,7 @@ def redeem_script(script_sig: Octets, script_pub_key: Octets) -> bytes:
     script = b"" if command == "OP_0" else bytes.fromhex(command)
     _, payload = type_and_payload(script_pub_key)
     if hash160(script) != payload:
-        err_msg = "invalid redeem script hash: "
-        err_msg += f"{hash160(script).hex()} instead of {payload.hex()}"
+        err_msg = f"invalid redeem script hash: redeem script of {len(script)} bytes"
         raise BTClibValueError(err_msg)
     return script
 

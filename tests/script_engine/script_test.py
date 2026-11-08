@@ -65,6 +65,7 @@ from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
 from tests import load, vector_id
 from tests.script_engine import parse_script
+from tests.secret_free import assert_secret_free, chained, text_of
 
 
 class ScriptVector(NamedTuple):
@@ -1448,6 +1449,104 @@ def test_minimalif_all_leaves_an_unexecuted_condition_alone() -> None:
         ["OP_0"], ["OP_IF", "OP_IF", "OP_ENDIF", "OP_ENDIF", "OP_1"]
     )
     verify_input(prevouts, tx, 0, ALL_FLAGS | ScriptFlag.MINIMALIF_ALL)
+
+
+# a fixed random scalar, as `assert_secret_free` asks
+_SCALAR = bytes.fromhex(
+    "8eaaa3c3cf669d2aae3d7d2019b199d8bfc162c1f5902ec1ecbbd8a31aa7ff8a"
+)
+
+
+def _assert_no_byte_of(refusal: BaseException, pushed: bytes) -> None:
+    """Assert that a refusal prints no byte of what the script pushed.
+
+    The push may be a key put where it does not belong (section 7 of the
+    btclib-org standard). `assert_secret_free` looks for pieces longer
+    than a byte, so each byte is also looked for as `0x` and its hex.
+    """
+    assert_secret_free(refusal, [_SCALAR, str(int.from_bytes(_SCALAR, "big"))])
+    for e in chained(refusal):
+        text = text_of(e)
+        assert all(f"0x{byte:02x}" not in text for byte in pushed)
+
+
+@pytest.mark.parametrize(
+    "pub_key, segwit, flags, err_msg",
+    [
+        # an xprv's key field, 0x00 and the key, where a compressed key stands
+        (
+            b"\x00" + _SCALAR,
+            False,
+            ScriptFlag.STRICTENC,
+            "public key of 33 bytes neither compressed nor uncompressed",
+        ),
+        (
+            _SCALAR,
+            False,
+            ScriptFlag.STRICTENC,
+            "public key of 32 bytes neither compressed nor uncompressed",
+        ),
+        (
+            b"\x00" + _SCALAR,
+            True,
+            ScriptFlag.WITNESS_PUBKEYTYPE,
+            "public key of 33 bytes not compressed in a segwit script",
+        ),
+        # the shape of an uncompressed key, which segwit refuses
+        (
+            b"\x04" + _SCALAR + _SCALAR,
+            True,
+            ScriptFlag.WITNESS_PUBKEYTYPE,
+            "public key of 65 bytes not compressed in a segwit script",
+        ),
+    ],
+    ids=["xprv-key-strictenc", "scalar-strictenc", "xprv-key-segwit", "uncompressed"],
+)
+def test_a_refused_public_key_prints_no_byte_of_it(
+    pub_key: bytes, segwit: bool, flags: ScriptFlag, err_msg: str
+) -> None:
+    """A key the encoding check refuses is named by its size alone."""
+    with pytest.raises(ScriptError) as refusal:
+        legacy_engine.check_pub_key(pub_key, segwit, flags)
+    assert str(refusal.value) == err_msg
+    _assert_no_byte_of(refusal.value, pub_key)
+
+
+def test_a_refused_condition_prints_no_byte_of_it() -> None:
+    """A condition MINIMALIF refuses is named by its size alone."""
+    prevouts, tx = _legacy_spend([_SCALAR], _IF_SCRIPT)
+    with pytest.raises(ScriptError) as refusal:
+        verify_input(prevouts, tx, 0, ScriptFlag.MINIMALIF_ALL)
+    assert refusal.value.code is ScriptErrorCode.MINIMALIF
+    assert str(refusal.value).startswith("non-minimal OP_IF condition of 32 bytes")
+    _assert_no_byte_of(refusal.value, _SCALAR)
+
+
+def test_a_refused_high_s_prints_no_byte_of_it() -> None:
+    """A high s LOW_S refuses is named as such, without its value."""
+    s = int.from_bytes(_SCALAR, "big")
+    assert secp256k1.n // 2 < s < secp256k1.n
+    sig = Sig(1, s, check_validity=False)
+    signature = sig.serialize(check_validity=False) + b"\x01"
+    with pytest.raises(ScriptError) as refusal:
+        fix_signature(signature, ScriptFlag.LOW_S)
+    assert refusal.value.code is ScriptErrorCode.SIG_HIGH_S
+    assert str(refusal.value) == "high s"
+    _assert_no_byte_of(refusal.value, _SCALAR)
+
+
+def test_a_refused_hash_type_prints_no_byte_of_it() -> None:
+    """A hash type STRICTENC refuses is not one the format defines.
+
+    So it is not printed: the byte may be one of a key's.
+    """
+    der = Sig(1, 1, check_validity=False).serialize(check_validity=False)
+    signature = der + _SCALAR[1:2]
+    with pytest.raises(ScriptError) as refusal:
+        fix_signature(signature, ScriptFlag.STRICTENC)
+    assert refusal.value.code is ScriptErrorCode.SIG_HASHTYPE
+    assert str(refusal.value) == "invalid sighash type"
+    _assert_no_byte_of(refusal.value, _SCALAR[1:2])
 
 
 def test_minimalif_all_names_core_s_code_for_a_witness_v0_script() -> None:

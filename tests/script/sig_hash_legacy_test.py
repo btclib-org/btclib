@@ -20,6 +20,7 @@ from btclib.script import serialize, sig_hash
 from btclib.script.engine import verify_transaction
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id
+from tests.secret_free import assert_secret_free, chained, text_of
 
 
 # block 170
@@ -218,6 +219,32 @@ def test_missing_redeem_script() -> None:
     tx.vin[0].script_sig = serialize([serialize(["OP_1"])])
     with pytest.raises(BTClibValueError, match="invalid redeem script hash"):
         sig_hash.from_tx([utxo], tx, 0, sig_hash.ALL)
+
+
+# a fixed random scalar, as `assert_secret_free` asks
+_SCALAR = bytes.fromhex(
+    "8eaaa3c3cf669d2aae3d7d2019b199d8bfc162c1f5902ec1ecbbd8a31aa7ff8a"
+)
+
+
+def test_a_refused_redeem_script_prints_no_byte_or_hash_of_it() -> None:
+    """A push that does not hash to the payload is named by its size alone.
+
+    The push may be a key put where the redeem script belongs (section 7
+    of the btclib-org standard), and its hash would confirm a guess at
+    it. `assert_secret_free` looks for pieces longer than a byte, so each
+    byte is also looked for as `0x` and its hex.
+    """
+    pushed = b"\x00" + _SCALAR
+    script_pub_key = serialize(["OP_HASH160", hash160(b""), "OP_EQUAL"])
+    with pytest.raises(BTClibValueError) as refusal:
+        sig_hash.redeem_script(serialize([pushed]), script_pub_key)
+    err_msg = "invalid redeem script hash: redeem script of 33 bytes"
+    assert str(refusal.value) == err_msg
+    assert_secret_free(refusal.value, [pushed, hash160(pushed)])
+    for e in chained(refusal.value):
+        text = text_of(e)
+        assert all(f"0x{byte:02x}" not in text for byte in pushed)
 
 
 # [1:] skips the column headers, which are a row of the file

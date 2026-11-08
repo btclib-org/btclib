@@ -240,11 +240,11 @@ def fix_signature(signature: bytes, flags: ScriptFlag) -> bytes:
         # it a high s is not merely tolerated but normalized away, as
         # Core's CPubKey::Verify does
         if ScriptFlag.LOW_S in flags:
-            raise ScriptError(f"high s: {hex(sig.s)}", ScriptErrorCode.SIG_HIGH_S)
+            raise ScriptError("high s", ScriptErrorCode.SIG_HIGH_S)
         sig = Sig(sig.r, sig.ec.n - sig.s, check_validity=False)
         signature = sig.serialize(check_validity=False)
     if ScriptFlag.STRICTENC in flags and signature_suffix[0] not in _LEGACY_HASH_TYPES:
-        err_msg = f"invalid sighash type: {hex(signature_suffix[0])}"
+        err_msg = "invalid sighash type"
         raise ScriptError(err_msg, ScriptErrorCode.SIG_HASHTYPE)
     return signature + signature_suffix
 
@@ -265,10 +265,12 @@ def check_pub_key(pub_key: bytes, segwit: bool, flags: ScriptFlag) -> bool:
     compressed = len(pub_key) == 33 and pub_key[0] in {2, 3}
     uncompressed = len(pub_key) == 65 and pub_key[0] == 4
     if ScriptFlag.STRICTENC in flags and not (compressed or uncompressed):
-        err_msg = f"public key neither compressed nor uncompressed: {pub_key.hex()}"
+        err_msg = f"public key of {len(pub_key)} bytes "
+        err_msg += "neither compressed nor uncompressed"
         raise ScriptError(err_msg, ScriptErrorCode.PUBKEYTYPE)
     if segwit and ScriptFlag.WITNESS_PUBKEYTYPE in flags and not compressed:
-        err_msg = f"public key not compressed in a segwit script: {pub_key.hex()}"
+        err_msg = f"public key of {len(pub_key)} bytes "
+        err_msg += "not compressed in a segwit script"
         raise ScriptError(err_msg, ScriptErrorCode.WITNESS_PUBKEYTYPE)
     return compressed or (len(pub_key) == 65 and pub_key[0] in {4, 6, 7})
 
