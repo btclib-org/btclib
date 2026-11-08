@@ -1,6 +1,6 @@
 # A Python library for 'bitcoin cryptography'
 
-<!-- Section 2 of btclib-org/.github's README.md says which badges sit here. -->
+<!-- Section 2 of the organization's standard says which badges sit here. -->
 [![PyPI version](https://img.shields.io/pypi/v/btclib.svg?logo=pypi)](https://pypi.python.org/pypi/btclib/)
 [![GitHub release](https://img.shields.io/github/v/release/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/releases)
 [![development status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/)
@@ -236,7 +236,7 @@ what it intends to do, and what it deliberately does not, is its
 
 ## Status
 
-<!-- Section 2 of btclib-org/.github's README.md says which badges sit here. -->
+<!-- Section 2 of the organization's standard says which badges sit here. -->
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/main.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/main)
 [![lint workflow status](https://github.com/btclib-org/btclib/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/lint.yml?query=branch%3Amain)
 [![test workflow status](https://github.com/btclib-org/btclib/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/btclib-org/btclib/actions/workflows/test.yml?query=branch%3Amain)
