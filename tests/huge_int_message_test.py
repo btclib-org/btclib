@@ -261,6 +261,13 @@ _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
         _HUGE,
         lambda v: sig_hash.taproot(_tx(), 0, [_P2PKH_PREVOUT], 1, v, b"", b""),
     ),
+    (
+        "sig_hash aggregation mode",
+        _HUGE,
+        lambda v: sig_hash.taproot(
+            _tx(), 0, [_P2PKH_PREVOUT], 1, 0, b"", b"", agg_mode=v
+        ),
+    ),
     ("sig_hash amount", _HUGE, lambda v: sig_hash.segwit_v0(b"", _tx(), 0, 1, v)),
     (
         "negative OP_CODESEPARATOR index",
