@@ -46,6 +46,7 @@ from btclib.tx.limits import (
 from btclib.tx.tx import Tx
 from btclib.utils import (
     _message_field,
+    _message_text,
     assert_type,
     decode_num,
     encode_num,
@@ -1042,8 +1043,17 @@ def op_checksequenceverify(
             sequence & SEQUENCE_LOCKTIME_MASK
             > tx.vin[i].sequence & SEQUENCE_LOCKTIME_MASK
         ):
+            # the input's low 16 bits are written only where its sequence
+            # fits four bytes: past them, they are bits of whatever was
+            # passed in the sequence's place
+            input_sequence = tx.vin[i].sequence
+            tx_relative = (
+                str(input_sequence & SEQUENCE_LOCKTIME_MASK)
+                if 0 <= input_sequence <= 0xFFFFFFFF
+                else _message_text(input_sequence)
+            )
             err_msg = (
                 f"relative lock time {sequence & SEQUENCE_LOCKTIME_MASK} > "
-                f"{tx.vin[i].sequence & SEQUENCE_LOCKTIME_MASK}"
+                f"{tx_relative}"
             )
             raise ScriptError(err_msg, unsatisfied)

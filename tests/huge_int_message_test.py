@@ -60,7 +60,7 @@ from btclib.p2p.compact_blocks import (
     reconstruct,
 )
 from btclib.p2p.handshake import Version
-from btclib.p2p.headers_sync import anti_dos_work_threshold
+from btclib.p2p.headers_sync import ChainStart, anti_dos_work_threshold
 from btclib.p2p.inventory import GetBlocks, Inventory
 from btclib.p2p.keepalive import Ping
 from btclib.p2p.negotiation import FeeFilter, SendTxRcncl
@@ -82,8 +82,8 @@ _HUGE = 10**5000
 _DESCRIPTION = "int of 16610 bits"
 
 # a fixed random scalar, as `assert_secret_free` asks: bits 22 and 31
-# clear, for the sequence case, and no byte 0x00 or 0x40, the bytes of
-# the 0x400000 the sequence case prints
+# clear and the low 16 bits below 0xFFFF, for the sequence cases, and no
+# byte 0x00 or 0x40, the bytes of the 0x400000 the unit mismatch prints
 _SCALAR_BYTES = bytes.fromhex(
     "9ed7f12938cd646f2866d454cc247f688b857424cc4ee6bec49c16f1200bd5b9"
 )
@@ -142,6 +142,15 @@ def _unresolved_prevout(vout: int) -> object:
     spend = Tx(vin=[tx_in], vout=[TxOut(0, b"")], check_validity=False)
     block = Block(_header(), [coinbase, spend], check_validity=False)
     return prevout_scripts_from_utxos(block, {})
+
+
+def _outdated_header(version: int) -> None:
+    """Check a header whose version was not checked, past BIP65's height."""
+    header = BlockHeader(
+        version, "00" * 32, "11" * 32, _NOW, "1d00ffff", 1, check_validity=False
+    )
+    block = Block(header, [_unchecked_coinbase(0)], check_validity=False)
+    block.assert_valid_contextual(BlockContext(1_000_000, _NOW))
 
 
 def _reconstruct(index: int) -> object:
@@ -391,6 +400,18 @@ _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
         lambda v: _verify_unchecked([1 << 22, "OP_CHECKSEQUENCEVERIFY"], sequence=v),
     ),
     (
+        "unchecked sequence below the script's relative lock time",
+        # bits 22 and 31 clear, and the low 16 bits below 0xFFFF
+        _HUGE,
+        lambda v: _verify_unchecked([0xFFFF, "OP_CHECKSEQUENCEVERIFY"], sequence=v),
+    ),
+    (
+        "chain start median time past",
+        _HUGE,
+        lambda v: ChainStart(_header(), 0, 1, v, ()),
+    ),
+    ("outdated header version", -_HUGE, _outdated_header),
+    (
         "unchecked filter type",
         _HUGE,
         lambda v: CFilter(filter_type=v, check_validity=False).basic_filter,
@@ -415,6 +436,43 @@ _BOUND_CASES: list[tuple[str, Any, Callable[[Any], object], str]] = [
         r"^invalid timestamp \(not after the median past\): 1231459200$",
     ),
 ]
+
+
+# the values at the edge of a field a refusal writes in full only where
+# the value fits it, and what each reads
+_EDGE_CASES: list[tuple[str, int, Callable[[int], object], str]] = [
+    (
+        "sequence one bit past four bytes",
+        2**32 + 1,
+        lambda v: _verify_unchecked([0xFFFF, "OP_CHECKSEQUENCEVERIFY"], sequence=v),
+        r"^relative lock time 65535 > an int of 33 bits \(",
+    ),
+    (
+        "least header version",
+        -(2**31),
+        _outdated_header,
+        r"^invalid version \(outdated\): 0x80000000 < 4$",
+    ),
+    (
+        "header version below the least",
+        -(2**31) - 1,
+        _outdated_header,
+        r"^invalid version \(outdated\): a negative int of 32 bits < 4$",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "value, call, err_msg",
+    [case[1:] for case in _EDGE_CASES],
+    ids=[case[0] for case in _EDGE_CASES],
+)
+def test_a_field_is_written_only_where_the_value_fits_it(
+    value: int, call: Callable[[int], object], err_msg: str
+) -> None:
+    """A value that fits its field is written, one just past it described."""
+    with pytest.raises(BTClibValueError, match=err_msg):
+        call(value)
 
 
 @pytest.mark.parametrize(
@@ -475,13 +533,19 @@ def test_a_refusal_prints_no_digit_of_a_scalar(
 
     Section 7 of the btclib-org standard: an argument in the wrong place
     may be a key. The scalar takes the sign of the case's value.
-    `assert_secret_free` looks for pieces longer than a byte, in decimal
-    and in hex, so each byte is also looked for as `0x` and its hex.
+    `assert_secret_free` looks for pieces `WINDOW` characters long
+    (`tests/secret_free/__init__.py`) of the scalar's decimal and hex. So
+    each byte is also looked for as `0x` and
+    its hex, and the low two and four bytes a mask leaves of the scalar
+    are looked for in decimal and in hex.
     """
     scalar = -_SCALAR if value < 0 else _SCALAR
     with pytest.raises(BTClibValueError) as refusal:
         call(scalar)
     assert_secret_free(refusal.value, [_SCALAR_BYTES, str(_SCALAR)])
+    lows = [scalar & (2 ** (8 * size) - 1) for size in (2, 4)]
+    masked = [spelling for low in lows for spelling in (str(low), f"{low:x}")]
     for e in chained(refusal.value):
         text = text_of(e)
         assert all(f"0x{byte:02x}" not in text for byte in _SCALAR_BYTES)
+        assert all(spelling not in text for spelling in masked)

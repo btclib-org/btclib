@@ -702,6 +702,20 @@ def test_tapscript_checksequenceverify() -> None:
         verify_input(prevouts, tx, 0, ALL_FLAGS)
 
 
+def test_a_relative_lock_time_not_reached_writes_the_input_s_low_bits() -> None:
+    """The refusal writes the low 16 bits of a sequence that fits four bytes.
+
+    Bit 16 is outside the relative lock time, so the input's sequence
+    0x10001 reads as 1. A wider sequence is described instead
+    (`tests/huge_int_message_test.py`).
+    """
+    prevouts, tx = taproot_script_spend(
+        ["OP_2", "OP_CHECKSEQUENCEVERIFY"], lock_time=0, sequence=0x10001
+    )
+    with pytest.raises(BTClibValueError, match=r"^relative lock time 2 > 1 \("):
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+
 def test_tapscript_upgradable_nop() -> None:
     """An upgradable OP_NOPx in a tapscript is a no-op.
 

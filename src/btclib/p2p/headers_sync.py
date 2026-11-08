@@ -216,8 +216,8 @@ class ChainStart:
         for key in ("height", "chain_work", "median_time_past"):
             _assert_non_negative_int(getattr(self, key), key)
         if self.median_time_past > _MAX_TIME:
-            err_msg = f"invalid median_time_past: {self.median_time_past}"
-            raise BTClibValueError(err_msg)
+            mtp = _message_text(self.median_time_past)
+            raise BTClibValueError(f"invalid median_time_past: {mtp}")
 
 
 @dataclass(frozen=True)

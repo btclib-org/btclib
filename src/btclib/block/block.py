@@ -34,6 +34,7 @@ from btclib.tx import Tx, TxOut
 from btclib.tx.limits import LOCKTIME_THRESHOLD
 from btclib.tx.tx_context import is_final
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     assert_type,
     bytes_from_octets,
@@ -572,9 +573,16 @@ class Block:
         min_version = context.min_version
         if min_version is not None and self.header.version < min_version:
             # Core prints nVersion as a uint32, so a negative version
-            # reads as its two's complement
-            version = f"0x{self.header.version & 0xFFFFFFFF:08x}"
-            err_msg = f"invalid version (outdated): {version} < {min_version}"
+            # reads as its two's complement. Only a version that fits the
+            # header's four signed bytes is written: the low bytes of a
+            # wider one are bytes of whatever was passed in its place
+            version = self.header.version
+            text = (
+                f"0x{version & 0xFFFFFFFF:08x}"
+                if -(2**31) <= version < 2**31
+                else _message_text(version)
+            )
+            err_msg = f"invalid version (outdated): {text} < {min_version}"
             raise BTClibValueError(err_msg)
 
     def _assert_final_transactions(self, context: BlockContext) -> None:
