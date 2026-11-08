@@ -23,6 +23,7 @@ from btclib.hashes import hash160, hash256, sha256
 from btclib.key import PubKeyData
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_SCRIPT_SIZE
 from btclib.script.script import serialize
+from tests.secret_free import assert_secret_free, chained, text_of
 
 ec = secp256k1
 
@@ -88,7 +89,8 @@ def test_prv_key_data_from_wif() -> None:
     badwif = b58encode_check(payload)
     with pytest.raises(NotAPrvKeyError, match="not a WIF") as exc_info:
         b58.prv_key_data_from_wif(badwif)
-    assert "invalid prefix 0x81" in str(exc_info.value)
+    # no network defines 0x81, so the refusal does not print it
+    assert str(exc_info.value) == "not a WIF (invalid prefix, 33 bytes)"
 
     # Not a compressed WIF: missing trailing 0x01
     payload = b"\x80" + good_q + b"\x00"
@@ -164,6 +166,52 @@ def test_a_faulty_wif_keeps_its_diagnosis() -> None:
     testnet_wif = "cMahea7zqjxrtgAbB7LSGbcQUr1uX1ojuat9jZodMN87JcbXMTcA"
     with pytest.raises(InvalidPrvKeyError, match="not a mainnet wif"):
         b58.prv_key_data_from_wif(testnet_wif, network="mainnet")
+
+
+# a fixed random scalar, as `assert_secret_free` asks
+BARE_SCALAR = bytes.fromhex(
+    "bb50e2d89a4ed70663d080659fe0ad4b9bc3e06c17a227433966cb59ceee020d"
+)
+
+
+@pytest.mark.parametrize(
+    "payload, network, err_msg",
+    [
+        # a bare scalar: its first byte stands where a WIF's prefix does
+        (BARE_SCALAR, None, "not a WIF (invalid prefix, 32 bytes)"),
+        (BARE_SCALAR, "testnet", "not a WIF (invalid prefix, 32 bytes)"),
+        # an xprv's payload: version, then depth, parent fingerprint, child
+        # number and chain code, then 0x00 and the key
+        (
+            bytes.fromhex("0488ade4") + bytes(41) + b"\x00" + BARE_SCALAR,
+            None,
+            "not a WIF (invalid prefix, 78 bytes)",
+        ),
+        # a prefix a network claims, at a size no WIF has
+        (b"\x80" + BARE_SCALAR[:31], "testnet", "wrong WIF size: 32"),
+        (b"\x80" + BARE_SCALAR + b"\x01\x02", "testnet", "wrong WIF size: 35"),
+    ],
+    ids=["scalar", "scalar-testnet", "xprv", "short", "long"],
+)
+def test_a_refused_payload_prints_no_byte_of_it(
+    payload: bytes, network: str | None, err_msg: str
+) -> None:
+    """A prefix is printed only where a network claims it, at a WIF's size.
+
+    Anywhere else the byte may be a key's (section 7 of the btclib-org
+    standard). `assert_secret_free` looks for pieces longer than a byte,
+    so each byte is also looked for as `0x` and its hex, the way a
+    prefix is printed.
+    """
+    encoded = b58encode_check(payload).decode("ascii")
+    with pytest.raises(BTClibValueError) as refusal:
+        b58.prv_key_data_from_wif(encoded, network)
+    assert str(refusal.value) == err_msg
+    decimal = str(int.from_bytes(BARE_SCALAR, "big"))
+    assert_secret_free(refusal.value, [BARE_SCALAR, encoded, decimal])
+    for e in chained(refusal.value):
+        text = text_of(e)
+        assert all(f"0x{byte:02x}" not in text for byte in payload)
 
 
 def test_address_from_h160() -> None:
@@ -416,7 +464,7 @@ def test_exceptions() -> None:
     pub_key = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
     payload = b"\xf5" + hash160(pub_key)
     invalid_address = b58encode_check(payload)
-    with pytest.raises(BTClibValueError, match="invalid base58 address prefix: "):
+    with pytest.raises(BTClibValueError, match="^invalid base58 address prefix$"):
         b58.h160_from_address(invalid_address)
 
     with pytest.raises(BTClibValueError, match="invalid SEC key size: 34"):
