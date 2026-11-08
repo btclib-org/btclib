@@ -684,6 +684,17 @@ def xprvversions_from_network(network: str = "mainnet") -> list[bytes]:
     return list(_XPRV_VERSIONS[validated_network_name(network)])
 
 
+def _version_refusal(what: str, version: bytes) -> str:
+    """Return a refusal of a version that prints no byte of it.
+
+    The argument may be a key passed in the wrong place (section 7 of the
+    btclib-org standard, *A refusal carries no secret*), so the refusal
+    names its size, and only where that is not a version's four bytes.
+    """
+    size = len(version)
+    return what if size == 4 else f"{what}: {size} bytes"
+
+
 def xpubversion_from_xprvversion(xprvversion: bytes) -> bytes:
     """Return the xpub version paired with an xprv version.
 
@@ -693,8 +704,7 @@ def xpubversion_from_xprvversion(xprvversion: bytes) -> bytes:
     which is why it is a table and not two positions in the sets above.
     """
     if xprvversion not in _XPUB_VERSION_FROM_XPRV_VERSION:
-        err_msg = f"unknown xprv version: 0x{xprvversion.hex()}"
-        raise BTClibValueError(err_msg)
+        raise BTClibValueError(_version_refusal("unknown xprv version", xprvversion))
     return _XPUB_VERSION_FROM_XPRV_VERSION[xprvversion]
 
 
@@ -790,7 +800,7 @@ def network_from_xkeyversion(
             network.slip132_p2wsh_p2sh_pub,
         )
         if xkeyversion not in versions:
-            err_msg = f"not a version of the network: 0x{xkeyversion.hex()}"
+            err_msg = _version_refusal("not a version of the network", xkeyversion)
             raise BTClibValueError(err_msg)
         return network
 
@@ -798,8 +808,7 @@ def network_from_xkeyversion(
     if not networks:
         # BTClibValueError subclasses ValueError, so an `except
         # ValueError` caller catches this too
-        err_msg = f"unknown xkey version: 0x{xkeyversion.hex()}"
-        raise BTClibValueError(err_msg)
+        raise BTClibValueError(_version_refusal("unknown xkey version", xkeyversion))
     return networks[0]
 
 
