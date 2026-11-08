@@ -174,3 +174,24 @@ def test_no_separator_index_where_there_is_no_script_to_cut() -> None:
         sig_hash.from_tx([p2wpkh], tx, 0, sig_hash.ALL, codesep_index=1)
     with pytest.raises(BTClibValueError, match="index for a taproot input"):
         sig_hash.from_tx([p2tr], tx, 0, sig_hash.ALL, codesep_index=1)
+
+
+def test_from_tx_refuses_witness_unknown_prevout() -> None:
+    """An unhandled witness version has no legacy hash (issue #2989).
+
+    Every script that is not p2tr, p2wpkh or p2wsh fell through to
+    legacy, so a witness_unknown prevout got a legacy hash no signature
+    for it commits to. The input is refused with a BTClibValueError
+    naming the version.
+    """
+    tx = one_input_tx()
+    for version in (1, 2, 3, 16):
+        # version 1 with non-32-byte program is witness_unknown
+        # (32 bytes is p2tr)
+        program_len = 20 if version == 1 else 32
+        script = bytes([0x50 + version, program_len]) + b"\x11" * program_len
+        prevout = TxOut(0, ScriptPubKey(script))
+        with pytest.raises(
+            BTClibValueError, match=f"unsupported witness version: {version}"
+        ):
+            sig_hash.from_tx([prevout], tx, 0, sig_hash.ALL)

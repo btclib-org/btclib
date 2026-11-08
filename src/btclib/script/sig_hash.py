@@ -1006,7 +1006,7 @@ def redeem_script(script_sig: Octets, script_pub_key: Octets) -> bytes:
     return script
 
 
-def from_tx(
+def from_tx(  # noqa: C901
     prevouts: list[TxOut],
     tx: Tx,
     vin_i: int,
@@ -1097,6 +1097,13 @@ def from_tx(
 
     if is_p2tr(script):
         raise BTClibValueError("Taproot scripts cannot be wrapped in p2sh")
+
+    # an unhandled witness version has no legacy hash a signature for it
+    # would commit to (issue #2989)
+    script_type, _ = type_and_payload(script)
+    if script_type == "witness_unknown":
+        version = script[0] - 0x50
+        raise BTClibValueError(f"unsupported witness version: {version}")
 
     script_code = _script_code_from(script, codesep_index)
     return legacy(script_code, tx, vin_i, hash_type)
