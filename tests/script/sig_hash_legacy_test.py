@@ -16,7 +16,7 @@ from ecc.ecc import dsa
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, hash256
 from btclib.key import PrvKeyData
-from btclib.script import serialize, sig_hash
+from btclib.script import serialize, sig_hash, type_and_payload
 from btclib.script.engine import verify_transaction
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id
@@ -245,6 +245,43 @@ def test_a_refused_redeem_script_prints_no_byte_or_hash_of_it() -> None:
     for e in chained(refusal.value):
         text = text_of(e)
         assert all(f"0x{byte:02x}" not in text for byte in pushed)
+
+
+# fixed random bytes, as `assert_secret_free` asks
+_PROGRAM = bytes.fromhex(
+    "a5144abe75bfed1bdd1b9b69a175eac6668767eec1d431062fd0d7663f53a779707acc801207b550"
+)
+
+
+@pytest.mark.parametrize(
+    "script_pub_key, version",
+    [
+        pytest.param(b"\x52\x20" + _PROGRAM[:32], 2, id="v2"),
+        pytest.param(b"\x60\x28" + _PROGRAM, 16, id="v16"),
+        pytest.param(b"\x51\x14" + _PROGRAM[:20], 1, id="v1-not-32-bytes"),
+    ],
+)
+@pytest.mark.parametrize("wrapped", [False, True], ids=["bare", "p2sh"])
+def test_a_witness_program_with_no_rule_is_refused(
+    script_pub_key: bytes, version: int, wrapped: bool
+) -> None:
+    """Refuse a `witness_unknown` prevout, bare or in p2sh, naming the version.
+
+    The legacy hash is what the input would otherwise get, and no
+    signature for such a program commits to it.
+    """
+    assert type_and_payload(script_pub_key)[0] == "witness_unknown"
+    script_sig, prevout_script = b"", script_pub_key
+    if wrapped:
+        script_sig = serialize([script_pub_key])
+        prevout_script = serialize(["OP_HASH160", hash160(script_pub_key), "OP_EQUAL"])
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), script_sig, 0xFFFFFFFF)
+    tx = Tx(1, 0, [tx_in], [TxOut(90000000, prevout_script)])
+
+    err_msg = f"^no sig_hash rule for witness version {version}$"
+    with pytest.raises(BTClibValueError, match=err_msg) as refusal:
+        sig_hash.from_tx([TxOut(100000000, prevout_script)], tx, 0, sig_hash.ALL)
+    assert_secret_free(refusal.value, [_PROGRAM])
 
 
 # [1:] skips the column headers, which are a row of the file

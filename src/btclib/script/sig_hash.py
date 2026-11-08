@@ -11,7 +11,8 @@ which commits to every spent output; given an aggregation mode, it is
 BIP460's message instead. The hash types -- ALL, NONE,
 SINGLE, each with or without ANYONECANPAY, and taproot's DEFAULT --
 choose how much of the transaction each preimage covers, and
-`from_tx` dispatches an input to the preimage its script demands.
+`from_tx` dispatches an input to the preimage its script demands, and
+refuses one whose script `type_and_payload` calls `witness_unknown`.
 """
 
 from __future__ import annotations
@@ -1006,6 +1007,27 @@ def _taproot(
     return tagged_hash(b"TapSighash", b"".join(parts))
 
 
+def _assert_no_p2tr_or_unknown_witness(script: bytes) -> None:
+    """Refuse a p2tr or `witness_unknown` script, else given the legacy hash.
+
+    `script` is the one left once p2tr, p2wpkh and p2wsh are handled, a
+    p2sh redeem script in place of its script_pub_key. A p2tr there is
+    one wrapped in p2sh.
+    """
+    if is_p2tr(script):
+        raise BTClibValueError("Taproot scripts cannot be wrapped in p2sh")
+
+    # a witness program from_tx has no rule for, bare or wrapped in p2sh:
+    # BIP141 reserves its version for future extensions, whose rules say
+    # what its signatures commit to. The legacy hash is not that, and a
+    # witness v2 key path signer chooses between BIP341's message and
+    # BIP460's with sig_hash.taproot
+    if type_and_payload(script)[0] == "witness_unknown":
+        # OP_1..OP_16 are 0x51..0x60
+        version = script[0] - 0x50
+        raise BTClibValueError(f"no sig_hash rule for witness version {version}")
+
+
 def redeem_script(script_sig: Octets, script_pub_key: Octets) -> bytes:
     """Return the redeem script of a p2sh input, checked against its hash.
 
@@ -1136,8 +1158,6 @@ def from_tx(
             script_code, tx, vin_i, hash_type, prevouts[vin_i].value, precomputed
         )
 
-    if is_p2tr(script):
-        raise BTClibValueError("Taproot scripts cannot be wrapped in p2sh")
-
+    _assert_no_p2tr_or_unknown_witness(script)
     script_code = _script_code_from(script, codesep_index)
     return legacy(script_code, tx, vin_i, hash_type)
