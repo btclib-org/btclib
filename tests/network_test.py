@@ -33,6 +33,7 @@ from btclib.network import (
 )
 from tests import replace_unchecked
 from tests.conftest import JsonGolden
+from tests.secret_free import assert_secret_free, chained, text_of
 
 
 def test_bad_network() -> None:
@@ -100,9 +101,9 @@ def test_only_an_xprv_version_has_a_paired_xpub_one() -> None:
     an xpub version would otherwise have to invent an answer for a key
     that is already public, where neutering is what this serves.
     """
-    with pytest.raises(BTClibValueError, match="unknown xprv version: 0x0488b21e"):
+    with pytest.raises(BTClibValueError, match="^unknown xprv version$"):
         xpubversion_from_xprvversion(NETWORKS["mainnet"].bip32_pub)
-    with pytest.raises(BTClibValueError, match="unknown xprv version: 0xdeadbeef"):
+    with pytest.raises(BTClibValueError, match="^unknown xprv version$"):
         xpubversion_from_xprvversion(bytes.fromhex("deadbeef"))
 
 
@@ -325,10 +326,47 @@ def test_the_three_xkeyversion_lookups() -> None:
     # an unknown version: a BTClibValueError, which is a ValueError, so a
     # caller catching the bare ValueError still catches it
     assert networks_from_xkeyversion(b"\x00\x00\x00\x00") == []
-    with pytest.raises(BTClibValueError, match="unknown xkey version: 0x00000000"):
+    with pytest.raises(BTClibValueError, match="^unknown xkey version$"):
         network_from_xkeyversion(b"\x00\x00\x00\x00")
     with pytest.raises(ValueError, match="unknown xkey version"):
         network_type_from_xkeyversion(b"\xff\xff\xff\xff")
+
+
+# a fixed random scalar, as `assert_secret_free` asks
+BARE_SCALAR = bytes.fromhex(
+    "bb50e2d89a4ed70663d080659fe0ad4b9bc3e06c17a227433966cb59ceee020d"
+)
+
+
+@pytest.mark.parametrize(
+    "lookup, err_msg",
+    [
+        (xpubversion_from_xprvversion, "unknown xprv version: 32 bytes"),
+        (network_from_xkeyversion, "unknown xkey version: 32 bytes"),
+        (network_type_from_xkeyversion, "unknown xkey version: 32 bytes"),
+        (
+            lambda v: network_from_xkeyversion(v, NETWORKS["mainnet"]),
+            "not a version of the network: 32 bytes",
+        ),
+    ],
+    ids=["xpubversion", "network", "network_type", "given-network"],
+)
+def test_a_refused_version_prints_no_byte_of_it(lookup: Any, err_msg: str) -> None:
+    """A key passed as a version is refused by its size alone.
+
+    Section 7 of the btclib-org standard: an argument in the wrong place
+    may be a key. `assert_secret_free` looks for pieces longer than a
+    byte, so each byte is also looked for as `0x` and its hex, the shape
+    of a printed version.
+    """
+    with pytest.raises(BTClibValueError) as refusal:
+        lookup(BARE_SCALAR)
+    assert str(refusal.value) == err_msg
+    decimal = str(int.from_bytes(BARE_SCALAR, "big"))
+    assert_secret_free(refusal.value, [BARE_SCALAR, decimal])
+    for e in chained(refusal.value):
+        text = text_of(e)
+        assert all(f"0x{byte:02x}" not in text for byte in BARE_SCALAR)
 
 
 def test_network_type_from_network() -> None:
