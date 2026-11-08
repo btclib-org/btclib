@@ -128,6 +128,11 @@ intersphinx_mapping = {
         (None, "_inventories/ecc.inv"),
     ),
 }
+# no reuse of a fetched inventory: in a reused doctree directory sphinx
+# keeps one per mapping name, so a changed ecc URL would still read the
+# old one. Section 2 of the organization's standard asks for 0 where a
+# mapping names a sibling
+intersphinx_cache_limit = 0
 # `_inventories/python.inv` is a copy of Python 3.14's inventory and no
 # cache: sphinx reads it only when `docs.python.org` fails, so a live site
 # always wins. It is the Wayback Machine's capture of 2026-08-28,
