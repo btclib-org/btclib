@@ -369,6 +369,40 @@ def test_a_refused_version_prints_no_byte_of_it(lookup: Any, err_msg: str) -> No
         assert all(f"0x{byte:02x}" not in text for byte in BARE_SCALAR)
 
 
+_XPRV = NETWORKS["mainnet"].bip32_prv
+
+
+@pytest.mark.parametrize(
+    "value",
+    [5, None, _XPRV.hex(), bytearray(_XPRV), memoryview(_XPRV)],
+    ids=["int", "None", "str", "bytearray", "memoryview"],
+)
+@pytest.mark.parametrize(
+    "lookup, what",
+    [
+        (xpubversion_from_xprvversion, "xprv version"),
+        (networks_from_xkeyversion, "xkey version"),
+        (network_from_xkeyversion, "xkey version"),
+        (network_type_from_xkeyversion, "xkey version"),
+        (curve_from_xkeyversion, "xkey version"),
+        (lambda v: network_from_xkeyversion(v, NETWORKS["mainnet"]), "xkey version"),
+    ],
+    ids=["xpubversion", "networks", "network", "network_type", "curve", "given"],
+)
+def test_a_version_that_is_not_bytes_is_a_type_error(
+    lookup: Any, what: str, value: Any
+) -> None:
+    """Refuse a version of any type but `bytes`, naming the type alone.
+
+    A `str` is not read as hex and a `memoryview` is not read through:
+    the parameter is `bytes`. The str, bytearray and memoryview hold a
+    known version, so only their type is wrong.
+    """
+    with pytest.raises(BTClibTypeError) as refusal:
+        lookup(value)
+    assert str(refusal.value) == f"invalid {what} type: {type(value).__name__}"
+
+
 def test_network_type_from_network() -> None:
     """Verify the name-to-type mapping, mainnet alone being main."""
     assert network_type_from_network() == "main"

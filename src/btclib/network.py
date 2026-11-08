@@ -684,6 +684,15 @@ def xprvversions_from_network(network: str = "mainnet") -> list[bytes]:
     return list(_XPRV_VERSIONS[validated_network_name(network)])
 
 
+def _assert_version(version: bytes, what: str) -> None:
+    """Refuse a version that is not `bytes`, naming only its type.
+
+    `bytes` alone, as annotated: a `bytearray` keys no dict, and a `str`
+    would be measured in characters by `_version_refusal`.
+    """
+    assert_type(version, bytes, what)
+
+
 def _version_refusal(what: str, version: bytes) -> str:
     """Return a refusal of a version that prints no byte of it.
 
@@ -703,6 +712,7 @@ def xpubversion_from_xprvversion(xprvversion: bytes) -> bytes:
     question here a version *pair* answers rather than a version alone --
     which is why it is a table and not two positions in the sets above.
     """
+    _assert_version(xprvversion, "xprv version")
     if xprvversion not in _XPUB_VERSION_FROM_XPRV_VERSION:
         raise BTClibValueError(_version_refusal("unknown xprv version", xprvversion))
     return _XPUB_VERSION_FROM_XPRV_VERSION[xprvversion]
@@ -716,6 +726,7 @@ def networks_from_xkeyversion(xkeyversion: bytes) -> list[str]:
     address path, and the table it answers from is why NETWORKS is fixed
     at import.
     """
+    _assert_version(xkeyversion, "xkey version")
     return list(_NETWORKS_FROM_XKEYVERSION.get(xkeyversion, ()))
 
 
@@ -785,6 +796,7 @@ def network_from_xkeyversion(
     returned. This is how a caller decodes another chain's xkey versions
     with a Network it built.
     """
+    _assert_version(xkeyversion, "xkey version")
     if network is not None:
         _assert_network(network)
         versions = (
