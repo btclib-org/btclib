@@ -336,9 +336,9 @@ def test_a_non_integer_is_refused_before_it_is_compared(
 ) -> None:
     """Each wrong type is refused by its type name, not by the comparison.
 
-    Unchecked, each met an ordering, a mask or a lookup first, and left as
-    Python's bare TypeError, as a refusal of its value, or not at all
-    (issue #3008).
+    Unchecked, each would meet an ordering, a mask or a lookup first, and
+    leave as Python's bare TypeError, as a refusal of its value, or not at
+    all (issue #3008).
     """
     match = f"^{err_msg}: {type(value).__name__}$"
     with pytest.raises(BTClibTypeError, match=match):
