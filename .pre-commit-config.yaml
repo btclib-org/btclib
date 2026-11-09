@@ -405,7 +405,7 @@ repos:
   # ahead of markdownlint-cli2 below on purpose: that hook's `--fix`
   # repairs the very seam this hook exists to name (btclib-org/.github#1293)
   - repo: https://github.com/btclib-org/.github
-    rev: 364bebad486493fb00f61edc656318567e0604aa # frozen: v2026.11.2
+    rev: 0ab5b1440e2cfe45877dc8cf3a4a9187ca935d61  # frozen: v2026.11.10
     hooks:
       - id: check-changelog
         args: [--grandfathered, "23"]
@@ -740,7 +740,7 @@ repos:
     # self-repository flags a reusable-workflow or composite-action
     # reference that reads `uses: ./...` and recommends `uses: $/...`,
     # which release.yml spells; the actionlint above parses it
-    rev: v1.31.1
+    rev: v1.32.0
     hooks:
       - id: zizmor
         # offline is what it does by default, said out loud: it warns about
@@ -762,7 +762,7 @@ repos:
   # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
   # pyupgrade, and yesqa
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.3
+    rev: v0.17.4
     hooks:
       - id: ruff-check
         name: ruff check (in place fixes)
@@ -862,7 +862,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.13.6
+    rev: 0.13.7
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock
