@@ -517,8 +517,9 @@ def assert_signature_num(signature_num: int, pub_key_num: int) -> None:
     Core's SCRIPT_ERR_SIG_COUNT, negative for the same reason as above.
     """
     if not 0 <= signature_num <= pub_key_num:
-        err_msg = "invalid number of signatures:"
-        err_msg += " 0 to the number of public keys expected"
+        err_msg = (
+            "invalid number of signatures: 0 to the number of public keys expected"
+        )
         raise ScriptError(err_msg, ScriptErrorCode.SIG_COUNT)
 
 
