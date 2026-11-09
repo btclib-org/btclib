@@ -39,6 +39,7 @@ from btclib.consensus import MAX_SCRIPT_SIZE
 from btclib.exceptions import BTClibTypeError, BTClibUserWarning, BTClibValueError
 from btclib.utils import (
     _message_text,
+    _name_text,
     assert_type,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -406,7 +407,7 @@ def _serialize_str_command(command: str) -> bytes:
     try:
         data = bytes.fromhex(command)
     except ValueError as e:
-        raise BTClibValueError(f"invalid string command: {command}") from e
+        raise BTClibValueError(f"invalid string command: {_name_text(command)}") from e
     return _serialize_bytes_command(data)
 
 

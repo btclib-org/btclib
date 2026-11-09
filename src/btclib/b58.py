@@ -43,6 +43,7 @@ from btclib.network import (
 )
 from btclib.utils import (
     _btclib_errors,
+    _name_text,
     assert_type,
     bytes_from_octets,
     str_from_string,
@@ -242,7 +243,7 @@ def address_from_h160(
     elif script_type == "p2pkh":
         prefix = _network_from(network).p2pkh
     else:
-        raise BTClibValueError(f"invalid script type: {script_type}")
+        raise BTClibValueError(f"invalid script type: {_name_text(script_type)}")
 
     payload = prefix + bytes_from_octets(h160, 20)
     return b58encode_check(payload).decode("ascii")

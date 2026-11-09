@@ -190,8 +190,10 @@ class Message:
             err_msg += f" instead of {_MAGIC_SIZE} bytes"
             raise BTClibValueError(err_msg)
 
-        if len(self.command) > _COMMAND_SIZE:
-            err_msg = f"invalid command: {len(self.command)}"
+        # str's own length and repr, which a subclass cannot rewrite: the
+        # bound is what keeps the repr below to a name's length
+        if str.__len__(self.command) > _COMMAND_SIZE:
+            err_msg = f"invalid command: {str.__len__(self.command)}"
             err_msg += f" characters instead of at most {_COMMAND_SIZE}"
             raise BTClibValueError(err_msg)
         # the same range _command_from_bytes reads, asked of the text: a
@@ -201,7 +203,8 @@ class Message:
         if any(
             ord(c) < _FIRST_PRINTABLE or ord(c) > _LAST_PRINTABLE for c in self.command
         ):
-            err_msg = f"non-printable character in command: {self.command!r}"
+            command = str.__repr__(self.command)
+            err_msg = f"non-printable character in command: {command}"
             raise BTClibValueError(err_msg)
 
         if len(self.payload) > MAX_PROTOCOL_MESSAGE_LENGTH:

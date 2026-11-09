@@ -95,11 +95,11 @@ def test_witness_from_address() -> None:
     """Decode the other chain's bech32 address, and refuse mainnet's."""
     addr = b32._address_from_witness(0, H160, OTHER.hrp)
     assert b32.witness_from_address(addr, OTHER) == (0, H160, OTHER)
-    with pytest.raises(BTClibValueError, match="invalid hrp: xyz"):
+    with pytest.raises(BTClibValueError, match="invalid hrp: 'xyz'"):
         b32.witness_from_address(addr)
 
     mainnet_addr = b32.address_from_witness(0, H160, "mainnet")
-    with pytest.raises(BTClibValueError, match="invalid hrp: bc"):
+    with pytest.raises(BTClibValueError, match="invalid hrp: 'bc'"):
         b32.witness_from_address(mainnet_addr, OTHER)
 
 
@@ -359,7 +359,7 @@ def test_a_base58_address_that_starts_as_the_hrp_is_base58() -> None:
     with pytest.raises(BTClibValueError, match="invalid characters"):
         ScriptPubKey.from_address("ltc1" + addr[4:], ltc)
     # a Bitcoin bech32 address is refused by hrp
-    with pytest.raises(BTClibValueError, match="invalid hrp: bc"):
+    with pytest.raises(BTClibValueError, match="invalid hrp: 'bc'"):
         ScriptPubKey.from_address(b32.address_from_witness(0, H160), ltc)
     # a bech32 address of the network with a bad checksum
     mistyped = bech32_addr[:-1] + ("q" if bech32_addr[-1] != "q" else "p")
