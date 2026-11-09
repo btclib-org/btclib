@@ -72,9 +72,9 @@ Core carries commented out.
 headers.** The message holds a previous filter header and a vector of
 hashes; the headers are what a client computes from the two, and BIP157
 sends the hashes precisely so that it has to. Storing the derived headers
-instead would be the question issue #1101 answered for `headers`' always-zero
-transaction count, and the answer is the same: keep what the wire
-holds, so that every payload serializes back to the octets it came from.
+instead would be the question issue #1101 answered for `headers`'
+transaction count. The answer here is to keep what the wire holds, so
+that every payload serializes back to the octets it came from.
 `filter_headers` is the derivation, as `Inventory.is_witness` is the
 reading of a bit rather than a second field -- and it is the same
 `block_filter.filter_header` that `BasicBlockFilter.header` is, the
@@ -400,7 +400,8 @@ class CFilter(Payload):
         `basic_filter` is where they are read as BIP158's, and refusing
         them here would make the same octets parse under a type code
         nobody has defined and fail under the one that is. They
-        round-trip either way, which is the property this package keeps.
+        round-trip either way, the property `btclib.p2p.inventory`'s
+        module docstring states.
 
         Core's `BlockFilter::Unserialize` does the opposite and throws
         "unknown filter_type", because it builds the Golomb parameters as

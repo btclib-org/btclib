@@ -32,6 +32,10 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from typing_extensions import override
+
+from btclib import var_int
+from btclib.p2p.inventory import Headers
 
 _FUZZ = Path(__file__).parent.parent / "fuzz"
 _HARNESSES = tuple(sorted(_FUZZ.glob("fuzz_*.py")))
@@ -92,3 +96,56 @@ def test_fuzz_target_runs_on_its_seed(
 ) -> None:
     """A seed is an input the harness's own body must survive."""
     _fuzz_target(path, monkeypatch)(seed.read_bytes())
+
+
+class _Forgetful(Headers):
+    """A `Headers` that writes the empty message, whatever it holds."""
+
+    @override
+    def serialize(self, *, check_validity: bool = True) -> bytes:
+        return Headers().serialize(check_validity=check_validity)
+
+
+class _Padded(Headers):
+    """A `Headers` that writes a three-octet count of 253 after each header.
+
+    `Headers.parse` reads that count and ignores it, so what this writes
+    parses back to the same headers, and is longer than a zero would be.
+    """
+
+    @override
+    def serialize(self, *, check_validity: bool = True) -> bytes:
+        out = var_int.serialize(len(self.headers))
+        for header in self.headers:
+            out += header.serialize(check_validity=check_validity)
+            out += var_int.serialize(253)
+        return out
+
+
+@pytest.mark.parametrize(
+    "lossy, check",
+    [(_Forgetful, "parse back"), (_Padded, "never longer")],
+    ids=["parse-back", "never-longer"],
+)
+def test_the_inventory_harness_holds_headers_to_both_checks(
+    lossy: type[Headers], check: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A `headers` that fails either check of the harness is a finding.
+
+    The harness cannot ask `Headers.parse` to reproduce a seed carrying a
+    transaction count, so it asks that the octets written parse back to
+    the same headers and are never longer than the seed. `_Forgetful`
+    writes shorter octets that are other headers, and `_Padded` writes the
+    same headers in longer octets: each fails one check and passes the
+    other.
+    """
+    target = _fuzz_target(_FUZZ / "fuzz_inventory.py", monkeypatch)
+    monkeypatch.setitem(target.__globals__, "Headers", lossy)
+    seed = (_FUZZ / "corpus" / "fuzz_inventory" / "headers-tx-count.bin").read_bytes()
+    parsed = lossy.parse(seed)
+    written = parsed.serialize()
+    settles = lossy.parse(written) == parsed
+    no_longer = len(written) <= len(seed)
+    assert (settles, no_longer) == (check == "never longer", check == "parse back")
+    with pytest.raises(AssertionError):
+        target(seed)

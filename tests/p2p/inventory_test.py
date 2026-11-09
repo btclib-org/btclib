@@ -365,24 +365,68 @@ def test_headers_writes_the_transaction_count_core_ignores() -> None:
     assert len(Headers([BlockHeader.parse(_HEADER_1)]).serialize()) == 1 + 80 + 1
 
 
-def test_headers_refuses_a_transaction_count_that_is_not_zero() -> None:
-    """What dropping the field costs, paid where it is cheapest.
+# a transaction count after a header: zero, one, and `var_int.MAX_SIZE`
+# in its canonical five octets, which Core's `ReadCompactSize` all reads;
+# then one past `MAX_SIZE`, which it refuses
+_ZERO = b"\x00"
+_ONE = b"\x01"
+_AT_MAX_SIZE = var_int.serialize(var_int.MAX_SIZE)
+_PAST_MAX_SIZE = var_int.serialize(var_int.MAX_SIZE + 1)
+# one and zero, each written in three octets where one octet is canonical
+_NON_CANONICAL = (b"\xfd\x01\x00", b"\xfd\x00\x00")
 
-    Core reads any count and throws it away, so it would accept these
-    octets; this library would then hold a `headers` it could not write
-    back, which is the malleability `Verack.parse` refuses a payload over
-    and `Version.parse` refuses a relay flag of `0x02` over.
+
+def _two_headers(first: bytes, second: bytes) -> bytes:
+    """Return a `headers` of blocks 1 and 170, each count as given."""
+    return b"\x02" + _HEADER_1 + first + _HEADER_170 + second
+
+
+def test_headers_reads_the_transaction_count_as_core_does() -> None:
+    """The default call reads any count Core reads, and ignores it.
+
+    Core's `HEADERS` handler runs `ReadCompactSize(vRecv); // ignore tx
+    count; assume it is 0.`, and `ReadCompactSize` refuses only a
+    non-canonical encoding or a value above `MAX_SIZE`.
     """
-    payload = b"\x01" + _HEADER_1 + b"\x01"
-    with pytest.raises(
-        BTClibValueError, match="^invalid transaction count: 0 expected$"
-    ):
-        Headers.parse(payload)
+    for count in (_ZERO, _ONE, _AT_MAX_SIZE):
+        # after the last header and after one before it
+        for payload in (_two_headers(_ZERO, count), _two_headers(count, _ZERO)):
+            assert Headers.parse(payload) == _headers()
 
-    # a non-canonical encoding of the zero needs no refusal of its own,
-    # btclib's var_int being canonical-only already
-    with pytest.raises(BTClibValueError, match="non-canonical var_int"):
-        Headers.parse(b"\x01" + _HEADER_1 + b"\xfd\x00\x00")
+    # what ignoring the count costs: two payloads, one object, and the
+    # zero `serialize` writes is not the octet the peer sent
+    payload = _two_headers(_ONE, _AT_MAX_SIZE)
+    assert Headers.parse(payload).serialize() == _two_headers(_ZERO, _ZERO)
+    assert Headers.parse(payload).serialize() != payload
+
+
+@pytest.mark.parametrize("count", [_PAST_MAX_SIZE, *_NON_CANONICAL])
+def test_headers_refuses_a_transaction_count_core_refuses(count: bytes) -> None:
+    """One past `MAX_SIZE`, or a non-canonical encoding, either call."""
+    for payload in (_two_headers(_ZERO, count), _two_headers(count, _ZERO)):
+        for round_trip in (False, True):
+            with pytest.raises(
+                BTClibValueError, match="^(var_int too big|non-canonical var_int)"
+            ):
+                Headers.parse(payload, round_trip=round_trip)
+
+
+def test_headers_keeps_the_round_trip_on_request() -> None:
+    """`round_trip=True` refuses any count but zero.
+
+    What it keeps is the round trip the module docstring of
+    `btclib.p2p.inventory` states, so a payload it accepts serializes
+    back to its own octets.
+    """
+    payload = _two_headers(_ZERO, _ZERO)
+    assert Headers.parse(payload, round_trip=True).serialize() == payload
+
+    for count in (_ONE, _AT_MAX_SIZE):
+        for refused in (_two_headers(_ZERO, count), _two_headers(count, _ZERO)):
+            with pytest.raises(
+                BTClibValueError, match="^invalid transaction count: 0 expected$"
+            ):
+                Headers.parse(refused, round_trip=True)
 
 
 def test_a_locator_version_is_ignored_by_core_and_stored_here() -> None:
@@ -391,8 +435,8 @@ def test_a_locator_version_is_ignored_by_core_and_stored_here() -> None:
     Core writes `DUMMY_VERSION` in front of a locator and discards what
     it reads; its test framework writes zero and says so. Ignored is not
     constant, so the field varies over messages peers really send --
-    where the `headers` transaction count does not vary at all, and is
-    dropped for that reason.
+    where the `headers` transaction count is zero in every message Core
+    writes, and is dropped for that reason.
     """
     for version in (0, 70016, 60002, -1, 0x7FFFFFFF, -0x80000000):
         asked = GetHeaders(version, [_GENESIS])

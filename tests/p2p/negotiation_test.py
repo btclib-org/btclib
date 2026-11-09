@@ -107,9 +107,10 @@ def test_an_empty_payload_is_no_octets_at_all(cls: _Empty, command: str) -> None
 def test_an_octet_after_an_empty_payload_is_refused(cls: _Empty, command: str) -> None:
     """Core ignores what such a message carries; this refuses it.
 
-    The rule this library keeps everywhere: a buffer that deserializes
-    to an object serializing back to less than the buffer is
-    malleability, and a `getaddr` with a payload is exactly that.
+    The rule `btclib.p2p.inventory`'s module docstring states: a buffer
+    that deserializes to an object serializing back to less than the
+    buffer is malleability, and a `getaddr` with a payload is exactly
+    that.
     """
     for trailing in (b"\x00", b"junk"):
         with pytest.raises(

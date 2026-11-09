@@ -266,6 +266,9 @@ _EXTRA_ARGUMENTS = {
     # taking the difference at the boundary is argued
     ("btclib.p2p.compact_blocks.PrefilledTransaction", "parse"): "previous_index",
     ("btclib.p2p.compact_blocks.PrefilledTransaction", "serialize"): "previous_index",
+    # a truth rather than a kind, so `bool_parameter_test.py` drives it,
+    # and `tests/p2p/inventory_test.py` drives what it refuses
+    ("btclib.p2p.inventory.Headers", "parse"): "round_trip",
 }
 
 # the eight names issue #867 measured, which is what the walk runs over,

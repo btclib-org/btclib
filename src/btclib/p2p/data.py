@@ -45,9 +45,10 @@ a transaction that has no witness: both write the same octets, the marker
 being written only where there is something to mark, so `parse` says
 `False` and a `TxPayload(tx, include_witness=True)` over a transaction
 with no witness is a payload that parses back as `False`. The
-*encoding* round-trips exactly either way, which is the property this
-package keeps; the object round-trips exactly wherever the wire can tell
-the two apart, and where it cannot there is nothing to keep.
+*encoding* round-trips exactly either way, which is the property
+`btclib.p2p.inventory`'s module docstring states; the object
+round-trips exactly wherever the wire can tell the two apart, and where
+it cannot there is nothing to keep.
 
 BIP144's superfluous witness record -- a marker over witnesses that are
 all empty -- is the encoding neither class could reproduce, and neither

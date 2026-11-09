@@ -241,6 +241,10 @@ _I2P_SHORT = ("00", "05", "00" * 5)
 _CJDNS_SHORT = ("00", "06", "00" * 5)
 _INVALID_SIZE = ("refused", "invalid address size")
 _VERSION = "62ea0000" + "00" * 90
+# btcd's refusal of a `headers` whose transaction count is not zero
+_TX_IN_HEADERS = (
+    "MsgHeaders.BtcDecode: block headers may not contain transactions [count 1]"
+)
 
 
 @pytest.mark.parametrize(
@@ -281,6 +285,23 @@ _VERSION = "62ea0000" + "00" * 90
             "00",
             "var-int-above-max-size",
         ),
+        (
+            "headers",
+            ("accepted", "00"),
+            ("refused", _TX_IN_HEADERS),
+            "",
+            "headers-tx-count-ignored",
+        ),
+        (
+            "message",
+            ("accepted", "00"),
+            ("refused", _TX_IN_HEADERS),
+            "",
+            "headers-tx-count-ignored",
+        ),
+        ("headers", ("refused", "x"), ("refused", _TX_IN_HEADERS), "", None),
+        ("headers", ("accepted", "00"), ("refused", "x"), "", None),
+        ("inv", ("accepted", "00"), ("refused", _TX_IN_HEADERS), "", None),
         (
             "tx",
             ("accepted", "0102"),
