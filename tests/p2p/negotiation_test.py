@@ -56,9 +56,11 @@ from btclib.p2p import (
     Message,
     SendHeaders,
     SendTxRcncl,
+    Version,
     WtxidRelay,
 )
 from btclib.p2p.limits import (
+    FEATURE_VERSION,
     MAX_FEATUREDATA_LENGTH,
     MAX_FEATUREID_LENGTH,
     MIN_FEATUREID_LENGTH,
@@ -422,6 +424,17 @@ def test_the_feature_octets_are_the_two_fields_behind_their_lengths() -> None:
         Message.parse(Feature(b"BIP434").to_message(_MAINNET).serialize()).command
         == "feature"
     )
+
+
+def test_a_feature_may_be_sent_to_btclibs_own_version() -> None:
+    """BIP434 forbids a `feature` to a peer below `FEATURE_VERSION`.
+
+    A node implementing the BIP advertises "a protocol version number
+    `>= 70017`", and a `Version` built with no argument for it announces
+    at least that.
+    """
+    assert FEATURE_VERSION == 70017
+    assert Version().version >= FEATURE_VERSION
 
 
 def test_a_feature_names_something_or_is_no_message() -> None:
