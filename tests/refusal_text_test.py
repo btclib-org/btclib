@@ -20,10 +20,12 @@ from typing_extensions import override
 from btclib.b58 import h160_from_address, prv_key_data_from_wif, wif_from_prv_key
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
-from btclib.key import PrvKeyData
+from btclib.key import PrvKeyData, PubKeyData
 from btclib.network import NETWORKS, validated_network_name
+from btclib.script.script_pub_key import ScriptPubKey
 from btclib.utils import str_from_string
-from tests.secret_free import assert_secret_free
+from tests.network_argument_test import OTHER
+from tests.secret_free import assert_secret_free, text_of
 
 KEY = 0x1D2F3E4D5C6B7A8998A7B6C5D4E3F20112233445566778899AABBCCDDEEFF0A1
 WIF = wif_from_prv_key(KEY)
@@ -139,7 +141,228 @@ class _HostileEq:
 
 
 @pytest.mark.parametrize("network", [_HostileEq(), b"mainnet", [WIF]])
-def test_unchecked_prv_key_data_repr_runs_no_foreign_code(network: Any) -> None:
+@pytest.mark.parametrize(
+    "make, shown",
+    [
+        (
+            lambda net: PrvKeyData(KEY, net, check_validity=False),
+            "PrvKeyData(q=..., network=..., compressed=True)",
+        ),
+        (
+            lambda net: PubKeyData(_PUB, net, check_validity=False),
+            "PubKeyData(sec=..., network=...)",
+        ),
+        (
+            lambda net: ScriptPubKey(b"", net, check_validity=False),
+            "ScriptPubKey(script=..., network=...)",
+        ),
+    ],
+    ids=["PrvKeyData", "PubKeyData", "ScriptPubKey"],
+)
+def test_an_unchecked_repr_runs_no_foreign_code(
+    make: Callable[[Any], object], shown: str, network: Any
+) -> None:
     """A non-string network is hidden without comparing or hashing it."""
-    unchecked = PrvKeyData(KEY, network, check_validity=False)
-    assert repr(unchecked) == "PrvKeyData(q=..., network=..., compressed=True)"
+    unchecked = make(network)
+    assert repr(unchecked) == shown
+    assert str(unchecked) == shown
+
+
+_UNCHECKED_KEY = bytes.fromhex(
+    "9ed7f12938cd646f2866d454cc247f688b857424cc4ee6bec49c16f1200bd5b9"
+)
+_UNCHECKED_INT = int.from_bytes(_UNCHECKED_KEY, "big")
+_UNCHECKED_WIF = wif_from_prv_key(_UNCHECKED_INT)
+_PUB: bytes = PrvKeyData(_UNCHECKED_INT).pub.sec
+
+_KEY_IN_AN_UNCHECKED_POSITION: list[tuple[str, Callable[[], object], str]] = [
+    (
+        "prv-q",
+        lambda: PrvKeyData(_UNCHECKED_INT),
+        "PrvKeyData(q=..., network='mainnet', compressed=True)",
+    ),
+    (
+        "prv-compressed-int",
+        lambda: PrvKeyData(1, "mainnet", _UNCHECKED_INT, check_validity=False),  # type: ignore[arg-type]
+        "PrvKeyData(q=..., network='mainnet', compressed=...)",
+    ),
+    (
+        "prv-compressed-bytes",
+        lambda: PrvKeyData(1, "mainnet", _UNCHECKED_KEY, check_validity=False),  # type: ignore[arg-type]
+        "PrvKeyData(q=..., network='mainnet', compressed=...)",
+    ),
+    (
+        "prv-network-wif",
+        lambda: PrvKeyData(1, _UNCHECKED_WIF, check_validity=False),
+        "PrvKeyData(q=..., network=..., compressed=True)",
+    ),
+    (
+        "pub-sec-key",
+        lambda: PubKeyData(_UNCHECKED_KEY, check_validity=False),
+        "PubKeyData(sec=..., network='mainnet')",
+    ),
+    (
+        "pub-sec-xprv-key-field",
+        lambda: PubKeyData(b"\x00" + _UNCHECKED_KEY, check_validity=False),
+        "PubKeyData(sec=..., network='mainnet')",
+    ),
+    (
+        "pub-sec-compressed-prefix-short",
+        lambda: PubKeyData(b"\x02" + _UNCHECKED_KEY[1:], check_validity=False),
+        "PubKeyData(sec=..., network='mainnet')",
+    ),
+    (
+        "pub-sec-uncompressed-prefix-short",
+        lambda: PubKeyData(b"\x04" + _UNCHECKED_KEY, check_validity=False),
+        "PubKeyData(sec=..., network='mainnet')",
+    ),
+    (
+        "pub-network-wif",
+        lambda: PubKeyData(_PUB, _UNCHECKED_WIF, check_validity=False),
+        "PubKeyData(sec=..., network=...)",
+    ),
+    (
+        "pub-network-decimal",
+        lambda: PubKeyData(_PUB, str(_UNCHECKED_INT), check_validity=False),
+        "PubKeyData(sec=..., network=...)",
+    ),
+    (
+        "spk-script-key",
+        lambda: ScriptPubKey(_UNCHECKED_KEY),
+        "ScriptPubKey(script=..., network='mainnet')",
+    ),
+    (
+        "spk-script-key-nulldata",
+        lambda: ScriptPubKey(b"\x6a\x1e" + _UNCHECKED_KEY[2:]),
+        "ScriptPubKey(script=..., network='mainnet')",
+    ),
+    (
+        "spk-script-key-witness-unknown",
+        lambda: ScriptPubKey(b"\x51\x1e" + _UNCHECKED_KEY[2:]),
+        "ScriptPubKey(script=..., network='mainnet')",
+    ),
+    (
+        "spk-script-prefixed-key-witness-unknown",
+        lambda: ScriptPubKey(b"\x60\x1f" + _UNCHECKED_KEY[1:]),
+        "ScriptPubKey(script=..., network='mainnet')",
+    ),
+    (
+        "spk-network-wif",
+        lambda: ScriptPubKey(b"", _UNCHECKED_WIF, check_validity=False),
+        "ScriptPubKey(script=..., network=...)",
+    ),
+    (
+        "spk-network-decimal",
+        lambda: ScriptPubKey(b"", str(_UNCHECKED_INT), check_validity=False),
+        "ScriptPubKey(script=..., network=...)",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "make, shown",
+    [case[1:] for case in _KEY_IN_AN_UNCHECKED_POSITION],
+    ids=[case[0] for case in _KEY_IN_AN_UNCHECKED_POSITION],
+)
+def test_a_key_repr_hides_a_key_in_any_position(
+    make: Callable[[], object], shown: str
+) -> None:
+    """A key passed unchecked in any position reaches neither repr nor str.
+
+    `assert_secret_free` reads an exception, so one carries the two texts.
+    It looks for pieces whose length `WINDOW` gives
+    (`tests/secret_free/__init__.py`), so each byte of the key is also
+    looked for as `0x` and its hex.
+    """
+    key = make()
+    assert repr(key) == shown
+    assert str(key) == shown
+    texts = Exception(repr(key), str(key))
+    assert_secret_free(texts, [_UNCHECKED_KEY, str(_UNCHECKED_INT), _UNCHECKED_WIF])
+    text = text_of(texts)
+    assert all(f"0x{byte:02x}" not in text for byte in _UNCHECKED_KEY)
+
+
+_UNCOMPRESSED_PUB = PrvKeyData(_UNCHECKED_INT, compressed=False).pub.sec
+_P2WPKH = ScriptPubKey.p2wpkh(PubKeyData(_PUB)).script
+_P2PKH = ScriptPubKey.p2pkh(PubKeyData(_PUB)).script
+# the lengths either side of a key's 32 and 33 bytes
+_NULLDATA = b"\x6a\x1d" + bytes(29)
+_WITNESS_UNKNOWN = b"\x52\x20" + bytes(32)
+
+
+@pytest.mark.parametrize(
+    "key, shown",
+    [
+        (
+            PrvKeyData(_UNCHECKED_INT, compressed=False),
+            "PrvKeyData(q=..., network='mainnet', compressed=False)",
+        ),
+        (
+            PrvKeyData(1, "mainnet", 1, check_validity=False),  # type: ignore[arg-type]
+            "PrvKeyData(q=..., network='mainnet', compressed=...)",
+        ),
+        (
+            PrvKeyData(1, "mainnet", 0, check_validity=False),  # type: ignore[arg-type]
+            "PrvKeyData(q=..., network='mainnet', compressed=...)",
+        ),
+        (PubKeyData(_PUB), f"PubKeyData(sec={_PUB!r}, network='mainnet')"),
+        (
+            PubKeyData(_UNCOMPRESSED_PUB, "testnet"),
+            f"PubKeyData(sec={_UNCOMPRESSED_PUB!r}, network='testnet')",
+        ),
+        (
+            PubKeyData(b"\x02" + _UNCOMPRESSED_PUB[1:], check_validity=False),
+            "PubKeyData(sec=..., network='mainnet')",
+        ),
+        (
+            PubKeyData(b"\x03" + _UNCOMPRESSED_PUB[1:], check_validity=False),
+            "PubKeyData(sec=..., network='mainnet')",
+        ),
+        (PubKeyData(_PUB, OTHER), "PubKeyData(sec=..., network=...)"),
+        (
+            ScriptPubKey(_P2WPKH, "testnet"),
+            f"ScriptPubKey(script={_P2WPKH!r}, network='testnet')",
+        ),
+        (
+            ScriptPubKey(_P2PKH),
+            f"ScriptPubKey(script={_P2PKH!r}, network='mainnet')",
+        ),
+        (
+            ScriptPubKey(_NULLDATA),
+            f"ScriptPubKey(script={_NULLDATA!r}, network='mainnet')",
+        ),
+        (
+            ScriptPubKey(_WITNESS_UNKNOWN),
+            f"ScriptPubKey(script={_WITNESS_UNKNOWN!r}, network='mainnet')",
+        ),
+        (
+            PubKeyData(b"", check_validity=False),
+            "PubKeyData(sec=..., network='mainnet')",
+        ),
+    ],
+    ids=[
+        "compressed-false",
+        "compressed-one",
+        "compressed-zero",
+        "sec-compressed",
+        "sec-uncompressed",
+        "sec-compressed-prefix-long",
+        "sec-odd-prefix-long",
+        "sec-other-network",
+        "script-p2wpkh",
+        "script-p2pkh",
+        "script-nulldata",
+        "script-witness-unknown",
+        "sec-empty",
+    ],
+)
+def test_a_key_repr_shows_what_its_format_defines(key: object, shown: str) -> None:
+    """A key repr shows a bool, SEC-shaped octets and a classified script.
+
+    An int is hidden even where it reads as a bool, and so are octets whose
+    prefix is one SEC defines for the other length, and octets on a Network
+    NETWORKS does not hold.
+    """
+    assert repr(key) == shown
+    assert str(key) == shown

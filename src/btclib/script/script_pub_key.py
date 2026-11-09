@@ -36,6 +36,7 @@ from btclib.network import (
     _assert_network,
     _network_from,
     _normalized_network,
+    _shown_network,
     validated_network_name,
 )
 from btclib.script.limits import MAX_PUBKEYS_PER_MULTISIG
@@ -672,6 +673,19 @@ class ScriptPubKey(Script):
         # ScriptPubKey -- the generated __eq__ it inherits compares by
         # exact class -- so the two need not agree
         return hash((self.script, _network_from(self.network).network_type))
+
+    @override
+    def __repr__(self) -> str:
+        # a key passed here by mistake is not shown: the network only where
+        # it is a known name, the script only where `type_and_payload`
+        # gives it a type other than "unknown" and it is not 32 or 33 bytes
+        # long. A key of 32 bytes, or 33 with a prefix byte, can read as
+        # nulldata or witness_unknown, and no other type has those lengths
+        known = type_and_payload(self.script)[0] != "unknown"
+        shown = known and len(self.script) not in (32, 33)
+        script = repr(self.script) if shown else "..."
+        network = _shown_network(self.network)
+        return f"{type(self).__name__}(script={script}, network={network})"
 
     def __init__(
         self,
