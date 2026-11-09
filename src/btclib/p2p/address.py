@@ -69,6 +69,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.limits import MAX_ADDR_TO_SEND
 from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
+    _message_text,
     assert_no_trailing,
     bytesio_from_binarydata,
     is_integer,
@@ -167,13 +168,18 @@ def _ipv6_from_ip_address(ip: IPAddress) -> IPv6Address:
     # `ip_address` and not `IPv6Address`: the latter refuses "10.0.0.1"
     # outright, where the whole point of the mapping is that a v4 address
     # is a value this structure carries
+    # the refusal is raised outside the `except` and describes the text
+    # by its length: the ValueError quotes the whole text, which may be
+    # a key passed in its place
     try:
         # ASCII whitespace alone, for the reason `utils.str_from_string`
         # gives
         parsed = ip_address(ip.strip(string.whitespace))
-    except ValueError as e:
-        raise BTClibValueError(f"invalid ip: {e}") from e
-    return _ipv6_from_ip_address(parsed)
+    except ValueError:
+        pass
+    else:
+        return _ipv6_from_ip_address(parsed)
+    raise BTClibValueError(f"invalid ip: {_message_text(ip)}")
 
 
 def _service_flags_from_int(services: int) -> ServiceFlags | int:

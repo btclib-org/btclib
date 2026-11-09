@@ -80,6 +80,7 @@ from btclib.network import (
 from btclib.utils import (
     _btclib_errors,
     _message_text,
+    _name_text,
     assert_type,
     bytes_from_octets,
     is_integer,
@@ -232,13 +233,13 @@ def witness_from_address(
 
     if network is not None:
         if hrp != network.hrp:
-            raise BTClibValueError(f"invalid hrp: {hrp}")
+            raise BTClibValueError(f"invalid hrp: {_name_text(hrp)}")
         return wit_ver, wit_prog, network
 
     # check that it is a known segwit address type
     name = network_from_key_value("hrp", hrp)
     if name is None:
-        raise BTClibValueError(f"invalid hrp: {hrp}")
+        raise BTClibValueError(f"invalid hrp: {_name_text(hrp)}")
 
     return wit_ver, wit_prog, name
 

@@ -232,9 +232,14 @@ def str_from_string(s: String, what: str) -> str:
     takes U+00A0, U+3000, U+2028, U+001C and every other character
     `str.isspace` counts, so a string padded with them would be taken
     for the value it wraps.
+
+    A str subclass is returned as the plain str of its characters, so
+    that no method of its own -- a `strip` answering an address, an
+    `__eq__` claiming a name -- decides a check whose refusal then
+    quotes it.
     """
     if isinstance(s, str):
-        return s
+        return str.__str__(s)
 
     if not isinstance(s, (bytes, bytearray, memoryview)):
         # what is neither went through untouched, to fail on `len` or on
@@ -373,6 +378,26 @@ def _message_text(value: object) -> str:
         return f"{description} of length {len(value)}"  # type: ignore[arg-type]
     except Exception:  # noqa: BLE001
         return description
+
+
+#: The most characters of a refused name that a refusal quotes.
+_MAX_QUOTED_NAME_LENGTH = 16
+
+
+def _name_text(value: object) -> str:
+    """Return a refused name for a refusal's message, never raising.
+
+    A string refused where a name belongs, such as a script flag or a
+    network type, is quoted where it has at most
+    `_MAX_QUOTED_NAME_LENGTH` characters: section 7 of the btclib-org
+    standard, *A refusal carries no secret*, lets a refusal quote it
+    there, too short for a key. A longer one, and what is not a str, is
+    described as `_message_text` describes it.
+    """
+    # str's own methods, for the reason _int_description gives
+    if isinstance(value, str) and str.__len__(value) <= _MAX_QUOTED_NAME_LENGTH:
+        return str.__repr__(value)
+    return _message_text(value)
 
 
 def _message_field(value: int, bits: int, spec: str) -> str:

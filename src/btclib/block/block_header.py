@@ -97,12 +97,17 @@ def _time_from_isoformat(time: Any) -> datetime:
     `datetime.fromisoformat` refuses what is not a string with a
     TypeError of its own and an unparsable string with a bare
     ValueError, and a json boundary owes its caller neither.
+
+    The refusal is raised outside the `except` and describes the string
+    by its length: the ValueError quotes the whole string, which may be
+    a key passed in its place.
     """
     assert_type(time, str, "time")
     try:
         return datetime.fromisoformat(time)
-    except ValueError as e:
-        raise BTClibValueError(f"invalid time: {e}") from e
+    except ValueError:
+        pass
+    raise BTClibValueError(f"invalid time: {_message_text(time)}")
 
 
 @dataclass

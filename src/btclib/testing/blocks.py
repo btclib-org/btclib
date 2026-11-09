@@ -13,7 +13,7 @@ pulled.
 from pathlib import Path
 
 from btclib.exceptions import BTClibValueError
-from btclib.utils import assert_type
+from btclib.utils import _name_text, assert_type
 
 __all__ = ["NAMES", "read_bytes"]
 
@@ -26,5 +26,5 @@ def read_bytes(name: str) -> bytes:
     """Return the bytes of the block file `name`, one of `NAMES`."""
     assert_type(name, str, "block file name")
     if name not in NAMES:
-        raise BTClibValueError(f"unknown block file: {name}")
+        raise BTClibValueError(f"unknown block file: {_name_text(name)}")
     return (_DATA / name).read_bytes()

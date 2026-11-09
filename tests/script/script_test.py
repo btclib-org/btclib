@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import re
 import string
 from typing import Any
 
@@ -202,7 +201,7 @@ def test_simple_scripts() -> None:
 def test_exceptions() -> None:
     """Refuse an unknown OP_ string and a command of the wrong type."""
     script_pub_key: ScriptList = ["OP_2", "OP_3", "OP_ADD", "OP_5", "OP_RETURN_244"]
-    err_msg = "invalid string command: OP_RETURN_244"
+    err_msg = "invalid string command: 'OP_RETURN_244'"
     with pytest.raises(BTClibValueError, match=err_msg):
         serialize(script_pub_key)
 
@@ -232,7 +231,7 @@ def test_an_op_code_name_is_matched_as_parse_writes_it() -> None:
             serialize([command])
 
     for command in ("op_if", "Op_CheckSig"):
-        err_msg = f"^invalid string command: {command}$"
+        err_msg = f"^invalid string command: '{command}'$"
         with pytest.raises(BTClibValueError, match=err_msg):
             serialize([command])
 
@@ -254,9 +253,9 @@ def test_an_unknown_op_code_is_read_as_parse_writes_it() -> None:
         if parse(bytes([i])) == [name]:
             assert serialize([name]) == bytes([i])
         else:
-            with pytest.raises(
-                BTClibValueError, match=f"^invalid string command: {name}$"
-            ):
+            # every such name has more characters than a refusal quotes
+            err_msg = f"^invalid string command: a str of length {len(name)}$"
+            with pytest.raises(BTClibValueError, match=err_msg):
                 serialize([name])
 
     for command in (
@@ -268,12 +267,16 @@ def test_an_unknown_op_code_is_read_as_parse_writes_it() -> None:
         "UNKNOWN_OP_CODE_256",
         "UNKNOWN_OP_CODE_999",
         "UNKNOWN_OP_CODE_zz",
-        "UNKNOWN_OP_CODE_",
         "xxUNKNOWN_OP_CODE_187",
     ):
-        err_msg = f"^invalid string command: {re.escape(command)}$"
+        err_msg = f"^invalid string command: a str of length {len(command)}$"
         with pytest.raises(BTClibValueError, match=err_msg):
             serialize([command])
+    # sixteen characters, which a refusal quotes
+    with pytest.raises(
+        BTClibValueError, match="^invalid string command: 'UNKNOWN_OP_CODE_'$"
+    ):
+        serialize(["UNKNOWN_OP_CODE_"])
 
 
 def test_a_string_command_is_stripped_of_ascii_whitespace_alone() -> None:
@@ -351,7 +354,9 @@ def test_truncated_push_ends_the_parse() -> None:
     # the mark cannot be serialized back: it is a place, not a command,
     # where UNKNOWN_OP_CODE_n is a byte of an executable script and must
     # round-trip
-    with pytest.raises(BTClibValueError, match=r"^invalid string command: \[error\]$"):
+    with pytest.raises(
+        BTClibValueError, match=r"^invalid string command: '\[error\]'$"
+    ):
         serialize([ERROR_COMMAND])
 
     # 0xff, Core's OP_INVALIDOPCODE, which no soft fork can name: an op
