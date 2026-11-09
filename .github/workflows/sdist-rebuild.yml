@@ -10,11 +10,11 @@ name: sdist-rebuild
 # its signer (issue btclib-org/.github#1301). The release lookup, the checkout,
 # the build, the normalizer and the verification are btclib-org/.github's own:
 # reusable-sdist-rebuild.yml, called at a tagged commit (section 10 of
-# btclib-org/.github's README.md). What stays here is the trigger, the cron
+# the organization's standard). What stays here is the trigger, the cron
 # minute, the workflow-level permissions, the concurrency group and the calling
 # job's own `if:`, none of which the callee carries.
 #
-# The sdist alone: section 10 of btclib-org/.github's README.md makes the
+# The sdist alone: section 10 of the organization's standard makes the
 # row the sdist's. A red run is an issue against this tree. It gates
 # nothing, and must not appear in main's required checks
 

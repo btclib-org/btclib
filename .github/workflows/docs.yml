@@ -77,7 +77,7 @@ concurrency:
 jobs:
   # the checkout, the uv setup, the build, and the unresolved-link and
   # included-link checks are btclib-org/.github's: reusable-docs.yml, called
-  # at a tagged commit (section 10 of btclib-org/.github's README.md). What
+  # at a tagged commit (section 10 of the organization's standard). What
   # stays here is the trigger, the concurrency group and the workflow-level
   # permissions; the draft and closed declines are the called workflow's own,
   # reading github.event.pull_request.draft and github.event.action off this

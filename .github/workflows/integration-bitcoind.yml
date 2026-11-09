@@ -15,7 +15,7 @@ name: integration-bitcoind
 #
 # The checkout, the node install, the test run and the report upload are
 # btclib-org/.github's: reusable-integration-bitcoind.yml, called at a tagged
-# commit (section 10 of btclib-org/.github's README.md). What stays here is the
+# commit (section 10 of the organization's standard). What stays here is the
 # trigger, the cron minute, the concurrency group, the pinned release and its
 # sha256, the two environment-variable names tests/integration/conftest.py
 # reads, and the prefix that exempts qa_assets_test.py's skips.

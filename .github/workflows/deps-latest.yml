@@ -52,7 +52,7 @@ name: deps-latest
 #
 # The upgrade, the lint hooks and the suite run over it are btclib-org/.github's
 # reusable-deps-latest.yml, called at a tagged commit (section 10 of
-# btclib-org/.github's README.md). suite-bindings-latest and dist-latest stay
+# the organization's standard). suite-bindings-latest and dist-latest stay
 # here -- the callee holds neither the bindings-only upgrade nor the packaging
 # checks, and says so in its own header -- and so do the trigger, the schedule,
 # the concurrency group and the workflow-level permissions
@@ -87,7 +87,7 @@ concurrency:
 jobs:
   # the checkout, the uv setup, the hook cache, the upgrade and the lint and
   # suite runs over it are btclib-org/.github's reusable-deps-latest.yml, called
-  # at a tagged commit (section 10 of btclib-org/.github's README.md). It runs
+  # at a tagged commit (section 10 of the organization's standard). It runs
   # as this job's own `lint-latest` and `suite-latest`, both keyed by name in
   # the run rather than by this file's job id.
   #

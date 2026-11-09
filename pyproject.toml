@@ -313,8 +313,8 @@ dev = [
 
 [tool.uv]
 # the oldest uv that may read uv.lock, at most the uv a Dependabot run's
-# log names -- section 1 of the organization standard has the argument,
-# section 15 the commands that measure it
+# log names -- section 1 of the organization's standard has the
+# argument, section 15 the commands that measure it
 # (btclib-org/.github#312)
 required-version = ">=0.13.4"
 
@@ -474,8 +474,8 @@ source-exclude = [
 # `package` is set because the redundancy does not substitute for the
 # flag: `check-sdist` below gates this tree against the sdist and
 # `verify_dist_contents.py` gates the sdist against the wheel, so
-# chained they imply tree == sdist == wheel. The organization
-# standard's section 12 (btclib-org/.github#51, issue #1200) treats
+# chained they imply tree == sdist == wheel. Section 12 of the
+# organization's standard (btclib-org/.github#51, issue #1200) treats
 # that implication as the same assertion bought with code to
 # maintain, not as a substitute for the flag itself: the two hops
 # here sit in different workflows -- a pre-commit hook under the
@@ -1066,7 +1066,7 @@ explicit-preview-rules = true
 # nobody has looked at yet. `ALL` takes a new family in on the pull
 # request that bumps ruff's own pinned rev instead, which is the day
 # somebody is already looking at what changed. Section 5 of the
-# organization standard states the rule; `ignore` below is where every
+# organization's standard states the rule; `ignore` below is where every
 # declined rule's reason lives -- a rule the formatter conflicts with,
 # cited from ruff's own docs/formatter.md and not argued here since that
 # list is the vendor's; a rule this tree declines on its own merits,
@@ -1389,7 +1389,7 @@ max-complexity = 10
 # W505 is in the "W" set selected above and is inert without this line,
 # ruff having no default doc length; setting it is the whole of the
 # switch. Which over-width lines the rule passes over is section 9 of
-# the organization standard's and is not restated here. While
+# the organization's standard's and is not restated here. While
 # `uv run ruff check --select W505 --no-cache .` passes, a comment over
 # 80 columns is either one of those or one this key does not reach, and
 # not a defect

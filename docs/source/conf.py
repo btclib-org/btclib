@@ -84,10 +84,10 @@ source_suffix = [".rst", ".md"]
 # Six is every level markdown heads at, which makes the number a fixed
 # point rather than a value re-derived from files that move -- and part
 # of what such a re-derivation would read belongs to no one tree:
-# section 14 of the organization standard ports CONTRIBUTING.md's shared
-# half into every repository, so a heading added there moves the depth
-# in each of them at once, and which tree finds out is whichever carries
-# a link into it (btclib-org/.github#715).
+# section 14 of the organization's standard ports CONTRIBUTING.md's
+# shared half into every repository, so a heading added there moves the
+# depth in each of them at once, and which tree finds out is whichever
+# carries a link into it (btclib-org/.github#715).
 #
 # Whether the depth is wide enough is not read off two builds: docutils
 # gives every section an id whatever myst accepts as a target, so the
@@ -221,7 +221,7 @@ html_theme = "furo"
 # lifted out of the tree that makes it correct, and myst resolves not one
 # of those links. README.md links it as BLOB plus its path, PyPI
 # resolving no relative link against the tree (section 2 of the
-# organization standard), and myst renders that as a link to GitHub.
+# organization's standard), and myst renders that as a link to GitHub.
 #
 # What myst emits for a relative link is the reason this needs code
 # rather than a warning filter: for a target it cannot resolve, a

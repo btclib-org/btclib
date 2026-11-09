@@ -13,7 +13,7 @@ name: vendored vectors
 #
 # The checkout, the optional interpreter setup and the re-check itself are
 # btclib-org/.github's: reusable-vendored-vectors.yml, called at a tagged commit
-# (section 10 of btclib-org/.github's README.md). What stays here is the
+# (section 10 of the organization's standard). What stays here is the
 # trigger, the cron minute, the concurrency group and the ledger this tree
 # checks.
 #

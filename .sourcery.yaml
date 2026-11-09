@@ -1,8 +1,9 @@
 ---
 # Sourcery's configuration, which the job sourcery.yml calls reads.
-# Section 10 of btclib-org/.github's README.md, *The set, and its
-# cadence*, says what it holds. The rules turned off are TURNED_OFF's in
-# that repository's tests/hooks_test.py, each with its reason beside it.
+# Section 10 of the organization's standard, *The set, and its cadence*,
+# says what it holds. The rules turned off are TURNED_OFF's in
+# btclib-org/.github's tests/hooks_test.py, each with its reason beside
+# it.
 version: "1"
 
 rule_settings:

@@ -5,7 +5,7 @@
 """`CONTRIBUTING.md`'s *What runs when* table names every workflow.
 
 The paragraph under that table leaves *which day* each workflow runs to
-section 10 of the organization standard, "not this file's to restate",
+section 10 of the organization's standard, "not this file's to restate",
 which reads the table as covering the rest: every workflow this tree
 holds, with the calendar deliberately out of the `when` cell. A table
 exhaustive but for one workflow is read as exhaustive, so a missing row

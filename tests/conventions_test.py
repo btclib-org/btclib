@@ -4,7 +4,7 @@
 
 """The convention-test declaration in tests/README.md is true.
 
-Section 7 of the organization standard lists conventions a suite can
+Section 7 of the organization's standard lists conventions a suite can
 turn into a red test, and closes with the clause that makes the list
 usable: a repository needs the ones its own prose states rather than all
 of them. That clause is right, and its price is that an *absent*
@@ -22,8 +22,8 @@ convention worth stating is worth a test, applied to section 7 itself.
 The header section 14 asks of every copy of this module is not that
 naming point again -- it is what this module itself reads, and which of
 its departures are decided rather than accidental. `_CONVENTIONS` below
-transcribes section 7's list rather than reading it live: the
-organization standard's own suite can read `README.md` straight, because
+transcribes section 7's list rather than reading it live:
+btclib-org/.github's own suite can read `README.md` straight, because
 the standard and the declaration are the same commit there, and a
 transcribed copy would be the second statement section 9 refuses and the
 one that goes stale. Here the standard lives in `btclib-org/.github`, so

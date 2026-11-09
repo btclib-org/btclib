@@ -58,8 +58,9 @@ updates:
         patterns: ["*"]
     cooldown:
       default-days: 7
-      # the exclude section 11 of btclib-org/.github's README.md gives for
-      # that repository's own tags, which the calls in .github/workflows pin
+      # the exclude section 11 of the organization's standard gives for
+      # btclib-org/.github's own tags, which the calls in .github/workflows
+      # pin
       exclude: ["btclib-org/.github/*"]
 
   # uv.lock is committed and the workflows install from it with --locked, bar
@@ -67,7 +68,7 @@ updates:
   # floor, and a ceiling only on uv_build, copied from [build-system]: the whole
   # drift of ruff, mypy, pytest and sphinx above their floors lives in the lock
   # file, and this moves it, bar the one exception section 1 of
-  # btclib-org/.github's README names. The uv-lock pre-commit hook re-locks what
+  # the organization's standard names. The uv-lock pre-commit hook re-locks what
   # pyproject.toml changed and upgrades nothing, and the latest workflow tests
   # an upgrade it deliberately never commits
   - package-ecosystem: uv
