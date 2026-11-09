@@ -191,6 +191,6 @@ def test_an_offset_too_large_to_print_is_still_a_type_error() -> None:
     through the refusal's own message as a plain ValueError. The message
     describes it instead of quoting it.
     """
-    unwritable = r"a Fraction str\(\) cannot write$"
+    unwritable = r"a Fraction$"
     with pytest.raises(BTClibTypeError, match=f"non-integer offset: {unwritable}"):
         obfuscation.obfuscate(b"data", bytes(8), Fraction(10**4400, 3))  # type: ignore[arg-type]

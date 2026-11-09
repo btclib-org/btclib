@@ -223,6 +223,25 @@ def sats_from_btc(amount: Decimal) -> int:
         return int(btc * _SATOSHI_PER_BITCOIN)
 
 
+def _sats_from_text(amount: object, text: Any) -> int:
+    """Return `int(text)`, refusing what int() refuses as this library's error.
+
+    Raised after the except block, neither chained nor left as context:
+    int()'s ValueError quotes the text it could not read, and that may be
+    a key (section 7 of the btclib-org standard, *A refusal carries no
+    secret*). The message describes `amount`, what the caller passed.
+    """
+    refusal: BTClibValueError | BTClibTypeError
+    try:
+        return int(text)
+    except (ValueError, OverflowError):
+        refusal = BTClibValueError(f"invalid satoshi amount: {_message_text(amount)}")
+    except TypeError:
+        err_msg = f"non-integer satoshi amount: {_message_text(amount)}"
+        refusal = BTClibTypeError(err_msg)
+    raise refusal
+
+
 def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     """Return the satoshi amount as int, if valid and not less than dust.
 
@@ -235,7 +254,7 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     # and by name because this argument is Any, so a str and a Decimal are
     # legitimate here and the predicate cannot be the gate
     if isinstance(amount, bool):
-        raise BTClibTypeError(f"non-integer satoshi amount: {amount}")
+        raise BTClibTypeError(f"non-integer satoshi amount: {_message_text(amount)}")
     # and the threshold it is compared against: a bool passes the
     # comparison below as zero or one, so `dust=True` is a dust level of
     # one satoshi rather than a caller error
@@ -249,7 +268,7 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
         raise BTClibValueError("invalid satoshi dust threshold")
     text = amount
     if isinstance(amount, str):
-        text = _number_text(amount, f"invalid satoshi amount: {amount}")
+        text = _number_text(amount, f"invalid satoshi amount: {_message_text(amount)}")
     # any input that can be converted to int is fine -- and int() refuses
     # what it cannot convert with a bare ValueError ("abc", b"\x01"), a
     # bare TypeError (a list), or a bare OverflowError (an infinity, where
@@ -259,14 +278,7 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     # ArithmeticError, so a caller catching ValueError never caught it.
     # Each is answered with this library's counterpart of the builtin it
     # was, so what a caller catches does not shrink
-    try:
-        sats = 0 if amount is None else int(text)
-    except (ValueError, OverflowError) as e:
-        err_msg = f"invalid satoshi amount: {_message_text(amount)}"
-        raise BTClibValueError(err_msg) from e
-    except TypeError as e:
-        err_msg = f"non-integer satoshi amount: {_message_text(amount)}"
-        raise BTClibTypeError(err_msg) from e
+    sats = 0 if amount is None else _sats_from_text(amount, text)
     # sats != amount is what catches the truncation int() performs
     # silently on a float or a Decimal fraction (int(2.5) == 2, so
     # 2 != 2.5 fires); it cannot fire that way on a str, since int()
