@@ -481,8 +481,7 @@ class Addr(Payload):
 
         count = var_int.parse(stream)
         if count > MAX_ADDR_TO_SEND:
-            err_msg = f"invalid addresses count: {count}"
-            err_msg += f" instead of at most {MAX_ADDR_TO_SEND}"
+            err_msg = f"invalid addresses count: at most {MAX_ADDR_TO_SEND} expected"
             raise BTClibValueError(err_msg)
 
         addresses = [

@@ -158,7 +158,7 @@ def test_script_pub_key_is_rendered_as_asm_and_hex() -> None:
     # the shape to_dict wrote before it wrote that one
     assert TxOut.from_dict({**dict_, "scriptPubKey": script}) == tx_out
 
-    with pytest.raises(BTClibValueError, match="asm does not match hex: "):
+    with pytest.raises(BTClibValueError, match="^asm does not match hex$"):
         TxOut.from_dict({**dict_, "scriptPubKey": {"asm": "OP_1", "hex": script}})
 
 

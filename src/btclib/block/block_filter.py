@@ -301,9 +301,7 @@ class BasicBlockFilter:
         for _ in range(self.element_count):
             value += _golomb_decode(reader, BASIC_FILTER_P)
             if value >= upper_bound:
-                err_msg = f"block filter element out of range: {value}"
-                err_msg += f", max is {upper_bound - 1}"
-                raise BTClibValueError(err_msg)
+                raise BTClibValueError("block filter element out of range")
             yield value
         reader.assert_exhausted()
 

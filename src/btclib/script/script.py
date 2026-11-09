@@ -742,7 +742,7 @@ def script_from_dict(value: Mapping[str, str] | Octets) -> bytes:
 
     `asm` is derived from `hex`, so there is nothing in it to read. It is
     still not ignored: a dict carrying an `asm` that the `hex` does not
-    produce is refused, naming both. Ignoring it would let a hand-edited
+    produce is refused. Ignoring it would let a hand-edited
     `asm` sit in a stored dict describing a script that is not the one
     the bytes hold, and every consumer that reads the human-readable
     field -- a diff, a review, an explorer -- would then be reading a
@@ -766,9 +766,8 @@ def script_from_dict(value: Mapping[str, str] | Octets) -> bytes:
     # compared against what to_dict would emit, not against a second
     # renderer: one function decides the spelling, so the check cannot
     # drift away from what it checks
-    if asm is not None and asm != (expected := script_to_dict(script)["asm"]):
-        err_msg = f"asm does not match hex: {asm!r} instead of {expected!r}"
-        raise BTClibValueError(err_msg)
+    if asm is not None and asm != script_to_dict(script)["asm"]:
+        raise BTClibValueError("asm does not match hex")
     return script
 
 

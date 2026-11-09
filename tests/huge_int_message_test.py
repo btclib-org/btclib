@@ -446,7 +446,7 @@ _EDGE_CASES: list[tuple[str, int, Callable[[int], object], str]] = [
         "sequence one bit past four bytes",
         2**32 + 1,
         lambda v: _verify_unchecked([0xFFFF, "OP_CHECKSEQUENCEVERIFY"], sequence=v),
-        r"^relative lock time 65535 > an int of 33 bits \(",
+        r"^relative lock time > an int of 33 bits \(",
     ),
     (
         "least header version",

@@ -176,7 +176,7 @@ def test_script_sig_is_rendered_as_asm_and_hex() -> None:
     old = {**dict_, "scriptSig": script_sig}
     assert TxIn.from_dict(old) == tx_in
 
-    with pytest.raises(BTClibValueError, match="asm does not match hex: "):
+    with pytest.raises(BTClibValueError, match="^asm does not match hex$"):
         TxIn.from_dict({**dict_, "scriptSig": {"asm": "OP_1", "hex": script_sig}})
 
 

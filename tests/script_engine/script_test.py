@@ -357,7 +357,9 @@ def test_a_serialized_zero_is_a_number_the_interpreter_reads() -> None:
     # the same script with the zero pushed as one byte of data: a number
     # nowhere the flag is in force, and unspendable there
     non_minimal = b"\x01\x00" + script_bytes[1:]
-    with pytest.raises(ScriptError, match="non-minimal encoding of 0: 00"):
+    with pytest.raises(
+        ScriptError, match=r"^non-minimal number encoding of 1 bytes \("
+    ):
         verify_script(non_minimal, [], 0, tx, 0, ScriptFlag.MINIMALDATA, False, True)
 
     # a script number all the same where nothing asks for minimality,
@@ -377,7 +379,9 @@ def test_negative_zero_is_refused_by_the_one_minimality_check() -> None:
 
     # 80, OP_1ADD, OP_1, OP_NUMEQUAL: negative zero where a number is read
     negative_zero = b"\x01\x80\x8b\x51\x9c"
-    with pytest.raises(ScriptError, match="non-minimal encoding of 0: 80"):
+    with pytest.raises(
+        ScriptError, match=r"^non-minimal number encoding of 1 bytes \("
+    ):
         verify_script(negative_zero, [], 0, tx, 0, ScriptFlag.MINIMALDATA, False, True)
 
     # and zero it is, wherever nothing asks for the minimal spelling
@@ -393,7 +397,7 @@ def test_negative_zero_is_refused_by_the_one_minimality_check() -> None:
         ),
         (
             ["OP_0", "OP_1NEGATE", "OP_0", "OP_CHECKMULTISIG"],
-            "signatures for 0 public keys",
+            "invalid number of signatures",
         ),
     ],
     ids=["negative public keys", "negative signatures"],
@@ -712,7 +716,7 @@ def test_a_relative_lock_time_not_reached_writes_the_input_s_low_bits() -> None:
     prevouts, tx = taproot_script_spend(
         ["OP_2", "OP_CHECKSEQUENCEVERIFY"], lock_time=0, sequence=0x10001
     )
-    with pytest.raises(BTClibValueError, match=r"^relative lock time 2 > 1 \("):
+    with pytest.raises(BTClibValueError, match=r"^relative lock time > 1 \("):
         verify_input(prevouts, tx, 0, ALL_FLAGS)
 
 
@@ -1713,7 +1717,9 @@ def test_read_push_data_measures_before_it_skips(skip_execution: bool) -> None:
         read_push_data(0x4D, stream, *args)
 
     # a push of two bytes with one to read
-    with pytest.raises(BTClibValueError, match="pushdata of 2 bytes, 1 in the script"):
+    with pytest.raises(
+        BTClibValueError, match="pushdata longer than the 1 bytes left in the script"
+    ):
         read_push_data(0x02, BytesIO(b"\xff"), *args)
 
     # and a declared length that is itself cut short

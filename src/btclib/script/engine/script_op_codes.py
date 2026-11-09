@@ -141,7 +141,7 @@ def _to_num(element: bytes, flags: ScriptFlag, max_size: int) -> int:
     # included: `encode_num` writes zero as the empty vector, so `80` and
     # `00` are both something it does not write
     if minimaldata and encode_num(x) != element:
-        err_msg = f"non-minimal encoding of {x}: {element.hex()}"
+        err_msg = f"non-minimal number encoding of {len(element)} bytes"
         raise ScriptError(err_msg, ScriptErrorCode.SCRIPTNUM)
     return x
 
@@ -307,10 +307,10 @@ def read_push_data(
         data_length = int.from_bytes(length_bytes, byteorder="little")
     data = s.read(data_length)
     if len(data) != data_length:
-        err_msg = f"pushdata of {data_length} bytes, {len(data)} in the script"
+        err_msg = f"pushdata longer than the {len(data)} bytes left in the script"
         raise ScriptError(err_msg, ScriptErrorCode.BAD_OPCODE)
     if data_length > MAX_SCRIPT_ELEMENT_SIZE:
-        err_msg = f"pushdata longer than {MAX_SCRIPT_ELEMENT_SIZE} bytes: {data_length}"
+        err_msg = f"pushdata longer than {MAX_SCRIPT_ELEMENT_SIZE} bytes"
         raise ScriptError(err_msg, ScriptErrorCode.PUSH_SIZE)
     if skip_execution:
         return
@@ -860,7 +860,7 @@ def op_pick(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> Non
     n = _to_num(stack[-1], flags, _MAX_NUM_SIZE)
     stack.pop()
     if n < 0:
-        err_msg = f"negative OP_PICK depth: {n}"
+        err_msg = "negative OP_PICK depth"
         raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     stack.append(stack[-n - 1])
 
@@ -875,10 +875,10 @@ def op_roll(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> Non
     n = _to_num(stack[-1], flags, _MAX_NUM_SIZE)
     stack.pop()
     if n < 0:
-        err_msg = f"negative OP_ROLL depth: {n}"
+        err_msg = "negative OP_ROLL depth"
         raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     if len(stack) < n + 1:
-        err_msg = f"OP_ROLL depth {n} on a stack of {len(stack)} elements"
+        err_msg = f"OP_ROLL depth past a stack of {len(stack)} elements"
         raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     if n == 0:
         return
@@ -963,7 +963,7 @@ def op_checklocktimeverify(
         raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     lock_time = _to_num(stack[-1], flags, _MAX_LOCK_TIME_NUM_SIZE)
     if lock_time < 0:
-        err_msg = f"negative lock time: {lock_time}"
+        err_msg = "negative lock time"
         raise ScriptError(err_msg, ScriptErrorCode.NEGATIVE_LOCKTIME)
 
     # every refusal below is Core's one UNSATISFIED_LOCKTIME, CheckLockTime
@@ -975,21 +975,21 @@ def op_checklocktimeverify(
     if tx.lock_time >= LOCKTIME_THRESHOLD > lock_time:
         tx_lock_time = _message_field(tx.lock_time, 32, "d")
         err_msg = (
-            f"block height lock time {lock_time} against "
+            "block height lock time against "
             f"the timestamp lock time {tx_lock_time} of the transaction"
         )
         raise ScriptError(err_msg, unsatisfied)
     if lock_time >= LOCKTIME_THRESHOLD > tx.lock_time:
         tx_lock_time = _message_field(tx.lock_time, 32, "d")
         err_msg = (
-            f"timestamp lock time {lock_time} against "
+            "timestamp lock time against "
             f"the block height lock time {tx_lock_time} of the transaction"
         )
         raise ScriptError(err_msg, unsatisfied)
 
     if lock_time > tx.lock_time:
         tx_lock_time = _message_field(tx.lock_time, 32, "d")
-        raise ScriptError(f"lock time {lock_time} > {tx_lock_time}", unsatisfied)
+        raise ScriptError(f"lock time > {tx_lock_time}", unsatisfied)
     if tx.vin[i].sequence == 0xFFFFFFFF:
         raise ScriptError(f"final sequence for input {i}", unsatisfied)
 
@@ -1016,7 +1016,7 @@ def op_checksequenceverify(
         raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     sequence = _to_num(stack[-1], flags, _MAX_LOCK_TIME_NUM_SIZE)
     if sequence < 0:
-        err_msg = f"negative sequence: {sequence}"
+        err_msg = "negative sequence"
         raise ScriptError(err_msg, ScriptErrorCode.NEGATIVE_LOCKTIME)
     if not sequence & SEQUENCE_LOCKTIME_DISABLE_FLAG:
         # CheckSequence answers a bool, as CheckLockTime does
@@ -1035,7 +1035,7 @@ def op_checksequenceverify(
         ):
             tx_sequence = _message_field(tx.vin[i].sequence, 32, "#x")
             err_msg = (
-                f"relative lock time unit mismatch: {hex(sequence)} against "
+                "relative lock time unit mismatch against "
                 f"the sequence {tx_sequence} of input {i}"
             )
             raise ScriptError(err_msg, unsatisfied)
@@ -1052,8 +1052,5 @@ def op_checksequenceverify(
                 if 0 <= input_sequence <= 0xFFFFFFFF
                 else _message_text(input_sequence)
             )
-            err_msg = (
-                f"relative lock time {sequence & SEQUENCE_LOCKTIME_MASK} > "
-                f"{tx_relative}"
-            )
+            err_msg = f"relative lock time > {tx_relative}"
             raise ScriptError(err_msg, unsatisfied)
