@@ -569,7 +569,7 @@ _UNWRITABLE_FRACTIONS = [
 @pytest.mark.parametrize("value", _UNWRITABLE_FRACTIONS)
 def test_a_value_str_cannot_write_is_refused_in_kind(value: Fraction) -> None:
     """Every amount refusal names its type where `str()` raises on it."""
-    unwritable = r"a Fraction str\(\) cannot write$"
+    unwritable = r"a Fraction$"
     with pytest.raises(BTClibValueError, match=f"invalid BTC amount: {unwritable}"):
         valid_btc_amount(value)
     with pytest.raises(BTClibValueError, match=f"invalid BTC amount: {unwritable}"):
@@ -597,7 +597,7 @@ class _Unwritable:
 
 def test_a_value_whose_str_raises_is_refused_in_kind() -> None:
     """A caller's own `__str__` raising anything is this library's refusal."""
-    unwritable = r"a _Unwritable str\(\) cannot write$"
+    unwritable = r"an _Unwritable$"
     with pytest.raises(BTClibValueError, match=f"invalid BTC amount: {unwritable}"):
         valid_btc_amount(_Unwritable())
     with pytest.raises(BTClibValueError, match=f"invalid BTC amount: {unwritable}"):
@@ -605,6 +605,12 @@ def test_a_value_whose_str_raises_is_refused_in_kind() -> None:
     match = f"non-integer satoshi amount: {unwritable}"
     with pytest.raises(BTClibTypeError, match=match):
         valid_sats_amount(_Unwritable())
+
+
+def test_a_bool_satoshi_amount_is_named_by_its_type() -> None:
+    """A bool is described as `utils._message_text` describes it."""
+    with pytest.raises(BTClibTypeError, match="^non-integer satoshi amount: a bool$"):
+        valid_sats_amount(True)
 
 
 class _UncomparableInt(int):

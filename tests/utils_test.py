@@ -546,8 +546,8 @@ def test_a_message_describes_every_int() -> None:
     assert _message_text(10**4000) == "an int of 13288 bits"
     assert _message_text(-7) == "a negative int of 3 bits"
     assert _message_text(0) == "an int of 0 bits"
-    assert _message_text(True) == "True"
-    assert _message_text("1_0") == "1_0"
+    assert _message_text(True) == "a bool"
+    assert _message_text("1_0") == "a str of length 3"
     assert _message_text(10**5000) == "an int of 16610 bits"
     assert _message_text(-(10**5000)) == "a negative int of 16610 bits"
 
@@ -560,10 +560,40 @@ class _Unwritable:
 
 def test_a_message_describes_what_str_cannot_write() -> None:
     """A value whose `str()` raises is named by its type, never by its text."""
-    assert _message_text(Fraction(10**5000)) == "a Fraction str() cannot write"
-    assert _message_text(Fraction(1, 10**5000)) == "a Fraction str() cannot write"
-    assert _message_text(Fraction(3, 2)) == "3/2"
-    assert _message_text(_Unwritable()) == "a _Unwritable str() cannot write"
+    assert _message_text(Fraction(10**5000)) == "a Fraction"
+    assert _message_text(Fraction(1, 10**5000)) == "a Fraction"
+    assert _message_text(Fraction(3, 2)) == "a Fraction"
+    # the override does raise, so a description reaching it would too
+    with pytest.raises(RuntimeError):
+        str(_Unwritable())
+    assert _message_text(_Unwritable()) == "an _Unwritable"
+
+
+class _Unsized:
+    def __len__(self) -> int:
+        raise RuntimeError
+
+
+def test_a_message_describes_every_other_value() -> None:
+    """Type name, and length where `len()` gives one, for what is no int.
+
+    A str of hex, a Decimal, a float or bytes in an int's place may hold
+    a key (issue #3002): section 7 of the btclib-org standard lets a
+    refusal print its type name and length, and no character of it.
+    """
+    assert _message_text("") == "a str of length 0"
+    assert _message_text("1") == "a str of length 1"
+    assert _message_text(bytes(32)) == "a bytes of length 32"
+    assert _message_text(Decimal("1.5")) == "a Decimal"
+    assert _message_text(1.5) == "a float"
+    assert _message_text(False) == "a bool"
+    assert _message_text(None) == "a NoneType"
+    assert _message_text(object()) == "an object"
+    assert _message_text(Ellipsis) == "an ellipsis"
+    # the override does raise, so a description reaching it would too
+    with pytest.raises(RuntimeError):
+        len(_Unsized())
+    assert _message_text(_Unsized()) == "an _Unsized"
 
 
 class _UnorderedInt(int):
@@ -595,7 +625,7 @@ def test_a_field_message_writes_only_a_value_that_fits() -> None:
     assert _message_field(256, 8, "d") == "an int of 9 bits"
     assert _message_field(-1, 8, "d") == "a negative int of 1 bits"
     assert _message_field(10**5000, 32, "#x") == "an int of 16610 bits"
-    assert _message_field(True, 8, "d") == "True"
+    assert _message_field(True, 8, "d") == "a bool"
     assert _message_field(_UnorderedInt(-5), 8, "d") == "a negative int of 3 bits"
 
 

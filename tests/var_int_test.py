@@ -129,7 +129,7 @@ def test_a_bool_is_neither_a_count_nor_a_cap() -> None:
 
 
 def test_a_fraction_too_large_to_print_is_still_a_type_error() -> None:
-    """A refusal's message quotes the refused value.
+    """A refusal's message describes the refused value.
 
     `str()` of an int past the digit limit raises ValueError -- so a
     Fraction whose numerator runs past it would leave through the
@@ -138,7 +138,7 @@ def test_a_fraction_too_large_to_print_is_still_a_type_error() -> None:
     points still raise the type error the caller contracted for.
     """
     too_large_to_print = Fraction(10**4400, 3)
-    unwritable = r"a Fraction str\(\) cannot write$"
+    unwritable = r"a Fraction$"
     with pytest.raises(BTClibTypeError, match=f"non-integer var_int: {unwritable}"):
         var_int.serialize(too_large_to_print)  # type: ignore[arg-type]
     with pytest.raises(BTClibTypeError, match=f"non-integer max_size: {unwritable}"):

@@ -464,7 +464,7 @@ def network_address(address: NetworkAddressV2) -> NetworkAddress:
     peer that is not the one that was gossiped.
     """
     if not can_addrv1(address):
-        network_id = _message_text(int(address.network_id))
+        network_id = _message_text(address.network_id)
         err_msg = f"not an ip address: network id {network_id}"
         raise BTClibValueError(err_msg)
     ip = (

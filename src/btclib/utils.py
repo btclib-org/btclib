@@ -340,32 +340,39 @@ def assert_no_trailing(data: BinaryData, stream: BytesIO, what: str) -> None:
 
 
 def _message_text(value: object) -> str:
-    """Return the text of a value for a refusal's message, never raising.
+    """Return the description of a value for a refusal's message, never raising.
 
-    An int, a bool excepted, is described by its sign and bit length and
-    never written out, in decimal or in hex: an argument in the wrong
-    place may be a key, and section 7 of the btclib-org standard, *A
-    refusal carries no secret*, lets a refusal print its length and not
-    its digits. `_message_field` is the exception, for a field the
-    format defines.
+    No value is written out: an argument in the wrong place may be a key,
+    in an int, a str of its hex, a Decimal or a float of its digits, or
+    its bytes. Section 7 of the btclib-org standard, *A refusal carries
+    no secret*, lets a refusal print a value's type name and length, and
+    not its digits or characters. `_message_field` is the exception, for
+    a field the format defines.
 
-    Anything else is quoted as `str()` writes it. `str()` of what is
-    written with an int past `sys.get_int_max_str_digits()` digits, a
-    Fraction for one, raises ValueError, and a `__str__` of the caller's
-    own can raise anything. A message quoting such a value would leave
-    through the refusal it was building, as that error rather than this
-    library's. So a value `str()` cannot write is described by its type
-    name, never by its text.
+    An int, a bool excepted, is described by its sign and bit length.
+    Anything else, a bool included, is described by its type name, and
+    by its length where `len()` gives one: "a str of length 64", "an
+    object". The article is "an" before a name whose first letter, past
+    any underscore, is a vowel.
+
+    Neither reads the value's `str()`. That of an int past
+    `sys.get_int_max_str_digits()` digits, or of what is written with
+    one, a Fraction for one, raises ValueError, which would leave through
+    the refusal the description is for, as that error rather than this
+    library's.
     """
     if isinstance(value, int) and not isinstance(value, bool):
         return _int_description(value)
-    # every Exception and not only ValueError: what is caught is a
-    # failure to describe a value, and no failure of that kind may
+    name = type(value).__name__
+    article = "an" if name.lstrip("_")[:1].lower() in tuple("aeiou") else "a"
+    description = f"{article} {name}"
+    # every Exception and not only TypeError: a `__len__` of the caller's
+    # own can raise anything, and no failure to describe a value may
     # replace the refusal the description is for
     try:
-        return str(value)
+        return f"{description} of length {len(value)}"  # type: ignore[arg-type]
     except Exception:  # noqa: BLE001
-        return f"a {type(value).__name__} str() cannot write"
+        return description
 
 
 def _message_field(value: int, bits: int, spec: str) -> str:

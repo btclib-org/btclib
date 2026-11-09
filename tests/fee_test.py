@@ -763,10 +763,11 @@ def test_a_fee_rate_is_refused_in_kind_in_an_untrapping_context(
     """
     with localcontext() as ctx:
         ctx.traps[InvalidOperation] = False
-        with pytest.raises(BTClibValueError, match="invalid sat/vB fee rate: 1e"):
+        quote = f"a str of length {len(_PAST_DECIMAL)}$"
+        with pytest.raises(BTClibValueError, match=f"invalid sat/vB fee rate: {quote}"):
             FeeRate.from_sats_per_vbyte(_PAST_DECIMAL, round_up=round_up)
         with pytest.raises(
-            BTClibValueError, match=r"invalid BTC( amount|/kvB fee rate): 1e"
+            BTClibValueError, match=f"invalid BTC( amount|/kvB fee rate): {quote}"
         ):
             FeeRate.from_btc_per_kvbyte(_PAST_DECIMAL, round_up=round_up)
 
@@ -779,7 +780,9 @@ def test_rounding_past_the_precision_is_refused_in_an_untrapping_context() -> No
     """
     with localcontext() as ctx:
         ctx.traps[InvalidOperation] = False
-        with pytest.raises(BTClibValueError, match="invalid BTC/kvB fee rate: 1e30"):
+        with pytest.raises(
+            BTClibValueError, match="invalid BTC/kvB fee rate: a str of length 4$"
+        ):
             FeeRate.from_btc_per_kvbyte("1e30", round_up=True)
 
 
@@ -1005,7 +1008,7 @@ _UNWRITABLE_FRACTIONS = [
     pytest.param(Fraction(1, _TOO_LONG_TO_WRITE), id="+1/big"),
     pytest.param(Fraction(-1, _TOO_LONG_TO_WRITE), id="-1/big"),
 ]
-_UNWRITABLE = r"a Fraction str\(\) cannot write$"
+_UNWRITABLE = r"a Fraction$"
 
 
 @pytest.mark.parametrize("round_up", [False, True])
@@ -1066,7 +1069,7 @@ class _Unwritable:
 @pytest.mark.parametrize("round_up", [False, True])
 def test_a_quote_whose_str_raises_is_refused_in_kind(round_up: bool) -> None:
     """A caller's own `__str__` raising anything is this library's refusal."""
-    unwritable = r"a _Unwritable str\(\) cannot write$"
+    unwritable = r"an _Unwritable$"
     match = f"invalid sat/vB fee rate: {unwritable}"
     with pytest.raises(BTClibValueError, match=match):
         FeeRate.from_sats_per_vbyte(_Unwritable(), round_up=round_up)

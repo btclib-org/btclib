@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime
+from decimal import Decimal
 from io import BytesIO
 from typing import Any
 
@@ -549,3 +550,65 @@ def test_a_refusal_prints_no_digit_of_a_scalar(
         text = text_of(e)
         assert all(f"0x{byte:02x}" not in text for byte in _SCALAR_BYTES)
         assert all(spelling not in text for spelling in masked)
+
+
+def _signed_hex(scalar: int) -> str:
+    return f"-{-scalar:x}" if scalar < 0 else f"{scalar:x}"
+
+
+# the scalar in the int's place as each type that holds its digits or
+# its bytes, signed as the scalar is where the type has a sign
+_OTHER_TYPES: list[tuple[str, Callable[[int], object]]] = [
+    ("hex str", _signed_hex),
+    ("decimal str", str),
+    ("exponent str", lambda scalar: f"{scalar}e0"),
+    ("Decimal", Decimal),
+    ("float", float),
+    ("bytes", lambda _: _SCALAR_BYTES),
+]
+
+# the rows whose call raises in the case's own arithmetic, `v + 1`, and
+# never reaches the library: they would pass whatever the library wrote
+_NOT_CALLED = {
+    ("target height above the height", kind)
+    for kind in ("hex str", "decimal str", "exponent str", "bytes")
+}
+
+
+@pytest.mark.parametrize(
+    "value, call",
+    [
+        pytest.param(
+            spell(-_SCALAR if value < 0 else _SCALAR), call, id=f"{name}-{kind}"
+        )
+        for name, value, call in _SCALAR_CASES
+        for kind, spell in _OTHER_TYPES
+        if (name, kind) not in _NOT_CALLED
+    ],
+)
+def test_a_refusal_prints_no_digit_of_a_scalar_of_another_type(
+    value: object, call: Callable[[Any], object]
+) -> None:
+    """A 256-bit scalar as a str, a Decimal, a float or bytes is not printed.
+
+    Section 7 of the btclib-org standard: an argument in the wrong place
+    may be a key, whatever its type (issue #3002). `assert_secret_free`
+    looks for pieces `WINDOW` characters long
+    (`tests/secret_free/__init__.py`) of the scalar's decimal and hex. So
+    each byte is also looked for as `0x` and its hex, and the value as
+    `str()` and `repr()` write it, a float's digits included.
+
+    Some calls raise Python's bare TypeError, whose text names types
+    alone, and the chain is checked whatever it holds. `op_int`,
+    `sig_hash.legacy`, `sig_hash.from_tx` and `bms.Sig` refuse the type
+    that way (issue #3008). The others meet the value in an object built
+    with `check_validity=False`, whose fields nothing checked.
+    """
+    with pytest.raises((TypeError, ValueError)) as refusal:
+        call(value)
+    assert_secret_free(refusal.value, [_SCALAR_BYTES, str(_SCALAR)])
+    written = [str(value).lower(), repr(value).lower()]
+    for e in chained(refusal.value):
+        text = text_of(e)
+        assert all(f"0x{byte:02x}" not in text for byte in _SCALAR_BYTES)
+        assert all(spelling not in text for spelling in written)
