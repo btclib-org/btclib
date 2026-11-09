@@ -34,7 +34,7 @@ from btclib.amount import valid_btc_amount, valid_sats_amount
 from btclib.b32 import bytes_from_witness_program, power_of_2_base_conversion
 from btclib.block import Block, BlockHeader
 from btclib.block.block_context import BlockContext
-from btclib.block.block_filter import BasicBlockFilter, prevout_scripts_from_utxos
+from btclib.block.block_filter import BasicBlockFilter
 from btclib.block.header_context import (
     assert_not_timewarp,
     header_at_height,
@@ -133,16 +133,6 @@ def _verify_unchecked(
     tx_in = TxIn(OutPoint(_TX_ID, 0), b"", sequence, check_validity=False)
     tx = Tx(version, lock_time, [tx_in], [TxOut(0, b"")], check_validity=False)
     verify_input([TxOut(1, serialize(script))], tx, 0)
-
-
-def _unresolved_prevout(vout: int) -> object:
-    """Ask for the script of an outpoint no field of which was checked."""
-    prev_out = OutPoint(_TX_ID, vout, check_validity=False)
-    tx_in = TxIn(prev_out, b"", 0, check_validity=False)
-    coinbase = Tx(vin=[TxIn()], vout=[TxOut(0, b"")], check_validity=False)
-    spend = Tx(vin=[tx_in], vout=[TxOut(0, b"")], check_validity=False)
-    block = Block(_header(), [coinbase, spend], check_validity=False)
-    return prevout_scripts_from_utxos(block, {})
 
 
 def _outdated_header(version: int) -> None:
@@ -277,7 +267,6 @@ _CASES: list[tuple[str, Any, Callable[[Any], object]]] = [
         _HUGE,
         lambda v: BasicBlockFilter(b"\x00" * 32, v),
     ),
-    ("unresolved prevout vout", _HUGE, _unresolved_prevout),
     ("partial merkle tree count", _HUGE, PartialMerkleTree),
     (
         "merkle leaf index",

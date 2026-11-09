@@ -186,7 +186,7 @@ def test_the_coinbase_commitment_is_compared_as_bytes() -> None:
     assert block.height == 481_824
     block.assert_valid_coinbase_height(481_824)
 
-    err_msg = "invalid coinbase height: 03205a07 instead of: "
+    err_msg = "^invalid coinbase height: [0-9a-f]+ expected$"
     # the height of the block before it, and of the one after
     for height in (481_823, 481_825):
         with pytest.raises(BTClibValueError, match=err_msg):
@@ -202,7 +202,7 @@ def test_the_coinbase_commitment_is_compared_as_bytes() -> None:
         coinbase.vin[0].script_witness,
     )
     assert block.height == 481_824
-    err_msg = "invalid coinbase height: 04205a07 instead of: 03205a07"
+    err_msg = "^invalid coinbase height: 03205a07 expected$"
     with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid_coinbase_height(481_824)
 
@@ -302,7 +302,7 @@ def test_bad_diffbits_compares_the_header_against_required_bits() -> None:
         BlockContext(height=1, now=now, required_bits=bytes.fromhex("1d00ffff"))
     )
 
-    err_msg = "proof-of-work target not the required one: 1d00ffff instead of 1c00ffff"
+    err_msg = "^proof-of-work target not the required one: 1c00ffff expected$"
     with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid_contextual(
             BlockContext(height=1, now=now, required_bits=bytes.fromhex("1c00ffff"))
@@ -475,7 +475,7 @@ def test_a_transaction_must_be_final_at_the_height() -> None:
     tx = block.transactions[1]
     assert tx.lock_time == _MAINNET_SEGWIT_HEIGHT - 1
     block.assert_valid_contextual(BlockContext(height=_MAINNET_SEGWIT_HEIGHT, now=now))
-    err_msg = f"non-final transaction: {tx.id.hex()}"
+    err_msg = "^non-final transaction 1$"
     with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid_contextual(
             BlockContext(height=_MAINNET_SEGWIT_HEIGHT - 1, now=now)
@@ -491,7 +491,7 @@ def test_a_transaction_must_be_final_at_the_height() -> None:
     coinbase.lock_time = time - 1
     block.assert_valid_contextual(BlockContext(height=1, now=now))
     coinbase.lock_time = time
-    err_msg = "non-final transaction: "
+    err_msg = "^non-final transaction 0$"
     with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid_contextual(BlockContext(height=1, now=now))
 
@@ -524,14 +524,13 @@ def test_the_block_rules_can_be_asked_without_the_header_rules() -> None:
     pass, the header's still refusing.
     """
     block = block_of("block_481824_complete.bin")
-    tx = block.transactions[1]
     now = block.header.time - timedelta(seconds=MAX_FUTURE_BLOCK_TIME + 1)
     early = BlockContext(height=_MAINNET_SEGWIT_HEIGHT - 1, now=now)
 
     err_msg = "invalid timestamp \\(too far in the future\\): "
     with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid_contextual(early)
-    with pytest.raises(BTClibValueError, match=f"non-final transaction: {tx.id.hex()}"):
+    with pytest.raises(BTClibValueError, match="^non-final transaction 1$"):
         block.assert_valid_contextual_block(early)
 
     at = BlockContext(height=_MAINNET_SEGWIT_HEIGHT, now=now)
@@ -568,7 +567,7 @@ def test_the_witness_rules_depend_on_the_segwit_height() -> None:
     # a nonce other than the one committed to
     coinbase_in = block.transactions[0].vin[0]
     coinbase_in.script_witness = Witness([b"\x01" * 32])
-    with pytest.raises(BTClibValueError, match="invalid witness commitment: "):
+    with pytest.raises(BTClibValueError, match="^invalid witness commitment$"):
         block.assert_valid_contextual(context)
 
 
@@ -610,7 +609,7 @@ def test_the_weight_is_asked_after_the_witness_rules() -> None:
     now = block.header.time
     block.transactions[1].vin[0].script_witness = Witness([b"\x00" * 46_000])
     context = BlockContext(height=_MAINNET_SEGWIT_HEIGHT, now=now)
-    with pytest.raises(BTClibValueError, match="invalid witness commitment: "):
+    with pytest.raises(BTClibValueError, match="^invalid witness commitment$"):
         block.assert_valid_contextual(context)
 
     coinbase = block.transactions[0]

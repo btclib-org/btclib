@@ -64,8 +64,8 @@ _INVALID = {
     # 170's, is simply not the root of these three transactions, which is
     # what Core answers too: bad-txnmrklroot is checked before the
     # duplicate flag it computes alongside
-    "Duplicate transaction": "invalid merkle root: ",
-    "Merkle root mismatch": "invalid merkle root: ",
+    "Duplicate transaction": "^invalid merkle root$",
+    "Merkle root mismatch": "^invalid merkle root$",
 }
 
 

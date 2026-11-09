@@ -141,11 +141,16 @@ def _var_str(octets: bytes, what: str) -> str:
     The module docstring is why `message` and `reason` are decoded here
     rather than held as octets: BIP61 states each as a `var_str`, and
     Core sends neither any more for a refusal to cost.
+
+    The refusal is raised outside the `except`, as `utils.str_from_string`
+    raises its own: the Unicode error holds the whole value and writes
+    the refused byte, so only its position is kept.
     """
     try:
         return octets.decode()
     except UnicodeDecodeError as e:
-        raise BTClibValueError(f"invalid {what}: {e}") from e
+        position = e.start
+    raise BTClibValueError(f"invalid {what}: not utf-8 at byte {position}")
 
 
 @dataclass(frozen=True)

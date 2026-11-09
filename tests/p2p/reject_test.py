@@ -130,7 +130,9 @@ def test_a_field_no_utf8_decodes_is_refused(field: str) -> None:
     else:
         payload = var_bytes.serialize(b"ok") + bytes([RejectCode.malformed])
         payload += var_bytes.serialize(bad)
-    with pytest.raises(BTClibValueError, match=f"invalid {field}"):
+    with pytest.raises(
+        BTClibValueError, match=f"^invalid {field}: not utf-8 at byte 0$"
+    ):
         Reject.parse(payload)
 
 

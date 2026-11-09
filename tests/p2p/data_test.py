@@ -299,7 +299,7 @@ def test_an_invalid_object_is_refused_unless_the_caller_says_not_to() -> None:
         payload.serialize()
 
     headerless = Block(BlockHeader.parse(_BLOCK_1[:80]), [], check_validity=False)
-    with pytest.raises(BTClibValueError, match="invalid merkle root: "):
+    with pytest.raises(BTClibValueError, match="^invalid merkle root$"):
         BlockPayload(headerless, include_witness=True)
     unchecked = BlockPayload(headerless, include_witness=True, check_validity=False)
     assert unchecked.block is headerless

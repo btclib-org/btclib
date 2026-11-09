@@ -143,8 +143,7 @@ def target_from_bits(bits: Octets) -> bytes:
     # objection through the fOverflow flag of SetCompact, on which
     # CheckProofOfWork rejects the header
     if value >= 256**TARGET_SIZE:
-        err_msg = f"invalid proof-of-work target: 0x{bits.hex()}"
-        err_msg += f" overflows {TARGET_SIZE} bytes"
+        err_msg = f"invalid proof-of-work target: overflows {TARGET_SIZE} bytes"
         raise BTClibValueError(err_msg)
 
     return value.to_bytes(TARGET_SIZE, "big", signed=False)
@@ -427,9 +426,7 @@ def block_work(bits: Octets) -> int:
     """
     target = int.from_bytes(target_from_bits(bits), "big", signed=False)
     if not target:
-        raise BTClibValueError(
-            f"zero proof-of-work target: 0x{bytes_from_octets(bits).hex()}"
-        )
+        raise BTClibValueError("zero proof-of-work target")
 
     return 2**256 // (target + 1)
 

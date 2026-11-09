@@ -230,19 +230,18 @@ def prevout_scripts_from_utxos(
     The typed adapter over a utxo set: one script per non-coinbase
     input, in the order the block spends them. `OutPoint` is frozen and
     hashable so that it can key such a mapping, and an input the mapping
-    does not answer for is refused by name -- a filter built from a
-    silently missing prevout is a filter that omits an element, which no
-    later check would catch.
+    does not answer for is refused by its position in the block -- a
+    filter built from a silently missing prevout is a filter that omits
+    an element, which no later check would catch.
     """
     scripts: list[bytes] = []
-    for tx in block.transactions:
+    for i, tx in enumerate(block.transactions):
         if tx.is_coinbase:
             continue
-        for tx_in in tx.vin:
+        for j, tx_in in enumerate(tx.vin):
             prev_out = tx_in.prev_out
             if prev_out not in utxos:
-                err_msg = "unresolved previous output: "
-                err_msg += f"{prev_out.tx_id.hex()}:{_message_text(prev_out.vout)}"
+                err_msg = f"unresolved previous output: input {j} of transaction {i}"
                 raise BTClibValueError(err_msg)
             scripts.append(utxos[prev_out].script_pub_key.script)
     return scripts

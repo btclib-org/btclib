@@ -1057,8 +1057,7 @@ def redeem_script(script_sig: Octets, script_pub_key: Octets) -> bytes:
         or command == ERROR_COMMAND
         or (command != "OP_0" and command.startswith(("OP_", "UNKNOWN_OP_CODE_")))
     ):
-        err_msg = f"missing redeem script in the p2sh script_sig: {command!r}"
-        raise BTClibValueError(err_msg)
+        raise BTClibValueError("missing redeem script in the p2sh script_sig")
 
     script = b"" if command == "OP_0" else bytes.fromhex(command)
     _, payload = type_and_payload(script_pub_key)

@@ -607,7 +607,7 @@ def test_block_170() -> None:
     # it: `!= self.header.merkle_root` weakened to `<` would miss this
     # direction, which the vector in test_block_200000 does not exercise
     block.transactions.pop()
-    with pytest.raises(BTClibValueError, match="invalid merkle root: "):
+    with pytest.raises(BTClibValueError, match="^invalid merkle root$"):
         block.assert_valid_merkle_root()
 
 
@@ -648,7 +648,7 @@ def test_block_200000() -> None:
     assert header == BlockHeader.from_dict(header.to_dict())
 
     block.transactions.pop()
-    err_msg = "invalid merkle root: "
+    err_msg = "^invalid merkle root$"
     with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid()
 
@@ -779,7 +779,7 @@ def test_block_witness_commitment() -> None:
     signature[-2] ^= 0xFF
     tx.vin[0].script_witness = Witness([bytes(signature), *stack[1:]])
     assert tx.id == tx_id  # the txid tree is blind to it
-    with pytest.raises(BTClibValueError, match="invalid witness commitment: "):
+    with pytest.raises(BTClibValueError, match="^invalid witness commitment$"):
         block.assert_valid()
 
     # the last commitment output is the one that counts, so appending
@@ -797,7 +797,7 @@ def test_block_witness_commitment() -> None:
         )
     )
     assert block.witness_commitment == b"\x00" * 32
-    with pytest.raises(BTClibValueError, match="invalid witness commitment: "):
+    with pytest.raises(BTClibValueError, match="^invalid witness commitment$"):
         block.assert_valid_witness_commitment()
 
     # a wrong commitment that sorts *below* the claimed one, not only
@@ -807,7 +807,7 @@ def test_block_witness_commitment() -> None:
     block.transactions[0].vin[0].script_witness = Witness([bytes([21]) * 32])
     computed = "4f367b1b732e90a5f2892968cbdfa0955d089882ca0c377b368063cc24b71228"
     assert computed < commitment
-    err_msg = f"invalid witness commitment: {commitment} instead of: {computed}"
+    err_msg = "^invalid witness commitment$"
     with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid_witness_commitment()
 
@@ -992,7 +992,7 @@ def test_difficulty_decodes_bits_once() -> None:
     # the sign bit
     for bits in ("00000000", "0000ffff", "03800000"):
         header = BlockHeader(bits=bits, check_validity=False)
-        with pytest.raises(BTClibValueError, match="zero proof-of-work target: "):
+        with pytest.raises(BTClibValueError, match="^zero proof-of-work target$"):
             _ = header.difficulty
 
 
@@ -1016,11 +1016,11 @@ def test_block_without_transactions() -> None:
 
     # the count follows the 80 bytes of the header
     emptied = block_bytes[:80] + b"\x00"
-    with pytest.raises(BTClibValueError, match="invalid merkle root: "):
+    with pytest.raises(BTClibValueError, match="^invalid merkle root$"):
         Block.parse(emptied)
 
     header = Block.parse(block_bytes).header
-    with pytest.raises(BTClibValueError, match="invalid merkle root: "):
+    with pytest.raises(BTClibValueError, match="^invalid merkle root$"):
         Block(header, [])
 
     # a header already carrying the all-zero root passes the merkle
@@ -1628,8 +1628,8 @@ def test_assert_valid_pow_makes_derive_targets_range_checks() -> None:
     # Core reads fNegative first, so it is the row that would not tell
     # the two apart. 0xff000001 overflows with the sign bit clear
     for bits_hex, err_msg in (
-        ("1d80ffff", "negative proof-of-work target: "),
-        ("0000ffff", "zero proof-of-work target: "),
+        ("1d80ffff", "^negative proof-of-work target$"),
+        ("0000ffff", "^zero proof-of-work target$"),
         ("ff000001", "invalid proof-of-work target: "),
         ("207fffff", "proof-of-work target above the limit: "),
     ):
@@ -1656,7 +1656,7 @@ def test_the_zero_target_check_is_only_as_good_as_the_target(bits_hex: str) -> N
 
     header = BlockHeader.parse(header_bytes)
     header.bits = bytes.fromhex(bits_hex)
-    with pytest.raises(BTClibValueError, match="zero proof-of-work target: "):
+    with pytest.raises(BTClibValueError, match="^zero proof-of-work target$"):
         header.assert_valid_pow()
 
 
