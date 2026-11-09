@@ -392,8 +392,7 @@ def message_from_contents(contents: bytes) -> tuple[str, bytes]:
     first, rest = contents[0], contents[1:]
     if first:
         if first >= len(MESSAGE_IDS):
-            err_msg = f"unknown short message id: {first}"
-            raise BTClibValueError(err_msg)
+            raise BTClibValueError("unknown short message id")
         return MESSAGE_IDS[first], rest
     if len(rest) < _MESSAGE_TYPE_LEN:
         err_msg = f"long message type too short: {len(rest)} bytes"

@@ -190,14 +190,12 @@ class PubKeyData:
         ec = _network_from(self.network).curve
         if len(self.sec) == ec.p_size + 1:
             if self.sec[0] not in _COMPRESSED_PREFIXES:
-                raise BTClibValueError(
-                    f"invalid compressed SEC prefix: {self.sec[0]:#04x}"
-                )
+                err_msg = "invalid compressed SEC prefix: 0x02 or 0x03 expected"
+                raise BTClibValueError(err_msg)
         elif len(self.sec) == 2 * ec.p_size + 1:
             if self.sec[0] != _UNCOMPRESSED_PREFIX:
-                raise BTClibValueError(
-                    f"invalid uncompressed SEC prefix: {self.sec[0]:#04x}"
-                )
+                err_msg = "invalid uncompressed SEC prefix: 0x04 expected"
+                raise BTClibValueError(err_msg)
         else:
             # never echo the octets: a caller that reached here with
             # private material spelled them as a public key by mistake,

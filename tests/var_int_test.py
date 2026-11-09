@@ -160,15 +160,14 @@ def test_var_int_non_canonical() -> None:
         "fefeff0000",
         "feffff0000",
     ):
-        with pytest.raises(BTClibValueError, match="non-canonical var_int: "):
+        with pytest.raises(BTClibValueError, match="non-canonical var_int of "):
             var_int.parse(encoding)
-    with pytest.raises(BTClibValueError, match="non-canonical var_int: "):
+    with pytest.raises(BTClibValueError, match="non-canonical var_int of "):
         var_int.parse(b"\xff" + (0xFFFFFFFF).to_bytes(8, "little"))
 
-    # the diagnosis names the number and the width it was written in,
-    # which is what tells a longer encoding from a number out of range:
-    # both refusals are about the same octets
-    err_msg = "non-canonical var_int: 252 encoded in 3 bytes"
+    # the diagnosis names the width the number was written in, and no
+    # digit of it: the octets may be a key passed in their place
+    err_msg = "non-canonical var_int of 3 bytes"
     with pytest.raises(BTClibValueError, match=err_msg):
         var_int.parse("fdfc00")
 
@@ -219,7 +218,7 @@ def test_non_canonical_encoding_is_rejected(i: int) -> None:
         if i.bit_length() > 8 * size or 1 + size <= len(canonical):
             continue
         longer = prefix + i.to_bytes(size, byteorder="little", signed=False)
-        with pytest.raises(BTClibValueError, match="non-canonical var_int: "):
+        with pytest.raises(BTClibValueError, match="non-canonical var_int of "):
             var_int.parse(longer)
 
 

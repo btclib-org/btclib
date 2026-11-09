@@ -374,7 +374,7 @@ class Version(Payload):
         relay: bool | None = None
         if octet := stream.read(_RELAY_SIZE):
             if octet[0] > 1:
-                raise BTClibValueError(f"invalid relay flag: {octet.hex()}")
+                raise BTClibValueError("invalid relay flag: 0 or 1 expected")
             relay = bool(octet[0])
         assert_no_trailing(data, stream, "version payload")
 

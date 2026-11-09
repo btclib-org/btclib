@@ -272,7 +272,7 @@ def test_script_error_stack_underflow() -> None:
 def test_unknown_op_code_is_not_a_key_error() -> None:
     """Refuse the byte 0xff as a ScriptError, not a KeyError."""
     tx = Tx(check_validity=False)
-    with pytest.raises(ScriptError, match="unknown op code: 0xff"):
+    with pytest.raises(ScriptError, match=r"^unknown op code \(command 0,"):
         verify_script(b"\xff", [], 0, tx, 0, NO_FLAGS, False)
 
 
@@ -1618,7 +1618,9 @@ def test_a_truncated_script_sig_is_not_push_only() -> None:
 
     # a push and OP_1NEGATE are push-only; an op code is not
     validate_push_only(b"\x01\xff\x4f")
-    with pytest.raises(BTClibValueError, match="non-push op code .*: 0xac at byte 2"):
+    with pytest.raises(
+        BTClibValueError, match="^non-push op code in the script_sig at byte 2$"
+    ):
         validate_push_only(b"\x01\xff\xac")
 
 
@@ -1675,7 +1677,9 @@ def test_an_unnamed_op_code_in_a_script_sig_is_not_a_push() -> None:
         return Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
 
     tx = spend_with(b"\xbb")
-    with pytest.raises(BTClibValueError, match="non-push op code .*: 0xbb"):
+    with pytest.raises(
+        BTClibValueError, match="^non-push op code in the script_sig at byte 0$"
+    ):
         verify_input([prevout], tx, 0, ScriptFlag.SIGPUSHONLY)
 
     tx = spend_with(b"\x50")

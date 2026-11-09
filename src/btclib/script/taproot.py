@@ -423,9 +423,7 @@ def _output_pubkey_and_internal_key(
         # Asked ahead of `assert_valid` below, which refuses the prefix
         # too, so that the sentence names it as hybrid
         if sec[0] in _HYBRID_PREFIXES:
-            raise BTClibValueError(
-                f"invalid internal public key: hybrid SEC prefix {sec[0]:#04x}"
-            )
+            raise BTClibValueError("invalid internal public key: hybrid SEC prefix")
         # `check_validity=False` is "do not check now" and not an
         # exemption (CONTRIBUTING.md), so the key is asked here: a length,
         # a prefix and a network, no point lifted, the tweak's own parse
