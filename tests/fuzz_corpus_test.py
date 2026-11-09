@@ -323,8 +323,8 @@ def _written_settles(spec: str, obj: Any) -> bool:
 def _written_no_longer(spec: str, obj: Any, data: bytes) -> bool:
     """Return whether `obj` writes what parses back to it, never longer."""
     written = _reserialize(obj)
-    # bool() because `==` on Any is Any, which mypy refuses to return
-    settles = bool(_resolve(spec)(written) == obj)
+    # typed, because `==` on Any is Any, which mypy refuses to return
+    settles: bool = _resolve(spec)(written) == obj
     return settles and len(written) <= len(data)
 
 
