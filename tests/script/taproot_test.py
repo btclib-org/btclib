@@ -476,7 +476,7 @@ def test_a_tweak_that_cancels_the_key_is_refused_as_btclibs(
     [
         pytest.param(
             PubKeyData(b"\x05" + mult(7)[0].to_bytes(32, "big"), check_validity=False),
-            "invalid compressed SEC prefix: 0x05",
+            "invalid compressed SEC prefix: 0x02 or 0x03 expected",
             id="a SEC length with no SEC prefix",
         ),
         pytest.param(
@@ -486,7 +486,7 @@ def test_a_tweak_that_cancels_the_key_is_refused_as_btclibs(
                 + mult(7)[1].to_bytes(32, "big"),
                 check_validity=False,
             ),
-            "invalid uncompressed SEC prefix: 0x02",
+            "invalid uncompressed SEC prefix: 0x04 expected",
             id="a compressed prefix at the uncompressed length",
         ),
         pytest.param(

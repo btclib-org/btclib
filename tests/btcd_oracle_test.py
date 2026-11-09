@@ -269,14 +269,14 @@ _VERSION = "62ea0000" + "00" * 90
         ),
         (
             "version",
-            ("refused", "BTClibValueError: invalid relay flag: 20"),
+            ("refused", "BTClibValueError: invalid relay flag: 0 or 1 expected"),
             ("accepted", "00"),
             "00",
             "relay-flag-byte",
         ),
         (
             "var_int",
-            ("refused", "BTClibValueError: var_int too big: 00"),
+            ("refused", "BTClibValueError: var_int too big: max is 02000000"),
             ("accepted", "00"),
             "00",
             "var-int-above-max-size",

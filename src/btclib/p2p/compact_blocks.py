@@ -450,7 +450,7 @@ class SendCmpct(Payload):
 
         announce = read_exactly(stream, 1, "announce")[0]
         if announce > 1:
-            raise BTClibValueError(f"invalid announce octet: {announce}")
+            raise BTClibValueError("invalid announce octet: 0 or 1 expected")
         version = int.from_bytes(
             read_exactly(stream, _VERSION_SIZE, "version"),
             byteorder="little",

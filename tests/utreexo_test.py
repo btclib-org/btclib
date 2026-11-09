@@ -299,17 +299,23 @@ _CAP = (10_000_000).to_bytes(8, "little")
     [
         pytest.param(b"", "not enough data", id="nothing"),
         pytest.param(_ONE + _ONE, "not enough data", id="root missing"),
-        pytest.param(_ONE + _FULL + b"\x00", "roots for", id="roots missing"),
+        pytest.param(
+            _ONE + _FULL + b"\x00", "root count does not match", id="roots missing"
+        ),
         pytest.param(_ONE + _ONE + b"\x01", "invalid hash tag", id="placeholder"),
         pytest.param(_ONE + _ONE + b"\x02" + bytes(32), "empty hash", id="zero hash"),
         pytest.param(
             _ONE + _ONE + b"\x02" + b"\x01" * 31, "not enough data", id="short hash"
         ),
         pytest.param(_ONE + _ONE + b"\x00\x00", "after the stump", id="trailing"),
-        pytest.param(_ZERO + _ONE + b"\x00", "roots for", id="roots without leaves"),
+        pytest.param(
+            _ZERO + _ONE + b"\x00",
+            "root count does not match",
+            id="roots without leaves",
+        ),
         pytest.param(
             (3).to_bytes(8, "little") + _ONE + b"\x00",
-            "roots for",
+            "root count does not match",
             id="one root of three leaves",
         ),
         pytest.param(
@@ -329,12 +335,14 @@ def test_stump_parse_refuses(data: bytes, match: str) -> None:
     "data, match",
     [
         pytest.param(b"", "not enough data", id="nothing"),
-        pytest.param(_ONE, "do not fit", id="target missing"),
+        pytest.param(_ONE, "target count does not fit", id="target missing"),
         pytest.param(_ONE + _ZERO, "not enough data", id="hash count missing"),
-        pytest.param(_FULL, "do not fit", id="huge target count"),
-        pytest.param(_ZERO + _FULL, "do not fit", id="huge hash count"),
-        pytest.param(_CAP, "do not fit", id="targets the data lacks"),
-        pytest.param(_ZERO + _CAP, "do not fit", id="hashes the data lacks"),
+        pytest.param(_FULL, "target count does not fit", id="huge target count"),
+        pytest.param(_ZERO + _FULL, "hash count does not fit", id="huge hash count"),
+        pytest.param(_CAP, "target count does not fit", id="targets the data lacks"),
+        pytest.param(
+            _ZERO + _CAP, "hash count does not fit", id="hashes the data lacks"
+        ),
         pytest.param(_ZERO + _ZERO + b"\x00", "after the proof", id="trailing"),
     ],
 )

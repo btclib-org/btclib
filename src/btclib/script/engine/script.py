@@ -463,8 +463,7 @@ def op_checksig(
 def op_code_name(op_code: int) -> str:
     """Name an op code, rather than answer a missing key with a KeyError."""
     if op_code not in OP_CODE_NAME_FROM_INT:
-        err_msg = f"unknown op code: {hex(op_code)}"
-        raise ScriptError(err_msg, ScriptErrorCode.BAD_OPCODE)
+        raise ScriptError("unknown op code", ScriptErrorCode.BAD_OPCODE)
     return OP_CODE_NAME_FROM_INT[op_code]
 
 

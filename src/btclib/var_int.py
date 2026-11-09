@@ -53,7 +53,7 @@ def _parse_number(stream: BytesIO, size: int, minimum: int) -> int:
         raise BTClibValueError("not enough binary data for var_int")
     i = int.from_bytes(data, byteorder="little", signed=False)
     if i < minimum:
-        err_msg = f"non-canonical var_int: {i} encoded in {size + 1} bytes"
+        err_msg = f"non-canonical var_int of {size + 1} bytes"
         raise BTClibValueError(err_msg)
     return i
 
@@ -90,7 +90,7 @@ def parse(stream: BinaryData, max_size: int = MAX_SIZE) -> int:
     # else it is a one byte integer, which is canonical by construction
 
     if i > max_size:
-        err_msg = f"var_int too big: {hex_string(i)}, max is {hex_string(max_size)}"
+        err_msg = f"var_int too big: max is {hex_string(max_size)}"
         raise BTClibValueError(err_msg)
     return i
 

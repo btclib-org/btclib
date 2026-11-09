@@ -390,11 +390,11 @@ def test_p2wpkh() -> None:
     addr = b58.p2wpkh_p2sh(PubKeyData(pub_key, network))
     assert addr == "3BJxz2r8zY7LxJfdGjUpjjHNh6YEiitvf2"
 
-    err_msg = r"invalid witness version op code: 0x33 instead of OP_0 \(0x00\)"
+    err_msg = r"^invalid witness version op code: OP_0 \(0x00\) expected$"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2wpkh(b"\x33" + script_pub_key[1:])
 
-    err_msg = r"invalid witness version op code: 0x51 instead of OP_0 \(0x00\)"
+    err_msg = r"^invalid witness version op code: OP_0 \(0x00\) expected$"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2wpkh(b"\x51" + script_pub_key[1:])
 
@@ -506,11 +506,11 @@ def test_p2wsh() -> None:
     addr = b58.p2wsh_p2sh(redeem_script, network)
     assert addr == "39GUePMSQ4mADpihVLd8cFQ2tih9Fy4qkz"
 
-    err_msg = r"invalid witness version op code: 0x33 instead of OP_0 \(0x00\)"
+    err_msg = r"^invalid witness version op code: OP_0 \(0x00\) expected$"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2wsh(b"\x33" + script_pub_key[1:])
 
-    err_msg = r"invalid witness version op code: 0x51 instead of OP_0 \(0x00\)"
+    err_msg = r"^invalid witness version op code: OP_0 \(0x00\) expected$"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2wsh(b"\x51" + script_pub_key[1:])
 
@@ -843,11 +843,11 @@ def test_p2tr() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2tr(script_pub_key[:1] + b"\x00" + script_pub_key[2:])
 
-    err_msg = r"invalid witness version op code: 0x00 instead of OP_1 \(0x51\)"
+    err_msg = r"^invalid witness version op code: OP_1 \(0x51\) expected$"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2tr(b"\x00" + script_pub_key[1:])
 
-    err_msg = r"invalid witness version op code: 0x52 instead of OP_1 \(0x51\)"
+    err_msg = r"^invalid witness version op code: OP_1 \(0x51\) expected$"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2tr(b"\x52" + script_pub_key[1:])
 
@@ -1315,19 +1315,23 @@ def test_a_segwit_script_pub_key_is_its_two_markers() -> None:
 
     The length is checked against the marker rather than only bounded by
     it, so a script one byte short of what its own marker announces is
-    refused, and the refusal names both numbers -- which is what says
-    the expected one is the marker plus its two prefix bytes.
+    refused. The refusal names the script's length and not the marker,
+    which is a byte of the octets and may be a key's.
     """
     program = b"\x00" * 20
-    err_msg = "invalid witness version: 0x50"
+    err_msg = "^invalid witness version: OP_0 or OP_1 to OP_16 expected$"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_segwit(b"\x50" + bytes([len(program)]) + program)
     assert_segwit(b"\x51" + bytes([len(program)]) + program)
 
-    err_msg = "invalid segwit script length: 21, 22 expected"
+    err_msg = (
+        "^invalid segwit script length: 21 bytes against its program length marker$"
+    )
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_segwit(b"\x00\x14" + b"\x00" * 19)
-    err_msg = "invalid segwit script length: 23, 22 expected"
+    err_msg = (
+        "^invalid segwit script length: 23 bytes against its program length marker$"
+    )
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_segwit(b"\x00\x14" + b"\x00" * 21)
 
@@ -1370,16 +1374,16 @@ def test_p2ms_refuses_what_its_markers_cannot_mean() -> None:
         assert_p2ms_var(bytes([0x51, 32, *key[:32], 0x51, 0xAE]))
 
     # 0xB1 is OP_CHECKLOCKTIMEVERIFY, 177: as a quorum marker it is 97,
-    # which is what the message has to say to tell the subtraction from
-    # a modulo that agrees with it for every marker a wallet writes
-    err_msg = "invalid m-of-n: 1-of-97"
+    # where a modulo that agrees with the subtraction for every marker a
+    # wallet writes would read 1
+    err_msg = "^invalid n in m-of-n$"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2ms_var(bytes([0x51, 33, *key, 0xB1, 0xAE]))
 
     # OP_18 does not exist, and 0x62 -- OP_VER -- is where it would be:
     # 18 is written as a push, so an op code count has an upper end at 16
     # and not only an ordering against m
-    err_msg = "invalid m-of-n: 1-of-18"
+    err_msg = "^invalid n in m-of-n$"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2ms_var(bytes([0x51, 33, *key, 0x62, 0xAE]))
 
@@ -1428,7 +1432,7 @@ def test_p2ms_16_of_20_is_the_address_core_creates() -> None:
     with pytest.raises(BTClibValueError, match="invalid n in m-of-n: 21"):
         ScriptPubKey.p2ms(16, [*keys, extra])
     twenty_one = redeem_script[:-3] + bytes([33, *extra.sec, 0x01, 21, 0xAE])
-    with pytest.raises(BTClibValueError, match="invalid m-of-n: 16-of-21"):
+    with pytest.raises(BTClibValueError, match="^invalid n in m-of-n$"):
         assert_p2ms_var(twenty_one)
 
 
@@ -1442,20 +1446,20 @@ def test_p2ms_count_is_read_in_its_minimal_form_only() -> None:
     """
     key = bytes([33, *bytes_from_point(mult(1))])
 
-    err_msg = "invalid m-of-n: 1-of-16"
+    err_msg = "^invalid n in m-of-n$"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2ms_var(b"\x51" + key * 16 + b"\x01\x10\xae")
-    err_msg = "invalid m in m-of-n: 16"
+    err_msg = "^invalid m in m-of-n$"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2ms_var(b"\x01\x10" + key * 16 + b"\x60\xae")
     # 0x61 is OP_NOP, one past OP_16
-    err_msg = "invalid m in m-of-n: 17"
+    err_msg = "^invalid m in m-of-n$"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2ms_var(b"\x61" + key * 17 + b"\x01\x11\xae")
 
     seventeen = b"\x01\x11" + key * 17 + b"\x01\x11\xae"
     assert p2ms_m_and_keys_var(seventeen)[0] == 17
-    err_msg = "invalid m-of-n: 17-of-16"
+    err_msg = "^invalid m-of-n: n below m$"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2ms_var(b"\x01\x11" + key * 16 + b"\x60\xae")
 
@@ -1488,7 +1492,7 @@ def test_a_leading_op_code_is_compared_for_equality() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2sh(b"\xab\x14" + b"\x00" * 20 + b"\x87")
 
-    err_msg = "invalid redeem script hash length marker: 33 instead of 32"
+    err_msg = "^invalid redeem script hash length marker: 32 expected$"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2wsh(b"\x00\x21" + b"\x00" * 32)
 

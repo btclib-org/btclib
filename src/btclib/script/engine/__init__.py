@@ -148,9 +148,7 @@ def validate_push_only(script_sig: bytes) -> None:
     consumed = 0
     for op_code, start, stop in op_code_spans(script_sig):
         if op_code > 0x60:  # OP_16
-            err_msg = (
-                f"non-push op code in the script_sig: {op_code:#04x} at byte {start}"
-            )
+            err_msg = f"non-push op code in the script_sig at byte {start}"
             raise ScriptError(err_msg, ScriptErrorCode.SIG_PUSHONLY)
         consumed = stop
     if consumed != len(script_sig):

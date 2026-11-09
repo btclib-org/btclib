@@ -528,7 +528,7 @@ def _read_hashes(stream: BytesIO, count: int, what: str) -> list[bytes]:
                 raise BTClibValueError(f"{what}: an empty hash written as a hash")
             hashes.append(hash_)
         else:
-            raise BTClibValueError(f"{what}: invalid hash tag {tag.hex()}")
+            raise BTClibValueError(f"{what}: invalid hash tag")
     return hashes
 
 
@@ -575,11 +575,11 @@ class Proof:
         count = _read_u64(stream, "proof target count")
         # a target takes 8 bytes: do not allocate for a count the data lacks
         if count > _MAX_PROOF_COUNT or count * 8 > _remaining(stream):
-            raise BTClibValueError(f"proof: {count} targets do not fit the data")
+            raise BTClibValueError("proof: target count does not fit the data")
         targets = [_read_u64(stream, "proof target") for _ in range(count)]
         count = _read_u64(stream, "proof hash count")
         if count > _MAX_PROOF_COUNT or count > _remaining(stream):
-            raise BTClibValueError(f"proof: {count} hashes do not fit the data")
+            raise BTClibValueError("proof: hash count does not fit the data")
         hashes = _read_hashes(stream, count, "proof")
         assert_no_trailing(data, stream, "proof")
         return cls(targets, hashes)
@@ -752,7 +752,7 @@ class Stump:
         leaves = _read_u64(stream, "stump leaf count")
         count = _read_u64(stream, "stump root count")
         if count != leaves.bit_count():
-            raise BTClibValueError(f"stump: {count} roots for {leaves} leaves")
+            raise BTClibValueError("stump: root count does not match the leaf count")
         roots = _read_hashes(stream, count, "stump")
         assert_no_trailing(data, stream, "stump")
         return cls(leaves, roots)
