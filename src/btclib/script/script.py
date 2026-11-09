@@ -314,7 +314,7 @@ OP_CODE_NAME_FROM_INT = {
 # What parse appends where the bytes stop being a script, spelled as
 # Bitcoin Core's ScriptToAsmStr spells it. Display-only, deliberately: it
 # marks a place in the script rather than an instruction, so serialize
-# refuses it -- "invalid string command: [error]" -- where
+# refuses it -- "invalid string command: '[error]'" -- where
 # UNKNOWN_OP_CODE_n must and does round-trip, being a legitimate byte of
 # an executable script. Nothing is lost by that: a Script is its bytes,
 # and Core's asm is not invertible either, printing a short push as a
