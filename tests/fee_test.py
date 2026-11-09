@@ -798,13 +798,16 @@ def _reference_from_sats_per_vbyte(text: str, round_up: bool) -> int | str:
     the bounds the two agree.
     """
     rate = Decimal(text)
+    quote = f"a str of length {len(text)}"
     numerator, denominator = rate.as_integer_ratio()
     sats_per_kvbyte, remainder = divmod(numerator * 1000, denominator)
     if remainder:
         if not round_up:
-            return f"sat/vB fee rate finer than a millisatoshi per virtual byte: {text}"
+            return (
+                f"sat/vB fee rate finer than a millisatoshi per virtual byte: {quote}"
+            )
         if rate < 0:
-            return f"negative sat/vB fee rate: {text}"
+            return f"negative sat/vB fee rate: {quote}"
         sats_per_kvbyte += 1
     if sats_per_kvbyte < 0:
         bits = (-sats_per_kvbyte).bit_length()

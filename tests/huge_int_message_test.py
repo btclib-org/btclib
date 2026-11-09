@@ -612,3 +612,60 @@ def test_a_refusal_prints_no_digit_of_a_scalar_of_another_type(
         text = text_of(e)
         assert all(f"0x{byte:02x}" not in text for byte in _SCALAR_BYTES)
         assert all(spelling not in text for spelling in written)
+
+
+_FINER = "^sat/vB fee rate finer than a millisatoshi per virtual byte: "
+_NEGATIVE = "^negative sat/vB fee rate: "
+
+# the sat/vB quotes holding the scalar's digits that read as a number
+# and are refused for its value, with `round_up` and the refusal's start:
+# below a millisatoshi per virtual byte, refused ahead of the divmod, and
+# above it with a remainder, refused by it
+_QUOTE_CASES: list[tuple[str, str, bool, str]] = [
+    ("below a millisatoshi", "0.0000{}", False, _FINER),
+    ("negative below a millisatoshi", "-0.0000{}", True, _NEGATIVE),
+    ("finer than a millisatoshi", "1.{}", False, _FINER),
+    ("negative finer than a millisatoshi", "-1.{}", True, _NEGATIVE),
+]
+
+# the quote as each type that holds its digits, and how it is described
+_QUOTE_TYPES: list[tuple[str, Callable[[str], object], Callable[[str], str]]] = [
+    ("str", str, lambda text: f"a str of length {len(text)}$"),
+    ("Decimal", Decimal, lambda _: "a Decimal$"),
+]
+
+
+@pytest.mark.parametrize(
+    "value, round_up, err_msg",
+    [
+        pytest.param(
+            spell(form.format(_SCALAR)),
+            round_up,
+            start + describe(form.format(_SCALAR)),
+            id=f"{name}-{kind}",
+        )
+        for name, form, round_up, start in _QUOTE_CASES
+        for kind, spell, describe in _QUOTE_TYPES
+    ],
+)
+def test_a_sat_per_vbyte_refusal_prints_no_digit_of_the_quote(
+    value: object, round_up: bool, err_msg: str
+) -> None:
+    """A quote holding a scalar's digits is described, never written.
+
+    Section 7 of the btclib-org standard: a value refused as a public
+    type counts as a secret, and a number is no name a refusal may quote.
+    The message names the rule broken and describes the quote as
+    `utils._message_text` does. `assert_secret_free` looks for pieces
+    `WINDOW` characters long (`tests/secret_free/__init__.py`) of the
+    scalar's decimal and hex. So each byte is also looked for as `0x` and
+    its hex, and the quote as `str()` and `repr()` write it.
+    """
+    with pytest.raises(BTClibValueError, match=err_msg) as refusal:
+        FeeRate.from_sats_per_vbyte(value, round_up=round_up)
+    assert_secret_free(refusal.value, [_SCALAR_BYTES, str(_SCALAR)])
+    written = [str(value).lower(), repr(value).lower()]
+    for e in chained(refusal.value):
+        text = text_of(e)
+        assert all(f"0x{byte:02x}" not in text for byte in _SCALAR_BYTES)
+        assert all(spelling not in text for spelling in written)

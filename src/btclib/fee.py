@@ -168,7 +168,8 @@ class FeeRate:
         parameter is a kind or a truth").
         """
         assert_type(round_up, bool, "round_up")
-        err_msg = f"invalid sat/vB fee rate: {_message_text(sats_per_vbyte)}"
+        quote = _message_text(sats_per_vbyte)
+        err_msg = f"invalid sat/vB fee rate: {quote}"
         # an int is bounded as an int, before str() reads it, as
         # valid_btc_amount bounds its own and through the plain int
         # int.__index__ returns
@@ -197,10 +198,10 @@ class FeeRate:
             if not round_up:
                 raise BTClibValueError(
                     "sat/vB fee rate finer than a millisatoshi per virtual byte: "
-                    f"{sats_per_vbyte}"
+                    f"{quote}"
                 )
             if rate < 0:
-                raise BTClibValueError(f"negative sat/vB fee rate: {sats_per_vbyte}")
+                raise BTClibValueError(f"negative sat/vB fee rate: {quote}")
             return cls(sats_per_kvbyte=1)
         # the ratio is exact and reads no decimal context, where
         # multiplying the Decimal by a thousand would round to whatever
@@ -213,7 +214,7 @@ class FeeRate:
             if not round_up:
                 raise BTClibValueError(
                     "sat/vB fee rate finer than a millisatoshi per virtual byte: "
-                    f"{sats_per_vbyte}"
+                    f"{quote}"
                 )
             # rounding a negative rate up is not "never under-pay", it is
             # crossing zero: floor division already made sats_per_kvbyte
@@ -222,7 +223,7 @@ class FeeRate:
             # own refusal has nothing left to catch once that happens, so
             # the sign is checked here rather than trusted to it
             if rate < 0:
-                raise BTClibValueError(f"negative sat/vB fee rate: {sats_per_vbyte}")
+                raise BTClibValueError(f"negative sat/vB fee rate: {quote}")
             sats_per_kvbyte += 1
         return cls(sats_per_kvbyte=sats_per_kvbyte)
 
