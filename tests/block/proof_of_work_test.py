@@ -599,7 +599,7 @@ def test_block_work() -> None:
     # no hash can satisfy a zero target, so no block can carry one.
     # Core answers 0 there, GetBlockProof doubling as the validity gate
     for bits_hex in ("00000000", "03000000", "1d000000"):
-        with pytest.raises(BTClibValueError, match="zero proof-of-work target: "):
+        with pytest.raises(BTClibValueError, match="^zero proof-of-work target$"):
             block_work(bits_hex)
 
     # every target above is within a whisker of 2^224, where `target + 1`

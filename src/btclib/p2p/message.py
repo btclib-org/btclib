@@ -77,11 +77,12 @@ def _command_from_bytes(octets: bytes) -> str:
         padding_at = len(octets)
     command, padding = octets[:padding_at], octets[padding_at:]
     if padding.strip(b"\x00"):
-        err_msg = f"invalid command padding: {octets.hex()}"
-        raise BTClibValueError(err_msg)
-    if any(o < _FIRST_PRINTABLE or o > _LAST_PRINTABLE for o in command):
-        err_msg = f"non-printable character in command: {octets.hex()}"
-        raise BTClibValueError(err_msg)
+        at = padding_at + len(padding) - len(padding.lstrip(b"\x00"))
+        raise BTClibValueError(f"invalid command padding at byte {at}")
+    for at, octet in enumerate(command):
+        if not _FIRST_PRINTABLE <= octet <= _LAST_PRINTABLE:
+            err_msg = f"non-printable character in command at byte {at}"
+            raise BTClibValueError(err_msg)
     return command.decode("ascii")
 
 
@@ -302,9 +303,7 @@ class Message:
 
         expected = hash256(payload)[:_CHECKSUM_SIZE]
         if checksum != expected:
-            err_msg = f"invalid checksum: {checksum.hex()}"
-            err_msg += f" instead of {expected.hex()}"
-            raise BTClibValueError(err_msg)
+            raise BTClibValueError("invalid checksum")
         assert_no_trailing(data, stream, "p2p message")
 
         return cls(magic, command, payload, check_validity=check_validity)

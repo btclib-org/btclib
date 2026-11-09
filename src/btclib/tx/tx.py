@@ -374,7 +374,8 @@ class Tx:  # noqa: PLW1641
             tx_out.assert_valid()
             total += tx_out.value
             if total > _MAX_SATOSHI:
-                raise BTClibValueError(f"invalid total output amount: {total}")
+                err_msg = f"invalid total output amount: above {_MAX_SATOSHI}"
+                raise BTClibValueError(err_msg)
 
         # CheckTransaction's `bad-txns-inputs-duplicate` (CVE-2018-17144):
         # an outpoint named twice would be spent twice, and every arithmetic

@@ -603,7 +603,8 @@ def verify_amounts(prevouts: list[TxOut], tx: Tx) -> None:
         valid_sats_amount(prevout.value)
         total += prevout.value
         if total > _MAX_SATOSHI:
-            raise BTClibValueError(f"invalid total input amount: {total}")
+            err_msg = f"invalid total input amount: above {_MAX_SATOSHI}"
+            raise BTClibValueError(err_msg)
 
     if sum(x.value for x in tx.vout) > total:
         raise BTClibValueError("Invalid transaction amounts")

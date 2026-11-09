@@ -424,9 +424,7 @@ class Block:
             self.transactions
         )
         if merkle_root_ != self.header.merkle_root:
-            err_msg = f"invalid merkle root: {self.header.merkle_root.hex()}"
-            err_msg += f" instead of: {merkle_root_.hex()}"
-            raise BTClibValueError(err_msg)
+            raise BTClibValueError("invalid merkle root")
         if mutated:
             # CVE-2012-2459: two equal siblings mean a shorter transaction
             # list has this very same root, so the header does not commit
@@ -513,9 +511,7 @@ class Block:
             self.transactions, witness_stack[0]
         )
         if witness_commitment_ != commitment:
-            err_msg = f"invalid witness commitment: {commitment.hex()}"
-            err_msg += f" instead of: {witness_commitment_.hex()}"
-            raise BTClibValueError(err_msg)
+            raise BTClibValueError("invalid witness commitment")
 
     def assert_valid_coinbase_height(self, height: int) -> None:
         """Assert that the coinbase commits to a height (BIP34, bad-cb-height).
@@ -540,8 +536,7 @@ class Block:
         expected = bip34_commitment(height)
         script_sig = self.transactions[0].vin[0].script_sig
         if not script_sig.startswith(expected):
-            err_msg = f"invalid coinbase height: {script_sig[: len(expected)].hex()}"
-            err_msg += f" instead of: {expected.hex()}"
+            err_msg = f"invalid coinbase height: {expected.hex()} expected"
             raise BTClibValueError(err_msg)
 
     def _assert_valid_contextual_header(self, context: BlockContext) -> None:
@@ -558,8 +553,7 @@ class Block:
             and self.header.bits != context.required_bits
         ):
             err_msg = "proof-of-work target not the required one: "
-            err_msg += f"{self.header.bits.hex()}"
-            err_msg += f" instead of {context.required_bits.hex()}"
+            err_msg += f"{context.required_bits.hex()} expected"
             raise BTClibValueError(err_msg)
 
         if context.median_time_past is not None:
@@ -599,13 +593,13 @@ class Block:
             if context.is_bip113_active
             else int(self.header.time.timestamp())
         )
-        for tx in self.transactions:
+        for i, tx in enumerate(self.transactions):
             if time_cutoff is None and tx.lock_time >= LOCKTIME_THRESHOLD:
                 continue
             # where time_cutoff is None only height locks get here, and
             # is_final does not read the time for them
             if not is_final(tx, context.height, time_cutoff or 0):
-                raise BTClibValueError(f"non-final transaction: {tx.id.hex()}")
+                raise BTClibValueError(f"non-final transaction {i}")
 
     def _assert_valid_contextual_witness(self, context: BlockContext) -> None:
         """Assert Core's CheckWitnessMalleation at the context's height.

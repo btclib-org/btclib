@@ -121,9 +121,7 @@ def assert_as_valid(
         _assert_inner_node_is_not_a_tx,
     )
     if computed[::-1] != root:
-        err_msg = f"invalid merkle branch: {computed[::-1].hex()}"
-        err_msg += f" instead of: {root.hex()}"
-        raise BTClibValueError(err_msg)
+        raise BTClibValueError("invalid merkle branch")
 
 
 def verify(

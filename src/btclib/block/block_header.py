@@ -169,7 +169,7 @@ class BlockHeader:
             # Raised as the exception contract requires, rather than left
             # to the ZeroDivisionError of the division below, which names
             # neither the field nor the header
-            raise BTClibValueError(f"zero proof-of-work target: {self.bits.hex()}")
+            raise BTClibValueError("zero proof-of-work target")
 
         return genesis_target / target
 
@@ -284,7 +284,7 @@ class BlockHeader:
         # unsigned -- 0x1d80ffff denotes a number below zero and its
         # magnitude is a plausible mainnet target
         if is_negative_bits(self.bits):
-            raise BTClibValueError(f"negative proof-of-work target: {self.bits.hex()}")
+            raise BTClibValueError("negative proof-of-work target")
 
         # fOverflow is raised by target_from_bits, which is where the
         # 32 bytes are, so reading the target is the third check
@@ -294,15 +294,14 @@ class BlockHeader:
         # refuses it here rather than letting the comparison below decide,
         # and block_work refuses it for the same reason
         if not int.from_bytes(target, byteorder="big", signed=False):
-            raise BTClibValueError(f"zero proof-of-work target: {self.bits.hex()}")
+            raise BTClibValueError("zero proof-of-work target")
 
         # both are 32 bytes big endian, so this is the comparison of the
         # numbers they hold. The limit is the easiest target the network
         # allows, so a target above it is work no network asked for
         pow_limit = target_from_bits(pow_limit_bits)
         if target > pow_limit:
-            err_msg = f"proof-of-work target above the limit: {target.hex()}"
-            err_msg += f" > {pow_limit.hex()}"
+            err_msg = f"proof-of-work target above the limit: {pow_limit.hex()}"
             raise BTClibValueError(err_msg)
 
         # the target is a bound the hash may reach: CheckProofOfWork
@@ -313,9 +312,7 @@ class BlockHeader:
         # exact value -- so the comparison is right by matching Core's,
         # which is the only way it can be right here
         if self.hash > target:
-            err_msg = f"invalid proof-of-work: {self.hash.hex()}"
-            err_msg += f" > {target.hex()}"
-            raise BTClibValueError(err_msg)
+            raise BTClibValueError("invalid proof-of-work: hash above the target")
 
     def assert_valid_time(self, now: datetime) -> None:
         """Assert that the timestamp is not too far ahead of a clock.
