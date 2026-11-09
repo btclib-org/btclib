@@ -602,17 +602,19 @@ def test_script_from_dict_refuses_a_disagreeing_asm() -> None:
     describes a script the bytes do not hold -- and every consumer of
     that field, a diff or a review among them, reading it as if it did.
     """
-    with pytest.raises(BTClibValueError, match="asm does not match hex: "):
+    with pytest.raises(BTClibValueError, match="^asm does not match hex$"):
         script_from_dict({"asm": "OP_DUP OP_HASH160", "hex": P2PKH})
 
     # the empty asm of a non-empty script is a disagreement too, and not
     # an absent field: what is absent is what `to_dict` never wrote
-    with pytest.raises(BTClibValueError, match="asm does not match hex: "):
+    with pytest.raises(BTClibValueError, match="^asm does not match hex$"):
         script_from_dict({"asm": "", "hex": P2PKH})
 
-    # and the message names both, the one given and the one hex decodes to
-    with pytest.raises(BTClibValueError, match=P2PKH_ASM):
+    # and the message names neither, the one given nor the one hex decodes
+    # to: the script may push a key (issue #3005)
+    with pytest.raises(BTClibValueError) as refusal:
         script_from_dict({"asm": "OP_RETURN", "hex": P2PKH})
+    assert str(refusal.value) == "asm does not match hex"
 
 
 @given(commands=COMMAND_LISTS)

@@ -506,7 +506,8 @@ def assert_pub_key_num(pub_key_num: int) -> None:
     Core ends it.
     """
     if not 0 <= pub_key_num <= MAX_PUBKEYS_PER_MULTISIG:
-        err_msg = f"invalid number of public keys: {pub_key_num}"
+        err_msg = "invalid number of public keys:"
+        err_msg += f" 0 to {MAX_PUBKEYS_PER_MULTISIG} expected"
         raise ScriptError(err_msg, ScriptErrorCode.PUBKEY_COUNT)
 
 
@@ -516,7 +517,8 @@ def assert_signature_num(signature_num: int, pub_key_num: int) -> None:
     Core's SCRIPT_ERR_SIG_COUNT, negative for the same reason as above.
     """
     if not 0 <= signature_num <= pub_key_num:
-        err_msg = f"{signature_num} signatures for {pub_key_num} public keys"
+        err_msg = "invalid number of signatures:"
+        err_msg += " 0 to the number of public keys expected"
         raise ScriptError(err_msg, ScriptErrorCode.SIG_COUNT)
 
 

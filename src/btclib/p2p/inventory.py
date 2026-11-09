@@ -404,8 +404,7 @@ class _InventoryPayload(Payload):
 
         count = var_int.parse(stream)
         if count > MAX_INV_SZ:
-            err_msg = f"invalid items count: {count}"
-            err_msg += f" instead of at most {MAX_INV_SZ}"
+            err_msg = f"invalid items count: at most {MAX_INV_SZ} expected"
             raise BTClibValueError(err_msg)
 
         items = [
@@ -552,8 +551,7 @@ class _LocatorPayload(Payload):
 
         count = var_int.parse(stream)
         if count > MAX_LOCATOR_SZ:
-            err_msg = f"invalid locator count: {count}"
-            err_msg += f" instead of at most {MAX_LOCATOR_SZ}"
+            err_msg = f"invalid locator count: at most {MAX_LOCATOR_SZ} expected"
             raise BTClibValueError(err_msg)
         locator = [
             read_exactly(stream, _HASH_SIZE, "locator hash")[::-1] for _ in range(count)
@@ -669,17 +667,14 @@ class Headers(Payload):
 
         count = var_int.parse(stream)
         if count > MAX_HEADERS_RESULTS:
-            err_msg = f"invalid headers count: {count}"
-            err_msg += f" instead of at most {MAX_HEADERS_RESULTS}"
+            err_msg = f"invalid headers count: at most {MAX_HEADERS_RESULTS} expected"
             raise BTClibValueError(err_msg)
 
         headers = []
         for _ in range(count):
             headers.append(BlockHeader.parse(stream, check_validity=check_validity))
-            if transactions := var_int.parse(stream):
-                err_msg = f"invalid transaction count: {transactions}"
-                err_msg += " instead of 0"
-                raise BTClibValueError(err_msg)
+            if var_int.parse(stream):
+                raise BTClibValueError("invalid transaction count: 0 expected")
         assert_no_trailing(data, stream, "headers payload")
 
         return cls(headers, check_validity=check_validity)

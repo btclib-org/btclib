@@ -355,7 +355,9 @@ def test_headers_refuses_a_transaction_count_that_is_not_zero() -> None:
     and `Version.parse` refuses a relay flag of `0x02` over.
     """
     payload = b"\x01" + _HEADER_1 + b"\x01"
-    with pytest.raises(BTClibValueError, match="invalid transaction count: 1"):
+    with pytest.raises(
+        BTClibValueError, match="^invalid transaction count: 0 expected$"
+    ):
         Headers.parse(payload)
 
     # a non-canonical encoding of the zero needs no refusal of its own,

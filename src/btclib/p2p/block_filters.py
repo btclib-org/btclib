@@ -589,8 +589,8 @@ class CFHeaders(Payload):
 
         count = var_int.parse(stream)
         if count > MAX_GETCFHEADERS_SIZE:
-            err_msg = f"invalid filter_hashes count: {count}"
-            err_msg += f" instead of at most {MAX_GETCFHEADERS_SIZE}"
+            err_msg = "invalid filter_hashes count:"
+            err_msg += f" at most {MAX_GETCFHEADERS_SIZE} expected"
             raise BTClibValueError(err_msg)
         filter_hashes = [
             read_exactly(stream, _HASH_SIZE, "filter hash")[::-1] for _ in range(count)

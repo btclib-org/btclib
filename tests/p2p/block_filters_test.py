@@ -463,7 +463,8 @@ def test_the_cfheaders_count_is_bounded_before_the_loop() -> None:
     """
     too_many = var_int.serialize(MAX_GETCFHEADERS_SIZE + 1)
     payload = b"\x00" + bytes(32) + bytes(32) + too_many
-    with pytest.raises(BTClibValueError, match="invalid filter_hashes count: 2001"):
+    err_msg = "^invalid filter_hashes count: at most 2000 expected$"
+    with pytest.raises(BTClibValueError, match=err_msg):
         CFHeaders.parse(payload)
 
     with pytest.raises(BTClibValueError, match="invalid filter_hashes count: 2001"):

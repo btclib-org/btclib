@@ -407,8 +407,8 @@ class NetworkAddressV2:
         # and the bound has to stand between the two
         size = var_int.parse(stream)
         if size > MAX_ADDRV2_SIZE:
-            err_msg = f"invalid address length: {size} bytes"
-            err_msg += f" instead of at most {MAX_ADDRV2_SIZE}"
+            err_msg = "invalid address length:"
+            err_msg += f" at most {MAX_ADDRV2_SIZE} bytes expected"
             raise BTClibValueError(err_msg)
         address = read_exactly(stream, size, "address")
         port = int.from_bytes(
@@ -602,8 +602,7 @@ class AddrV2(Payload):
 
         count = var_int.parse(stream)
         if count > MAX_ADDR_TO_SEND:
-            err_msg = f"invalid addresses count: {count}"
-            err_msg += f" instead of at most {MAX_ADDR_TO_SEND}"
+            err_msg = f"invalid addresses count: at most {MAX_ADDR_TO_SEND} expected"
             raise BTClibValueError(err_msg)
 
         addresses = [

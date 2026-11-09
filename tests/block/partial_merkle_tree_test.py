@@ -122,7 +122,10 @@ def test_a_hash_of_the_wrong_width_is_refused() -> None:
 
 def test_more_hashes_than_the_tree_can_hold_is_refused() -> None:
     """Core's `vHash.size() > nTransactions`."""
-    with pytest.raises(BTClibValueError, match=r"2 hashes for 1 transactions"):
+    with pytest.raises(
+        BTClibValueError,
+        match=r"^partial merkle tree: 2 hashes for fewer transactions$",
+    ):
         PartialMerkleTree(1, [bytes(32), bytes(32)], b"\xff")
 
 

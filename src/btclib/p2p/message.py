@@ -289,8 +289,8 @@ class Message:
             signed=False,
         )
         if length > MAX_PROTOCOL_MESSAGE_LENGTH:
-            err_msg = f"invalid payload length: {length}"
-            err_msg += f" instead of at most {MAX_PROTOCOL_MESSAGE_LENGTH} bytes"
+            err_msg = "invalid payload length:"
+            err_msg += f" at most {MAX_PROTOCOL_MESSAGE_LENGTH} bytes expected"
             raise BTClibValueError(err_msg)
         checksum = header[_CHECKSUM_AT:]
 

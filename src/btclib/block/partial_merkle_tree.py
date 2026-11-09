@@ -378,7 +378,7 @@ class PartialMerkleTree:
             hashes.append(bytes(hash_)[::-1])
         if len(hashes) > n_transactions:
             err_msg = f"partial merkle tree: {len(hashes)} hashes"
-            err_msg += f" for {n_transactions} transactions"
+            err_msg += " for fewer transactions"
             raise BTClibValueError(err_msg)
 
         bits = _bits_from_bytes(bytes(self.flags))
