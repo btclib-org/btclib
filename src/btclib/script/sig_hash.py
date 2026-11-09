@@ -40,6 +40,7 @@ from btclib.script.script_pub_key import (
     is_p2tr,
     is_p2wpkh,
     is_p2wsh,
+    is_segwit,
     type_and_payload,
 )
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
@@ -1007,7 +1008,7 @@ def _taproot(
 
 
 def _assert_no_p2tr_or_unknown_witness(script: bytes) -> None:
-    """Refuse a p2tr or `witness_unknown` script, else given the legacy hash.
+    """Refuse a p2tr, wrong-length v0, or unknown witness script.
 
     `script` is the one left once p2tr, p2wpkh and p2wsh are handled, a
     p2sh redeem script in place of its script_pub_key. A p2tr there is
@@ -1015,6 +1016,14 @@ def _assert_no_p2tr_or_unknown_witness(script: bytes) -> None:
     """
     if is_p2tr(script):
         raise BTClibValueError("Taproot scripts cannot be wrapped in p2sh")
+
+    # a witness v0 program whose length is not 20 or 32 bytes:
+    # consensus fails every spend of such an output (Core's
+    # SCRIPT_ERR_WITNESS_PROGRAM_WRONG_LENGTH in VerifyWitnessProgram),
+    # so a signer gets no signature hash for it
+    if is_segwit(script) and script[0] == 0:
+        length = len(script) - 2
+        raise BTClibValueError(f"invalid witness version 0 program length: {length}")
 
     # a witness program from_tx has no rule for, bare or wrapped in p2sh:
     # BIP141 reserves its version for future extensions, whose rules say
