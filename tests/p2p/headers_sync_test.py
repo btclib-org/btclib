@@ -1116,7 +1116,7 @@ def test_a_chain_start_copies_its_header_and_is_frozen() -> None:
         (
             {"median_time_past": 2**32},
             BTClibValueError,
-            "invalid median_time_past: 4294967296",
+            "invalid median_time_past: an int of 33 bits",
         ),
         ({"header": _with(_GENESIS, bits=b"\x00" * 4)}, BTClibValueError, "zero"),
         ({"locator": b"\x00" * 32}, BTClibTypeError, "invalid locator type"),
