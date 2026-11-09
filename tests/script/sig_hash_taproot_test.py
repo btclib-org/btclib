@@ -20,7 +20,7 @@ tests/_data/README.md pins the revision of each.
 from typing import Any
 
 import pytest
-from ecc.ecc import ssa
+from ecc import ssa
 from ecc.exceptions import EccRuntimeError, EccValueError
 
 from btclib.alias import Octets, ScriptList, TaprootScriptTree

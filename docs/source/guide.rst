@@ -124,7 +124,7 @@ more than the rest.
 ``Octets`` — a message to sign, a script, a hash — a ``str`` is parsed
 with ``bytes.fromhex``. Passing text where hex is expected fails:
 
->>> from ecc.ecc import dsa
+>>> from ecc import dsa
 >>> dsa.sign("hello world", 1)
 Traceback (most recent call last):
 ecc.exceptions.EccValueError: invalid hex string: non-hexadecimal number found in fromhex() arg at position 0
@@ -421,7 +421,7 @@ already reduced the input with the hash function". ``dsa.sign`` would
 hash its argument again, which is not what you want here — the sighash
 *is* the message.
 
->>> from ecc.ecc import dsa
+>>> from ecc import dsa
 >>> msg_hash = sig_hash.from_tx([prevout], unsigned, 0, 0x01)
 >>> sig = dsa.sign_(msg_hash, prv_key)
 >>> sig.serialize().hex()
@@ -490,8 +490,8 @@ EVAL_FALSE -- Script evaluated without error but finished with a false/empty top
 Signatures on their own
 -----------------------
 
-The two schemes live in ``ecc.ecc.dsa`` (ECDSA, what pre-taproot
-bitcoin uses) and ``ecc.ecc.ssa`` (BIP340 Schnorr, what taproot
+The two schemes live in ``ecc.dsa`` (ECDSA, what pre-taproot
+bitcoin uses) and ``ecc.ssa`` (BIP340 Schnorr, what taproot
 uses), in the ``ecc`` distribution that btclib depends on. Both come in two spellings, and the difference is the trailing
 underscore: ``sign`` hashes its argument for you, ``sign_`` takes the
 hash.
@@ -499,7 +499,7 @@ hash.
 ECDSA
 ~~~~~
 
->>> from ecc.ecc import dsa
+>>> from ecc import dsa
 >>> sig = dsa.sign(b"Satoshi Nakamoto", prv_key)
 >>> sig.serialize().hex()
 '304402204729dbf89f9288d56d32d1aea04db19df37c45c0a02863602f9ad98e7e506ce4022017489be41857144bf5782e964632d254b6b13ea22ce84837f775540784341f43'
@@ -534,7 +534,7 @@ BIP340 Schnorr
 BIP340 keys are x-only: 32 bytes, with the y coordinate implied even.
 ``gen_keys`` returns the scalar and that x coordinate.
 
->>> from ecc.ecc import ssa
+>>> from ecc import ssa
 >>> q, x_Q = ssa.gen_keys(
 ...     "B7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF"
 ... )

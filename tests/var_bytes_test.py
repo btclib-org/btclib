@@ -11,7 +11,7 @@ from io import BytesIO
 import pytest
 
 # private on purpose: two copies' agreement is the subject (issue #2282, Rule 3)
-from ecc.ecc.dsa import _parse_der_value
+from ecc.dsa import _parse_der_value
 from hypothesis import given
 from hypothesis import strategies as st
 

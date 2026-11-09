@@ -26,7 +26,7 @@ from io import BytesIO
 from typing import Any
 
 import pytest
-from ecc.ecc import dsa
+from ecc import dsa
 
 from btclib import bms, compressor, obfuscation, var_int
 from btclib.alias import TaprootScriptTree

@@ -23,7 +23,7 @@ from collections.abc import Callable
 from typing import TypeVar
 
 import pytest
-from ecc.ecc import ssa
+from ecc import ssa
 
 from btclib import var_bytes
 from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode

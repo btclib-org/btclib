@@ -26,8 +26,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from ecc import ellswift
 from ecc.curves import secp256k1
-from ecc.ecc import ellswift
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from tests import vector_id

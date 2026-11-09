@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from ecc import dsa
 from ecc.curves import point_from_octets_var
-from ecc.ecc import dsa
-from ecc.ecc.dsa import Sig
+from ecc.dsa import Sig
 from ecc.exceptions import EccRuntimeError, EccValueError
 
 from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
@@ -91,7 +91,7 @@ def _assert_bytes_arguments(**arguments: object) -> None:
 def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     """Verify an ECDSA signature, returning False if it is malformed.
 
-    `ecc.ecc.dsa.verify_` answers it, on the bindings for secp256k1 and
+    `ecc.dsa.verify_` answers it, on the bindings for secp256k1 and
     sha256 where they serve and in Python where they do not.
 
     `hybrid=True` because consensus wants CHECKSIG to succeed for a

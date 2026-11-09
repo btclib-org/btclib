@@ -271,7 +271,7 @@ jobs:
         shell: bash
         run: |
           uv run --no-project python -c "import btclib; \
-            from ecc.ecc import dsa; \
+            from ecc import dsa; \
             from btclib.key import PrvKeyData; \
             print(btclib.__version__); \
             assert btclib.__version__ != 'unknown'; \
@@ -370,7 +370,7 @@ jobs:
         run: |
           uv run --no-project python -c "import btclib; \
             from ecc.curves import is_libsecp256k1_serving; \
-            from ecc.ecc import dsa; \
+            from ecc import dsa; \
             from btclib.key import PrvKeyData; \
             print(btclib.__version__); \
             assert btclib.__version__ != 'unknown'; \

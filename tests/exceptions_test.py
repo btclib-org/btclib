@@ -21,8 +21,8 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import Any
 
 import pytest
-from ecc.ecc import dsa
-from ecc.ecc import ellswift as ecc_ellswift
+from ecc import dsa
+from ecc import ellswift as ecc_ellswift
 from ecc.exceptions import EccException
 
 from btclib import ellswift, exceptions

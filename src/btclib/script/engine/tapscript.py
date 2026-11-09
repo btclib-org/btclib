@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from ecc.ecc import ssa
+from ecc import ssa
 from ecc.exceptions import EccValueError
 
 from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
@@ -55,7 +55,7 @@ __all__ = [
 def ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     """Verify a BIP340 signature, returning False if it is malformed.
 
-    `ecc.ecc.ssa.verify_` answers it, on the bindings for secp256k1 and
+    `ecc.ssa.verify_` answers it, on the bindings for secp256k1 and
     sha256 where they serve and in Python where they do not. No hybrid
     prefix to ask for here: an x-only key is 32 bytes and BIP340 says
     which of the two points it is.

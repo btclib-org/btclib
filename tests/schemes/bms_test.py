@@ -23,8 +23,8 @@ from hashlib import sha256
 from typing import Any
 
 import pytest
+from ecc import dsa
 from ecc.curves import CURVES, mult, secp256k1
-from ecc.ecc import dsa
 from ecc.exceptions import EccRuntimeError, EccValueError
 
 from btclib import b32, b58, bms
