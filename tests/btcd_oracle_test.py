@@ -239,6 +239,11 @@ _TORV2_OK = ("00", "03", "00" * 10)
 _IPV4_LONG = ("00", "01", "00" * 5)
 _I2P_SHORT = ("00", "05", "00" * 5)
 _CJDNS_SHORT = ("00", "06", "00" * 5)
+_IPV6_EMPTY = ("00", "02", "")
+_TORV3_SHORT = ("00", "04", "00" * 31)
+_IPV6 = ("00", "02", "00" * 16)
+_TORV3 = ("00", "04", "00" * 32)
+_CJDNS = ("00", "06", "00" * 16)
 _INVALID_SIZE = ("refused", "invalid address size")
 _VERSION = "62ea0000" + "00" * 90
 
@@ -325,26 +330,92 @@ _VERSION = "62ea0000" + "00" * 90
             "addrv2-torv2-size",
         ),
         ("addrv2", ("accepted", "00"), _INVALID_SIZE, _addrv2(_TORV2_OK), None),
-        ("addrv2", ("accepted", "00"), _INVALID_SIZE, _addrv2(_IPV4_LONG), None),
+        (
+            "addrv2",
+            ("accepted", "00"),
+            _INVALID_SIZE,
+            _addrv2(_IPV6, _TORV2_EMPTY),
+            "addrv2-torv2-size",
+        ),
+        (
+            "addrv2",
+            ("accepted", "00"),
+            _INVALID_SIZE,
+            _addrv2(_TORV3, _TORV2_EMPTY),
+            "addrv2-torv2-size",
+        ),
+        (
+            "addrv2",
+            ("accepted", "00"),
+            _INVALID_SIZE,
+            _addrv2(_CJDNS, _TORV2_EMPTY),
+            "addrv2-torv2-size",
+        ),
+        (
+            "addrv2",
+            ("accepted", "00"),
+            _INVALID_SIZE,
+            _addrv2(_IPV4_LONG),
+            "addrv2-known-network-size",
+        ),
         (
             "addrv2",
             ("accepted", "00"),
             _INVALID_SIZE,
             _addrv2(_TORV2_EMPTY, _IPV4_LONG),
-            None,
+            "addrv2-known-network-size",
+        ),
+        (
+            "addrv2",
+            ("accepted", "00"),
+            _INVALID_SIZE,
+            _addrv2(_I2P, _IPV6_EMPTY),
+            "addrv2-known-network-size",
+        ),
+        (
+            "addrv2",
+            ("accepted", "00"),
+            _INVALID_SIZE,
+            _addrv2(_TORV3_SHORT),
+            "addrv2-known-network-size",
         ),
         (
             "addrv2",
             ("accepted", "00"),
             _INVALID_SIZE,
             _addrv2(_TORV2_EMPTY, _I2P_SHORT),
-            None,
+            "addrv2-known-network-size",
         ),
         (
             "addrv2",
             ("accepted", "00"),
             _INVALID_SIZE,
             _addrv2(_TORV2_EMPTY, _CJDNS_SHORT),
+            "addrv2-known-network-size",
+        ),
+        ("addrv2", ("accepted", "00"), _INVALID_SIZE, _addrv2(_IPV4, _I2P), None),
+        ("addrv2", ("accepted", "00"), _INVALID_SIZE, _addrv2(_UNKNOWN), None),
+        ("addrv2", ("accepted", "00"), _INVALID_SIZE, "01", None),
+        ("addrv2", ("refused", "x"), _INVALID_SIZE, _addrv2(_IPV6_EMPTY), None),
+        (
+            "addrv2",
+            ("accepted", "00"),
+            ("crash", "invalid address size"),
+            _addrv2(_IPV6_EMPTY),
+            None,
+        ),
+        (
+            "addrv2",
+            ("accepted", "00"),
+            ("refused", "invalid network id"),
+            _addrv2(_IPV6_EMPTY),
+            None,
+        ),
+        (
+            "tx",
+            ("accepted", "00"),
+            _INVALID_SIZE,
+            _addrv2(_IPV6_EMPTY),
             None,
         ),
         ("tx", ("refused", "x"), ("accepted", "00"), "", None),
