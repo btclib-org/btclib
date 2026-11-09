@@ -234,7 +234,7 @@ KNOWN = (
         "headers-tx-count-ignored",
         ("headers", "message"),
         "Core reads the transaction count after each header and ignores it"
-        " (net_processing.cpp line 5083), as btclib's Headers.parse does;"
+        " (net_processing.cpp's HEADERS handler), as btclib's Headers.parse does;"
         " btcd refuses a count other than zero",
         lambda ours, theirs, _: (
             ours.status == ACCEPTED
