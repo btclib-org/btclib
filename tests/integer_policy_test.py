@@ -16,13 +16,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime
+from decimal import Decimal
 from enum import IntEnum
 from typing import Any
 
 import pytest
 from ecc.exceptions import EccTypeError
 
-from btclib import var_int
+from btclib import bms, var_int
 from btclib.alias import TaprootScriptTree
 from btclib.amount import valid_sats_amount
 from btclib.b32 import address_from_witness, power_of_2_base_conversion
@@ -30,6 +31,7 @@ from btclib.b58 import wif_from_prv_key
 from btclib.block import BlockHeader
 from btclib.block.block import bip34_commitment
 from btclib.block.block_context import BlockContext
+from btclib.block.build import build_coinbase
 from btclib.block.mining import mine
 from btclib.block.proof_of_work import hash_rate, retarget_first_height
 from btclib.exceptions import BTClibTypeError
@@ -37,6 +39,7 @@ from btclib.fee import FeeRate, fee_from_vsize
 from btclib.hashes import merkle_root_from_branch, sha256
 from btclib.key import PrvKeyData
 from btclib.script import ScriptPubKey, input_script_sig, sig_hash
+from btclib.script.script import op_int, push_int
 from btclib.script.taproot import tree_helper
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.utils import (
@@ -54,6 +57,11 @@ _NOW = datetime(2026, 8, 4, tzinfo=UTC)
 # two index parameters below have to be handed something valid to index
 _SCRIPT_TREE: TaprootScriptTree = [(0xC0, ["OP_1"])]
 _PREVOUTS = [TxOut(1, b"")]
+# the ECDSA half of a BMS signature, r and s of 1, which the recovery flag
+# below is paired with
+_DSA_SIG = bms.Sig.parse(
+    bytes([27]) + 2 * (1).to_bytes(32, "big"), check_validity=False
+).dsa_sig
 
 
 def _tx(version: Any = 1, lock_time: Any = 0) -> Tx:
@@ -75,6 +83,45 @@ def _header(version: Any = 1, nonce: Any = 1) -> BlockHeader:
         nonce,
     )
 
+
+# the integer parameters whose type is checked before they are compared,
+# masked or read for their truth, the shortest call that reaches each
+# check, and the start of its refusal (issue #3008)
+_NON_INTEGER_CASES: list[tuple[str, Callable[[Any], object], str]] = [
+    ("OP_INT", op_int, "invalid OP_INT type"),
+    ("pushed number", push_int, "non-integer script number"),
+    (
+        "legacy sig_hash type",
+        lambda v: sig_hash.legacy(b"", _tx(), 0, v),
+        "invalid hash_type type",
+    ),
+    (
+        "segwit_v0 sig_hash type",
+        lambda v: sig_hash.segwit_v0(b"", _tx(), 0, v, 1),
+        "invalid hash_type type",
+    ),
+    (
+        "taproot sig_hash type",
+        lambda v: sig_hash.taproot(_tx(), 0, _PREVOUTS, v, 0, b"", b""),
+        "invalid hash_type type",
+    ),
+    (
+        "from_tx sig_hash type",
+        lambda v: sig_hash.from_tx(_PREVOUTS, _tx(), 0, v),
+        "invalid hash_type type",
+    ),
+    (
+        "OP_CODESEPARATOR index",
+        lambda v: sig_hash.from_tx(_PREVOUTS, _tx(), 0, 1, codesep_index=v),
+        "invalid OP_CODESEPARATOR index type",
+    ),
+    (
+        "bms recovery flag",
+        lambda v: bms.Sig(v, _DSA_SIG),
+        "invalid recovery flag type",
+    ),
+    ("coinbase fees", lambda v: build_coinbase(1, b"", fees=v), "invalid fees type"),
+]
 
 # every field whose contract is an integer quantity, with the shortest
 # call that reaches its validator
@@ -116,6 +163,7 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
         lambda v: sig_hash.taproot(_tx(), 0, _PREVOUTS, 1, 0, b"", b"", agg_mode=v),
     ),
     ("script number", encode_num),
+    *((name, call) for name, call, _ in _NON_INTEGER_CASES),
     (
         "merkle leaf index",
         lambda v: merkle_root_from_branch(b"\x00" * 32, [], v, sha256),
@@ -239,6 +287,13 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     # an integer difficulty and an integer timespan are numbers too: the
     # bool refusal must not take the int with it where a float is annotated
     assert hash_rate(1, 600) == hash_rate(1.0, 600.0)
+    assert op_int(1) == "OP_1"
+    assert push_int(1) == "OP_1"
+    assert len(sig_hash.legacy(b"", _tx(), 0, 1)) == 32
+    assert len(sig_hash.segwit_v0(b"", _tx(), 0, 1, 1)) == 32
+    assert len(sig_hash.from_tx(_PREVOUTS, _tx(), 0, 1, codesep_index=0)) == 32
+    assert bms.Sig(27, _DSA_SIG).rf == 27
+    assert build_coinbase(1, b"", fees=1).vout[0].value == 50 * 10**8 + 1
 
 
 def test_what_is_no_integer_at_all_is_refused_the_same_way() -> None:
@@ -264,6 +319,30 @@ def test_what_is_no_integer_at_all_is_refused_the_same_way() -> None:
             var_int.serialize(not_a_count)  # type: ignore[arg-type]
         with pytest.raises(BTClibTypeError, match="non-integer max_size"):
             var_int.parse(b"\x01", max_size=not_a_count)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "call, err_msg",
+    [(case[1], case[2]) for case in _NON_INTEGER_CASES],
+    ids=[case[0] for case in _NON_INTEGER_CASES],
+)
+@pytest.mark.parametrize(
+    "value",
+    ["1", b"\x01", Decimal(1), 1.0, None],
+    ids=["str", "bytes", "Decimal", "float", "None"],
+)
+def test_a_non_integer_is_refused_before_it_is_compared(
+    call: Callable[[Any], object], err_msg: str, value: object
+) -> None:
+    """Each wrong type is refused by its type name, not by the comparison.
+
+    Unchecked, each met an ordering, a mask or a lookup first, and left as
+    Python's bare TypeError, as a refusal of its value, or not at all
+    (issue #3008).
+    """
+    match = f"^{err_msg}: {type(value).__name__}$"
+    with pytest.raises(BTClibTypeError, match=match):
+        call(value)
 
 
 def test_an_int_subclass_that_is_not_a_bool_is_still_an_integer() -> None:

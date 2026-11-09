@@ -137,7 +137,7 @@ from btclib.b58 import (
     prv_key_data_from_wif,
     wif_from_prv_key,
 )
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, magic_message
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.network import network_from_name
@@ -146,6 +146,7 @@ from btclib.utils import (
     assert_no_trailing,
     assert_type,
     bytesio_from_binarydata,
+    is_integer,
     str_from_string,
 )
 
@@ -209,6 +210,11 @@ class Sig:
 
     def assert_valid(self) -> None:
         """Refuse a flag outside 27..42, a curve that is not secp256k1."""
+        # the type before the bounds: a str or None meets `<` as a bare
+        # TypeError, and a bool is no flag (`is_integer`)
+        if not is_integer(self.rf):
+            err_msg = f"invalid recovery flag type: {type(self.rf).__name__}"
+            raise BTClibTypeError(err_msg)
         if self.rf < 27 or self.rf > 42:
             raise BTClibValueError(f"invalid recovery flag: {_message_text(self.rf)}")
         self.dsa_sig.assert_valid()
