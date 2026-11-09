@@ -22,7 +22,6 @@ import pytest
 from btclib import var_int
 from btclib.exceptions import BTClibValueError
 from btclib.key import PubKeyData
-from btclib.p2p import bip324
 from btclib.p2p.compact_blocks import SendCmpct
 from btclib.p2p.handshake import Version
 from btclib.script import script_pub_key as spk
@@ -181,9 +180,10 @@ _CASES: list[tuple[str, Callable[[], object], str]] = [
         lambda: Version.parse(Version().serialize() + _KEY[:1]),
         "invalid relay flag: 0 or 1 expected",
     ),
+    # the module needs the `bip324` extra, and a run without it skips the row
     (
         "bip324 short id",
-        lambda: bip324.message_from_contents(_KEY),
+        lambda: pytest.importorskip("btclib.p2p.bip324").message_from_contents(_KEY),
         "unknown short message id",
     ),
     # 0x9e, the key's byte 0, is OP_NUMNOTEQUAL
