@@ -84,9 +84,9 @@ def _header(version: Any = 1, nonce: Any = 1) -> BlockHeader:
     )
 
 
-# the integer parameters whose type is checked before they are compared,
-# masked or read for their truth, the shortest call that reaches each
-# check, and the start of its refusal (issue #3008)
+# the integer parameters whose type is checked before an operator or a
+# lookup meets them, the shortest call that reaches each check, and the
+# start of its refusal (issue #3008)
 _NON_INTEGER_CASES: list[tuple[str, Callable[[Any], object], str]] = [
     ("OP_INT", op_int, "invalid OP_INT type"),
     ("pushed number", push_int, "non-integer script number"),
@@ -334,11 +334,11 @@ def test_what_is_no_integer_at_all_is_refused_the_same_way() -> None:
 def test_a_non_integer_is_refused_before_it_is_compared(
     call: Callable[[Any], object], err_msg: str, value: object
 ) -> None:
-    """Each wrong type is refused by its type name, not by the comparison.
+    """Each wrong type is refused by its type name, before an operator.
 
-    Unchecked, each would meet an ordering, a mask or a lookup first, and
-    leave as Python's bare TypeError, as a refusal of its value, or not at
-    all (issue #3008).
+    Unchecked, each would meet an operator or a lookup first, and leave
+    as Python's bare TypeError, as some other refusal, or not at all
+    (issue #3008).
     """
     match = f"^{err_msg}: {type(value).__name__}$"
     with pytest.raises(BTClibTypeError, match=match):
