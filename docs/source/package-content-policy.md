@@ -139,8 +139,8 @@ It ran unconfigured until btclib-org/btclib#1200, and the reason recorded
 in btclib-org/btclib#1160 was redundancy rather than inapplicability:
 `check-sdist`, a pre-commit hook gated by the lint workflow, diffs this
 tree against the sdist, and the completeness check above diffs the sdist
-against the wheel, so chained they imply checkout == sdist == wheel. The
-organization standard's section 12 no longer accepts that trade
+against the wheel, so chained they imply checkout == sdist == wheel.
+Section 12 of the organization's standard no longer accepts that trade
 (btclib-org/.github#51): *some other check implying the same diff does not
 stand in for the flag where the flag applies*, because the implication is
 the same assertion bought with code to maintain, and it moves what the

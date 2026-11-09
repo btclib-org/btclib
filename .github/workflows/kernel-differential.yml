@@ -10,7 +10,7 @@ name: kernel-differential
 #
 # By hand only: the maintainer decided against a schedule (issue #2588).
 # A run takes minutes (the install, then the search at the `thorough`
-# profile), and section 10 of the organization standard gives a
+# profile), and section 10 of the organization's standard gives a
 # path-filtered pull_request trigger only to a run of seconds.
 #
 # py-bitcoinkernel is an alpha. It ships wheels for CPython 3.10 to 3.13

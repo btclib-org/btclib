@@ -34,8 +34,8 @@ name: fuzz
 # btclib-org/.github#342 is where that distinction, and the choice of
 # `atheris` under ClusterFuzzLite rather than an OSS-Fuzz application,
 # are argued;
-# section 10 of the organization standard is where `fuzz` is named as a
-# sentinel every tree parsing a stranger's own bytes owes.
+# section 10 of the organization's standard is where `fuzz` is named as
+# a sentinel every tree parsing a stranger's own bytes owes.
 #
 # The distinction does not decide how long a target runs. `run_fuzzers`
 # gives every target at least an equal share of `fuzz-seconds` below
@@ -54,7 +54,7 @@ name: fuzz
 # docs/running_clusterfuzzlite.md, "ClusterFuzz Lite Modes"), which is
 # what builds a corpus over time and is meant for a schedule. No pull
 # request trigger and no "code-change" job beside it: section 10 of the
-# organization standard makes the clock the discriminator rather than
+# organization's standard makes the clock the discriminator rather than
 # the trigger, and says why *not required* is not the free half of that
 # -- what a pull request charges is the wait, and a reader waits on the
 # list rather than on the subset of it that gates. An hour of fuzzing on

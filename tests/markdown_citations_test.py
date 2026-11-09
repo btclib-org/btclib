@@ -28,11 +28,11 @@ reddens citations that are correct:
   `src/btclib/` is left to a file name this tree does have, which is
   `CHANGELOG.md`'s `ecc/frost.py` and `RELEASE_NOTES.md`'s
   `btclib/b58.py`;
-- without the file name half another project's tests are left to
-  `tests/`, the directory everyone puts them in, which is `REVIEWING.md`'s
-  `tests/verbatim_test.py` -- named in that sentence as the organization
-  standard's own module -- and `tests/_data/README.md`'s spesmilo/electrum
-  vector sources.
+- without the file name half another project's tests are left to `tests/`,
+  the directory everyone puts them in, which is `REVIEWING.md`'s
+  `tests/verbatim_test.py` -- named in that sentence as
+  btclib-org/.github's own module -- and `tests/_data/README.md`'s
+  spesmilo/electrum vector sources.
 
 A citation broken across the eighty-column wrap is not read at all: the
 character class stops at the newline, so `tests/` ending one line and
@@ -57,9 +57,9 @@ CONTRIBUTING.md cites -- and a rename would go unflagged in that spelling.
 Both halves accept a path another repository owns whose file name *and*
 whose directory this tree also has, and which this tree does not itself
 have -- that last is what `cited - tracked` asks first, so one of our own
-paths cited as somebody else's is not this class. REVIEWING.md cites the
-organization standard's `tests/verbatim_test.py` one file name short of
-it: `tests` is a directory here, so the day this tree gains a
+paths cited as somebody else's is not this class. REVIEWING.md cites
+btclib-org/.github's `tests/verbatim_test.py` one file name short of it:
+`tests` is a directory here, so the day this tree gains a
 `verbatim_test.py` anywhere but at `tests/verbatim_test.py` itself, that
 landed citation begins to read as one of ours cited where it is not.
 Landing at that path instead makes it disappear from the sweep rather than

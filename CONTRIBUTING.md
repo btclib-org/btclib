@@ -516,7 +516,7 @@ enforces the ratchet on every whole run, on the interpreter
 `.python-version` pins, which the gate is checked on — a run that
 selects a subset reports without gating, since `fail_under` would
 otherwise fail it on the tree's coverage rather than on its own. Which
-flags select is section 8 of the organization standard's, and
+flags select is section 8 of the organization's standard's, and
 `tests/README.md` is where this tree states it.
 See [Tests, code coverage, and profiling](./tests/README.md).
 
@@ -720,7 +720,7 @@ which `REPOSITORY.md` names. The `test`, `lint`/`docs` and
 commit pushed is `verified`; [the standard's *Signatures*][s-sigs] has the
 rule.
 
-Which day each of the rest runs is section 10 of the organization
+Which day each of the rest runs is section 10 of the organization's
 standard, in `btclib-org/.github`, and not this file's to restate — one
 calendar in one place is one thing to keep true, where a copy of it in
 every repository would be one more.
@@ -830,7 +830,7 @@ COVERAGE_FILE=coverage-data-bindings \
 ```
 
 The job types `pytest` and nothing after it, which is section 8 of the
-organization standard: addopts carries `--cov`, and what it measures and
+organization's standard: addopts carries `--cov`, and what it measures and
 how it reports are `tool.coverage.run`'s `source` and
 `tool.coverage.report` in pyproject.toml. So this command and the bare
 `uv run pytest` above are the same measurement in a clone carrying the
@@ -911,7 +911,7 @@ either way, one `.venv` not being able to hold and lack the bindings at
 once.
 
 The report step types `coverage report` and nothing after it but
-`--rcfile`, which is section 8 of the organization standard as the
+`--rcfile`, which is section 8 of the organization's standard as the
 `coverage` job's `pytest` step is: `fail_under` in pyproject.toml is
 what gates the union, and `--rcfile` names no number of its own, so a
 change to the ratchet leaves both commands above untouched. Run from

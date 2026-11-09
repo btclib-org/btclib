@@ -24,7 +24,7 @@ name: btcd oracle
 # The `pull_request` trigger is filtered to this file, the Go module and
 # the script, so that a Dependabot bump of btcd, or an edit of either
 # program, is built and run before it lands. Section 10 of the
-# organization standard keeps such a trigger where a run adds seconds to
+# organization's standard keeps such a trigger where a run adds seconds to
 # the wait on a pull request's checks. This run is expected to end before
 # `test`'s.
 #
