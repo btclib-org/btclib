@@ -1030,7 +1030,7 @@ def test_script_pub_key_is_a_dataclass() -> None:
     assert mainnet != testnet
     assert mainnet.address != testnet.address
 
-    # the generated repr names both fields; Script's would show a
+    # the repr names both fields; Script's would show a
     # testnet and a mainnet ScriptPubKey identically
     assert "network='testnet'" in repr(testnet)
 

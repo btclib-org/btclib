@@ -74,7 +74,14 @@ from typing_extensions import override
 
 from btclib.alias import Octets, Point
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.network import NETWORKS, Network, _network_from, _normalized_network
+from btclib.network import (
+    NETWORKS,
+    Network,
+    _known_network_name,
+    _network_from,
+    _normalized_network,
+    _shown_network,
+)
 from btclib.utils import assert_type, bytes_from_octets, is_integer
 
 __all__ = [
@@ -98,6 +105,17 @@ __all__ = [
 _COMPRESSED_PREFIXES = (0x02, 0x03)
 _UNCOMPRESSED_PREFIX = 0x04
 _HYBRID_PREFIXES = (0x06, 0x07)
+
+
+def _has_sec_shape(sec: bytes, p_size: int) -> bool:
+    """Answer whether octets have a SEC length and the prefix it takes.
+
+    A length and a prefix, as `PubKeyData.assert_valid` asks, and not a
+    point.
+    """
+    if len(sec) == p_size + 1:
+        return sec[0] in _COMPRESSED_PREFIXES
+    return len(sec) == 2 * p_size + 1 and sec[0] == _UNCOMPRESSED_PREFIX
 
 
 @dataclass(frozen=True, init=False)
@@ -143,6 +161,20 @@ class PubKeyData:
 
         if check_validity:
             self.assert_valid()
+
+    @override
+    def __repr__(self) -> str:
+        # the octets are shown only where a known network's curve gives
+        # them their SEC shape: a private key spelled as a public one by
+        # mistake reaches here when validity is not checked, and section 7
+        # of the btclib-org standard says what else may be one
+        name = _known_network_name(self.network)
+        shown = name is not None and _has_sec_shape(
+            self.sec, NETWORKS[name].curve.p_size
+        )
+        sec = repr(self.sec) if shown else "..."
+        network = _shown_network(self.network)
+        return f"{type(self).__name__}(sec={sec}, network={network})"
 
     @property
     def is_compressed(self) -> bool:
@@ -237,14 +269,16 @@ class PrvKeyData:
 
     @override
     def __repr__(self) -> str:
-        # never echo private key material, as BIP32KeyData's repr does not;
-        # show the network only if it is a known name: swapped arguments
-        # put a key there when validity is not checked. The type is checked
-        # first, so no foreign __eq__ or __hash__ runs
-        net: object = self.network
-        shown = repr(net) if isinstance(net, str) and net in NETWORKS else "..."
-        masked = f"{type(self).__name__}(q=..., network={shown}"
-        return f"{masked}, compressed={self.compressed!r})"
+        # never echo private key material, as BIP32KeyData's repr does not.
+        # `compressed` is shown only where it is a bool: swapped arguments
+        # put a key there when validity is not checked, as they do in the
+        # network (see `_shown_network`)
+        flag: object = self.compressed
+        compressed = repr(flag) if isinstance(flag, bool) else "..."
+        network = _shown_network(self.network)
+        return (
+            f"{type(self).__name__}(q=..., network={network}, compressed={compressed})"
+        )
 
     @property
     def curve(self) -> Curve:

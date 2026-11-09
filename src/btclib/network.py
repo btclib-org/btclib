@@ -772,6 +772,21 @@ def _normalized_network(network: Any) -> Any:
     return normalized_network_name(network)
 
 
+def _known_network_name(network: object) -> str | None:
+    """Return a `network` field that is a NETWORKS name, or None.
+
+    What a repr shows of a network, and the curve a repr may read: swapped
+    arguments put a key in the field when validity is not checked. The
+    type is checked first, so no foreign `__eq__` or `__hash__` runs.
+    """
+    return network if isinstance(network, str) and network in NETWORKS else None
+
+
+def _shown_network(network: object) -> str:
+    """Return what a repr shows of a `network` field: a known name, or `...`."""
+    return "..." if (name := _known_network_name(network)) is None else repr(name)
+
+
 @overload
 def network_from_xkeyversion(xkeyversion: bytes, network: None = None) -> str: ...
 
