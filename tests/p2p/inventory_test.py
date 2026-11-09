@@ -72,7 +72,13 @@ from btclib.p2p import (
     NotFound,
 )
 from btclib.p2p.inventory import MSG_WITNESS_FLAG
-from btclib.p2p.limits import MAX_HEADERS_RESULTS, MAX_INV_SZ, MAX_LOCATOR_SZ
+from btclib.p2p.limits import (
+    DUMMY_VERSION,
+    MAX_HEADERS_RESULTS,
+    MAX_INV_SZ,
+    MAX_LOCATOR_SZ,
+    PROTOCOL_VERSION,
+)
 from btclib.testing.blocks import read_bytes
 from tests.strategies.p2p import INVENTORIES
 
@@ -153,6 +159,19 @@ def test_a_locator_writes_its_hashes_the_same_way() -> None:
         parsed = locator_message.parse(payload)
         assert parsed.locator[0].hex() == _GENESIS
         assert parsed.hash_stop.hex() == _BLOCK_1
+
+
+def test_a_locator_carries_cores_dummy_version_not_its_own() -> None:
+    """A Core node's locator opens with `DUMMY_VERSION`'s four octets.
+
+    Core's `CBlockLocator` writes `DUMMY_VERSION` whatever version it
+    negotiated, and `limits` cites where. `PROTOCOL_VERSION` is not that
+    number, so a locator written with it is not the one a Core node sends.
+    """
+    core_octets = bytes.fromhex("80110100")
+    for locator_message in (GetBlocks, GetHeaders):
+        assert locator_message(DUMMY_VERSION).serialize()[:4] == core_octets
+        assert locator_message(PROTOCOL_VERSION).serialize()[:4] != core_octets
 
 
 def test_the_type_code_is_four_octets_little_endian() -> None:
@@ -369,11 +388,11 @@ def test_headers_refuses_a_transaction_count_that_is_not_zero() -> None:
 def test_a_locator_version_is_ignored_by_core_and_stored_here() -> None:
     """The other ignored field, and why it is a field where the other is not.
 
-    Core writes the protocol version it negotiated in front of a locator
-    and discards what it reads; its test framework writes zero and says
-    so. Ignored is not constant, so the field varies over messages
-    peers really send -- where the `headers` transaction count does not
-    vary at all, and is dropped for that reason.
+    Core writes `DUMMY_VERSION` in front of a locator and discards what
+    it reads; its test framework writes zero and says so. Ignored is not
+    constant, so the field varies over messages peers really send --
+    where the `headers` transaction count does not vary at all, and is
+    dropped for that reason.
     """
     for version in (0, 70016, 60002, -1, 0x7FFFFFFF, -0x80000000):
         asked = GetHeaders(version, [_GENESIS])
