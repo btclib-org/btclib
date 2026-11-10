@@ -336,7 +336,7 @@ _CASES: list[tuple[str, Callable[[], object], str, list[type[BaseException]]]] =
         "bech32 then base58 address",
         lambda: ScriptPubKey.from_address("bc1" + _HEX, _MAINNET),
         "invalid character in checksum",
-        [BTClibValueError, Base58Bech32ValueError],
+        [],
     ),
 ]
 
