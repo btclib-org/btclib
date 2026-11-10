@@ -14,10 +14,11 @@ kept here.
 
 **This file is the same in every repository of the organization**, and
 deliberately so: a review that means one thing here and another there is
-not a standard. Section 14 of that standard is what says so, and
-`tests/verbatim_test.py` of that repository is what compares the copies.
-So nothing written here may be true of one tree only, down to the last
-section: that one is this tree's, and the comparison stops at it.
+not a standard. Section 14 of the organization's standard is what says
+so, and `tests/verbatim_test.py` of btclib-org/.github is what compares
+the copies. So nothing written here may be true of one tree only, down
+to the last section: that one is this tree's, and the comparison stops
+at it.
 
 It is for whoever reviews: a contributor reading somebody else's pull
 request, the maintainer, an agent session that starts with the pull
