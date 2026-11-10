@@ -130,7 +130,7 @@ repos:
       # Its form is the rev's own value and then, anywhere after it on that
       # line, the word issue with a reference -- `#<digits>`, or
       # `owner/repo#<digits>` where the issue is another repository's,
-      # which is the form section 9 of the organization standard requires
+      # which is the form section 9 of the organization's standard requires
       # of a cross-repository reference, a bare number resolving in the
       # repository it is written in. What precedes the `#` is admitted as
       # any run of characters that are neither whitespace nor a `#`, this
@@ -522,7 +522,7 @@ repos:
         types: [markdown]
         exclude: ^README\.md$
       # the root README.md is the package's page on the index, where a
-      # relative link reaches nothing: section 2 of the organization
+      # relative link reaches nothing: section 2 of the organization's
       # standard is the rule. The pattern above with "./" and "../" no
       # longer admitted, its backtick "\x60" for the reason given there
       - id: readme-absolute-link
@@ -533,7 +533,7 @@ repos:
         files: ^README\.md$
         types: [markdown]
       # a line that ends inside a word, at that word's own hyphen.
-      # Section 4 of the organization standard is the rule: what such a
+      # Section 4 of the organization's standard is the rule: what such a
       # line renders as, why nothing else here catches it, what this
       # pattern cannot see, and what the measurement was before it was
       # proposed. The types are where a build renders prose from --
@@ -547,8 +547,8 @@ repos:
         entry: "[A-Za-z0-9]-$"
         types_or: [markdown, python, rst]
       # a placeholder that is a whole argument, in quotes. Section 9 of
-      # the organization standard is the rule and what the quoting costs
-      # a paste; section 4 is where this hook is, which quotes it
+      # the organization's standard is the rule and what the quoting
+      # costs a paste; section 4 is where this hook is, which quotes it
       # exempts, and the three things this pattern cannot see. The
       # discrimination is read off the line and not off the fence around
       # it, because a fence-aware pattern has to consume everything
@@ -808,9 +808,9 @@ repos:
         language: pygrep
         entry: '\b(text|universal_newlines)=True'
         files: \.py$
-      # section 8 of the organization standard's own acceptance command,
-      # run at the gate: a pragma with nothing after it on its line
-      # carries no reason, for no cover and no branch alike. The `#`
+      # section 8 of the organization's standard's own acceptance
+      # command, run at the gate: a pragma with nothing after it on its
+      # line carries no reason, for no cover and no branch alike. The `#`
       # immediately before pragma is what a comment always carries and a
       # backticked reference to the rule in prose never does, section 8
       # already saying prose drops it -- so this does not refuse a
@@ -942,12 +942,12 @@ repos:
   # 5.0.1, stays the maintainer's job.
   #
   # `language: system` and `uv run --locked` are the form section 4 of
-  # the organization standard gives a local hook of this shape, and uv
+  # the organization's standard gives a local hook of this shape, and uv
   # is on PATH for every hook here, the lint gate itself being `uv run
   # pre-commit run --all-files`. `--only-group check` adds that group to
   # the environment the gate runs from and takes nothing out of it, and
   # installs no project; `--no-build` makes a dependency with no wheel
-  # fail rather than compile, as section 4 of the organization standard
+  # fail rather than compile, as section 4 of the organization's standard
   # says. `-d --min=10 .`, `pass_filenames` and `always_run` are the
   # upstream hook's own definition, written out because a local hook
   # cannot inherit one.

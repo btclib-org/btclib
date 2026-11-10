@@ -39,6 +39,8 @@ the number down a second time.
 
 __all__ = [
     "CFCHECKPT_INTERVAL",
+    "DUMMY_VERSION",
+    "FEATURE_VERSION",
     "MAX_ADDRV2_SIZE",
     "MAX_ADDR_TO_SEND",
     "MAX_BLOCK_TX_INDEX",
@@ -72,16 +74,31 @@ MAX_PROTOCOL_MESSAGE_LENGTH = 4 * 1000 * 1000
 # above for the same reason that one is not `MAX_BLOCK_WEIGHT`.
 MAX_SUBVERSION_LENGTH = 256
 
+# The protocol versions below are Core's names and values, of
+# src/node/protocol_version.h and src/primitives/block.h at
+# bitcoin/bitcoin@f0de87f040, the v32.1 tag. None of them is consumed by
+# `parse`, which reads whatever a peer sent rather than what this library
+# would have sent.
+
 # The protocol version this library's own `version` messages announce,
-# Core's own name and own value: `static const int PROTOCOL_VERSION =
-# 70016` of src/node/protocol_version.h, WTXID_RELAY_VERSION's number and
-# the one BIP37's threshold in `btclib.p2p.handshake` is read against.
-# Not consumed by `parse`, which reads whatever a peer sent rather than
-# what this library would have sent, and not a bound: unlike every other
-# name in this module, a `version` carrying a different number is not
-# refused for it, being a fact a peer states about itself rather than a
-# limit on what it may send.
-PROTOCOL_VERSION = 70016
+# and so `Version`'s default in `btclib.p2p.handshake`. Not a bound: a
+# `version` carrying a different number is not refused for it, being a
+# fact a peer states about itself.
+PROTOCOL_VERSION = 70017
+
+# The protocol version from which BIP434's `feature` may be sent: BIP434
+# forbids one to a peer advertising less, and Core disconnects a peer
+# that sends one where the version the two negotiated is below it.
+# Checked nowhere here, a rule about whom a message goes to needing a
+# connection, which `btclib.p2p.negotiation`'s docstring says.
+FEATURE_VERSION = 70017
+
+# The version Core writes in front of a locator, Core's
+# `CBlockLocator::DUMMY_VERSION`: "the highest protocol version ever
+# written to a network stream", hard-coded because "the value has never
+# been used". A Core node writes it whatever version it negotiated, so a
+# caller matching Core's octets writes this and not `PROTOCOL_VERSION`.
+DUMMY_VERSION = 70016
 
 # The most addresses one `addr` message may carry, Core's
 # src/net_processing.cpp, where it bounds both what is sent and what is

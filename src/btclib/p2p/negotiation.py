@@ -125,11 +125,11 @@ peer that sends one after `verack` should be disconnected, and Core's
 `net_processing.cpp` does exactly that, along with disconnecting a peer
 that offers reconciliation while either side's `version` declined
 transaction relay; and BIP434 forbids a `feature` after the `verack` and
-to a peer advertising a protocol version below 70017, requiring one that
-arrives between the `version` and the `verack` be accepted. Every one of
-those is a rule about *when* or *to whom*, which needs a connection to
-hold, and this package has none -- the same line `SendAddrV2` draws for
-BIP155's placement rule.
+to a peer advertising a protocol version below `limits.FEATURE_VERSION`,
+requiring one that arrives between the `version` and the `verack` be
+accepted. Every one of those is a rule about *when* or *to whom*, which
+needs a connection to hold, and this package has none -- the same line
+`SendAddrV2` draws for BIP155's placement rule.
 """
 
 from __future__ import annotations

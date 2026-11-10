@@ -516,7 +516,7 @@ enforces the ratchet on every whole run, on the interpreter
 `.python-version` pins, which the gate is checked on — a run that
 selects a subset reports without gating, since `fail_under` would
 otherwise fail it on the tree's coverage rather than on its own. Which
-flags select is section 8 of the organization standard's, and
+flags select is section 8 of the organization's standard's, and
 `tests/README.md` is where this tree states it.
 See [Tests, code coverage, and profiling](./tests/README.md).
 
@@ -720,7 +720,7 @@ which `REPOSITORY.md` names. The `test`, `lint`/`docs` and
 commit pushed is `verified`; [the standard's *Signatures*][s-sigs] has the
 rule.
 
-Which day each of the rest runs is section 10 of the organization
+Which day each of the rest runs is section 10 of the organization's
 standard, in `btclib-org/.github`, and not this file's to restate — one
 calendar in one place is one thing to keep true, where a copy of it in
 every repository would be one more.
@@ -830,7 +830,7 @@ COVERAGE_FILE=coverage-data-bindings \
 ```
 
 The job types `pytest` and nothing after it, which is section 8 of the
-organization standard: addopts carries `--cov`, and what it measures and
+organization's standard: addopts carries `--cov`, and what it measures and
 how it reports are `tool.coverage.run`'s `source` and
 `tool.coverage.report` in pyproject.toml. So this command and the bare
 `uv run pytest` above are the same measurement in a clone carrying the
@@ -911,7 +911,7 @@ either way, one `.venv` not being able to hold and lack the bindings at
 once.
 
 The report step types `coverage report` and nothing after it but
-`--rcfile`, which is section 8 of the organization standard as the
+`--rcfile`, which is section 8 of the organization's standard as the
 `coverage` job's `pytest` step is: `fail_under` in pyproject.toml is
 what gates the union, and `--rcfile` names no number of its own, so a
 change to the ratchet leaves both commands above untouched. Run from
@@ -1001,7 +1001,7 @@ cd "$tmp" && uv venv &&
         "$1[secp256k1]" &&
     .venv/bin/python -c "import btclib; \
       from ecc.curves import is_libsecp256k1_serving; \
-      from ecc.ecc import dsa; \
+      from ecc import dsa; \
       from btclib.key import PrvKeyData; \
       print(btclib.__version__); \
       assert btclib.__version__ != 'unknown'; \
@@ -1013,7 +1013,7 @@ cd "$OLDPWD" &&
     uv run --isolated --no-project --with "$(echo dist/*.whl)[secp256k1]" \
     python -c "import btclib; \
       from ecc.curves import is_libsecp256k1_serving; \
-      from ecc.ecc import dsa; \
+      from ecc import dsa; \
       from btclib.key import PrvKeyData; \
       print(btclib.__version__); \
       assert btclib.__version__ != 'unknown'; \
@@ -1110,7 +1110,7 @@ is fixed forever:
 ```shell
 python -m pip install btclib
 python -c "import btclib; \
-    from ecc.ecc import dsa; \
+    from ecc import dsa; \
     from btclib.key import PrvKeyData; \
     assert dsa.verify(b'btclib', PrvKeyData(1).pub.sec, \
       dsa.sign(b'btclib', 1))"
@@ -1131,7 +1131,7 @@ python -m pip install --only-binary btclib --only-binary btclib-secp256k1 \
     "btclib[secp256k1]"
 python -c "import btclib; \
     from ecc.curves import is_libsecp256k1_serving; \
-    from ecc.ecc import dsa; \
+    from ecc import dsa; \
     from btclib.key import PrvKeyData; \
     assert is_libsecp256k1_serving(), \
       'the secp256k1 extra resolved, the bindings do not serve'; \
@@ -1437,12 +1437,12 @@ own mistake, it is a call mypy already refuses, and it leaves as a
 12 being a private key in this library and never a public one, where a
 well-formed public key that simply did not sign is False.
 
-**`bms.verify` carves one case out of that**, as `ecc.ecc.musig2`
-and `ecc.ecc.frost` do: a value of a declared type whose size or
+**`bms.verify` carves one case out of that**, as `ecc.musig2`
+and `ecc.frost` do: a value of a declared type whose size or
 encoding makes it impossible to read as a signature, a key, an address, a
 digest or an opening raises rather than answering False. The function is
 not saying the signature is forged, it is saying it has no way to find out
-(issue #2170). So `ecc.ecc.dsa.verify(msg, "not a key", sig)` raises
+(issue #2170). So `ecc.dsa.verify(msg, "not a key", sig)` raises
 `EccValueError`, and `bms.verify(msg, "not an address", sig)`
 raises `BTClibValueError`, while a signature that is well formed and
 simply does not verify is False.
@@ -1460,7 +1460,7 @@ reference reads the same way: `dleq_verify_proof` asserts
 asserts `len(m) == 32`, while `s >= GE.ORDER` and a challenge that does
 not match are its False.
 
-`ecc.ecc.dsa`'s malformed DER encoding is the one thing on the other
+`ecc.dsa`'s malformed DER encoding is the one thing on the other
 side of the line, and it is there because a measurement put it there rather than
 because the rule reaches it: its own wycheproof vectors ask that question
 over profiles built for it, and answer False.
@@ -1641,7 +1641,7 @@ takes the hash `sign` would compute, `musig2.nonce_gen_` the randomness
 so it is an offer to skip work the caller has already paid for, not a way
 past the validation above: `sign_` checks its `msg_hash` as `sign` checks
 its `msg`. The two conventions are independent, and
-`ecc.ecc.dsa._assert_as_valid_` carries both.
+`ecc.dsa._assert_as_valid_` carries both.
 
 Publishing both names is what makes their agreement a promise rather than
 a tidiness. A keyword added to `verify` is added to `verify_` or to

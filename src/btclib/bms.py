@@ -124,8 +124,8 @@ from hashlib import sha256
 
 from base58_bech32.base58 import b58decode_check
 from base58_bech32.exceptions import Base58Bech32ValueError
+from ecc import dsa
 from ecc.curves import bytes_from_prv_key_int, secp256k1
-from ecc.ecc import dsa
 from ecc.exceptions import EccRuntimeError
 
 from btclib.alias import BinaryData, Octets, String
@@ -160,6 +160,26 @@ __all__ = [
 ]
 
 _REQUIRED_LENGTH = 65
+
+# Bitcoin Core's `IsSpace`, as `str_from_string` gives it, in octets
+_WHITESPACE = string.whitespace.encode("ascii")
+
+
+def _ascii_octets(text: str) -> bytes:
+    """Return the octets of an ascii text, refusing a non-ascii character.
+
+    `str_from_string` checks bytes and not a str, whose non-ascii
+    character is refused here by its position in the input. The
+    UnicodeEncodeError holds the whole text, so the refusal is raised
+    outside the `except`, as `str_from_string` raises its own, and the
+    encoding is str's own, which a subclass cannot rewrite.
+    """
+    try:
+        return str.encode(text, "ascii")
+    except UnicodeEncodeError as e:
+        position = e.start
+    err_msg = f"invalid base64 encoding: non-ascii character at position {position}"
+    raise BTClibValueError(err_msg)
 
 
 @dataclass(frozen=True, init=False)
@@ -269,11 +289,11 @@ class Sig:
         # method (issue #814). Stripping then covers what came as bytes
         # as well as what came as text: the whitespace around a copied
         # and pasted signature is the one laxity worth tolerating
-        text = str_from_string(data, "base64 signature").strip(string.whitespace)
+        text = str_from_string(data, "base64 signature")
+        data_bin = _ascii_octets(text).strip(_WHITESPACE)
         try:
-            data_bin = text.encode("ascii")
             data_decoded = base64.b64decode(data_bin, validate=True)
-        except ValueError as e:  # binascii.Error and UnicodeEncodeError
+        except ValueError as e:  # binascii.Error
             raise BTClibValueError(f"invalid base64 encoding: {e}") from e
         if base64.b64encode(data_decoded) != data_bin:
             raise BTClibValueError("invalid base64 encoding: not canonical")
@@ -447,7 +467,9 @@ def assert_as_valid(msg: Octets, addr: String, sig: Sig | String) -> None:
     # the address says which of the three checks applies, and each of them
     # carries the recovery-flag range that belongs to its type: the flag
     # is what the signer said the address was, so a flag outside the range
-    # is a signature for a different address type
+    # is a signature for a different address type. The refusals below
+    # quote the address as it decoded, a plain str
+    addr = str_from_string(addr, "address").strip(string.whitespace)
     if is_segwit_prefixed(addr):
         _assert_p2wpkh(addr, sig.rf, pub_key)
         return
@@ -488,9 +510,9 @@ def _assert_structurally_valid_(addr: String, sig: Sig | String) -> Sig:
     65-octet signature, so `assert_as_valid` answers them below, on the
     `Sig` this returns.
 
-    The message is not asked here, as in `ecc.ecc.dsa` and
-    `ecc.ecc.ssa`: it is what the signature is verified about, and
-    issue #814 is where that was settled.
+    The message is not asked here, as in `ecc.dsa` and `ecc.ssa`:
+    it is what the signature is verified about, and issue #814 is
+    where that was settled.
     """
     parsed_sig = (
         sig if isinstance(sig, Sig) else Sig.b64decode(sig, check_validity=False)

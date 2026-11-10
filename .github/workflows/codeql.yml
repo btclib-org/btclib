@@ -122,7 +122,7 @@ concurrency:
 
 jobs:
   # the analysis itself is btclib-org/.github's, called at a tagged commit
-  # (section 10 of btclib-org/.github's README.md); what stays here is the
+  # (section 10 of the organization's standard); what stays here is the
   # trigger, the schedule, the concurrency group and the aggregate job below. No
   # inputs: the callee's default query suite is `security-extended`, the one
   # this tree runs
@@ -162,12 +162,12 @@ jobs:
     name: "codeql: every job passed"
     # nothing in this tree calls this workflow, so the step below reads
     # the run's own job listing rather than `needs.*.result`, which is
-    # section 10 of the organization standard's shape for a workflow only
-    # ever run directly -- a called workflow's listing is the caller's run
-    # and holds jobs waiting on this one, which is why test.yml, being
-    # release.yml's own call, keeps `needs`. Here `needs` sequences this
-    # job after the call above, so a language the called workflow's own
-    # matrix adds is covered without touching this, and
+    # section 10 of the organization's standard's shape for a workflow
+    # only ever run directly -- a called workflow's listing is the
+    # caller's run and holds jobs waiting on this one, which is why
+    # test.yml, being release.yml's own call, keeps `needs`. Here `needs`
+    # sequences this job after the call above, so a language the called
+    # workflow's own matrix adds is covered without touching this, and
     # `needs.analyze.result` is what the step reads for analyze's own rows
     # where the listing still shows them unfinished, and what fails the
     # step on its own where it is neither success nor skipped
@@ -240,7 +240,7 @@ jobs:
       # the script is btclib-org/.github's, served from there at main under a
       # `path:` of its own and sparse on .github/scripts, so no copy of it is
       # kept in this tree: the wait and the verdict are tested where it lives
-      # (section 10 of that repository's README.md)
+      # (section 10 of the organization's standard)
       - name: Check out the check script
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

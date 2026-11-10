@@ -61,17 +61,18 @@ dependencies = [
     "base58-bech32>=2026.10.23",
     # the curve arithmetic and the schemes built on it, which btclib
     # imports from `ecc` where it uses them and does not re-export.
-    # 2026.11.7 is the floor: SECURITY.md links ecc's lines at its tag,
-    # and tests/security_citations_test.py reads them from the installed
-    # package, where 2026.11.6 holds curve.py's, sec_point.py's and
-    # dsa.py's at other lines (issue #2932). It declares btclib-secp256k1
+    # 2026.11.8 is the floor: its schemes are top-level modules, as
+    # `ecc.dsa`, which is where btclib imports them, while 2026.11.7
+    # holds them under `ecc.ecc` (issue #2954). SECURITY.md links ecc's
+    # lines at its tag, and tests/security_citations_test.py reads them
+    # from the installed package. It declares btclib-secp256k1
     # >=0.8.0.14, where 2026.10.20 declares >=0.8.0.8, below the
     # GHSA-8h6f-34jj-7p6c fix. It keeps out PyPI's unrelated `ecc` 0.0.1
     # of 2013, and has `alias.Public`, which `script.taproot` imports,
     # and `ssa.pub_key_tweak_add_var` and `ssa.prv_key_tweak_add`, which
     # it calls. ecc's lift words an invalid x as `invalid x-coordinate`
     # or `x-coordinate not in 0..p-1`, which the taproot tests rely on
-    "ecc>=2026.11.7",
+    "ecc>=2026.11.8",
     # `typing.override` is 3.12's, `typing.TypeIs` is 3.13's, and the
     # floor is 3.11, so both come from the backport; 4.4 is the release
     # that adds `override`, 4.10 the one that adds `TypeIs`, and the
@@ -144,7 +145,7 @@ secp256k1 = [
     # the whole of the delegation: btclib calls the bindings only through
     # ecc, which imports them for the curve arithmetic and the schemes,
     # and ecc's extra is what states which release that takes
-    "ecc[secp256k1]>=2026.11.7",
+    "ecc[secp256k1]>=2026.11.8",
 ]
 # `btclib.p2p.bip324`, BIP324's v2 transport cipher, `pip install
 # "btclib[bip324]"`. Issue #1066 keeps a hand-written cipher out of
@@ -218,7 +219,7 @@ pull_requests = "https://github.com/btclib-org/btclib/pulls"
 # refuses the day the two stop agreeing. What the group buys is that no
 # documented command had to grow an `--extra`, and that the job of issue
 # #991 is those same commands with this group left out
-bindings = ["ecc[secp256k1]>=2026.11.7"]
+bindings = ["ecc[secp256k1]>=2026.11.8"]
 # the `bip324` extra again, for the reason `bindings` is a group: the
 # suite, the type check and the docs build import `btclib.p2p.bip324`,
 # and `tests/build_system_test.py` holds the two declarations equal.
@@ -312,8 +313,8 @@ dev = [
 
 [tool.uv]
 # the oldest uv that may read uv.lock, at most the uv a Dependabot run's
-# log names -- section 1 of the organization standard has the argument,
-# section 15 the commands that measure it
+# log names -- section 1 of the organization's standard has the
+# argument, section 15 the commands that measure it
 # (btclib-org/.github#312)
 required-version = ">=0.13.4"
 
@@ -473,8 +474,8 @@ source-exclude = [
 # `package` is set because the redundancy does not substitute for the
 # flag: `check-sdist` below gates this tree against the sdist and
 # `verify_dist_contents.py` gates the sdist against the wheel, so
-# chained they imply tree == sdist == wheel. The organization
-# standard's section 12 (btclib-org/.github#51, issue #1200) treats
+# chained they imply tree == sdist == wheel. Section 12 of the
+# organization's standard (btclib-org/.github#51, issue #1200) treats
 # that implication as the same assertion bought with code to
 # maintain, not as a substitute for the flag itself: the two hops
 # here sit in different workflows -- a pre-commit hook under the
@@ -1065,7 +1066,7 @@ explicit-preview-rules = true
 # nobody has looked at yet. `ALL` takes a new family in on the pull
 # request that bumps ruff's own pinned rev instead, which is the day
 # somebody is already looking at what changed. Section 5 of the
-# organization standard states the rule; `ignore` below is where every
+# organization's standard states the rule; `ignore` below is where every
 # declined rule's reason lives -- a rule the formatter conflicts with,
 # cited from ruff's own docs/formatter.md and not argued here since that
 # list is the vendor's; a rule this tree declines on its own merits,
@@ -1388,7 +1389,7 @@ max-complexity = 10
 # W505 is in the "W" set selected above and is inert without this line,
 # ruff having no default doc length; setting it is the whole of the
 # switch. Which over-width lines the rule passes over is section 9 of
-# the organization standard's and is not restated here. While
+# the organization's standard's and is not restated here. While
 # `uv run ruff check --select W505 --no-cache .` passes, a comment over
 # 80 columns is either one of those or one this key does not reach, and
 # not a defect

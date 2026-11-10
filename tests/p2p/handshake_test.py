@@ -176,6 +176,14 @@ def test_a_version_with_no_explicit_field_announces_btclibs_own() -> None:
     assert Version.parse(version.serialize()).version == PROTOCOL_VERSION
 
 
+def test_a_version_with_no_explicit_field_opens_as_cores_does() -> None:
+    """`Version()` opens with the four octets a Core node's `version` does.
+
+    Core's `PROTOCOL_VERSION`, little-endian; `limits` cites where.
+    """
+    assert Version().serialize()[:4] == bytes.fromhex("81110100")
+
+
 def test_the_relay_flag_is_one_octet_of_two_values() -> None:
     """A departure from Core, with the reason this library always gives.
 

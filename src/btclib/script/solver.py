@@ -32,7 +32,7 @@ from btclib.alias import Octets, TxoutType
 from btclib.exceptions import BTClibValueError
 from btclib.script.limits import MAX_PUBKEYS_PER_MULTISIG
 from btclib.script.script import read_op_code
-from btclib.utils import bytes_from_octets, decode_num
+from btclib.utils import _name_text, bytes_from_octets, decode_num
 
 __all__ = ["get_txn_output_type", "solver"]
 
@@ -58,7 +58,7 @@ def get_txn_output_type(tx_out_type: TxoutType) -> str:
     is the value itself; this refuses a string that is none of them.
     """
     if tx_out_type not in get_args(TxoutType):
-        raise BTClibValueError(f"invalid TxoutType: {tx_out_type!r}")
+        raise BTClibValueError(f"invalid TxoutType: {_name_text(tx_out_type)}")
     return tx_out_type
 
 

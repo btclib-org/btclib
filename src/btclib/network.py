@@ -60,7 +60,9 @@ from btclib.alias import NetworkField, NetworkName, NetworkType, Octets
 from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
+    _MAX_QUOTED_NAME_LENGTH,
     _btclib_errors,
+    _name_text,
     assert_type,
     bytes_from_octets,
     fields_from_json_object,
@@ -123,7 +125,7 @@ def _curve_from_name(name: Any) -> Curve:
     """
     assert_type(name, str, "curve name")
     if name not in CURVES:
-        raise BTClibValueError(f"unknown curve: {name}")
+        raise BTClibValueError(f"unknown curve: {_name_text(name)}")
     return CURVES[name]
 
 
@@ -138,7 +140,7 @@ def _consensus_from_name(name: Any) -> ConsensusParams:
     """
     assert_type(name, str, "consensus name")
     if name not in CONSENSUS_PARAMS:
-        raise BTClibValueError(f"unknown consensus parameters: {name}")
+        raise BTClibValueError(f"unknown consensus parameters: {_name_text(name)}")
     return CONSENSUS_PARAMS[name]
 
 
@@ -371,7 +373,7 @@ class Network:
         # place a third network type can be refused
         assert_type(self.network_type, str, "network_type")
         if self.network_type not in {"main", "test"}:
-            err_msg = f"invalid network type: {self.network_type!r}"
+            err_msg = f"invalid network type: {_name_text(self.network_type)}"
             raise BTClibValueError(err_msg)
 
         for key, size in _KEY_SIZE:
@@ -527,7 +529,7 @@ def networks_from_key_value(
     be worse, a typo in a field name reading as a fact about the prefix.
     """
     if key not in _NETWORK_FIELDS:
-        err_msg = f"unknown network field: '{key}'"
+        err_msg = f"unknown network field: {_name_text(key)}"
         err_msg += f"; it must be one of {sorted(_NETWORK_FIELDS)}"
         raise BTClibValueError(err_msg)
     return [
@@ -612,11 +614,10 @@ def normalized_network_name(network: Any) -> Any:
     """
     if not isinstance(network, str):
         return network
-    # ASCII whitespace alone, for the reason `utils.str_from_string` gives
-    return network.strip(string.whitespace).lower()
-
-
-_MAX_QUOTED_NETWORK_LENGTH = 16
+    # ASCII whitespace alone, for the reason `utils.str_from_string` gives;
+    # str's own methods, which answer a plain str whatever subclass the
+    # name is, so that a field keeps no method of the caller's
+    return str.lower(str.strip(network, string.whitespace))
 
 
 def validated_network_name(network: str) -> str:
@@ -636,9 +637,10 @@ def validated_network_name(network: str) -> str:
     name: str = normalized_network_name(network)
     if name not in NETWORKS:
         # a misplaced argument may be a key, so only a name short enough
-        # to be a typo of a real one is quoted
-        if len(network) <= _MAX_QUOTED_NETWORK_LENGTH:
-            err_msg = f"unknown network: '{network}'"
+        # to be a typo of a real one is quoted; its length and its text
+        # are read with str's own methods, which a subclass cannot rewrite
+        if str.__len__(network) <= _MAX_QUOTED_NAME_LENGTH:
+            err_msg = f"unknown network: '{str.__str__(network)}'"
         else:
             err_msg = "unknown network (too long to quote)"
         err_msg += f"; it must be one of {sorted(NETWORKS)}"
@@ -770,6 +772,21 @@ def _normalized_network(network: Any) -> Any:
     if isinstance(network, Network):
         return _entry_name(network) or network
     return normalized_network_name(network)
+
+
+def _known_network_name(network: object) -> str | None:
+    """Return a `network` field that is a NETWORKS name, or None.
+
+    What a repr shows of a network, and the curve a repr may read: swapped
+    arguments put a key in the field when validity is not checked. The
+    type is checked first, so no foreign `__eq__` or `__hash__` runs.
+    """
+    return network if isinstance(network, str) and network in NETWORKS else None
+
+
+def _shown_network(network: object) -> str:
+    """Return what a repr shows of a `network` field: a known name, or `...`."""
+    return "..." if (name := _known_network_name(network)) is None else repr(name)
 
 
 @overload

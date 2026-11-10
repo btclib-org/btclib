@@ -18,7 +18,7 @@ input that opts out, the nonce share of a half aggregation input.
 from typing import Any
 
 import pytest
-from ecc.ecc import ssa
+from ecc import ssa
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import (

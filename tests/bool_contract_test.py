@@ -75,7 +75,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
-from ecc.ecc import dsa, ssa
+from ecc import dsa, ssa
 from ecc.hashes import reduce_to_hlen
 
 from btclib import b58, bms

@@ -5,9 +5,9 @@
 """ElligatorSwift encoding of a public key, and BIP324's x-only ECDH on it.
 
 The encoding itself, `create`, `encode_var` and `decode_var`, is
-`ecc.ecc.ellswift`'s. What BIP324 builds on the map is a protocol's
-rather than a fact about a curve, and it is this module's: `xdh`, the
-x-only ECDH over two encodings, with `XDH_TAG` and `ELL_SIZE`.
+`ecc.ellswift`'s. What BIP324 builds on the map is a protocol's rather
+than a fact about a curve, and it is this module's: `xdh`, the x-only
+ECDH over two encodings, with `XDH_TAG` and `ELL_SIZE`.
 
 https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki
 
@@ -16,7 +16,7 @@ BIP324's v2 transport are `btclib.p2p.bip324`, behind the `bip324`
 extra. The key schedule's HKDF-SHA256 is a construction over a hash,
 `hmac` and `hashlib` and nothing else, and it is `ecc.kdf.hkdf`.
 
-- **ChaCha20-Poly1305** is the cipher, and `ecc.ecc.ecies` is where
+- **ChaCha20-Poly1305** is the cipher, and `ecc.ecies` is where
   the rule about a cipher is stated: btclib writes none. A hand-rolled one
   would be the only implementation, on by default, for every installation,
   on a network path, so `btclib.p2p.bip324` uses `cryptography`'s, which
@@ -29,8 +29,8 @@ extra. The key schedule's HKDF-SHA256 is a construction over a hash,
 
 from __future__ import annotations
 
+from ecc import ellswift as _ecc_ellswift
 from ecc.curves import Curve, mult, scalar_from_prv_key, secp256k1
-from ecc.ecc import ellswift as _ecc_ellswift
 from ecc.hashes import tagged_hash
 
 from btclib.alias import Integer, Octets

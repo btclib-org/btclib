@@ -13,7 +13,7 @@ name: pypi-install
 # runner for a check to answer from. The wait-for-index job -- the checkout, the
 # uv setup and the wait script itself -- is btclib-org/.github's
 # reusable-wait-for-index.yml, called at a tagged commit (section 10 of
-# btclib-org/.github's README.md).
+# the organization's standard).
 #
 # `import btclib` runs __init__.py alone, and the data files under
 # btclib/ -- `git ls-files | grep '^src/btclib/_data/'` is which -- are
@@ -109,8 +109,8 @@ jobs:
   # verdict no trigger can produce -- what is waited on is somebody
   # else's upload, so neither a release nor a rehearsal can arrange for
   # it to be late -- so it is a script with a test rather than a loop in
-  # a run: block, which is what section 10 of btclib-org/.github's
-  # README.md asks of a wait (btclib-org/.github#509). package is
+  # a run: block, which is what section 10 of the organization's
+  # standard asks of a wait (btclib-org/.github#509). package is
   # btclib, the name wait_for_pypi_release.py already took as its own
   # argument; version forwards this workflow's own workflow_call input.
   #
@@ -271,7 +271,7 @@ jobs:
         shell: bash
         run: |
           uv run --no-project python -c "import btclib; \
-            from ecc.ecc import dsa; \
+            from ecc import dsa; \
             from btclib.key import PrvKeyData; \
             print(btclib.__version__); \
             assert btclib.__version__ != 'unknown'; \
@@ -370,7 +370,7 @@ jobs:
         run: |
           uv run --no-project python -c "import btclib; \
             from ecc.curves import is_libsecp256k1_serving; \
-            from ecc.ecc import dsa; \
+            from ecc import dsa; \
             from btclib.key import PrvKeyData; \
             print(btclib.__version__); \
             assert btclib.__version__ != 'unknown'; \

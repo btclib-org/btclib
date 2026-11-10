@@ -287,7 +287,7 @@ head=$(gh pr view --json headRefOid --jq .headRefOid <an open pull request>)
 ```
 
 The placeholder's line stands in a fence of its own, which is section 9
-of the organization standard's rule: a parse error guards only the line
+of the organization's standard's rule: a parse error guards only the line
 it sits on, so an interactive shell discards the unfilled line and reads
 what stands below it as a fresh command. The fence below reads the head
 as `${head:?}`, the shell's must-be-set form, so a paste of it alone

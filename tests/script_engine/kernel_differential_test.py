@@ -32,8 +32,8 @@ from itertools import zip_longest
 from typing import Any, NamedTuple
 
 import pytest
+from ecc import dsa, ssa
 from ecc.curves import bytes_from_point, mult
-from ecc.ecc import dsa, ssa
 from ecc.hashes import tagged_hash
 from hypothesis import given
 from hypothesis import strategies as st

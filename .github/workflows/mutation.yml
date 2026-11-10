@@ -10,7 +10,7 @@ name: mutation
 #
 # The baseline check, the session loop, the restore guard, the counts and the
 # upload are btclib-org/.github's reusable-mutation.yml, called at a tagged
-# commit (section 10 of btclib-org/.github's README.md). What stays here is this
+# commit (section 10 of the organization's standard). What stays here is this
 # tree's own subject matter -- the profiles below, their budgets and their
 # ceilings -- and the trigger, the schedule, the dispatch dropdown, the
 # concurrency group and the permissions, none of which a reader of the callee

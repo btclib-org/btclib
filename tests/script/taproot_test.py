@@ -949,7 +949,7 @@ def test_op_success_is_spelled_as_parse_writes_it() -> None:
         "OP_SUCCESS",
         "op_if",
     ):
-        err_msg = f"^invalid string command: {re.escape(command)}$"
+        err_msg = f"^invalid string command: {re.escape(repr(command))}$"
         with pytest.raises(BTClibValueError, match=err_msg):
             serialize([command, b"\x01"])
 
@@ -961,8 +961,14 @@ def test_an_op_success_number_is_read_off_its_text() -> None:
     `sys.get_int_max_str_digits()`, which would leave `serialize` as that
     error rather than as this library's (issue #2400).
     """
-    for digits in ("1" * 5000, "1000", "255", "0"):
+    for digits in ("255", "0"):
         err_msg = f"^invalid OP_SUCCESS number: {digits}$"
+        with pytest.raises(BTClibValueError, match=err_msg):
+            serialize(["OP_SUCCESS" + digits, b"\x01"])
+    # a longer number is described by its length, as its digits may be a
+    # key's decimal
+    for digits in ("1" * 5000, "1000"):
+        err_msg = f"^invalid OP_SUCCESS number: {len(digits)} digits$"
         with pytest.raises(BTClibValueError, match=err_msg):
             serialize(["OP_SUCCESS" + digits, b"\x01"])
     assert serialize(["OP_SUCCESS254", b"\x01"])[0] == 0xFE

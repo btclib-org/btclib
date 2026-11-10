@@ -39,7 +39,7 @@ zero: `coverage_fail_under` in `tests/conftest.py` is where that
 happens, and its docstring is why. The report still prints, which is
 what makes it worth reading while iterating on one module. An `-x` that
 stops early is outside the set: what cuts that run short is a failure
-and not what the invocation asked for. Section 8 of the organization
+and not what the invocation asked for. Section 8 of the organization's
 standard is what names the set.
 
 `uv run pytest tests` is not a selection either. What decides is whether
@@ -385,10 +385,10 @@ What to know before reading one:
 
 ## Convention tests
 
-Section 7 of the [organization standard][std] lists conventions a suite
-can turn into a red test, and says a repository needs the ones its own
-prose states rather than all of them. That escape clause is right and it
-costs something: an absent convention test reads exactly like a
+Section 7 of the [organization's standard][std] lists conventions a
+suite can turn into a red test, and says a repository needs the ones its
+own prose states rather than all of them. That escape clause is right
+and it costs something: an absent convention test reads exactly like a
 convention this repository does not have, and a `grep` over `tests/`
 cannot tell the two apart — the suites of the organization name the same
 idea three different ways, and one of them folds several checks into the

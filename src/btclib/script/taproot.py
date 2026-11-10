@@ -22,9 +22,9 @@ from typing import cast
 
 from ecc.alias import Public
 from ecc.curves import bytes_from_prv_key_int, scalar_from_prv_key, secp256k1
-from ecc.ecc.ssa import prv_key_tweak_add, pub_key_tweak_add_var
 from ecc.exceptions import EccValueError
 from ecc.hashes import tagged_hash
+from ecc.ssa import prv_key_tweak_add, pub_key_tweak_add_var
 
 from btclib import var_bytes
 from btclib.alias import (

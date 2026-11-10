@@ -34,7 +34,7 @@ concurrency:
 jobs:
   # the tag ancestry check, the version comparison and the release-notes check
   # on RELEASE_NOTES.md and CHANGELOG.md are btclib-org/.github's, called at a
-  # tagged commit (section 10 of btclib-org/.github's README.md). No
+  # tagged commit (section 10 of the organization's standard). No
   # tag-requires-day: this tree is calendar-versioned, which is the reusable
   # workflow's own default. version-suffix is this job's output, unchanged in
   # shape from when the step computing it lived here, and `build` below forwards
@@ -44,7 +44,7 @@ jobs:
 
   # the griffe walk, and the api_gaps.py run beside it, are
   # btclib-org/.github's, called at a tagged commit (section 10 of
-  # btclib-org/.github's README.md). package: btclib is this tree's own name,
+  # the organization's standard). package: btclib is this tree's own name,
   # with no hyphen to turn into an underscore -- the reusable workflow's own
   # header says the equality with the repository name is a coincidence of four
   # trees and not a rule, which is why the input has no default
@@ -57,7 +57,7 @@ jobs:
   # `uv audit` over what the wheel declares, before anything is published:
   # btclib-org/.github's reusable-audit.yml, so that the uv version, the flags
   # and what it refuses are written once, called at a tagged commit (section 10
-  # of btclib-org/.github's README.md). An advisory or an unreachable service
+  # of the organization's standard). An advisory or an unreachable service
   # fails it, and the publish jobs below name it in `needs:` and in their `if:`,
   # `always()` there being what would otherwise let them run past a red one. The
   # callee asks only for the `contents: read` this workflow grants, as the calls
@@ -67,7 +67,7 @@ jobs:
     uses: btclib-org/.github/.github/workflows/reusable-audit.yml@5be4b0fbb5231cff001a3ee0eaa8f7d82bffef11 # v2026.11.5
 
   # the build and its signature: btclib-org/.github's reusable-build.yml, called
-  # at a tagged commit (section 10 of btclib-org/.github's README.md). It builds
+  # at a tagged commit (section 10 of the organization's standard). It builds
   # the distribution files and the bill of materials, uploads them as `dist` and
   # `sbom`, and signs them before any publish job waits for its environment's
   # approval, which is how the signer is a workflow this tree's own steps cannot
@@ -347,7 +347,7 @@ jobs:
   # attestation artifacts, with the distribution files checked against the
   # digests PyPI publishes before they are attached. The release itself is
   # btclib-org/.github's, called at a tagged commit (section 10 of
-  # btclib-org/.github's README.md). A called workflow's own permissions: block
+  # the organization's standard). A called workflow's own permissions: block
   # can only downgrade what this job grants, never restore an omitted scope --
   # measured twice in btclib-org/.github#912 -- so the one scope the callee's
   # own job asks for is named here (btclib-org/.github#35)
@@ -366,7 +366,7 @@ jobs:
       digests: ${{ needs.build.outputs.digests }}
 
   # the wait for read the docs to build the tag is btclib-org/.github's, called
-  # at a tagged commit (section 10 of btclib-org/.github's README.md).
+  # at a tagged commit (section 10 of the organization's standard).
   # readthedocs-slug: btclib matches what this job passed to
   # wait_for_readthedocs_build.py before the move. needs: version-check and the
   # release-only if: stay the caller's, as the reusable workflow's own header

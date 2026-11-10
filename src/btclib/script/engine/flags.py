@@ -32,6 +32,7 @@ from collections.abc import Iterable
 from enum import Flag
 
 from btclib.exceptions import BTClibValueError
+from btclib.utils import _name_text
 
 __all__ = [
     "ALL_FLAGS",
@@ -157,6 +158,6 @@ def to_script_flags(flags: ScriptFlags | None) -> ScriptFlag:
     script_flags = NO_FLAGS
     for name in names:
         if name not in ScriptFlag.__members__:
-            raise BTClibValueError(f"unknown script flag: {name!r}")
+            raise BTClibValueError(f"unknown script flag: {_name_text(name)}")
         script_flags |= ScriptFlag[name]
     return script_flags

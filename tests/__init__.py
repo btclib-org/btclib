@@ -399,7 +399,7 @@ def no_bindings_anywhere(monkeypatch: pytest.MonkeyPatch) -> None:
     """Switch the dispatch off, and every bound bindings callable out of reach.
 
     An arm gated on the dispatch can hold a binding of its own --
-    `ecc.ecc.ssa` holds the bindings' `xonly.tweak_add` as
+    `ecc.ssa` holds the bindings' `xonly.tweak_add` as
     `libsecp256k1_xonly_tweak_add` -- and `from ... import x as y` copies
     the object rather than looking it up again, so a patch on the module
     the bindings live in does not reach a name already copied out of it.

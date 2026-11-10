@@ -4,7 +4,7 @@
 
 """`RootFileLinks` in docs/source/conf.py links an included file to its page.
 
-Section 2 of the organization standard, *The documentation*, is the rule
+Section 2 of the organization's standard, *The documentation*, is the rule
 these tests hold `RootFileLinks` to. They run the transform on a
 hand-made doctree, so each case is checked whether or not a page of the
 tree holds it: a fragment, and a page other than an included one.

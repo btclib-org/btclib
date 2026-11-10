@@ -69,14 +69,14 @@ A non-minimal encoding of the zero needs no refusal of its own, btclib's
 
 **`getblocks` and `getheaders` carry an ignored field too, and that one
 is stored**, which is the contrast worth having in one place. Core
-writes the stream's protocol version in front of the locator and
-discards what it reads -- `CBlockLocator`'s `SERIALIZE_METHODS` on one
-side, `msg_getblocks` on the other, whose comment reads "Bitcoin Core
-ignores the version field. Set it to 0." Ignored is not constant: a Core
-node sends the version it negotiated, its test framework sends zero, and
-a message carrying either is one both accept. So the field varies over
-messages anybody sends and is a field; the `headers` count does not vary
-at all.
+writes `limits.DUMMY_VERSION` in front of the locator, whatever version
+it negotiated, and discards what it reads -- `CBlockLocator`'s
+`SERIALIZE_METHODS` -- while its test framework's `CBlockLocator` writes
+zero, its comment reading "Bitcoin Core ignores the version field. Set
+it to 0." Ignored is not constant: a Core node and its test framework
+send different numbers, and a message carrying either is one both
+accept. So the field varies over messages anybody sends and is a field;
+the `headers` count does not vary at all.
 
 **Every hash is held the way a block explorer prints it** and reversed on
 the wire, as `OutPoint.tx_id` and `BlockHeader.previous_block_hash` are:

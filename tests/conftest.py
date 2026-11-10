@@ -11,9 +11,9 @@ test is one more place to forget it.
 The gate is `coverage_fail_under` and the guard on it. coverage looks
 for its configuration in the directory the process started in, so a run
 started from `tests/` finds no `fail_under`, no `source` and no
-`branch = true`. Section 8 of the organization standard leaves a tree to
-point such a run at its configuration or to make it say it is ungated,
-and this file is the second of the two: such a run is refused
+`branch = true`. Section 8 of the organization's standard leaves a tree
+to point such a run at its configuration or to make it say it is
+ungated, and this file is the second of the two: such a run is refused
 (btclib-org/.github#443).
 """
 
@@ -148,8 +148,8 @@ def coverage_fail_under(
     threshold is the one thing this must not overrule.
 
     A subset is what pytest was *asked* for, and section 8 of the
-    organization standard is what names the set: a path that leaves part
-    of the suite behind, `-k`, `-m`, `--deselect`, `--ignore`,
+    organization's standard is what names the set: a path that leaves
+    part of the suite behind, `-k`, `-m`, `--deselect`, `--ignore`,
     `--ignore-glob`, or `--lf`. A run that leaves tests out measures the
     same source with fewer tests, so what its report is short of is the
     tests it did not run: a shortfall it reports cannot be told apart
@@ -244,7 +244,7 @@ def configuration_went_unread(
     if cov_config is None:
         return False
     if asked is not None:
-        # section 8 of the organization standard has the hook never
+        # section 8 of the organization's standard has the hook never
         # overruling an explicit `--cov-fail-under`, and a caller who
         # named the floor has not had one taken away in silence
         return False
