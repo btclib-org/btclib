@@ -63,7 +63,7 @@ _DECODER_SOURCE = _FUZZ / "btcd_decode"
 _ARTIFACT_PREFIX = "cifuzz-corpus-"
 _TORV2 = 3  # BIP155's network id
 _TORV2_SIZE = 10  # the length BIP155's table gives it
-# the ids whose length btclib and btcd both check
+# the ids whose length Core and btcd check, and btclib under check_validity
 _CHECKED_SIZES = {1: 4, 2: 16, 4: 32, 5: 32, 6: 16}
 _SHOWN = 160  # characters of a serialization or a reason printed per outcome
 
@@ -174,11 +174,24 @@ def _without_unknown_networks(serialized: str) -> str:
     return (var_int.serialize(len(kept)) + b"".join(kept)).hex()
 
 
+def _a_checked_size_is_wrong(data: bytes) -> bool:
+    """Return whether addrv2 `data` has an address of the wrong size.
+
+    Only ids 1, 2, 4, 5 and 6 are read, against BIP155's size for each, as
+    `_CHECKED_SIZES` holds it.
+    """
+    entries = _addrv2_entries(data)
+    return entries is not None and any(
+        _CHECKED_SIZES.get(n, size) != size for _, n, size in entries
+    )
+
+
 def _only_torv2_has_wrong_size(data: bytes) -> bool:
     """Return whether addrv2 `data` has an id 3 address not 10 octets long.
 
-    Every other id both libraries check must have its size, so that the
-    one wrong TORV2 does not explain a refusal that another entry caused.
+    Every other id Core and btcd check, and btclib under check_validity,
+    must have its size, so that the one wrong TORV2 does not explain a
+    refusal that another entry caused.
     """
     entries = _addrv2_entries(data)
     return (
@@ -265,6 +278,20 @@ KNOWN = (
             and theirs.status == REFUSED
             and theirs.detail == "invalid address size"
             and _only_torv2_has_wrong_size(data)
+        ),
+    ),
+    Rule(
+        "addrv2-known-network-size",
+        ("addrv2",),
+        "btcd refuses an address of id 1, 2, 4, 5 or 6 that is not BIP155's"
+        " size, as Core's SetNetFromBIP155Network does (netaddress.cpp lines"
+        " 52-91); btclib refuses it only under check_validity, which the"
+        " comparison turns off",
+        lambda ours, theirs, data: (
+            ours.status == ACCEPTED
+            and theirs.status == REFUSED
+            and theirs.detail == "invalid address size"
+            and _a_checked_size_is_wrong(data)
         ),
     ),
 )
