@@ -4,7 +4,7 @@
 
 """Tests that a refusal prints no byte of the octets it refuses.
 
-Section 7 of the btclib-org standard, *A refusal carries no secret*: a
+Section 7 of the organization's standard, *A refusal carries no secret*: a
 value refused as a public type may be a key passed in its place. Such a
 refusal may print a version or prefix field only where the value has
 its format's size and the field holds a value the format defines. Each

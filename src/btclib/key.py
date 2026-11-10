@@ -167,7 +167,7 @@ class PubKeyData:
         # the octets are shown only where a known network's curve gives
         # them their SEC shape: a private key spelled as a public one by
         # mistake reaches here when validity is not checked, and section 7
-        # of the btclib-org standard says what else may be one
+        # of the organization's standard says what else may be one
         name = _known_network_name(self.network)
         shown = name is not None and _has_sec_shape(
             self.sec, NETWORKS[name].curve.p_size

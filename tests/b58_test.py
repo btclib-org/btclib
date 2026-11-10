@@ -198,7 +198,7 @@ def test_a_refused_payload_prints_no_byte_of_it(
 ) -> None:
     """A prefix is printed only where a network claims it, at a WIF's size.
 
-    Anywhere else the byte may be a key's (section 7 of the btclib-org
+    Anywhere else the byte may be a key's (section 7 of the organization's
     standard). `assert_secret_free` looks for pieces longer than a byte,
     so each byte is also looked for as `0x` and its hex, the way a
     prefix is printed.

@@ -521,7 +521,7 @@ def test_a_refusal_prints_no_digit_of_a_scalar(
 ) -> None:
     """A 256-bit scalar in the int's place reaches no exception of the chain.
 
-    Section 7 of the btclib-org standard: an argument in the wrong place
+    Section 7 of the organization's standard: an argument in the wrong place
     may be a key. The scalar takes the sign of the case's value.
     `assert_secret_free` looks for pieces `WINDOW` characters long
     (`tests/secret_free/__init__.py`) of the scalar's decimal and hex. So
@@ -580,7 +580,7 @@ def test_a_refusal_prints_no_digit_of_a_scalar_of_another_type(
 ) -> None:
     """A 256-bit scalar as a str, a Decimal, a float or bytes is not printed.
 
-    Section 7 of the btclib-org standard: an argument in the wrong place
+    Section 7 of the organization's standard: an argument in the wrong place
     may be a key, whatever its type (issue #3002). `assert_secret_free`
     looks for pieces `WINDOW` characters long
     (`tests/secret_free/__init__.py`) of the scalar's decimal and hex. So
@@ -642,7 +642,7 @@ def test_a_sat_per_vbyte_refusal_prints_no_digit_of_the_quote(
 ) -> None:
     """A quote holding a scalar's digits is described, never written.
 
-    Section 7 of the btclib-org standard: a value refused as a public
+    Section 7 of the organization's standard: a value refused as a public
     type counts as a secret, and a number is no name a refusal may quote.
     The message names the rule broken and describes the quote as
     `utils._message_text` does. `assert_secret_free` looks for pieces

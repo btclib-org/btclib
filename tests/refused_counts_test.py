@@ -4,7 +4,7 @@
 
 """Tests that a refusal prints no number decoded from the octets it refuses.
 
-Section 7 of the btclib-org standard, *A refusal carries no secret*: a
+Section 7 of the organization's standard, *A refusal carries no secret*: a
 value refused as a public type may be a key passed in its place, and a
 count, a length or a script number read from its octets is bytes of it.
 Each case below puts a fixed random key's bytes where such a number is

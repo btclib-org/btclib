@@ -228,7 +228,7 @@ def _sats_from_text(amount: object, text: Any) -> int:
 
     Raised after the except block, neither chained nor left as context:
     int()'s ValueError quotes the text it could not read, and that may be
-    a key (section 7 of the btclib-org standard, *A refusal carries no
+    a key (section 7 of the organization's standard, *A refusal carries no
     secret*). The message describes `amount`, what the caller passed.
     """
     refusal: BTClibValueError | BTClibTypeError

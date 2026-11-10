@@ -349,7 +349,7 @@ def _message_text(value: object) -> str:
 
     No value is written out: an argument in the wrong place may be a key,
     in an int, a str of its hex, a Decimal or a float of its digits, or
-    its bytes. Section 7 of the btclib-org standard, *A refusal carries
+    its bytes. Section 7 of the organization's standard, *A refusal carries
     no secret*, lets a refusal print a value's type name and length, and
     not its digits or characters. `_message_field` is the exception, for
     a field the format defines.
@@ -389,7 +389,7 @@ def _name_text(value: object) -> str:
 
     A string refused where a name belongs, such as a script flag or a
     network type, is quoted where it has at most
-    `_MAX_QUOTED_NAME_LENGTH` characters: section 7 of the btclib-org
+    `_MAX_QUOTED_NAME_LENGTH` characters: section 7 of the organization's
     standard, *A refusal carries no secret*, lets a refusal quote it
     there, too short for a key. A longer one, and what is not a str, is
     described as `_message_text` describes it.
@@ -403,7 +403,7 @@ def _name_text(value: object) -> str:
 def _message_field(value: int, bits: int, spec: str) -> str:
     """Return a field's value for a refusal's message, never raising.
 
-    Section 7 of the btclib-org standard lets a refusal print a field
+    Section 7 of the organization's standard lets a refusal print a field
     its format defines, of at most four bytes, where the value has the
     length the format gives it and is one of the values the format
     defines. A field every value of whose width is defined meets the
