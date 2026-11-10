@@ -573,7 +573,7 @@ def _script_op_count(count: int, increment: int) -> int:
     """`script_op_count` without its type checks, for the loop."""
     count += increment
     if count > MAX_OPS_PER_SCRIPT:
-        err_msg = f"more than {MAX_OPS_PER_SCRIPT} op codes: {count}"
+        err_msg = f"more than {MAX_OPS_PER_SCRIPT} op codes"
         raise ScriptError(err_msg, ScriptErrorCode.OP_COUNT)
     return count
 
