@@ -761,16 +761,21 @@ class ScriptPubKey(Script):
             # case, so with a network given it is bech32 first and base58
             # where the string is not one. Where neither reads it, the error
             # is base58's for a mixed-case string, which cannot be bech32,
-            # and bech32's otherwise
+            # and bech32's otherwise.
+            # That error is raised as a new exception, after the handlers:
+            # a caught one raised again inside a handler takes the handled
+            # exception as its context on CPython, and keeps its own on PyPy
+            refusal: BTClibValueError | None = None
             try:
                 script, found = _bech32_script(addr, network)
             except BTClibValueError as bech32_error:
                 try:
                     script, found = _base58_script(addr, network)
                 except BTClibValueError as base58_error:
-                    if _is_mixed_case(addr):
-                        raise base58_error from None
-                    raise bech32_error from None
+                    error = base58_error if _is_mixed_case(addr) else bech32_error
+                    refusal = type(error)(*error.args)
+            if refusal is not None:
+                raise refusal
         else:
             script, found = _base58_script(addr, network)
         # the decoders answer a name where no network was given, and the

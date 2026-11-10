@@ -355,9 +355,11 @@ def test_a_base58_address_that_starts_as_the_hrp_is_base58() -> None:
     bech32_addr = b32._address_from_witness(0, H160, "ltc")
     assert ScriptPubKey.from_address(bech32_addr, ltc).address == bech32_addr
     # read as neither: a mixed-case string cannot be bech32, so base58's
-    # refusal is the answer
-    with pytest.raises(BTClibValueError, match="invalid characters"):
+    # refusal is the answer, a new exception with no chain on any interpreter
+    with pytest.raises(BTClibValueError, match="invalid characters") as refusal:
         ScriptPubKey.from_address("ltc1" + addr[4:], ltc)
+    assert refusal.value.__cause__ is None
+    assert refusal.value.__context__ is None
     # a Bitcoin bech32 address is refused by hrp
     with pytest.raises(BTClibValueError, match="invalid hrp: 'bc'"):
         ScriptPubKey.from_address(b32.address_from_witness(0, H160), ltc)
