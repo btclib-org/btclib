@@ -69,14 +69,14 @@ knowledge_base:
   # against, in every tree. AGENTS.md is among CodeRabbit's defaults
   # already.
   #
-  # The organization's standard, the README.md of btclib-org/.github,
-  # is offered as guidelines to every review, read from that
-  # repository's default branch. applyTo "**" is what applies a
-  # guideline that names no files; such guidelines "get low priority",
-  # and over the review's guideline budget "CodeRabbit leaves these out
-  # first" (CodeRabbit's *Code guidelines*). In btclib-org/.github
-  # itself the entry names the repository under review, which
-  # CodeRabbit ignores, so there it selects nothing
+  # The organization's standard is offered as guidelines to every
+  # review, read from the default branch of btclib-org/.github. applyTo
+  # "**" is what applies a guideline that names no files; such
+  # guidelines "get low priority", and over the review's guideline
+  # budget "CodeRabbit leaves these out first" (CodeRabbit's *Code
+  # guidelines*). In btclib-org/.github itself the entry names the
+  # repository under review, which CodeRabbit ignores, so there it
+  # selects nothing
   code_guidelines:
     filePatterns:
       - REVIEWING.md

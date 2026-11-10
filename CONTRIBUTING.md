@@ -3,11 +3,11 @@
 What this repository holds in common with the others of the organization
 — the toolchain, the lint gate, the tool tables behind it, the workflow
 set and the branch rules — is stated once in the
-[btclib-org repository standard](https://github.com/btclib-org/.github),
-each rule with the alternative it was decided against. It binds this
+[organization's standard](https://github.com/btclib-org/.github), each
+rule with the alternative it was decided against. It binds this
 repository, so a change departing from it is a divergence, and one filed
-as an issue in that repository rather than here: a difference between two
-repositories belongs to neither of them.
+as an issue in btclib-org/.github rather than here: a difference between
+two repositories belongs to neither of them.
 
 **This file is the same in every repository of the organization up to
 its last section.** What is true of one tree only — the commands that

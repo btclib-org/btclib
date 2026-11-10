@@ -39,10 +39,11 @@ rules:
   line-length:
     # 140, where markdown is held to 80 and any Python beside it to the
     # same, and the difference is the pinning convention. The longest pin
-    # section 10 of the standard asks for is a call into a reusable
-    # workflow of btclib-org/.github, its path pinned to a 40-character
-    # commit SHA with its tag in the trailing comment that section asks
-    # for. A width rule does not get to break a security one.
+    # section 10 of the organization's standard asks for is a call into a
+    # reusable workflow of btclib-org/.github, its path pinned to a
+    # 40-character commit SHA with its tag in the trailing comment that
+    # section asks for. A width rule does not get to break a security
+    # one.
     # 140 clears the longest such call with room for a workflow whose
     # name is longer, so a dependabot pull request cannot go red for
     # having no defect in it; what the rule is left guarding is prose,
