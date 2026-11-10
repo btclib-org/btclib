@@ -2,25 +2,22 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Tests that the engine's public integer parameters refuse a non-integer.
+"""Tests of the engine's checked integer parameters beyond their refusals.
 
-`btclib.utils.is_integer` is the policy, a bool being no integer either.
-Each public function checks the type before a comparison or a sum meets
-it, then leaves the work to a private twin that checks nothing, and the
-interpreter loops call the twin (issue #3023).
+`_NON_INTEGER_CASES` in `tests/integer_policy_test.py` holds the
+refusals. Here are the integers the checks must still take, and the
+interpreter loops, which call a private twin that checks nothing
+(issue #3023).
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from decimal import Decimal
 from enum import IntEnum
 from io import BytesIO
-from typing import Any, NoReturn
+from typing import NoReturn
 
 import pytest
 
-from btclib.exceptions import BTClibTypeError
 from btclib.script import script as script_module
 from btclib.script.engine import NO_FLAGS, script_op_codes
 from btclib.script.engine import script as legacy_engine
@@ -36,64 +33,11 @@ from btclib.script.script import read_op_code, serialize
 from btclib.tx import Tx, TxOut
 
 
-def _push(op_code: Any) -> list[bytes]:
+def _push(op_code: int) -> list[bytes]:
     """Return the stack after a push of `op_code` read from `01 02`."""
     stack: list[bytes] = []
     read_push_data(op_code, BytesIO(b"\x01\x02"), stack, False, NO_FLAGS, serialize)
     return stack
-
-
-# each integer parameter, the shortest call that reaches its check, and
-# the start of its refusal
-_CASES: list[tuple[str, Callable[[Any], object], str]] = [
-    ("public key count", assert_pub_key_num, "invalid public key count type"),
-    (
-        "signature count",
-        lambda v: assert_signature_num(v, 3),
-        "invalid signature count type",
-    ),
-    (
-        "signature count's public key count",
-        lambda v: assert_signature_num(1, v),
-        "invalid public key count type",
-    ),
-    ("op code count", lambda v: script_op_count(v, 1), "invalid op code count type"),
-    (
-        "op code count increment",
-        lambda v: script_op_count(1, v),
-        "invalid op code count increment type",
-    ),
-    ("pushdata op code", _push, "invalid op code type"),
-    (
-        "op code start",
-        lambda v: read_op_code(b"\x00\x01\x02", v),
-        "invalid start offset type",
-    ),
-]
-
-
-@pytest.mark.parametrize(
-    "call, err_msg",
-    [(case[1], case[2]) for case in _CASES],
-    ids=[case[0] for case in _CASES],
-)
-@pytest.mark.parametrize(
-    "value",
-    ["1", b"\x01", Decimal(1), 1.0, None, True, False],
-    ids=["str", "bytes", "Decimal", "float", "None", "true", "false"],
-)
-def test_a_non_integer_is_refused_by_its_type(
-    call: Callable[[Any], object], err_msg: str, value: object
-) -> None:
-    """Each wrong type is refused by its type name, a bool included.
-
-    Unchecked, a str, bytes or None leaves as Python's bare TypeError, a
-    float or a Decimal is taken as a number or leaves as a bare TypeError,
-    and a bool is taken as the number it equals.
-    """
-    match = f"^{err_msg}: {type(value).__name__}$"
-    with pytest.raises(BTClibTypeError, match=match):
-        call(value)
 
 
 class _Count(IntEnum):
@@ -102,7 +46,7 @@ class _Count(IntEnum):
 
 @pytest.mark.parametrize("one", [1, _Count.ONE], ids=["int", "IntEnum"])
 def test_the_integers_the_refusal_must_not_take_with_it(one: int) -> None:
-    """The same calls with an int, which is what the refusal is around.
+    """The calls of `_NON_INTEGER_CASES` with an int, which they must take.
 
     An int subclass other than bool is an int too, as `is_integer` says.
     """

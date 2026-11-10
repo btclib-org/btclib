@@ -18,6 +18,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import IntEnum
+from io import BytesIO
 from typing import Any
 
 import pytest
@@ -39,7 +40,14 @@ from btclib.fee import FeeRate, fee_from_vsize
 from btclib.hashes import merkle_root_from_branch, sha256
 from btclib.key import PrvKeyData
 from btclib.script import ScriptPubKey, input_script_sig, sig_hash
-from btclib.script.script import op_int, push_int
+from btclib.script.engine import NO_FLAGS
+from btclib.script.engine.script import (
+    assert_pub_key_num,
+    assert_signature_num,
+    script_op_count,
+)
+from btclib.script.engine.script_op_codes import read_push_data
+from btclib.script.script import op_int, push_int, read_op_code, serialize
 from btclib.script.taproot import tree_helper
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.utils import (
@@ -86,7 +94,7 @@ def _header(version: Any = 1, nonce: Any = 1) -> BlockHeader:
 
 # the integer parameters whose type is checked before an operator or a
 # lookup meets them, the shortest call that reaches each check, and the
-# start of its refusal (issue #3008)
+# start of its refusal (issues #3008 and #3023)
 _NON_INTEGER_CASES: list[tuple[str, Callable[[Any], object], str]] = [
     ("OP_INT", op_int, "invalid OP_INT type"),
     ("pushed number", push_int, "non-integer script number"),
@@ -121,6 +129,35 @@ _NON_INTEGER_CASES: list[tuple[str, Callable[[Any], object], str]] = [
         "invalid recovery flag type",
     ),
     ("coinbase fees", lambda v: build_coinbase(1, b"", fees=v), "invalid fees type"),
+    ("public key count", assert_pub_key_num, "invalid public key count type"),
+    (
+        "signature count",
+        lambda v: assert_signature_num(v, 3),
+        "invalid signature count type",
+    ),
+    (
+        "signature count's public key count",
+        lambda v: assert_signature_num(1, v),
+        "invalid public key count type",
+    ),
+    ("op code count", lambda v: script_op_count(v, 1), "invalid op code count type"),
+    (
+        "op code count increment",
+        lambda v: script_op_count(1, v),
+        "invalid op code count increment type",
+    ),
+    (
+        "pushdata op code",
+        lambda v: read_push_data(
+            v, BytesIO(b"\x01\x02"), [], False, NO_FLAGS, serialize
+        ),
+        "invalid op code type",
+    ),
+    (
+        "op code start",
+        lambda v: read_op_code(b"\x00\x01\x02", v),
+        "invalid start offset type",
+    ),
 ]
 
 # every field whose contract is an integer quantity, with the shortest
@@ -328,17 +365,17 @@ def test_what_is_no_integer_at_all_is_refused_the_same_way() -> None:
 )
 @pytest.mark.parametrize(
     "value",
-    ["1", b"\x01", Decimal(1), 1.0, None],
-    ids=["str", "bytes", "Decimal", "float", "None"],
+    ["1", b"\x01", Decimal(1), 1.0, None, True, False],
+    ids=["str", "bytes", "Decimal", "float", "None", "true", "false"],
 )
 def test_a_non_integer_is_refused_before_it_is_compared(
     call: Callable[[Any], object], err_msg: str, value: object
 ) -> None:
-    """Each wrong type is refused by its type name, before an operator.
+    """Each wrong type, a bool included, is refused by its type name.
 
     Unchecked, each would meet an operator or a lookup first, and leave
     as Python's bare TypeError, as some other refusal, or not at all
-    (issue #3008).
+    (issues #3008 and #3023).
     """
     match = f"^{err_msg}: {type(value).__name__}$"
     with pytest.raises(BTClibTypeError, match=match):
