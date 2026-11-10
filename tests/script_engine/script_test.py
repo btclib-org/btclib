@@ -1743,7 +1743,7 @@ def test_read_push_data_refuses_an_op_code_outside_the_pushes(op_code: int) -> N
     with pytest.raises(BTClibValueError, match=err_msg):
         read_push_data(op_code, stream, stack, False, NO_FLAGS, serialize)
     assert stream.tell() == 0
-    assert stack == []
+    assert not stack
 
 
 @pytest.mark.parametrize(
