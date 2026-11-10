@@ -35,6 +35,7 @@ from btclib.script.engine import ScriptFlag
 from btclib.script.engine.script import (
     assert_pub_key_num,
     assert_signature_num,
+    script_op_count,
     verify_script,
 )
 from btclib.script.engine.script_op_codes import read_push_data
@@ -151,6 +152,16 @@ _CASES: list[tuple[str, Callable[[], object], str]] = [
         "multisig signatures",
         lambda: assert_signature_num(decode_num(_KEY[:4]), 3),
         "invalid number of signatures: 0 to the number of public keys expected",
+    ),
+    (
+        "op code count",
+        lambda: script_op_count(int.from_bytes(_KEY, "big"), 0),
+        "more than 201 op codes",
+    ),
+    (
+        "op code count increment",
+        lambda: script_op_count(1, int.from_bytes(_KEY, "big")),
+        "more than 201 op codes",
     ),
     # 0x38, the key's byte 4, leaves the sign bit clear: the zero after
     # it is a byte no minimal number has
