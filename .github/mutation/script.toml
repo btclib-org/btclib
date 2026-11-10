@@ -65,7 +65,8 @@ module-path = [
 # Also not tests/fuzz_test.py, and for a different reason -- see the
 # comment on the operator filter below
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
-  tests/script tests/all_test.py tests/tx/tx_out_test.py"""
+  tests/script tests/all_test.py tests/tx/tx_out_test.py \
+  tests/integer_policy_test.py"""
 
 # seconds of wall clock, wide for the reason sig_hash.toml measures. This
 # scope holds the loops that need it: `script.parse` reads a push length
