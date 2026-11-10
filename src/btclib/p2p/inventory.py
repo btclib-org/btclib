@@ -51,21 +51,24 @@ what is no bitfield at all. `Inventory.type_code` is therefore
 `InventoryType | int`, four octets wide either way, and the octets a
 peer sent come back as they arrived.
 
-**`headers` carries a transaction count that is always zero, and it is
-dropped rather than stored.** Core writes a header followed by an empty
-transaction vector -- `msg_headers.serialize` builds a `CBlock` per
-header for exactly that -- and reads it as `ReadCompactSize(vRecv); //
-ignore tx count; assume it is 0`. Storing it would be a second object
+**`headers` carries a transaction count that Core writes as zero, and
+it is dropped rather than stored.** Core writes a header followed by an
+empty transaction vector -- `msg_headers.serialize` builds a `CBlock`
+per header for exactly that -- and reads it as `ReadCompactSize(vRecv);
+// ignore tx count; assume it is 0`. Storing it would be a second object
 for one meaning: a `headers` message says nothing about how many
 transactions a block has, so a field holding what a peer wrote there
-would be a field with no reading. What dropping it costs is an encoding
-this cannot reproduce, so a non-zero count is *refused* rather than
-ignored, and the property kept is the one this library keeps everywhere:
-every payload it accepts serializes back to the octets it came from.
-`Verack.parse` refuses an octet Core ignores for the same reason, and
-`Version.parse` refuses a relay flag of `0x02` that Core reads as true.
-A non-minimal encoding of the zero needs no refusal of its own, btclib's
-`var_int.parse` being canonical-only already.
+would be a field with no reading.
+
+**`Headers.parse` reads the count as Core does, and keeps the round trip
+only on request.** The default call reads the count and ignores it, so
+a batch of headers Core takes is not dropped here. What that costs is
+the property `Verack.parse` keeps by refusing an octet Core ignores, and
+`Version.parse` by refusing a relay flag of `0x02` that Core reads as
+true: every payload accepted serializes back to the octets it came from.
+Two payloads differing only in their counts parse to equal objects,
+and `serialize` writes both with zeros. `round_trip=True` is the call
+that keeps the property.
 
 **`getblocks` and `getheaders` carry an ignored field too, and that one
 is stored**, which is the contrast worth having in one place. Core
@@ -76,7 +79,8 @@ zero, its comment reading "Bitcoin Core ignores the version field. Set
 it to 0." Ignored is not constant: a Core node and its test framework
 send different numbers, and a message carrying either is one both
 accept. So the field varies over messages anybody sends and is a field;
-the `headers` count does not vary at all.
+the `headers` count is zero in every message Core writes, and Core reads
+it and ignores it.
 
 **Every hash is held the way a block explorer prints it** and reversed on
 the wire, as `OutPoint.tx_id` and `BlockHeader.previous_block_hash` are:
@@ -148,8 +152,8 @@ _MIN_INT32 = -(1 << (8 * _VERSION_SIZE - 1))
 _MAX_INT32 = (1 << (8 * _VERSION_SIZE - 1)) - 1
 
 # the transaction count Core writes after each header in a `headers`
-# message and ignores on the way back: always zero, never stored, and
-# the module docstring is why
+# message and ignores on the way back: written as zero, never stored,
+# and the module docstring is why
 _NO_TRANSACTIONS = var_int.serialize(0)
 
 # Bitcoin Core's src/protocol.h, `inline constexpr uint32_t
@@ -594,7 +598,8 @@ class Headers(Payload):
     Bitcoin Core's `msg_headers`: a count, and that many eighty-octet
     headers each followed by a transaction count of zero. The count is
     not a field of this class and the module docstring is why; `serialize`
-    writes the zero after every header and `parse` refuses anything else.
+    writes the zero after every header, and `parse`'s docstring says what
+    it accepts.
 
     `BlockHeader` is the type, `btclib.block` already parsing and
     serializing one: a header vector is that class in a loop rather than
@@ -652,16 +657,23 @@ class Headers(Payload):
 
     @classmethod
     def parse(
-        cls: type[Headers], data: BinaryData, *, check_validity: bool = True
+        cls: type[Headers],
+        data: BinaryData,
+        *,
+        check_validity: bool = True,
+        round_trip: bool = False,
     ) -> Headers:
         """Return the headers the payload carries, the count bounded first.
 
-        The transaction count after each header is read and refused
-        unless it is zero, where Core reads it and throws it away: a
-        `headers` carrying any other number is a message this library
-        could not write back, and refusing what it cannot reproduce is
-        what it does everywhere else -- `Verack.parse` on a payload Core
-        ignores, `Version.parse` on a relay flag Core accepts.
+        The default call reads as Core's `HEADERS` handler does: the
+        transaction count after each header is read and ignored. Either
+        call refuses a count above `var_int.MAX_SIZE` or a non-canonical
+        one, which are `ReadCompactSize`'s refusals, through
+        `var_int.parse`.
+
+        `round_trip=True` refuses a count other than zero, so that every
+        payload accepted serializes back to the octets it came from. The
+        module docstring says what the default gives up.
         """
         stream = bytesio_from_binarydata(data)
 
@@ -673,7 +685,8 @@ class Headers(Payload):
         headers = []
         for _ in range(count):
             headers.append(BlockHeader.parse(stream, check_validity=check_validity))
-            if var_int.parse(stream):
+            transactions = var_int.parse(stream)
+            if round_trip and transactions:
                 raise BTClibValueError("invalid transaction count: 0 expected")
         assert_no_trailing(data, stream, "headers payload")
 

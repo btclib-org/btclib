@@ -410,8 +410,8 @@ ADDRV2_BIN = bytes.fromhex(
 # an `inv` of one entry and a `headers` of one header, which are the
 # inventory payloads with a count in front of a fixed-width record: a
 # flipped octet lands in the count, in a type code or inside the header,
-# and the octet after each header is the transaction count that has to be
-# zero. The hash is block 1's, so the sample is the vendored block above
+# and the octet after each header is the transaction count. The hash is
+# block 1's, so the sample is the vendored block above
 INV_BIN = Inv(
     [Inventory(InventoryType.MSG_BLOCK, BLOCK_HEADER_BIN[4:36][::-1])]
 ).serialize()

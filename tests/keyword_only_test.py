@@ -151,7 +151,7 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.p2p:GetCFCheckpt.parse": ["check_validity"],
     "btclib.p2p:GetCFCheckpt.serialize": ["check_validity"],
     "btclib.p2p:Headers.__init__": ["check_validity"],
-    "btclib.p2p:Headers.parse": ["check_validity"],
+    "btclib.p2p:Headers.parse": ["check_validity", "round_trip"],
     "btclib.p2p:Headers.serialize": ["check_validity"],
     "btclib.p2p:Inventory.__init__": ["check_validity"],
     "btclib.p2p:Inventory.parse": ["check_validity"],

@@ -115,9 +115,15 @@ _CASES: list[tuple[str, Callable[[], object], str]] = [
         lambda: Headers.parse(_TWO_KEY_BYTES),
         "invalid headers count: at most 2000 expected",
     ),
+    # the key's bytes 0 to 3, little-endian, are above var_int's cap
     (
         "headers transaction count",
-        lambda: Headers.parse(b"\x01" + _HEADER + _KEY[:1]),
+        lambda: Headers.parse(b"\x01" + _HEADER + b"\xfe" + _KEY[:4]),
+        "var_int too big: max is 02000000",
+    ),
+    (
+        "headers transaction count with round_trip",
+        lambda: Headers.parse(b"\x01" + _HEADER + _KEY[:1], round_trip=True),
         "invalid transaction count: 0 expected",
     ),
     (

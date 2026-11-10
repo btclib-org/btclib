@@ -41,12 +41,17 @@ the corpus half: every seed is tried against every one of its harness's
 declared entry points, and passes if at least one accepts it without
 raising `BTClibException`. Where the accepting object serializes --
 `.serialize()`, or `.b64encode()` behind a `.b64decode()` entry point --
-the reserialization has to reproduce the seed's own bytes. A parser that
+the reserialization has to reproduce the seed's own bytes, except under
+an entry point `_LOSSY_READERS` names. A parser that
 answers with a plain value has its module's `serialize` named in
 `_WRITERS` below: `var_int.parse` and `var_bytes.parse` must reproduce
 the bytes, and `script.parse` and `taproot.parse` the weaker form their
 harnesses assert, since a script has several encodings of one value: the
 octets written parse back to the same commands.
+`Headers.parse` reads a transaction count it does not keep, as Core
+does, so it is held to what `fuzz_inventory.py` asserts of it: the
+octets written parse back to the same object and are never longer than
+the seed. `_LOSSY_READERS` names it.
 `message_from_contents` returns a tuple and has no writer here, so its
 seeds are accepted parse-only; `fuzz_harness_test.py` runs the
 harness's own round trip on them.
@@ -101,9 +106,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from typing_extensions import override
 
 from btclib import var_bytes, var_int
 from btclib.exceptions import BTClibException
+from btclib.p2p.inventory import Headers
 from btclib.script import script, taproot
 
 _FUZZ = Path(__file__).parent.parent / "fuzz"
@@ -294,6 +301,14 @@ _WRITERS: dict[str, tuple[Callable[[Any], bytes], bool]] = {
 }
 
 
+# The entry points whose object serializes but drops octets it read, so
+# that the octets written are a shorter or equal encoding of the same
+# object rather than the input: `btclib.p2p.inventory`'s module
+# docstring says why the transaction count after each header is read
+# and not kept
+_LOSSY_READERS = frozenset({"btclib.p2p.inventory:Headers.parse"})
+
+
 def _written_settles(spec: str, obj: Any) -> bool:
     """Return whether the octets written for `obj` parse back to `obj`."""
     write, _ = _WRITERS[spec]
@@ -305,10 +320,20 @@ def _written_settles(spec: str, obj: Any) -> bool:
     return bool(reparse(write(obj)) == obj)  # sourcery skip: remove-unnecessary-cast
 
 
+def _written_no_longer(spec: str, obj: Any, data: bytes) -> bool:
+    """Return whether `obj` writes what parses back to it, never longer."""
+    written = _reserialize(obj)
+    # typed, because `==` on Any is Any, which mypy refuses to return
+    settles: bool = _resolve(spec)(written) == obj
+    return settles and len(written) <= len(data)
+
+
 def _round_trip(spec: str, obj: Any, data: bytes) -> bool | None:
     """Return whether `obj` passes its harness's round trip on `data`.
 
-    None where nothing is checked.
+    The bytes reproduced, or the weaker form for an entry point
+    `_WRITERS` flags or `_LOSSY_READERS` names. None where nothing is
+    checked.
     """
     if spec in _WRITERS:
         write, several_encodings = _WRITERS[spec]
@@ -324,7 +349,11 @@ def _round_trip(spec: str, obj: Any, data: bytes) -> bool | None:
         return encoded == data.decode("ascii")
     if not hasattr(obj, "serialize"):
         return None
-    return _reserialize(obj) == data
+    return (
+        _written_no_longer(spec, obj, data)
+        if spec in _LOSSY_READERS
+        else _reserialize(obj) == data
+    )
 
 
 def _seed_paths(name: str) -> tuple[Path, ...]:
@@ -486,6 +515,28 @@ def test_a_non_canonical_length_is_refused_not_reserialized(
     """A var_int or var_bytes has one encoding: the parser refuses these."""
     with pytest.raises(BTClibException):
         _resolve(spec)(data)
+
+
+class _Forgetful(Headers):
+    """A `Headers` that writes the empty message, whatever it holds."""
+
+    @override
+    def serialize(self, *, check_validity: bool = True) -> bytes:
+        return Headers().serialize(check_validity=check_validity)
+
+
+def test_a_lossy_reader_writes_nothing_longer_than_it_read() -> None:
+    """`Headers.parse` drops a count it read, and never adds octets."""
+    spec = "btclib.p2p.inventory:Headers.parse"
+    seed = (_CORPUS / "fuzz_inventory" / "headers-tx-count-wide.bin").read_bytes()
+    headers = _resolve(spec)(seed)
+    assert _round_trip(spec, headers, seed) is True
+    written = _reserialize(headers)
+    assert written != seed
+    assert _round_trip(spec, headers, written) is True
+    assert _round_trip(spec, headers, written[:-1]) is False
+    # octets no longer than the seed that parse back to other headers
+    assert _round_trip(spec, _Forgetful(headers.headers), seed) is False
 
 
 def test_a_script_has_several_encodings_of_one_value() -> None:

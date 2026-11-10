@@ -106,7 +106,7 @@ from btclib.consensus import CONSENSUS_PARAMS, HEADERS_SYNC_PARAMS
 from btclib.exceptions import BTClibTypeError
 from btclib.fee import FeeRate
 from btclib.key import PrvKeyData, PubKeyData
-from btclib.p2p import BlockPayload, SendCmpct, TxPayload, Version
+from btclib.p2p import BlockPayload, Headers, SendCmpct, TxPayload, Version
 from btclib.p2p.headers_sync import ChainStart, HeadersSyncState, ProcessingResult
 from btclib.policy import assert_standard_tx
 from btclib.script.engine import script as engine
@@ -510,6 +510,14 @@ _KINDS = (
 )
 
 _TRUTHS = (
+    _Case(
+        "btclib.p2p.inventory.Headers.parse",
+        "round_trip",
+        Headers.parse,
+        {"data": b"\x00"},
+        reason="whether a transaction count other than zero is refused;"
+        " the headers are the same either way",
+    ),
     _Case(
         "btclib.var_bytes.parse",
         "forbid_zero_size",

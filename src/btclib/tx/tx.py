@@ -458,11 +458,10 @@ class Tx:  # noqa: PLW1641
         A BIP144 marker and flag over witnesses that are all empty is
         refused, which is Core's "Superfluous witness record" of
         `UnserializeTransaction` in src/primitives/transaction.h. The
-        refusal is what keeps the property this library holds every wire
-        class to -- `btclib.p2p.inventory`'s module docstring states it,
-        `Headers.parse` and `Verack.parse` refuse for it: `serialize`
-        writes the marker only when some input carries a witness, so
-        those octets are ones this class could not write back.
+        refusal keeps the round trip `btclib.p2p.inventory`'s module
+        docstring states, which `Verack.parse` refuses for too: `serialize`
+        writes the marker only when some input carries a witness, so those
+        octets are ones this class could not write back.
 
         It does not answer to `check_validity`, and `assert_no_trailing`
         beside it is the shape being copied: that flag gates

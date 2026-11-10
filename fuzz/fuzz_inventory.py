@@ -21,6 +21,13 @@ The format has one encoding, so what `parse` accepts must `serialize` back
 to `data` itself. An input that does not was misread by `parse` or
 miswritten by `serialize`, and the `AssertionError` reaches atheris as the
 finding it is.
+
+`Headers.parse` is the exception, and its default call is the one run
+here, as each entry point is called with the input alone: it reads the
+transaction count after each header and ignores it, as Core does, and
+`serialize` writes a zero there. What this asks of it instead is that the
+octets written parse back to the same headers and are never longer than
+`data`, a zero being the shortest count there is.
 """
 
 from __future__ import annotations
@@ -60,7 +67,12 @@ def fuzz_target(data: bytes) -> None:
             parsed = cls.parse(data)
         except BTClibException:
             continue
-        assert parsed.serialize() == data
+        written = parsed.serialize()
+        if cls is Headers:
+            assert cls.parse(written) == parsed
+            assert len(written) <= len(data)
+        else:
+            assert written == data
 
 
 def main() -> None:
