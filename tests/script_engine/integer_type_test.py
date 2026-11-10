@@ -46,7 +46,7 @@ class _Count(IntEnum):
 
 @pytest.mark.parametrize("one", [1, _Count.ONE], ids=["int", "IntEnum"])
 def test_the_integers_the_refusal_must_not_take_with_it(one: int) -> None:
-    """The calls of `_NON_INTEGER_CASES` with an int, which they must take.
+    """The engine's `_NON_INTEGER_CASES` calls with an int they must take.
 
     An int subclass other than bool is an int too, as `is_integer` says.
     """
