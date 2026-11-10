@@ -31,7 +31,7 @@ from typing import get_args
 from btclib.alias import Octets, TxoutType
 from btclib.exceptions import BTClibValueError
 from btclib.script.limits import MAX_PUBKEYS_PER_MULTISIG
-from btclib.script.script import read_op_code
+from btclib.script.script import _read_op_code
 from btclib.utils import _name_text, bytes_from_octets, decode_num
 
 __all__ = ["get_txn_output_type", "solver"]
@@ -110,7 +110,7 @@ def _op_data(script: bytes, start: int, op_code: int, stop: int) -> bytes:
 def _is_push_only(script: bytes, start: int) -> bool:
     """Answer `CScript::IsPushOnly` from `start`: nothing above OP_16."""
     while start < len(script):
-        span = read_op_code(script, start)
+        span = _read_op_code(script, start)
         if span is None or span[0] > _OP_16:
             return False
         start = span[1]
@@ -177,7 +177,7 @@ def _match_multisig(script: bytes) -> tuple[int, list[bytes]] | None:
     if not script or script[-1] != _OP_CHECKMULTISIG:
         return None
 
-    span = read_op_code(script, 0)
+    span = _read_op_code(script, 0)
     if span is None:
         return None
     required = _script_number(
@@ -192,7 +192,7 @@ def _match_multisig(script: bytes) -> tuple[int, list[bytes]] | None:
     # key, or none that could be read, which GetOp leaves as
     # OP_INVALIDOPCODE and no data
     op_code, data = 0xFF, b""
-    while (span := read_op_code(script, position)) is not None:
+    while (span := _read_op_code(script, position)) is not None:
         op_code, data = span[0], _op_data(script, position, *span)
         position = span[1]
         if not _valid_pub_key_size(data):

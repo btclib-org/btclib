@@ -140,7 +140,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # reason is three lines above it: `length == 78` is refused before that
 # branch is reached, and 78 is the only length at which the two differ.
 #
-# Left open: `read_op_code`'s `stop + size > len(script)` as `-` and `%`,
+# Left open: `_read_op_code`'s `stop + size > len(script)` as `-` and `%`,
 # and `_serialize_int_command`'s `-1 <= command <= 16` as `~1`.
 #
 # `taproot._read_push_data`'s `i > 75` and `2 ** (i - 76)` are in the list

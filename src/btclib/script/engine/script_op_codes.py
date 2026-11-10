@@ -33,7 +33,12 @@ from io import BytesIO
 from typing import NoReturn
 
 from btclib.alias import ScriptList
-from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
+from btclib.exceptions import (
+    BTClibTypeError,
+    BTClibValueError,
+    ScriptError,
+    ScriptErrorCode,
+)
 from btclib.hashes import hash160, hash256, ripemd160, sha1, sha256
 from btclib.script.engine.flags import ScriptFlag
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_STACK_SIZE
@@ -50,6 +55,7 @@ from btclib.utils import (
     assert_type,
     decode_num,
     encode_num,
+    is_integer,
 )
 
 __all__ = [
@@ -295,7 +301,24 @@ def read_push_data(
     an OP_SUCCESSx never reaches here, the pre-scan having answered for
     it, so the limit holds in both engines.
     """
+    # the type before the comparison: a str or None meets `<` as a bare
+    # TypeError, a float or a Decimal meets `read` as one, and True is read
+    # as a push of one byte
+    if not is_integer(op_code):
+        raise BTClibTypeError(f"invalid op code type: {type(op_code).__name__}")
     assert_type(skip_execution, bool, "skip_execution")
+    _read_push_data(op_code, s, stack, skip_execution, flags, serialize)
+
+
+def _read_push_data(
+    op_code: int,
+    s: BytesIO,
+    stack: list[bytes],
+    skip_execution: bool,
+    flags: ScriptFlag,
+    serialize: Callable[[ScriptList], bytes],
+) -> None:
+    """`read_push_data` without its type checks, for the two loops."""
     if op_code < 76:
         data_length = op_code
     else:
