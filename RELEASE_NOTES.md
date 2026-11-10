@@ -19,6 +19,64 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.11.10
+
+- **btclib requires `ecc` 2026.11.8** (closes #2954), which removes
+  `ecc.ecc`: write `from ecc import dsa` where you wrote
+  `from ecc.ecc import dsa`. Act on it if you pin `ecc` below 2026.11.8.
+- **btclib requires `base58-bech32` 2026.10.23**, a new dependency
+  (closes #2725). Act on it if you install btclib with `--no-deps` or pin
+  its dependencies.
+
+### Breaking changes
+
+- **`btclib.ecc` is gone, with no alias** (closes #2937). Write
+  `from btclib import bms` and `from btclib import ellswift`; a dotted name
+  such as `btclib.ecc.bms.sign` is `btclib.bms.sign`.
+- **`btclib.base58` and `btclib.bech32` are gone, with no alias** (issue
+  #2712) (closes #2725). Import the codecs from `base58_bech32`:
+  `base58.encode(v, n)` and `base58.decode(v, n)` are
+  `base58.b58encode_check(v, in_size=n)` and
+  `base58.b58decode_check(v, out_size=n)`; `bech32.encode(hrp, data, m)` and
+  `bech32.decode(s, m)` are `bech32.bech32_encode(hrp, data, m=m)` and
+  `bech32.bech32_decode(s, m=m)`, which returns the constant as a third value.
+  With `m` None, `bech32.decode` took the constant from the witness version;
+  `bech32_decode` accepts either and returns it, so check it against the
+  witness version, as BIP350 says. The two bech32 functions refuse a string
+  longer than 1023 characters by default. The codecs raise `base58_bech32`'s
+  exceptions, not btclib's. `bech32.assert_valid_hrp` has no equivalent.
+- **`policy.are_inputs_standard` is `policy.validate_inputs_standardness`**,
+  Core's `ValidateInputsStandardness` (closes #2939). It returns `None` and
+  refuses with `BTClibValueError`, whose message is Core's reject details.
+  Act on it where you read a `bool`: catch the error where you read `False`.
+- **`p2p.limits.PROTOCOL_VERSION` is Core v32.1's, 70017** (closes #2995), so
+  `Version()` announces 70017 where it announced 70016. To write Core's octets
+  in front of a `getblocks` or `getheaders` locator, write the new
+  `DUMMY_VERSION`, not `PROTOCOL_VERSION`.
+- **`p2p.bip324.MESSAGE_IDS` follows Core v32.1's table** (closes #2938):
+  short id 37 is `feature`, and the ids after 32 up to 36 read as command
+  `""`. A v2 `feature` message is written and read by its short id.
+- **`sig_hash.from_tx` refuses a prevout of a witness program it has no rule
+  for**, any witness version from 2 to 16 and a version 1 program that is
+  not 32 bytes, with `BTClibValueError` (closes #2989), where it returned the
+  legacy hash.
+- **`bms.sign` takes a WIF as a `str`** (closes #2936): a `str` that fails
+  base58check or carries no network's WIF prefix raises `NotAPrvKeyError`,
+  and one with a WIF prefix but a wrong size, a missing compression byte or a
+  key out of range raises `InvalidPrvKeyError`, where every `str` raised
+  `BTClibTypeError`.
+- **A refused argument of the wrong type raises `BTClibTypeError`** in
+  `b32.bytes_from_witness_program`, for a witness version that is no `int`
+  (closes #2965), and in `network`'s xkey version lookups, for a version
+  that is not `bytes` (closes #2985), a `bytearray` or a `memoryview`
+  included.
+- **A refusal no longer writes a value a key could stand in for** (closes #2998)
+  (closes #3002) (closes #3005): it names the value's type, size or bound,
+  and quotes a name only up to 16 characters (closes #3014). Act on it if you
+  match an error message's text. The `PrvKeyData`, `PubKeyData` and
+  `ScriptPubKey` reprs, nested in a `TxOut` or a `Tx` too, show `...` for a
+  field that does not have the shape it takes (closes #3006) (closes #3017).
+
 ## v2026.11.7
 
 - **btclib requires `ecc` 2026.11.2** (closes #2896). Act on it if you pin
