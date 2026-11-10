@@ -44,21 +44,20 @@ from bitcoin_core_rpc import BitcoinCoreRpcClient
 # the failure case
 _STARTUP_TIMEOUT = 30.0
 
-# what pytest-timeout gives each node test here, setup and teardown included,
-# so that a bitcoind that stops answering fails the test waiting on it
-# instead of hanging the run until the workflow's timeout-minutes ends
-# the job. The session's first test pays the node's startup and its last
-# the node's shutdown. The shutdown waits at most _STOP_TIMEOUT; the
-# startup's deadline is _STARTUP_TIMEOUT, but it is read between
-# calls, and the call in flight can outlast it by bitcoin_core_rpc's own
-# DEFAULT_TIMEOUT. This sits above those three together plus the slowest
-# test: the fixture's own deadlines, which say what they were waiting
-# for, fire first. Measured 2026-09-27
-# against bitcoind 31.1: the slowest node test, coinstats_test.py's, took
-# under 12 s of setup and call on a macOS machine at a one-minute load
-# average between 20 and 45, and under 2 s on ubuntu-latest
-# (integration-bitcoind run 36309935817). `--durations=0
-# --durations-min=0` on the run the module docstring gives re-derives it
+# what pytest-timeout gives each node test here, setup and teardown
+# included, so that a bitcoind that stops answering fails the test
+# waiting on it instead of hanging the run until the workflow's
+# timeout-minutes ends the job. The session's first test pays the node's
+# startup and its last the node's shutdown. The shutdown waits at most
+# _STOP_TIMEOUT; the startup's deadline is _STARTUP_TIMEOUT, but it is
+# read between calls, and the call in flight can outlast it by
+# bitcoin_core_rpc's own DEFAULT_TIMEOUT. This sits above those three
+# together plus the slowest test: the fixture's own deadlines, which say
+# what they were waiting for, fire first. Measured 2026-11-10 on
+# ubuntu-24.04 (integration-bitcoind run 42912250913): the slowest node
+# test, script_asm_test.py's, took under 5 s of setup and call.
+# `--durations=0 --durations-min=0` on the run the module docstring
+# gives re-derives it
 _TEST_TIMEOUT = 120.0
 
 # how many times the node is started, each on ports of its own, while a
@@ -69,12 +68,12 @@ _BIND_ATTEMPTS = 5
 # Core commit cce32b16874e and at bitcoin/bitcoin@f0de87f040. The p2p
 # listener says so (src/net.cpp), and so does the rpc server, in the
 # warning it logs for an endpoint it cannot bind (src/httpserver.cpp).
-# That server has one endpoint (`-rpcallowip` below) and, where it cannot
-# bind it, exits with "Unable to bind any endpoint for RPC server". The
-# warning v31.1 logs there gives no reason, and on a port picked a moment
-# before, a taken port is the cause. The rpc lines reach only the log,
-# stderr saying only "Unable to start HTTP server", so the log is what is
-# read for both.
+# That server has one endpoint (`-rpcallowip` below) and, where it
+# cannot bind it, exits with "Unable to bind any endpoint for RPC
+# server". A release before v32.0 gives no reason there, and on a port
+# picked a moment before, a taken port is the cause. The rpc lines reach
+# only the log, stderr saying only "Unable to start HTTP server", so the
+# log is what is read for both.
 # Other bind errors in net.cpp say "(bind returned error ...)" instead and
 # are not retried
 _PORT_TAKEN = re.compile(
