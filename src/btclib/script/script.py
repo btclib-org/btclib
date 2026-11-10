@@ -46,6 +46,7 @@ from btclib.utils import (
     decode_num,
     encode_num,
     fields_from_json_object,
+    is_integer,
     is_octets,
 )
 
@@ -339,6 +340,11 @@ def op_int(i: int) -> str:
     their own; any other integer is refused, a caller wanting it pushed
     passing the integer itself to serialize.
     """
+    # the type before the bounds, as `encode_num` checks it: a str or None
+    # meets `<=` as a bare TypeError, and True and 1.0 would be named
+    # OP_True and OP_1.0
+    if not is_integer(i):
+        raise BTClibTypeError(f"invalid OP_INT type: {type(i).__name__}")
     # Short 1-byte op_codes exist
     # to push numbers in [-1, 16]
     if i == -1:
@@ -368,7 +374,10 @@ def push_int(i: int) -> str:
     interpreter refuses it too under MINIMALDATA, so a number pushed with
     a byte to spare is a script that reads as nothing and may not spend.
     """
-    return op_int(i) if -1 <= i <= 16 else encode_num(i).hex()
+    # encoded first, so that `encode_num` refuses a non-integer before the
+    # comparison below meets it
+    encoded = encode_num(i)
+    return op_int(i) if -1 <= i <= 16 else encoded.hex()
 
 
 def _serialize_int_command(command: int) -> bytes:

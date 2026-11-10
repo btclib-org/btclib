@@ -107,13 +107,22 @@ def assert_valid_hash_type(hash_type: int) -> None:
     The set is the seven combinations the BIPs define; ANYONECANPAY
     with DEFAULT is not among them, BIP341 leaving 0x80 undefined.
     """
-    # the type before the membership, which a float or a str answers with
-    # a plain False, and a bool is not a hash type either
+    _assert_integer_hash_type(hash_type)
+    if hash_type not in SIG_HASH_TYPES:
+        raise BTClibValueError(f"invalid sig_hash type: {_message_text(hash_type)}")
+
+
+def _assert_integer_hash_type(hash_type: int) -> None:
+    """Refuse a hash type that is not an int, a bool included.
+
+    Before the hash type is compared, masked or looked up: a str or None
+    meets `<=` or `&` as a bare TypeError, a float or a Decimal equal to a
+    defined type is found in SIG_HASH_TYPES, and True would be hashed as
+    ALL.
+    """
     if not is_integer(hash_type):
         err_msg = f"invalid hash_type type: {type(hash_type).__name__}"
         raise BTClibTypeError(err_msg)
-    if hash_type not in SIG_HASH_TYPES:
-        raise BTClibValueError(f"invalid sig_hash type: {_message_text(hash_type)}")
 
 
 def _serialized_hash_type(hash_type: int) -> bytes:
@@ -135,6 +144,7 @@ def _serialized_hash_type(hash_type: int) -> bytes:
     consensus and not taste, and Core's sighash.json is nothing but
     undefined hash types with the hash each of them must produce.
     """
+    _assert_integer_hash_type(hash_type)
     if not -(2**31) <= hash_type < 2**32:
         raise BTClibValueError(
             f"sig_hash type too wide for its four bytes: {_message_text(hash_type)}"
@@ -739,12 +749,16 @@ def _segwit_v0(
     # serialization, where the contract promises a BTClibValueError
     _assert_valid_camount(amount, "amount")
     _assert_valid_vin_i(tx, vin_i)
+    # an int32_t as Core's nHashType is, so that -1 is the `ffffffff` Core
+    # writes rather than an OverflowError (#405). Serialized before the
+    # masks below read the hash type, as `_legacy` does
+    serialized_hash_type = _serialized_hash_type(hash_type)
 
     script_code = bytes_from_octets(script_code)
 
     midstate = None if cache is None else cache.load("v0", hash_type, script_code)
     if midstate is not None:
-        return _hash256_after(midstate, _serialized_hash_type(hash_type))
+        return _hash256_after(midstate, serialized_hash_type)
 
     # precomputed, when given, must describe this very tx: it is the
     # caller's business to build it from the transaction being signed and
@@ -800,9 +814,6 @@ def _segwit_v0(
             ]
         )
     )
-    # an int32_t as Core's nHashType is, so that -1 is the `ffffffff` Core
-    # writes rather than an OverflowError (#405)
-    serialized_hash_type = _serialized_hash_type(hash_type)
     if cache is not None:
         cache.store("v0", hash_type, script_code, midstate)
     return _hash256_after(midstate, serialized_hash_type)
@@ -936,6 +947,7 @@ def _taproot(
     _assert_valid_prevouts_for(prevouts, input_index, precomputed)
     _assert_valid_vin_i(transaction, input_index)
 
+    _assert_integer_hash_type(hashtype)
     if hashtype not in SIG_HASH_TYPES:
         raise BTClibValueError(f"Unknown hash type: {_message_text(hashtype)}")
     if hashtype & 0x03 == SINGLE and input_index >= len(transaction.vout):
@@ -1096,6 +1108,12 @@ def from_tx(
     first. A verifier does not need the parameter and does not have the
     problem — the interpreter advances Core's `pbegincodehash` as it goes.
     """
+    # the type before the index is read for its truth or compared below: a
+    # str or None meets `<` as a bare TypeError, and a taproot or p2wpkh
+    # input would read an empty str as the index 0
+    if not is_integer(codesep_index):
+        err_msg = f"invalid OP_CODESEPARATOR index type: {type(codesep_index).__name__}"
+        raise BTClibTypeError(err_msg)
     _assert_valid_prevouts_for(prevouts, vin_i, precomputed)
     _assert_valid_vin_i(tx, vin_i)
     # both lists are indexed at vin_i below, and one prevout per input is

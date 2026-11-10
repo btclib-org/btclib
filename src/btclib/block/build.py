@@ -45,9 +45,11 @@ from btclib.block.block import (
 )
 from btclib.block.mining import VERSION, candidate_block_header
 from btclib.consensus import subsidy
+from btclib.exceptions import BTClibTypeError
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.witness import Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
+from btclib.utils import is_integer
 
 __all__ = [
     "build_block",
@@ -96,6 +98,10 @@ def build_coinbase(
     different `extra_nonce` being a different script_sig and hence a
     different merkle root to search under.
     """
+    # the type before the sum: a str or None meets `+` as a bare TypeError,
+    # and True would add one satoshi
+    if not is_integer(fees):
+        raise BTClibTypeError(f"invalid fees type: {type(fees).__name__}")
     script_sig = bip34_commitment(height) + var_bytes.serialize(extra_nonce)
     value = subsidy(height, halving_interval) + fees
     return Tx(

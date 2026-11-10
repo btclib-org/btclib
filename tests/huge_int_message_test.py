@@ -46,7 +46,7 @@ from btclib.block.partial_merkle_tree import PartialMerkleTree
 from btclib.block.proof_of_work import hash_rate, retarget_first_height
 from btclib.coinstats import tx_out_ser
 from btclib.consensus import CONSENSUS_PARAMS, subsidy
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibException, BTClibValueError
 from btclib.fee import FeeRate, fee_from_vsize, package_fee
 from btclib.hashes import merkle_root_from_branch, sha256, siphash
 from btclib.key import PrvKeyData
@@ -563,12 +563,29 @@ _NOT_CALLED = {
     for kind in ("hex str", "decimal str", "exponent str", "bytes")
 }
 
+# the rows whose call meets the value in an object built with
+# `check_validity=False`, in the script engine or in `reconstruct`, and
+# compares it unchecked: Python's bare TypeError or ValueError may leave
+_BARE_ERRORS = {
+    "unchecked lock time against a height",
+    "unchecked lock time against a timestamp",
+    "unchecked lock time below the script's",
+    "unchecked version against a relative lock time",
+    "unchecked sequence against a relative lock time",
+    "unchecked sequence below the script's relative lock time",
+    "unchecked prefilled order",
+    "unchecked prefilled position",
+}
+
 
 @pytest.mark.parametrize(
-    "value, call",
+    "name, value, call",
     [
         pytest.param(
-            spell(-_SCALAR if value < 0 else _SCALAR), call, id=f"{name}-{kind}"
+            name,
+            spell(-_SCALAR if value < 0 else _SCALAR),
+            call,
+            id=f"{name}-{kind}",
         )
         for name, value, call in _SCALAR_CASES
         for kind, spell in _OTHER_TYPES
@@ -576,7 +593,7 @@ _NOT_CALLED = {
     ],
 )
 def test_a_refusal_prints_no_digit_of_a_scalar_of_another_type(
-    value: object, call: Callable[[Any], object]
+    name: str, value: object, call: Callable[[Any], object]
 ) -> None:
     """A 256-bit scalar as a str, a Decimal, a float or bytes is not printed.
 
@@ -587,13 +604,14 @@ def test_a_refusal_prints_no_digit_of_a_scalar_of_another_type(
     each byte is also looked for as `0x` and its hex, and the value as
     `str()` and `repr()` write it, a float's digits included.
 
-    Some calls raise Python's bare TypeError, whose text names types
-    alone, and the chain is checked whatever it holds. `op_int`,
-    `sig_hash.legacy`, `sig_hash.from_tx` and `bms.Sig` refuse the type
-    that way (issue #3008). The others meet the value in an object built
-    with `check_validity=False`, whose fields nothing checked.
+    A call is refused as this library's error, except a row of
+    `_BARE_ERRORS`, which may raise Python's bare TypeError or ValueError.
+    The chain is checked whatever it holds.
     """
-    with pytest.raises((TypeError, ValueError)) as refusal:
+    expected: tuple[type[Exception], ...] = (
+        (TypeError, ValueError) if name in _BARE_ERRORS else (BTClibException,)
+    )
+    with pytest.raises(expected) as refusal:
         call(value)
     assert_secret_free(refusal.value, [_SCALAR_BYTES, str(_SCALAR)])
     written = [str(value).lower(), repr(value).lower()]
@@ -601,6 +619,11 @@ def test_a_refusal_prints_no_digit_of_a_scalar_of_another_type(
         text = text_of(e)
         assert all(f"0x{byte:02x}" not in text for byte in _SCALAR_BYTES)
         assert all(spelling not in text for spelling in written)
+
+
+def test_every_row_excused_a_bare_error_is_a_row() -> None:
+    """A row renamed or removed leaves no name behind in `_BARE_ERRORS`."""
+    assert {name for name, _, _ in _SCALAR_CASES} >= _BARE_ERRORS
 
 
 _FINER = "^sat/vB fee rate finer than a millisatoshi per virtual byte: "
