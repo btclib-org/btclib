@@ -13,7 +13,12 @@ from ecc.curves import point_from_octets_var
 from ecc.dsa import Sig
 from ecc.exceptions import EccRuntimeError, EccValueError
 
-from btclib.exceptions import BTClibValueError, ScriptError, ScriptErrorCode
+from btclib.exceptions import (
+    BTClibTypeError,
+    BTClibValueError,
+    ScriptError,
+    ScriptErrorCode,
+)
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import NO_FLAGS, ScriptFlag
 from btclib.script.engine.script_op_codes import (
@@ -24,6 +29,7 @@ from btclib.script.engine.script_op_codes import (
     _assert_operands,
     _call_step,
     _end_step,
+    _read_push_data,
     _StepError,
     _to_num,
 )
@@ -35,7 +41,7 @@ from btclib.script.limits import (
 from btclib.script.script import (
     BYTE_FROM_OP_CODE_NAME,
     OP_CODE_NAME_FROM_INT,
-    read_op_code,
+    _read_op_code,
 )
 from btclib.script.script import serialize as serialize_script
 from btclib.script.sig_hash import (
@@ -47,7 +53,12 @@ from btclib.script.sig_hash import (
     _SigHashCache,
 )
 from btclib.tx.tx import Tx
-from btclib.utils import assert_type, bytesio_from_binarydata, encode_num
+from btclib.utils import (
+    assert_type,
+    bytesio_from_binarydata,
+    encode_num,
+    is_integer,
+)
 
 __all__ = [
     "DISABLED_OP_CODES",
@@ -303,7 +314,7 @@ def find_and_delete(script: bytes, target: bytes) -> tuple[bytes, int]:
             pc += len(target)
             found += 1
         pc2 = pc
-        span = read_op_code(script, pc)
+        span = _read_op_code(script, pc)
         if span is None:
             break
         pc = span[1]
@@ -505,6 +516,23 @@ def assert_pub_key_num(pub_key_num: int) -> None:
     `-1 -1 OP_CHECKMULTISIG` pushing false and the script running on where
     Core ends it.
     """
+    _assert_count_type(pub_key_num, "public key count")
+    _assert_pub_key_num(pub_key_num)
+
+
+def _assert_count_type(value: int, name: str) -> None:
+    """Refuse a count that is not an int, a bool included.
+
+    Before the count is compared or added: a str or None meets the
+    comparison or the `+` as a bare TypeError, and a float, a Decimal or
+    True passes as a number.
+    """
+    if not is_integer(value):
+        raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+
+
+def _assert_pub_key_num(pub_key_num: int) -> None:
+    """`assert_pub_key_num` without its type checks, for the loop."""
     if not 0 <= pub_key_num <= MAX_PUBKEYS_PER_MULTISIG:
         err_msg = "invalid number of public keys:"
         err_msg += f" 0 to {MAX_PUBKEYS_PER_MULTISIG} expected"
@@ -516,6 +544,13 @@ def assert_signature_num(signature_num: int, pub_key_num: int) -> None:
 
     Core's SCRIPT_ERR_SIG_COUNT, negative for the same reason as above.
     """
+    _assert_count_type(signature_num, "signature count")
+    _assert_count_type(pub_key_num, "public key count")
+    _assert_signature_num(signature_num, pub_key_num)
+
+
+def _assert_signature_num(signature_num: int, pub_key_num: int) -> None:
+    """`assert_signature_num` without its type checks, for the loop."""
     if not 0 <= signature_num <= pub_key_num:
         err_msg = (
             "invalid number of signatures: 0 to the number of public keys expected"
@@ -529,6 +564,13 @@ def script_op_count(count: int, increment: int) -> int:
     Core's accounting: pushes are free, every other op code costs one,
     and OP_CHECKMULTISIG adds its public key count on top.
     """
+    _assert_count_type(count, "op code count")
+    _assert_count_type(increment, "op code count increment")
+    return _script_op_count(count, increment)
+
+
+def _script_op_count(count: int, increment: int) -> int:
+    """`script_op_count` without its type checks, for the loop."""
     count += increment
     if count > MAX_OPS_PER_SCRIPT:
         err_msg = f"more than {MAX_OPS_PER_SCRIPT} op codes: {count}"
@@ -743,13 +785,11 @@ def _run_ops(  # noqa: C901, PLR0912  # sourcery skip: low-code-quality
         if step is not None:
             _call_step(step, script_index, t, not skip_execution, stack, altstack)
         if 0 < t <= 78:  # pushdata
-            script_op_codes.read_push_data(
-                t, s, stack, skip_execution, flags, serialize_script
-            )
+            _read_push_data(t, s, stack, skip_execution, flags, serialize_script)
             continue
 
         if t > 96:  # OP_16
-            op_code_num = script_op_count(op_code_num, 1)
+            op_code_num = _script_op_count(op_code_num, 1)
 
         assert_not_disabled(t)
         assert_const_scriptcode(t, flags, segwit)
@@ -794,12 +834,12 @@ def _run_ops(  # noqa: C901, PLR0912  # sourcery skip: low-code-quality
             # leaves every argument on the stack
             _assert_operands(stack, 1, op)
             pub_key_num = _to_num(stack[-1], flags, _MAX_NUM_SIZE)
-            assert_pub_key_num(pub_key_num)
-            op_code_num = script_op_count(op_code_num, pub_key_num)
+            _assert_pub_key_num(pub_key_num)
+            op_code_num = _script_op_count(op_code_num, pub_key_num)
             _assert_operands(stack, 2 + pub_key_num, op)
             pub_keys = [stack[-2 - k] for k in range(pub_key_num)]
             signature_num = _to_num(stack[-2 - pub_key_num], flags, _MAX_NUM_SIZE)
-            assert_signature_num(signature_num, pub_key_num)
+            _assert_signature_num(signature_num, pub_key_num)
             _assert_operands(stack, 3 + pub_key_num + signature_num, op)
             multisig_signatures = [
                 stack[-3 - pub_key_num - k] for k in range(signature_num)

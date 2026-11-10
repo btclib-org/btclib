@@ -27,6 +27,7 @@ from btclib.script.engine.script_op_codes import (
     _assert_operands,
     _call_step,
     _end_step,
+    _read_push_data,
     _StepError,
     _to_num,
 )
@@ -446,9 +447,7 @@ def _run_ops(  # noqa: C901, PLR0912  # sourcery skip: low-code-quality
         if step is not None:
             _call_step(step, script_index, t, not skip_execution, stack, altstack)
         if 0 < t <= 78:  # pushdata
-            script_op_codes.read_push_data(
-                t, s, stack, skip_execution, flags, serialize_script
-            )
+            _read_push_data(t, s, stack, skip_execution, flags, serialize_script)
             continue
         if skip_execution and t not in EVALUATED_WHEN_UNEXECUTED:
             continue

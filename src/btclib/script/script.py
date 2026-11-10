@@ -694,7 +694,7 @@ def script_to_asm(script: bytes, *, attempt_sighash_decode: bool = False) -> str
     out: list[str] = []
     start = 0
     while start < len(script):
-        span = read_op_code(script, start)
+        span = _read_op_code(script, start)
         if span is None:
             out.append("[error]")
             break
@@ -800,6 +800,16 @@ def read_op_code(script: bytes, start: int) -> tuple[int, int] | None:
     about what reaches the stack, enforced where a push is executed, and
     GetOp does not know it either.
     """
+    # the type before the comparison: a str or None meets `>=` as a bare
+    # TypeError, a float or a Decimal meets the index as one, and True
+    # reads from the second byte
+    if not is_integer(start):
+        raise BTClibTypeError(f"invalid start offset type: {type(start).__name__}")
+    return _read_op_code(script, start)
+
+
+def _read_op_code(script: bytes, start: int) -> tuple[int, int] | None:
+    """`read_op_code` without the type check, for the walks over a script."""
     if start >= len(script):
         return None
     op_code = script[start]
@@ -827,7 +837,7 @@ def op_code_spans(script: bytes) -> Iterator[tuple[int, int, int]]:
     keep that tail.
     """
     start = 0
-    while (span := read_op_code(script, start)) is not None:
+    while (span := _read_op_code(script, start)) is not None:
         op_code, stop = span
         yield op_code, start, stop
         start = stop
