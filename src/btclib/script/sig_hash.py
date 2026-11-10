@@ -12,7 +12,8 @@ BIP460's message instead. The hash types -- ALL, NONE,
 SINGLE, each with or without ANYONECANPAY, and taproot's DEFAULT --
 choose how much of the transaction each preimage covers, and
 `from_tx` dispatches an input to the preimage its script demands, and
-refuses one whose script `type_and_payload` calls `witness_unknown`.
+refuses one whose script `type_and_payload` calls `witness_unknown`, or
+a witness v0 program of neither 20 nor 32 bytes.
 """
 
 from __future__ import annotations
@@ -1008,7 +1009,7 @@ def _taproot(
 
 
 def _assert_no_p2tr_or_unknown_witness(script: bytes) -> None:
-    """Refuse a p2tr, wrong-length v0, or unknown witness script.
+    """Refuse a p2tr, wrong-length v0, or `witness_unknown` script.
 
     `script` is the one left once p2tr, p2wpkh and p2wsh are handled, a
     p2sh redeem script in place of its script_pub_key. A p2tr there is

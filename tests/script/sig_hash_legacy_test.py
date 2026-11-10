@@ -312,6 +312,35 @@ def test_a_witness_v0_program_of_wrong_length_is_refused(
     assert_secret_free(refusal.value, [_PROGRAM])
 
 
+@pytest.mark.parametrize(
+    "script_pub_key",
+    [
+        pytest.param(bytes([0x00, 1]) + _PROGRAM[:1], id="1-byte-push"),
+        pytest.param(bytes([0x00, 41]) + _PROGRAM + b"\x00", id="41-byte-push"),
+        pytest.param(serialize(["OP_0", "OP_1"]), id="OP_0-OP_1"),
+    ],
+)
+@pytest.mark.parametrize("wrapped", [False, True], ids=["bare", "p2sh"])
+def test_an_op_0_script_that_is_no_witness_program_gets_the_legacy_hash(
+    script_pub_key: bytes, wrapped: bool
+) -> None:
+    """Give the legacy hash to an OP_0 script that is no witness program.
+
+    BIP141 has a witness program push 2 to 40 bytes, so these scripts are
+    not one, of version 0 or any other, and the wrong-length refusal does
+    not reach them, bare or wrapped in p2sh.
+    """
+    script_sig, prevout_script = b"", script_pub_key
+    if wrapped:
+        script_sig = serialize([script_pub_key])
+        prevout_script = serialize(["OP_HASH160", hash160(script_pub_key), "OP_EQUAL"])
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), script_sig, 0xFFFFFFFF)
+    tx = Tx(1, 0, [tx_in], [TxOut(90000000, prevout_script)])
+
+    hash_ = sig_hash.from_tx([TxOut(100000000, prevout_script)], tx, 0, sig_hash.ALL)
+    assert hash_ == sig_hash.legacy(script_pub_key, tx, 0, sig_hash.ALL)
+
+
 # [1:] skips the column headers, which are a row of the file
 SIG_HASH_VECTORS = [
     pytest.param(*vector, id=vector_id(index, vector[4][:16]))
