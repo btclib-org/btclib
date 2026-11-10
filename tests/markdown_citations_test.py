@@ -26,8 +26,7 @@ reddens citations that are correct:
 
 - without the directory half a path written relative to `src/` or to
   `src/btclib/` is left to a file name this tree does have, which is
-  `CHANGELOG.md`'s `ecc/frost.py` and `RELEASE_NOTES.md`'s
-  `btclib/b58.py`;
+  `RELEASE_NOTES.md`'s `btclib/b58.py`;
 - without the file name half another project's tests are left to `tests/`,
   the directory everyone puts them in, which is `REVIEWING.md`'s
   `tests/verbatim_test.py` -- named in that sentence as
