@@ -39,7 +39,7 @@ from btclib.fee import FeeRate, fee_from_vsize
 from btclib.hashes import merkle_root_from_branch, sha256
 from btclib.key import PrvKeyData
 from btclib.script import ScriptPubKey, input_script_sig, sig_hash
-from btclib.script.script import op_int, push_int
+from btclib.script.script import op_int, push_int, read_op_code
 from btclib.script.taproot import tree_helper
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.utils import (
@@ -89,6 +89,11 @@ def _header(version: Any = 1, nonce: Any = 1) -> BlockHeader:
 # start of its refusal (issue #3008)
 _NON_INTEGER_CASES: list[tuple[str, Callable[[Any], object], str]] = [
     ("OP_INT", op_int, "invalid OP_INT type"),
+    (
+        "op code start",
+        lambda v: read_op_code(b"\x00\x01\x02", v),
+        "invalid start offset type",
+    ),
     ("pushed number", push_int, "non-integer script number"),
     (
         "legacy sig_hash type",
@@ -288,6 +293,7 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     # bool refusal must not take the int with it where a float is annotated
     assert hash_rate(1, 600) == hash_rate(1.0, 600.0)
     assert op_int(1) == "OP_1"
+    assert read_op_code(b"\x00\x01\x02", 1) == (1, 3)
     assert push_int(1) == "OP_1"
     assert len(sig_hash.legacy(b"", _tx(), 0, 1)) == 32
     assert len(sig_hash.segwit_v0(b"", _tx(), 0, 1, 1)) == 32
