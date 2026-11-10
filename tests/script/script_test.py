@@ -562,6 +562,23 @@ def test_read_op_code() -> None:
     assert read_op_code(b"\x4d\x09\x02" + b"\x00" * 521, 0) == (0x4D, 524)
 
 
+def test_read_op_code_refuses_a_negative_start() -> None:
+    """A negative start is refused, one past the end answers None.
+
+    Unrefused, -1 reads the last op code and answers the stop 0, before
+    it, and -4 meets an IndexError. Core's GetScriptOp answers false for
+    `pc >= end`, so an offset at the end or past it is nothing to read,
+    not a malformed argument (issue #3034).
+    """
+    script = b"\x00\x51\xac"
+    for start in (-1, -len(script), -len(script) - 1):
+        with pytest.raises(BTClibValueError, match="^negative start offset$"):
+            read_op_code(script, start)
+    assert read_op_code(script, 0) == (0x00, 1)
+    assert read_op_code(script, len(script)) is None
+    assert read_op_code(script, len(script) + 1) is None
+
+
 P2PKH = "76a914751e76e8199196d454941c45d1b3a323f1433bd688ac"
 P2PKH_ASM = (
     "OP_DUP OP_HASH160 751E76E8199196D454941C45D1B3A323F1433BD6 "

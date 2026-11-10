@@ -292,20 +292,26 @@ def read_push_data(
     for assert_minimal_push's reason, each engine measuring a push
     against its own script language.
 
-    The two refusals are Core's, at the top of its EvalScript loop and
-    both *before* the fExec test, which is why they sit before the skip
-    and not after it: a push declaring more bytes than the script holds
-    is SCRIPT_ERR_BAD_OPCODE, GetOp having failed to read it, and one
-    over the element limit is SCRIPT_ERR_PUSH_SIZE. Core rejects either
-    inside a branch nothing takes, and so does this. A tapscript holding
-    an OP_SUCCESSx never reaches here, the pre-scan having answered for
-    it, so the limit holds in both engines.
+    The two refusals of what the stream holds are Core's, at the top of
+    its EvalScript loop and both *before* the fExec test, which is why
+    they sit before the skip and not after it: a push declaring more
+    bytes than the script holds is SCRIPT_ERR_BAD_OPCODE, GetOp having
+    failed to read it, and one over the element limit is
+    SCRIPT_ERR_PUSH_SIZE. Core rejects either inside a branch nothing
+    takes, and so does this. A tapscript holding an OP_SUCCESSx never
+    reaches here, the pre-scan having answered for it, so the limit holds
+    in both engines.
     """
     # the type before the comparison: a str or None meets `<` as a bare
     # TypeError, a float or a Decimal meets `read` as one, and True is read
     # as a push of one byte
     if not is_integer(op_code):
         raise BTClibTypeError(f"invalid op code type: {type(op_code).__name__}")
+    # Core's pushes, OP_0 to OP_PUSHDATA4: unbounded, a negative op code
+    # reads the rest of the stream as its data, and one past OP_PUSHDATA4
+    # computes 2 ** (op_code - 76) length bytes, however large the op code
+    if not 0 <= op_code <= 78:
+        raise BTClibValueError("invalid push op code: 0 to 78 expected")
     assert_type(skip_execution, bool, "skip_execution")
     _read_push_data(op_code, s, stack, skip_execution, flags, serialize)
 

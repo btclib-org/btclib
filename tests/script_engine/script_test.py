@@ -1727,6 +1727,43 @@ def test_read_push_data_measures_before_it_skips(skip_execution: bool) -> None:
         read_push_data(0x4D, BytesIO(b"\x01"), *args)
 
 
+# 2**64 is the reproduction of the hang: unrefused, it sets out to
+# compute 2 ** (2**64 - 76), and the timeout is what fails a regression
+@pytest.mark.timeout(5)
+@pytest.mark.parametrize("op_code", [-1, 79, 200, 2**64])
+def test_read_push_data_refuses_an_op_code_outside_the_pushes(op_code: int) -> None:
+    """An op code outside OP_0 to OP_PUSHDATA4 is refused before any read.
+
+    Unrefused, -1 reads the rest of the stream as its data, 79 reads
+    eight length bytes and 200 meets an OverflowError (issue #3034).
+    """
+    stream = BytesIO(b"\x01\x02\x03")
+    stack: list[bytes] = []
+    err_msg = "^invalid push op code: 0 to 78 expected$"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        read_push_data(op_code, stream, stack, False, NO_FLAGS, serialize)
+    assert stream.tell() == 0
+    assert stack == []
+
+
+@pytest.mark.parametrize(
+    "op_code, octets, data",
+    [(0x00, b"", b""), (0x4E, b"\x01\x00\x00\x00\xff", b"\xff")],
+    ids=["OP_0", "OP_PUSHDATA4"],
+)
+def test_read_push_data_takes_the_ends_of_the_pushes(
+    op_code: int, octets: bytes, data: bytes
+) -> None:
+    """OP_0 pushes the empty element and OP_PUSHDATA4 its data.
+
+    Core's EvalScript pushes for `0 <= opcode <= OP_PUSHDATA4`, so both
+    ends are in the range the refusal above leaves.
+    """
+    stack: list[bytes] = []
+    read_push_data(op_code, BytesIO(octets), stack, False, NO_FLAGS, serialize)
+    assert stack == [data]
+
+
 def test_find_and_delete_reads_op_codes() -> None:
     """A match inside the data of a push is not a match.
 

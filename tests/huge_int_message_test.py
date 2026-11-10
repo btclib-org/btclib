@@ -68,8 +68,9 @@ from btclib.p2p.negotiation import FeeFilter, SendTxRcncl
 from btclib.p2p.reject import Reject
 from btclib.policy import sig_ops_adjusted_weight
 from btclib.script import ScriptPubKey, input_script_sig, serialize, sig_hash
-from btclib.script.engine import verify_input
-from btclib.script.script import op_int
+from btclib.script.engine import NO_FLAGS, verify_input
+from btclib.script.engine.script_op_codes import read_push_data
+from btclib.script.script import op_int, read_op_code
 from btclib.script.taproot import leaf_hash, tree_from_weights, tree_helper
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.tx.coin import Coin
@@ -424,6 +425,18 @@ _BOUND_CASES: list[tuple[str, Any, Callable[[Any], object], str]] = [
             _header(), [_unchecked_coinbase(0)], check_validity=False
         ).assert_valid_contextual(BlockContext(1, _NOW, median_time_past=v)),
         r"^invalid timestamp \(not after the median past\): 1231459200$",
+    ),
+    (
+        "op code start",
+        -_HUGE,
+        lambda v: read_op_code(b"\x00", v),
+        "^negative start offset$",
+    ),
+    (
+        "push op code",
+        _HUGE,
+        lambda v: read_push_data(v, BytesIO(), [], False, NO_FLAGS, serialize),
+        "^invalid push op code: 0 to 78 expected$",
     ),
 ]
 
