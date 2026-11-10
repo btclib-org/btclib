@@ -4,7 +4,7 @@
 
 """Tests that a refusal prints no hash, root or field of the value it refuses.
 
-Section 7 of the btclib-org standard, *A refusal carries no secret*: a
+Section 7 of the organization's standard, *A refusal carries no secret*: a
 value refused as a public type may be a key passed in its place, and a
 hash of it confirms a guess at it. Each case below puts a fixed random
 key where a block, a header, a message or a transaction holds such a

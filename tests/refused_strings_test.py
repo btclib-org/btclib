@@ -4,7 +4,7 @@
 
 """Tests that a refused string is quoted only where it is a short name.
 
-Section 7 of the btclib-org standard, *A refusal carries no secret*, is
+Section 7 of the organization's standard, *A refusal carries no secret*, is
 the rule, and `btclib.utils._name_text` is where this library applies
 it to a name; any other string is described by its length. Each case
 below puts a fixed random key, in one of its spellings, where a name, a

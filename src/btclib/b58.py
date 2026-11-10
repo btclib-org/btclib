@@ -92,7 +92,7 @@ def _wif_claimant(payload: bytes, network: str | Network | None) -> str | Networ
     NotAPrvKeyError for a prefix no network claims: the text is not a
     WIF. That refusal names the payload's size and not the byte, which
     no network defines and which may be a key's: section 7 of the
-    btclib-org standard, *A refusal carries no secret*.
+    organization's standard, *A refusal carries no secret*.
     """
     prefix = payload[:1]
     # a Network NETWORKS does not hold claims its own prefix; the rest
@@ -295,7 +295,7 @@ def h160_from_address(
             return script_type, payload[1:], name
 
     # the byte is not printed: where no network defines it, it may be a
-    # key's (section 7 of the btclib-org standard)
+    # key's (section 7 of the organization's standard)
     raise BTClibValueError("invalid base58 address prefix")
 
 

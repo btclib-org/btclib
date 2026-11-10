@@ -578,7 +578,7 @@ def test_a_message_describes_every_other_value() -> None:
     """Type name, and length where `len()` gives one, for what is no int.
 
     A str of hex, a Decimal, a float or bytes in an int's place may hold
-    a key (issue #3002): section 7 of the btclib-org standard lets a
+    a key (issue #3002): section 7 of the organization's standard lets a
     refusal print its type name and length, and no character of it.
     """
     assert _message_text("") == "a str of length 0"

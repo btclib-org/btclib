@@ -699,7 +699,7 @@ def _version_refusal(what: str, version: bytes) -> str:
     """Return a refusal of a version that prints no byte of it.
 
     The argument may be a key passed in the wrong place (section 7 of the
-    btclib-org standard, *A refusal carries no secret*), so the refusal
+    organization's standard, *A refusal carries no secret*), so the refusal
     names its size, and only where that is not a version's four bytes.
     """
     size = len(version)

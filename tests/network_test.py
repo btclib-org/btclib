@@ -354,7 +354,7 @@ BARE_SCALAR = bytes.fromhex(
 def test_a_refused_version_prints_no_byte_of_it(lookup: Any, err_msg: str) -> None:
     """A key passed as a version is refused by its size alone.
 
-    Section 7 of the btclib-org standard: an argument in the wrong place
+    Section 7 of the organization's standard: an argument in the wrong place
     may be a key. `assert_secret_free` looks for pieces longer than a
     byte, so each byte is also looked for as `0x` and its hex, the shape
     of a printed version.

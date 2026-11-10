@@ -1479,7 +1479,7 @@ def _assert_no_byte_of(refusal: BaseException, pushed: bytes) -> None:
     """Assert that a refusal prints no byte of what the script pushed.
 
     The push may be a key put where it does not belong (section 7 of the
-    btclib-org standard). `assert_secret_free` looks for pieces longer
+    organization's standard). `assert_secret_free` looks for pieces longer
     than a byte, so each byte is also looked for as `0x` and its hex.
     """
     assert_secret_free(refusal, [_SCALAR, str(int.from_bytes(_SCALAR, "big"))])

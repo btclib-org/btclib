@@ -231,7 +231,7 @@ def test_a_refused_redeem_script_prints_no_byte_or_hash_of_it() -> None:
     """A push that does not hash to the payload is named by its size alone.
 
     The push may be a key put where the redeem script belongs (section 7
-    of the btclib-org standard), and its hash would confirm a guess at
+    of the organization's standard), and its hash would confirm a guess at
     it. `assert_secret_free` looks for pieces longer than a byte, so each
     byte is also looked for as `0x` and its hex.
     """
