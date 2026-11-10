@@ -796,15 +796,20 @@ def read_op_code(script: bytes, start: int) -> tuple[int, int] | None:
     None where nothing whole can be read: the end of the script, or a
     push whose data or length runs past it. Core's GetOp returns false in
     the same two cases, and its callers stop and keep the rest verbatim.
-    Truncation is all this refuses: the 520-byte push limit is a rule
-    about what reaches the stack, enforced where a push is executed, and
-    GetOp does not know it either.
+    Truncation is all this refuses of what the script holds: the
+    520-byte push limit is a rule about what reaches the stack, enforced
+    where a push is executed, and GetOp does not know it either.
     """
     # the type before the comparison: a str or None meets `>=` as a bare
     # TypeError, a float or a Decimal meets the index as one, and True
     # reads from the second byte
     if not is_integer(start):
         raise BTClibTypeError(f"invalid start offset type: {type(start).__name__}")
+    # a negative offset would index from the end of the script; one at or
+    # past the end answers None, as Core's GetScriptOp answers false for
+    # `pc >= end`
+    if start < 0:
+        raise BTClibValueError("negative start offset")
     return _read_op_code(script, start)
 
 
