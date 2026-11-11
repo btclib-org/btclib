@@ -514,6 +514,9 @@ package = ["src/btclib"]
 # what an unpacked sdist needs of the changelog is the window
 # CHANGELOG.md carries and the index pointing at the rest
 git-only = [
+    # the bestpractices.dev answers, which nothing installed from the
+    # sdist reads
+    ".bestpractices.json",
     ".claude/",
     ".clusterfuzzlite/",
     ".gitattributes",
