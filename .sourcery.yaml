@@ -7,8 +7,8 @@
 version: "1"
 
 rule_settings:
-  # TURNED_OFF's rules, none at present
-  disable: []
+  disable:
+    - dont-import-test-modules # ruff's relative-imports (TID252)
   # the lowest interpreter this tree's code runs on: pyproject.toml's
   # requires-python floor
   python_version: "3.11"
