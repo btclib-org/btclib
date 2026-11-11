@@ -858,7 +858,7 @@ def test_a_run_started_from_tests_says_it_is_ungated(tmp_path: Path) -> None:
 
     completed = subprocess.run(
         [sys.executable, "-m", "pytest", "-p", "no:cacheprovider"],
-        cwd=_ROOT / "tests",
+        cwd=_ROOT.resolve() / "tests",
         env=environment,
         capture_output=True,
         encoding="utf-8",
@@ -873,7 +873,10 @@ def test_a_run_started_from_tests_says_it_is_ungated(tmp_path: Path) -> None:
     # pytest writes a usage error to stderr, where nothing of the run's
     # own output is, so the assertion is on the stream that carries it
     assert "coverage read no configuration" in completed.stderr
-    assert str(_ROOT) in completed.stderr
+    # the child runs from the resolved tree, and pytest finds `TREE` under
+    # the directory getcwd() gives it, while `_ROOT` keeps any link the
+    # parent was given
+    assert completed.stderr.rstrip().endswith(f"Run from {_ROOT.resolve()}.")
 
 
 def _laid_out(root: Path) -> Path:
