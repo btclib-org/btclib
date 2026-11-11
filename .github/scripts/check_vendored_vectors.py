@@ -502,6 +502,11 @@ def _issue_body(ledger_path: Path, drifted: list[Drift], skipped: list[str]) -> 
 
 
 def _open_issue_number(title: str) -> str | None:
+    """Return the open issue whose title is exactly `title`, if any.
+
+    The search matches the title as a phrase, so it also finds a longer
+    title that holds it. Only an exact title is this script's issue.
+    """
     issues = json.loads(
         _gh_output(
             "issue",
@@ -511,10 +516,11 @@ def _open_issue_number(title: str) -> str | None:
             "--search",
             f'"{title}" in:title',
             "--json",
-            "number",
+            "number,title",
         )
     )
-    return str(issues[0]["number"]) if issues else None
+    numbers = [str(issue["number"]) for issue in issues if issue["title"] == title]
+    return numbers[0] if numbers else None
 
 
 def report(
