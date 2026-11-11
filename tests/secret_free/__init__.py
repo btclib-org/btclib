@@ -4,13 +4,14 @@
 
 """Assert that a refusal carries no secret, in any exception it chains.
 
-The rule is section 7 of the btclib-org standard, *A refusal carries no
-secret*. Section 14 has this file copied verbatim, so a change to it is
-made in btclib-org/.github and carried to every copy.
+The rule is section 7's *A refusal carries no secret*, in the
+organization's standard. Section 14 has this file copied verbatim, so a
+change to it is made in btclib-org/.github and carried to every copy.
 """
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -20,14 +21,25 @@ __all__ = [
     "assert_secret_free",
     "chained",
     "hexes",
+    "levels",
+    "read_back",
     "spellings",
     "text_of",
     "windows",
+    "without_whitespace",
 ]
 
 #: How many characters a piece of a string secret has; a bytes piece has half
 #: as many bytes.
 WINDOW = 12
+
+#: What `repr` writes for a backslash, a quote, a tab, a newline and a carriage
+#: return, and the character each stands for.
+ESCAPED = {"\\\\": "\\", "\\'": "'", "\\t": "\t", "\\n": "\n", "\\r": "\r"}
+
+#: One of `ESCAPED`, matched from the left, so that the second half of a doubled
+#: backslash starts no escape.
+REPR_ESCAPE = re.compile("|".join(map(re.escape, ESCAPED)))
 
 
 def chained(exc: BaseException) -> Iterator[BaseException]:
@@ -89,6 +101,46 @@ def text_of(e: BaseException) -> str:
     return " ".join(parts).lower()
 
 
+def read_back(text: str) -> str:
+    """Return a text with each of `ESCAPED` read back as its character.
+
+    :param text: the text of an exception.
+    :returns: the text one `repr` less escaped.
+    """
+    return REPR_ESCAPE.sub(lambda m: ESCAPED[m[0]], text)
+
+
+def levels(text: str, *, compact: bool = False) -> Iterator[str]:
+    """Yield a text, then each text `read_back` makes of the one before.
+
+    Each yield is shorter than the one before, so the walk ends.
+
+    :param text: the text of an exception.
+    :param compact: whether whitespace is dropped before each yield, so that
+        an escape whitespace was put inside is read back whole.
+    :returns: the texts, until reading back changes nothing.
+    """
+    while True:
+        if compact:
+            text = "".join(text.split())
+        yield text
+        back = read_back(text)
+        if back == text:
+            return
+        text = back
+
+
+def without_whitespace(text: str) -> str:
+    r"""Return a text with its whitespace dropped, as itself and as an escape.
+
+    :param text: the text of an exception, at one level.
+    :returns: the text without whitespace and without the `\t`, `\n` and `\r`
+        escapes, `\\` and `\'` kept.
+    """
+    compact = "".join(text.split())
+    return REPR_ESCAPE.sub(lambda m: "" if ESCAPED[m[0]].isspace() else m[0], compact)
+
+
 def spellings(secret: str | bytes | bytearray) -> list[str]:
     """Return what a secret is looked for as, lowercased.
 
@@ -121,7 +173,7 @@ def windows(secret: str | bytes | bytearray) -> list[str | bytes | bytearray]:
 def assert_secret_free(
     exc: BaseException, secrets: Iterable[str | bytes | bytearray]
 ) -> None:
-    """Assert that no piece of a secret, in any spelling, is in the chain.
+    r"""Assert that no piece of a secret, in any spelling, is in the chain.
 
     A piece is what `windows` returns, so a refusal quoting less of a
     secret than a piece passes: a mnemonic is passed word by word, and a
@@ -133,12 +185,31 @@ def assert_secret_free(
     secret fed is a fixed random value, not a run such as all zeros, and
     a mnemonic's words are not words of the refusal's own text.
 
-    Whitespace a refusal puts inside a piece that has none of its own does
-    not hide it where the text holds that whitespace as itself. `repr` writes
-    a tab or a newline as an escape, so one that a refusal shows only through
-    `repr`, as a `KeyError` shows its key, does hide it. A piece with
-    whitespace of its own is looked for as given, so a refusal that changes
-    that whitespace does not match it.
+    A piece with no whitespace of its own, found where a refusal shows it
+    whole, is still found where the refusal puts whitespace inside it, whether
+    the text holds that whitespace as itself or as the `\t`, `\n` or `\r`
+    escape that `repr` writes. Those escapes are dropped from the text, never
+    from a piece, and the text is also searched with them kept, so a piece
+    whose own spelling holds one, as the `repr` of bytes holding a tab does, is
+    not hidden by whitespace a message puts inside it. Dropping the escapes
+    from each piece too is the rejected alternative: a piece spelled with them
+    but for one letter, as the `repr` of bytes that are tabs but for that
+    letter is, shrinks to the letter, which is inside many clean messages. A
+    piece with whitespace of its own is looked for as given, so a refusal that
+    changes that whitespace does not match it.
+
+    A backslash or a quote that `repr` escapes does not hide a piece either,
+    however many times a refusal shows it through `repr`. `repr` doubles a
+    backslash, such as the one in `\xe9`, the spelling of a byte, and writes
+    `'` as `\'` in a text holding both quotes. So every search is made again at
+    each of the `levels` of the text, until reading back changes nothing. The
+    levels are walked twice, the second time with whitespace dropped before
+    each reading back, so whitespace put inside an escape, such as between the
+    halves of a doubled backslash, does not hide a piece either. Every other
+    escape `repr` writes stays in the text: a character `repr` does not print,
+    such as `\x0b` or `\u2003`, hides a piece it splits, or a piece of a string
+    holding it, where the text holds it only as that escape, as a `KeyError`
+    shows its key.
 
     :param exc: the exception raised.
     :param secrets: the secret fed, as bytes, as a bytearray, or in each
@@ -153,7 +224,11 @@ def assert_secret_free(
     }
     for e in chained(exc):
         text = text_of(e)
-        compact_text = "".join(text.split())
+        searched = {
+            found
+            for level in (*levels(text), *levels(text, compact=True))
+            for found in (level, "".join(level.split()), without_whitespace(level))
+        }
         for piece in pieces:
-            assert piece not in text
-            assert piece not in compact_text
+            for found in searched:
+                assert piece not in found

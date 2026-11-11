@@ -41,6 +41,10 @@ MNEMONIC = ["sausage", "velvet", "orbit", "lizard"]
 #: A made-up 78-byte xprv-shaped value: a version field, then key bytes.
 VERSIONED = bytes.fromhex("0488ade4") + KEY_BYTES + KEY_BYTES[::-1] + KEY_BYTES[:10]
 
+#: A made-up passphrase a character longer than a piece, so a separator in its
+#: middle splits every piece.
+PHRASE = "velvetorbit12"
+
 
 class _KeyInStrError(ValueError):
     """A refusal whose `str` alone shows the key."""
@@ -217,6 +221,185 @@ def test_grouping_a_scalar_does_not_hide_its_hex(
     grouped = separator.join(KEY[i : i + 8].upper() for i in range(0, len(KEY), 8))
     with pytest.raises(AssertionError):
         assert_secret_free(raised(ValueError, f"bad scalar {grouped}"), [secret])
+
+
+def in_str_alone(text: str) -> BaseException:
+    """Build a refusal whose `str` alone shows a text, unescaped by `repr`.
+
+    :param text: what its `str` shows.
+    :returns: the exception.
+    """
+
+    class _TextInStrError(ValueError):
+        @override
+        def __str__(self) -> str:
+            return text
+
+        @override
+        def __repr__(self) -> str:
+            return "TextInStrError()"
+
+    return raised(_TextInStrError)
+
+
+#: Ways a refusal shows a text: in its message, in its `str` alone, or only
+#: through `repr`.
+SHOWN: dict[str, Callable[[str], BaseException]] = {
+    "message": lambda text: raised(ValueError, text),
+    "str alone": in_str_alone,
+    "KeyError key": lambda text: raised(KeyError, text),
+    "one of several arguments": lambda text: raised(ValueError, text, 1),
+    "attribute": with_attribute,
+}
+
+
+@pytest.mark.parametrize("separator", ["\t", "\n", "\r"])
+@pytest.mark.parametrize("shown", SHOWN)
+def test_a_tab_or_line_break_inside_a_piece_does_not_hide_it(
+    shown: str, separator: str
+) -> None:
+    """A tab, a newline or a carriage return inside a piece does not hide it.
+
+    A message and a `str` alone show the separator as itself; the other ways
+    show it only as the escape `repr` writes.
+
+    :param shown: how the refusal shows the split passphrase, by name.
+    :param separator: the whitespace that splits it.
+    """
+    half = len(PHRASE) // 2
+    split = PHRASE[:half] + separator + PHRASE[half:]
+    with pytest.raises(AssertionError):
+        assert_secret_free(SHOWN[shown](split), [PHRASE])
+
+
+@pytest.mark.parametrize("separator", [" ", "\t", "\n", "\r"])
+@pytest.mark.parametrize("letter", ["t", "n", "r"])
+@pytest.mark.parametrize("shown", SHOWN)
+def test_a_backslash_before_a_split_piece_does_not_hide_it(
+    shown: str, letter: str, separator: str
+) -> None:
+    r"""A split piece starting with `t`, `n` or `r` is found after a backslash.
+
+    With the backslash before it, the piece's first letter spells the `\t`,
+    `\n` or `\r` escape. A message holds that backslash as itself, and
+    `repr` writes it doubled: neither hides the piece.
+
+    :param shown: how the refusal shows the split passphrase, by name.
+    :param letter: the passphrase's first letter.
+    :param separator: the whitespace that splits it.
+    """
+    secret = letter + PHRASE[:-2]
+    split = "path\\" + secret[:6] + separator + secret[6:]
+    with pytest.raises(AssertionError):
+        assert_secret_free(SHOWN[shown](split), [secret])
+
+
+def spelled(secret: str | bytes) -> str:
+    """Spell a secret as a refusal's text holds it.
+
+    :param secret: a string, or bytes.
+    :returns: the string, or the body of the bytes' `repr`.
+    """
+    return secret if isinstance(secret, str) else repr(secret)[2:-1]
+
+
+@pytest.mark.parametrize("separator", [" ", "\t", "\n", "\r"])
+@pytest.mark.parametrize("shown", SHOWN)
+def test_whitespace_inside_a_piece_holding_an_escape_does_not_hide_it(
+    shown: str, separator: str
+) -> None:
+    r"""Whitespace a refusal puts inside a piece spelled with `\t` is found.
+
+    Shown only through `repr`, the piece's backslash is doubled, and a space
+    is the one separator that stays itself.
+
+    :param shown: how the refusal shows the split spelling, by name.
+    :param separator: the whitespace that splits it.
+    """
+    secret = b"vel\tvet"
+    split = spelled(secret)[:3] + separator + spelled(secret)[3:]
+    with pytest.raises(AssertionError):
+        assert_secret_free(SHOWN[shown](f"bad key {split}"), [secret])
+
+
+@pytest.mark.parametrize(
+    "secret",
+    [b"vel\tvet", b"vel\\vet", b"vel\xe9vet", b"vel'\"vet", "vel\"vet'orbit"],
+)
+@pytest.mark.parametrize("shown", SHOWN)
+def test_a_piece_repr_escapes_again_is_found(shown: str, secret: str | bytes) -> None:
+    r"""A piece holding a backslash, or both quotes, is found through `repr`.
+
+    `repr` doubles the backslash of `\t`, of `\\` and of `\xe9` in the
+    spelling of bytes, and writes `'` as `\'` in a text holding both quotes.
+
+    :param shown: how the refusal shows the spelling, by name.
+    :param secret: the secret, as a caller feeds it.
+    """
+    with pytest.raises(AssertionError):
+        assert_secret_free(SHOWN[shown](f"bad key {spelled(secret)}"), [secret])
+
+
+@pytest.mark.parametrize("separator", [b"\t", b"\n", b"\r"])
+@pytest.mark.parametrize("secret", [b"vel\\vet", b"a\\b\\c"])
+@pytest.mark.parametrize("shown", SHOWN)
+def test_whitespace_inside_bytes_holding_a_backslash_does_not_hide_them(
+    shown: str, secret: bytes, separator: bytes
+) -> None:
+    r"""Whitespace inside bytes holding a backslash, shown by `!r`, is found.
+
+    The spelling of those bytes holds `\\`, and the whitespace byte is written
+    as an escape beside it.
+
+    :param shown: how the refusal shows the message, by name.
+    :param secret: the bytes, as a caller feeds them.
+    :param separator: the whitespace byte that splits them.
+    """
+    split = secret[:3] + separator + secret[3:]
+    with pytest.raises(AssertionError):
+        assert_secret_free(SHOWN[shown](f"bad key {split!r}"), [secret])
+
+
+@pytest.mark.parametrize("shown", SHOWN)
+def test_a_backslash_escaped_twice_does_not_hide_a_piece(shown: str) -> None:
+    """A passphrase holding a backslash, shown by `!r`, is found through `repr`.
+
+    :param shown: how the refusal shows the message, by name.
+    """
+    backslashed = "passw\\rdorbitxyz"
+    with pytest.raises(AssertionError):
+        assert_secret_free(SHOWN[shown](f"bad key {backslashed!r}"), [backslashed])
+
+
+@pytest.mark.parametrize("separator", [" ", "\t"])
+@pytest.mark.parametrize("shown", SHOWN)
+def test_whitespace_inside_a_doubled_backslash_does_not_hide_a_piece(
+    shown: str, separator: str
+) -> None:
+    """Whitespace between the halves of a backslash `!r` doubled is dropped.
+
+    :param shown: how the refusal shows the message, by name.
+    :param separator: the whitespace put between them.
+    """
+    backslashed = "passw\\rdorbitxyz"
+    quoted = f"{backslashed!r}"
+    half = quoted.index("\\") + 1
+    split = quoted[:half] + separator + quoted[half:]
+    with pytest.raises(AssertionError):
+        assert_secret_free(SHOWN[shown](f"bad key {split}"), [backslashed])
+
+
+@pytest.mark.parametrize("shown", SHOWN)
+def test_a_piece_with_a_space_and_a_backslash_of_its_own_is_found(
+    shown: str,
+) -> None:
+    """A secret shorter than a piece, holding a space and a tab, is found.
+
+    :param shown: how the refusal shows the spelling, by name.
+    """
+    secret = b"a \tb"
+    with pytest.raises(AssertionError):
+        assert_secret_free(SHOWN[shown](f"bad key {spelled(secret)}"), [secret])
 
 
 @pytest.mark.parametrize(
