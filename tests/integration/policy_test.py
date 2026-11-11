@@ -271,10 +271,10 @@ def test_inputs_agree_with_core(node: BitcoinCoreRpcClient) -> None:
     assert {v if v is None else v.split(" (input")[0] for v in verdicts} == {
         None,
         "bad-witness-nonstandard",
-        inputs + "non-witness sigops exceed bip54 limit",
-        inputs + "input 0 script unknown",
-        inputs + "input 0 witness program is undefined",
-        inputs + "p2sh scriptsig malformed",
-        inputs + "input 0 P2SH redeemscript missing",
-        inputs + "p2sh redeemscript sigops exceed limit",
+        f"{inputs}non-witness sigops exceed bip54 limit",
+        f"{inputs}input 0 script unknown",
+        f"{inputs}input 0 witness program is undefined",
+        f"{inputs}p2sh scriptsig malformed",
+        f"{inputs}input 0 P2SH redeemscript missing",
+        f"{inputs}p2sh redeemscript sigops exceed limit",
     }

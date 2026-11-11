@@ -571,12 +571,12 @@ def test_a_network_name_is_stripped_of_ascii_whitespace_alone() -> None:
     which `str.isspace` counts, so a name padded with them was taken for
     the name it wraps.
     """
-    padded = string.whitespace + "MainNet" + string.whitespace
+    padded = f"{string.whitespace}MainNet{string.whitespace}"
     assert normalized_network_name(padded) == "mainnet"
     assert network_from_name(padded) is NETWORKS["mainnet"]
 
     for c in ("\xa0", "\u3000", "\u2028", "\x1c", "\x1d", "\x1e", "\x1f"):
-        for name in (c + "mainnet", "mainnet" + c):
+        for name in (f"{c}mainnet", f"mainnet{c}"):
             # a normalization refuses nothing, and leaves the padding be
             assert normalized_network_name(name) == name
             with pytest.raises(BTClibValueError, match="^unknown network: "):

@@ -192,9 +192,7 @@ def subsidy(height: int, halving_interval: int = 210_000) -> int:
         raise BTClibValueError(err_msg)
 
     halvings = height // halving_interval
-    if halvings >= 64:
-        return 0
-    return (50 * 100_000_000) >> halvings
+    return 0 if halvings >= 64 else (50 * 100_000_000) >> halvings
 
 
 @dataclass(frozen=True)

@@ -150,9 +150,7 @@ def _return_type(returns: ast.expr) -> str:
     None` narrows `returns` before it is passed, here and to `_answer`.
     """
     unparsed = ast.unparse(returns)
-    if unparsed.startswith("TypeIs["):
-        return "bool"
-    return unparsed
+    return "bool" if unparsed.startswith("TypeIs[") else unparsed
 
 
 _Function = ast.FunctionDef | ast.AsyncFunctionDef

@@ -342,21 +342,21 @@ def test_int_from_integer_reads_ascii_hex_after_0x() -> None:
         "0x1_0",
         "0x_10",
         "-0x1_0",
-        "0x" + arabic_indic,
-        "0x" + fullwidth,
-        "-0x" + fullwidth,
+        f"0x{arabic_indic}",
+        f"0x{fullwidth}",
+        f"-0x{fullwidth}",
         "0x",
         "-0x",
         "0x 10",
         "0x-10",
         "0x+10",
-        "0x10" + chr(0x3000) + "1",
+        f"0x10{chr(0x3000)}1",
         # padding `isspace` counts and ASCII does not, after the digits:
         # the string still starts with 0x, so this refusal answers it
-        "0x10" + chr(0x3000),
-        "0x10" + chr(0xA0),
-        "-0x10" + chr(0x2028),
-        "0x10" + chr(0x1C),
+        f"0x10{chr(0x3000)}",
+        f"0x10{chr(0xA0)}",
+        f"-0x10{chr(0x2028)}",
+        f"0x10{chr(0x1C)}",
     ):
         with pytest.raises(BTClibValueError) as excinfo:
             int_from_integer(not_hex)

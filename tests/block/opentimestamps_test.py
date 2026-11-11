@@ -110,9 +110,7 @@ def _apply(tag: int, msg: bytes | None, reader: _Reader) -> bytes | None:
     if tag != _KECCAK256 and tag not in _OPS:
         raise ValueError(f"unknown operation: {tag:#04x}")
     arg = reader.varbytes() if tag in (_APPEND, _PREPEND) else b""
-    if msg is None or tag == _KECCAK256:
-        return None
-    return _OPS[tag](msg, arg)
+    return None if msg is None or tag == _KECCAK256 else _OPS[tag](msg, arg)
 
 
 def _attestations(proof: bytes) -> list[tuple[bytes, bytes, bytes | None]]:

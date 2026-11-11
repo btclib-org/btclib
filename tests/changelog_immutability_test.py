@@ -353,9 +353,7 @@ def _newest_released(path: str) -> str | None:
     only heading is its topmost one by construction, and a tag that stopped
     resolving would read as a release being cut.
     """
-    if path not in _LIVE:
-        return None
-    return next(iter(_sections(_read(path))), None)
+    return next(iter(_sections(_read(path))), None) if path in _LIVE else None
 
 
 def _tag_resolves(version: str) -> bool:

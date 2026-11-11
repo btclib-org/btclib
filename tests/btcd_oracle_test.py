@@ -258,7 +258,7 @@ _TX_IN_HEADERS = (
         (
             "version",
             ("refused", "BTClibValueError: not enough data for the nonce"),
-            ("accepted", _VERSION + "00"),
+            ("accepted", f"{_VERSION}00"),
             _VERSION,
             "version-fields-optional",
         ),
@@ -272,7 +272,7 @@ _TX_IN_HEADERS = (
         (
             "version",
             ("refused", "BTClibValueError: not enough data for the nonce"),
-            ("accepted", "ff" + _VERSION + "00"),
+            ("accepted", f"ff{_VERSION}00"),
             _VERSION,
             None,
         ),

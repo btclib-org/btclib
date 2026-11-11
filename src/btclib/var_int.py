@@ -112,9 +112,7 @@ def _size(i: int) -> int:
         return 1
     if i <= 0xFFFF:
         return 3
-    if i <= 0xFFFFFFFF:
-        return 5
-    return 9
+    return 5 if i <= 0xFFFFFFFF else 9
 
 
 def serialize(i: int) -> bytes:

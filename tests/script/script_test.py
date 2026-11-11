@@ -220,12 +220,12 @@ def test_an_op_code_name_is_matched_as_parse_writes_it() -> None:
     left `int` a string it raised a bare ValueError on.
     """
     for command in (
-        "op_" + chr(0x131) + "f",
-        "OP_CHECK" + chr(0x17F) + "IG",
-        chr(0x3000) + "OP_IF",
-        "UNKNOWN_OP_CODE_" + chr(0x661) + chr(0x668) + chr(0x667),
-        "UNKNOWN_OP_CODE_187" + chr(0x3000),
-        chr(0xA0) + "UNKNOWN_OP_CODE_187",
+        f"op_{chr(0x131)}f",
+        f"OP_CHECK{chr(0x17F)}IG",
+        f"{chr(0x3000)}OP_IF",
+        f"UNKNOWN_OP_CODE_{chr(0x661)}{chr(0x668)}{chr(0x667)}",
+        f"UNKNOWN_OP_CODE_187{chr(0x3000)}",
+        f"{chr(0xA0)}UNKNOWN_OP_CODE_187",
     ):
         with pytest.raises(BTClibValueError, match="^non-ASCII string command$"):
             serialize([command])

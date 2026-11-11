@@ -168,15 +168,13 @@ class BlockHeader:
         # MAINNET_POW_LIMIT_BITS is the genesis target, which is what
         # makes the genesis difficulty 1
         genesis_target = int.from_bytes(target_from_bits(MAINNET_POW_LIMIT_BITS), "big")
-        target = int.from_bytes(self.target, "big")
-        if not target:
-            # no hash can satisfy a zero target, so no block carries one.
-            # Raised as the exception contract requires, rather than left
-            # to the ZeroDivisionError of the division below, which names
-            # neither the field nor the header
-            raise BTClibValueError("zero proof-of-work target")
-
-        return genesis_target / target
+        if target := int.from_bytes(self.target, "big"):
+            return genesis_target / target
+        # no hash can satisfy a zero target, so no block carries one.
+        # Raised as the exception contract requires, rather than left to
+        # the ZeroDivisionError of the division above, which names neither
+        # the field nor the header
+        raise BTClibValueError("zero proof-of-work target")
 
     @property
     def hash(self) -> bytes:

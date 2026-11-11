@@ -359,11 +359,11 @@ def test_a_name_the_library_does_not_have_is_what_fails() -> None:
     it reads.
     """
     absent = "secp256k1_no_such_function"
-    credited = "It is libsecp256k1's `" + absent + "`, one call and no loop."
+    credited = f"It is libsecp256k1's `{absent}`, one call and no loop."
     kept = "It is libsecp256k1's `secp256k1_ecdsa_sign`, one call and no loop."
 
-    assert [name for _, name, _ in _offenders('"""' + credited + '"""')] == [absent]
-    assert not _offenders('"""' + kept + '"""')
+    assert [name for _, name, _ in _offenders(f'"""{credited}"""')] == [absent]
+    assert not _offenders(f'"""{kept}"""')
 
 
 def test_a_paragraph_naming_the_fork_is_left_alone() -> None:
@@ -374,11 +374,11 @@ def test_a_paragraph_naming_the_fork_is_left_alone() -> None:
     `ecc.commit_nonce` looks like.
     """
     absent = "secp256k1_ecdsa_s2c_opening"
-    credited = "It is libsecp256k1's `" + absent + "`."
-    forked = "It is secp256k1-zkp's `" + absent + "`, and libsecp256k1 has none."
+    credited = f"It is libsecp256k1's `{absent}`."
+    forked = f"It is secp256k1-zkp's `{absent}`, and libsecp256k1 has none."
 
-    assert [name for _, name, _ in _offenders('"""' + credited + '"""')] == [absent]
-    assert not _offenders('"""' + forked + '"""')
+    assert [name for _, name, _ in _offenders(f'"""{credited}"""')] == [absent]
+    assert not _offenders(f'"""{forked}"""')
 
 
 def test_a_credit_wrapped_across_lines_is_read_as_one_paragraph() -> None:
@@ -435,7 +435,7 @@ def test_a_name_broken_across_a_wrap_is_read_as_the_fragment() -> None:
     """
     published = "secp256k1_ecdsa_sign"
     fragment = published[: -len("sign")]
-    wrapped = ["libsecp256k1 spells it `" + fragment, "sign`."]
+    wrapped = [f"libsecp256k1 spells it `{fragment}", "sign`."]
 
     assert published in _PUBLISHED
     assert fragment not in _PUBLISHED
@@ -461,9 +461,9 @@ def test_btclib_s_own_dispatch_name_is_not_read_as_the_library() -> None:
     reads at all.
     """
     absent = "secp256k1_no_such_function"
-    ours = "`_libsecp256k1_sign_` reaches `" + absent + "` and nothing else."
+    ours = f"`_libsecp256k1_sign_` reaches `{absent}` and nothing else."
 
-    assert not _offenders('"""' + ours + '"""')
+    assert not _offenders(f'"""{ours}"""')
 
 
 def test_no_paragraph_credits_the_c_library_with_a_sentence_of_its_own() -> None:
@@ -490,14 +490,14 @@ def test_a_sentence_credited_to_the_c_library_is_what_fails() -> None:
     owner = "libsecp256k1" + "'s"
     subject = "libsecp256k1" + " raises"
     planted = [
-        owner + " own, coarser message for whatever else it catches.",
-        owner + " coarser message for whatever else it refuses.",
-        "the message those two give it, rather than " + owner + " coarser one.",
-        "The two `ValueError`s " + subject + " here are both about the key.",
+        f"{owner} own, coarser message for whatever else it catches.",
+        f"{owner} coarser message for whatever else it refuses.",
+        f"the message those two give it, rather than {owner} coarser one.",
+        f"The two `ValueError`s {subject} here are both about the key.",
     ]
 
     for text in planted:
-        assert _attributions('"""' + text + '"""'), text
+        assert _attributions(f'"""{text}"""'), text
 
 
 def test_the_correct_form_of_the_same_sentence_is_left_alone() -> None:
@@ -513,7 +513,7 @@ def test_the_correct_form_of_the_same_sentence_is_left_alone() -> None:
     )
 
     assert _LIBRARY.search(kept)
-    assert not _attributions('"""' + kept + '"""')
+    assert not _attributions(f'"""{kept}"""')
 
 
 def test_an_attribution_wrapped_across_lines_is_read_as_one_paragraph() -> None:
@@ -541,4 +541,4 @@ def test_a_possessive_the_gap_does_not_span_reads_as_clean() -> None:
         " reaching the word message."
     )
 
-    assert not _attributions('"""' + spread + '"""')
+    assert not _attributions(f'"""{spread}"""')

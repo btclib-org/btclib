@@ -268,7 +268,7 @@ def _walk(script_tree: TaprootScriptTree, depth: int) -> tuple[TaprootLeafPaths,
         return _tree_helper(script_tree[0])
     if len(script_tree) != 2:
         err_msg = f"invalid script tree node: {len(script_tree)} elements, "
-        raise BTClibValueError(err_msg + "neither one leaf nor two subtrees")
+        raise BTClibValueError(f"{err_msg}neither one leaf nor two subtrees")
     # a branch puts its leaves one level below itself, and a leaf's depth
     # is the length of the merkle path proving it: refused here, before
     # the recursion, it also bounds the recursion well inside Python's

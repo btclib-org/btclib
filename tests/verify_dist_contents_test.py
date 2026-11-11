@@ -426,7 +426,7 @@ def _rules(text: str) -> list[tuple[set[str], set[str]]]:
         if line.startswith("- "):
             items.append(line[2:])
         elif items and line.startswith("  "):
-            items[-1] += " " + line.strip()
+            items[-1] += f" {line.strip()}"
         elif items:
             if named := set(_CONSTANT.findall(" ".join(lead))):
                 rules.append((named, _stated(items)))

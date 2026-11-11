@@ -68,9 +68,7 @@ def _valid_pub_key_size(data: bytes) -> bool:
         return False
     if data[0] in {0x02, 0x03}:
         return len(data) == _COMPRESSED_PUB_KEY_SIZE
-    if data[0] in {0x04, 0x06, 0x07}:
-        return len(data) == _PUB_KEY_SIZE
-    return False
+    return data[0] in {0x04, 0x06, 0x07} and len(data) == _PUB_KEY_SIZE
 
 
 def _is_pay_to_script_hash(script: bytes) -> bool:
@@ -128,9 +126,7 @@ def _check_minimal_push(data: bytes, op_code: int) -> bool:
         return op_code == size
     if size <= 255:
         return op_code == 0x4C
-    if size <= 65535:
-        return op_code == 0x4D
-    return True
+    return op_code == 0x4D if size <= 65535 else True
 
 
 def _script_number(op_code: int, data: bytes, low: int, high: int) -> int | None:

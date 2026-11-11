@@ -37,7 +37,7 @@ def _push(data: bytes) -> str:
     if n < 76:
         return bytes([n]).hex() + data.hex()
     if n < 256:
-        return "4c" + bytes([n]).hex() + data.hex()
+        return f"4c{bytes([n]).hex()}{data.hex()}"
     return "4d" + n.to_bytes(2, "little").hex() + data.hex()
 
 
@@ -58,7 +58,7 @@ def _sighash_cases() -> list[tuple[str, str, str]]:
     rows = []
     for hash_type in (0x00, 0x01, 0x02, 0x03, 0x04, 0x80, 0x81, 0x82, 0x83, 0x84):
         script = _push(_sig(hash_type)) + _push(bytes.fromhex(PUB_KEY))
-        plain = DER_SIG + f"{hash_type:02x}" + " " + PUB_KEY
+        plain = f"{DER_SIG}{hash_type:02x} {PUB_KEY}"
         name = names.get(hash_type)
         decoded = plain if name is None else f"{DER_SIG}[{name}] {PUB_KEY}"
         rows.append((script, plain, decoded))
@@ -73,7 +73,7 @@ def _der(r: str, s: str) -> str:
 
 def _set(sig: str, byte_index: int, value: int) -> str:
     """Return sig with one byte replaced."""
-    return sig[: 2 * byte_index] + f"{value:02x}" + sig[2 * byte_index + 2 :]
+    return f"{sig[: 2 * byte_index]}{value:02x}{sig[2 * byte_index + 2 :]}"
 
 
 def _der_cases() -> list[tuple[str, str, str]]:
@@ -108,7 +108,7 @@ def _der_cases() -> list[tuple[str, str, str]]:
         _set(small, 7, 0x80),  # S negative
         _der("01", "0001"),  # S padded for nothing
     ]
-    rows = [(_push(bytes.fromhex(sig)), sig, sig[:-2] + "[ALL]") for sig in accepted]
+    rows = [(_push(bytes.fromhex(sig)), sig, f"{sig[:-2]}[ALL]") for sig in accepted]
     rows += [(_push(bytes.fromhex(sig)), sig, sig) for sig in refused]
     return rows
 
@@ -124,7 +124,7 @@ def _sized_cases() -> list[tuple[str, str, str]]:
     for size in (10000, 10001):
         pad = size - len(sig) // 2
         script = sig + "61" * pad
-        plain = " ".join([DER_SIG + "01"] + ["OP_NOP"] * pad)
+        plain = " ".join([f"{DER_SIG}01"] + ["OP_NOP"] * pad)
         decoded = plain if size > 10000 else plain.replace("01 ", "[ALL] ", 1)
         rows.append((script, plain, decoded))
     return rows

@@ -833,12 +833,11 @@ def network_from_xkeyversion(
             raise BTClibValueError(err_msg)
         return network
 
-    networks = networks_from_xkeyversion(xkeyversion)
-    if not networks:
-        # BTClibValueError subclasses ValueError, so an `except
-        # ValueError` caller catches this too
-        raise BTClibValueError(_version_refusal("unknown xkey version", xkeyversion))
-    return networks[0]
+    if networks := networks_from_xkeyversion(xkeyversion):
+        return networks[0]
+    # BTClibValueError subclasses ValueError, so an `except ValueError`
+    # caller catches this too
+    raise BTClibValueError(_version_refusal("unknown xkey version", xkeyversion))
 
 
 def network_type_from_xkeyversion(xkeyversion: bytes) -> NetworkType:
