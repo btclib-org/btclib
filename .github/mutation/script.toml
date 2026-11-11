@@ -44,6 +44,8 @@ module-path = [
 #   `sig_hash` on demand are reached by nothing that imports them by name
 # - tests/tx/tx_out_test.py is what asks a `ScriptPubKey` for its
 #   `addresses`, whose p2ms fallback the templates' own tests never take
+# - tests/integer_policy_test.py is where `_NON_INTEGER_CASES` hands a
+#   non-integer to `op_int` and to `read_op_code`, and asserts the refusal
 #
 # The command does not cover every module here, and a mutant on a line it
 # leaves unreached is reported as a survivor. The test command with
@@ -55,7 +57,8 @@ module-path = [
 #   python -m pytest -o addopts= -x -q -p no:randomly \
 #     --cov=btclib.script --cov-branch --cov-report=term-missing \
 #     --cov-fail-under=0 \
-#     tests/script tests/all_test.py tests/tx/tx_out_test.py
+#     tests/script tests/all_test.py tests/tx/tx_out_test.py \
+#     tests/integer_policy_test.py
 #
 # Not tests/script_engine, which sig_hash.toml pairs with tests/script:
 # its vectors cost far more wall clock than this command, so what only

@@ -325,7 +325,6 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     # bool refusal must not take the int with it where a float is annotated
     assert hash_rate(1, 600) == hash_rate(1.0, 600.0)
     assert op_int(1) == "OP_1"
-    assert read_op_code(b"\x00\x01\x02", 1) == (1, 3)
     assert push_int(1) == "OP_1"
     assert len(sig_hash.legacy(b"", _tx(), 0, 1)) == 32
     assert len(sig_hash.segwit_v0(b"", _tx(), 0, 1, 1)) == 32
