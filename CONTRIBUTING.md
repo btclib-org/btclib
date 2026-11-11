@@ -1709,8 +1709,7 @@ on one machine and one interpreter does not hold on the next, and a
 reader cannot check that someone once took it. It says whether the time
 depends on the value, not how much it costs. A small measured ratio keeps
 the suffix, and a slow function whose algorithm does not follow the value
-does not take it. A ratio illustrates the dependence; it is not a
-threshold.
+does not take it.
 
 **Carrying the suffix up a call is a judgement.** A function whose work is
 a `_var` function on its operand takes the suffix with it. A function
@@ -1730,8 +1729,7 @@ the value of a valid operand decides how many times the function, or the
 
 btclib defines no `_var` primitive of its own. The multiplications, the
 inverses and the square roots are ecc's, but for MuHash's
-`pow(x, -1, m)`. ecc's `CONTRIBUTING.md` gives the ratios that
-illustrate them.
+`pow(x, -1, m)`.
 What the rule decides here is which of btclib's functions that reach them
 take the suffix.
 
