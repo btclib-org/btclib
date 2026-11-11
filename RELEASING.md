@@ -13,8 +13,8 @@ against TestPyPI. A rehearsal is never tagged.
 
 **This file is the same in every repository that publishes, up to its
 last section.** Section 14 of the
-[organization standard](https://github.com/btclib-org/.github#14-copied-verbatim-and-decided-per-repository)
-says so, and `tests/verbatim_test.py` of that repository compares the
+[organization's standard](https://github.com/btclib-org/.github#14-copied-verbatim-and-decided-per-repository)
+says so, and `tests/verbatim_test.py` of btclib-org/.github compares the
 copies. The steps read this tree's names from shell variables, set by a
 block in its last section: run that block first, in the shell the steps
 run in. Prose and URLs write the same names as `<repo>`, `<dist>` and so
@@ -189,12 +189,15 @@ the tag exercises the first.
    tagging step below gives.
 
    ```shell
-   uv run --isolated --no-project \
+   uv run --isolated --no-project --python "${python:?}" \
      --index https://test.pypi.org/simple/ \
      --index-strategy unsafe-best-match \
-     --with "${test_dist:?}==${dev:?}" \
+     --with "${test_dist:?}==${dev:?}" --refresh-package "${test_dist:?}" \
      python -c "${smoke:?}"
    ```
+
+   `--refresh-package` is there for the reason the step installing the
+   release gives below.
 
 1. Check that the `build` job is green. It signs a rehearsal's files too,
    which is what it is here for: a permission or an API that only works
@@ -221,9 +224,17 @@ consumed than after. It gates nothing, so it will not stop you: reading it
 is the point.
 
 **Read it per job, not as a verdict**, and open the failure rather than
-inferring it from a sibling. A release ships what `uv.lock` pins, so drift
-against a newer version of some dependency does not make the release
-wrong — it says the next bump is going to be work.
+inferring it from a sibling. A release declares the ranges
+`pyproject.toml` gives its dependencies and its extras, not what `uv.lock`
+pins, so a user's install resolves the newest version each range admits. A
+failure in any package a user's install resolves, those dependencies and
+extras and what they in turn require, is one users will meet the day the
+release ships, and it is read before the tag. `deps-latest` does not test
+every such version: its lock holds the dependency groups too, so a group's
+upper bound keeps a package below the version a user's install resolves. A
+failure confined to a package that no user's install resolves, one only a
+dependency group brings in, reaches no user and waits for the next lock
+bump.
 
 **The drift it reports is left to Dependabot.** The release pull request
 does not run `uv lock --upgrade`: section 1's
@@ -361,9 +372,9 @@ request, next to `deps-latest`'s own result.
    (btclib-org/.github#1596).
 
 1. Write the release's sections in the release pull request, above the
-   previous release's, as section 12 of the organization standard says:
-   `## v<version>` in `CHANGELOG.md`, from the squash
-   subjects since the previous tag, grouped and shortened,
+   previous release's, as section 12 of the organization's standard
+   says: `## v<version>` in `CHANGELOG.md`, from the squash subjects
+   since the previous tag, grouped and shortened,
 
    ```shell
    git log "${tag:?}"..HEAD --format=%s
@@ -409,12 +420,24 @@ request, next to `deps-latest`'s own result.
    and `uv lock`, and gate again:
 
    ```shell
-   git fetch origin
+   tip=$(git rev-parse HEAD) &&
+   git fetch origin &&
    git reset --hard origin/main
    ```
 
    The sections are written again from `git log` of the new tip, and the
-   version is a few lines.
+   version is a few lines. Where the branch is already pushed, the redone
+   one goes up with a lease on `tip`, the head reviewed before the fetch:
+
+   ```shell
+   git push origin HEAD \
+     --force-with-lease="refs/heads/$(git branch --show-current):${tip:?}"
+   ```
+
+   Its commits do not descend from the pushed head, so a plain `git push`
+   is refused. A bare `--force-with-lease` compares against what the fetch
+   just brought, so it would overwrite a push made since the review; the
+   lease on `tip` refuses it.
 
 1. Give the release pull request its title and its body, before merging it
    and not after. The title is the version; the body says what the release
@@ -495,7 +518,7 @@ request, next to `deps-latest`'s own result.
    in a fence of their own with nothing under them to reach, and the
    fence below writes each as `${name:?}` and chains. Both are needed:
    `:?` fails at run time, which the chain propagates, where a parse
-   error takes its own `&&` with it. Section 9 of the organization
+   error takes its own `&&` with it. Section 9 of the organization's
    standard is the rule.
 
    ```shell
@@ -581,7 +604,7 @@ request, next to `deps-latest`'s own result.
    for red. A failed job is loud; a skipped one carries no step, starts
    and completes in the same second, and leaves the run looking finished
    with a job missing from it, which is what a bare `needs:` behind a
-   red `public-api` produces — section 12 of the organization standard
+   red `public-api` produces — section 12 of the organization's standard
    has the rule, and the `github-release` case under "If something goes
    wrong" below is the same mechanism behind a skipped job rather than a
    failed one:
@@ -633,19 +656,27 @@ request, next to `deps-latest`'s own result.
    `version` is the one the tagging step set:
 
    ```shell
-   uv run --isolated --no-project --with "${dist:?}==${version:?}" \
-     --refresh-package "${dist:?}" \
+   uv run --isolated --no-project --python "${python:?}" \
+     --with "${dist:?}==${version:?}" --refresh-package "${dist:?}" \
      python -c "${smoke:?}"
    ```
 
    from a directory that belongs to no checkout of this project: run
    inside one, uv can answer from a cached build of the tree rather than
    from the index. `--refresh-package` makes uv read the index again
-   rather than its cache, which can miss a version just published. The
-   pin makes the check test this release: unpinned, an index still
-   serving the previous release installs that one, and the smoke test
-   passes on it. Pinned, uv answers `No solution found` until the index
-   serves the version, and the command is run again then.
+   rather than its cache. uv keeps an index's page for as long as the
+   index's HTTP caching headers allow, so a page cached before the
+   upload misses the version just published. The pin makes the check
+   test this release: unpinned, an index still serving the previous
+   release installs that one, and the smoke test passes on it. Pinned,
+   uv answers `No solution found` until the index serves the version. It
+   answers the same where the distribution or a dependency has no file
+   the interpreter `python` names can use, and no wait changes that. So
+   check the interpreter first: uv's `cause:` line then names the
+   interpreter, as an ABI tag such as `cp315` or as a Python version.
+   Run the command again only where that line says
+   `there is no version of <dist>==<version>`. Any other cause, such as
+   a dependency conflict, is fixed rather than waited out.
 
    then check the attestations — the JSON API answers `null` for
    `provenance` even where they exist; the simple API,
@@ -660,10 +691,8 @@ request, next to `deps-latest`'s own result.
    `release.yml` calls that workflow once PyPI has accepted the files, with
    the tag's version, and it waits for the index to serve that version
    before installing anything — so it cannot pass by testing the release
-   before this one. It installs from PyPI on every image `os-ubuntu.yml`,
-   `os-macos.yml` and `os-windows.yml` run between them, at the floor of
-   the supported interpreter range and at its two newest interpreters,
-   each of those beside its free-threaded build, and runs its smoke test.
+   before this one. It installs from PyPI on the images and interpreters
+   this tree's `pypi-install.yml` names, and runs its smoke test in each.
    From then on it runs weekly on its own, and a failure means the outside
    world moved, not this repository — a new runner image, an interpreter
    release, PyPI serving a file that does not match its own hash — which
@@ -738,7 +767,7 @@ request, next to `deps-latest`'s own result.
    given, so the sdist and the bill of materials verify against the same
    bundle.
 
-   Each command is section 12's verifier. Section 12 of the organization
+   Each command is section 12's verifier. Section 12 of the organization's
    standard says what its exit code means, why the signer is named without a
    ref, why `--source-ref` names the tag, why the repository is compared by
    its id, and which workflow signed a release made before this repository
@@ -782,8 +811,8 @@ request, next to `deps-latest`'s own result.
    against what `pyproject.toml` declares, so a tree already bumped would
    offer it the next cycle's month instead of the version being released.
 
-A dependent adapts after the release, as section 12 of the organization
-standard says.
+A dependent adapts after the release, as section 12 of the
+organization's standard says.
 
 ## Rebuild a release from its tag
 
@@ -810,7 +839,7 @@ environment and refuse to run without it.
 ```shell
 git worktree add --detach "/tmp/${repo:?}-rebuild" "v${version:?}" &&
 cd "/tmp/${repo:?}-rebuild" &&
-python=$(grep -Ev '^[[:space:]]*(#|$)' .python-version) &&
+pin=$(grep -Ev '^[[:space:]]*(#|$)' .python-version) &&
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) &&
 signer=btclib-org/.github/.github/workflows/reusable-build.yml &&
 id=$(gh api "repos/btclib-org/${repo:?}" --jq .id) &&
@@ -828,13 +857,13 @@ uv_version=$(unzip -p "$wheels"/*.whl '*.dist-info/WHEEL' |
   sed -n 's/^Generator: uv //p') &&
 [[ $uv_version =~ ^[0-9]+([.][0-9]+)*$ ]] &&
 uvx "uv@$uv_version" build &&
-uv run --no-project --python "$python" \
+uv run --no-project --python "$pin" \
   .github/scripts/normalize_sdist.py dist/ &&
 served=$(mktemp -d) &&
 git clone --depth 1 --filter=blob:none --sparse \
   https://github.com/btclib-org/.github "$served" &&
 git -C "$served" sparse-checkout set .github/scripts &&
-uv run --no-project --python "$python" \
+uv run --no-project --python "$pin" \
   "$served"/.github/scripts/generate_sbom.py dist/ sbom/ &&
 gh attestation verify "dist/${stem:?}.tar.gz" --owner btclib-org \
   --signer-workflow "${signer:?}" \
@@ -856,10 +885,10 @@ gh attestation verify "sbom/${stem:?}.cdx.json" --owner btclib-org \
   --jq "${cert:?}.sourceRepositoryIdentifier" | grep -qx "${id:?}"
 ```
 
-Section 12 of the organization standard names the signer of a release
-made before this repository called `reusable-build.yml`.
+Section 12 of the organization's standard names the signer of a
+release made before this repository called `reusable-build.yml`.
 
-`python` is the interpreter the tag's own `.python-version` pins, its
+`pin` is the interpreter the tag's own `.python-version` pins, its
 comment and blank lines dropped, and not the one `main` pins:
 `normalize_sdist.py` writes the sdist again through the running
 interpreter's `gzip`, so a rebuild under another pin is the published
@@ -1082,6 +1111,7 @@ dist=btclib
 test_dist=btclib
 pkg=btclib
 rtd=btclib
+python=$(grep -Ev '^[[:space:]]*(#|$)' .python-version)
 smoke='from btclib.network import NETWORKS; from ecc.curves import CURVES
 print(sorted(NETWORKS), CURVES["secp256r1"].n)'
 ```
@@ -1091,10 +1121,13 @@ runs `__init__.py` alone, and `btclib.network` reads those files by path
 when it is first imported, so a wheel missing one passes `import btclib`
 and fails here.
 
+`python` reads `.python-version`, so the block is run from the root of
+the checkout.
+
 **`deps-latest`'s `suite-bindings-latest` job is the one to read
 closely.** It upgrades btclib-secp256k1 alone and runs the suite, so it
-asks whether the newest release of the bindings works with this tree
-before the release ships against a pin about to be a version behind. A
+asks whether the newest release of the bindings, the one a user's
+install of the `secp256k1` extra resolves, works with this tree. A
 release this tree cannot import fails its *Assert the bindings are
 serving* step, before the suite. A red test after that step is the
 bindings importing and answering differently. Either is a reason to
