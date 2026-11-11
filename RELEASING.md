@@ -750,14 +750,19 @@ request, next to `deps-latest`'s own result.
    trusted-root > trusted_root.jsonl` fetched it earlier and
    `--custom-trusted-root` points at it.
 
-1. **Review the bestpractices.dev answers.** Refresh the saved answers
-   in btclib-org/.github with its `.github/scripts/bestpractices.py`,
-   and use its `--stale` and `--differ` to find what to read (section 10
-   of its README). Read `https://www.bestpractices.dev/projects/<bp>`
-   against the release, and update every answer it changed: the release
-   notes and the vulnerabilities it fixed, signed tags and assets,
-   attestation names. Then refresh the saved answers again. An advisory
-   this repository publishes is owed the same review.
+1. **Review the bestpractices.dev answers.** This repository's
+   `.bestpractices.json` holds them (section 10 of the organization's
+   standard). Where it has none yet, the `--seed` mode of
+   btclib-org/.github's `.github/scripts/bestpractices.py` writes one
+   from the site's answers, to copy here. The script's `--stale` and
+   `--differ` find what to read. Read the file against the release, and
+   change in a pull request of its own every answer the release changed:
+   the release notes and the vulnerabilities it fixed, signed tags and
+   assets, attestation names. Once it lands, open each URL the script's
+   `--drift` prints for this repository, one for each section of the form,
+   and save the form at each. `--drift` then prints nothing for this
+   repository. An advisory this repository publishes is owed the same
+   review.
 
 1. Open the next cycle: set a generic next version without the day (e.g.
    after 2026.8.6, use 2026.9) in `pyproject.toml`, through a pull
@@ -1077,7 +1082,6 @@ dist=btclib
 test_dist=btclib
 pkg=btclib
 rtd=btclib
-bp=14253
 smoke='from btclib.network import NETWORKS; from ecc.curves import CURVES
 print(sorted(NETWORKS), CURVES["secp256r1"].n)'
 ```

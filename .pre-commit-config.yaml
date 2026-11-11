@@ -262,13 +262,16 @@ repos:
         # because the default for anything else in that
         # directory has to stay "not touched". (?x) is verbose mode,
         # i.e. the newlines below are not part of the pattern
-        # `.vscode` is the second name in the alternation and is there for
+        # `.vscode` is another name in the alternation and is there for
         # the reason check-json above is given the same exclude: those files
         # are jsonc, this hook parses json, and prettier below is what
         # formats and parses them instead -- at its own indent, which is not
-        # this hook's 4 and does not have to be, no file being read by both
+        # this hook's 4 and does not have to be, no file being read by both.
+        # .bestpractices.json keeps the format btclib-org/.github's
+        # .github/scripts/bestpractices.py writes: two spaces, sorted keys
         exclude: |
           (?x)^(\.vscode/
+            |\.bestpractices\.json$
             |tests/([^/]+/)?_data/
             (?!rfc6979\.json
               |gettxoutsetinfo_regtest\.json

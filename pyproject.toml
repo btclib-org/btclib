@@ -493,9 +493,9 @@ package = ["src/btclib"]
 # check-sdist reads that list for the uv backend, so this holds only
 # what no include pattern adds in the first place -- the workspaces of
 # an editor and of an agent, the two files git and a link checker read,
-# and COPYRIGHT, which `project.license-files` above does not name.
-# Patterns are gitignore's, so a directory covers what is under it at
-# any depth.
+# the bestpractices.dev answers, and COPYRIGHT, which
+# `project.license-files` above does not name. Patterns are gitignore's,
+# so a directory covers what is under it at any depth.
 #
 # check-sdist's own default ignore list already carries .github, which
 # is why the ignore list of the links workflow needs an entry here and
@@ -514,6 +514,7 @@ package = ["src/btclib"]
 # what an unpacked sdist needs of the changelog is the window
 # CHANGELOG.md carries and the index pointing at the rest
 git-only = [
+    ".bestpractices.json",
     ".claude/",
     ".clusterfuzzlite/",
     ".gitattributes",
