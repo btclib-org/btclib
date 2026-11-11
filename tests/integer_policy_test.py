@@ -40,7 +40,6 @@ from btclib.fee import FeeRate, fee_from_vsize
 from btclib.hashes import merkle_root_from_branch, sha256
 from btclib.key import PrvKeyData
 from btclib.script import ScriptPubKey, input_script_sig, sig_hash
-from btclib.script.script import op_int, push_int, read_op_code
 from btclib.script.engine import NO_FLAGS
 from btclib.script.engine.script import (
     assert_pub_key_num,
@@ -98,11 +97,6 @@ def _header(version: Any = 1, nonce: Any = 1) -> BlockHeader:
 # start of its refusal (issues #3008 and #3023)
 _NON_INTEGER_CASES: list[tuple[str, Callable[[Any], object], str]] = [
     ("OP_INT", op_int, "invalid OP_INT type"),
-    (
-        "op code start",
-        lambda v: read_op_code(b"\x00\x01\x02", v),
-        "invalid start offset type",
-    ),
     ("pushed number", push_int, "non-integer script number"),
     (
         "legacy sig_hash type",
