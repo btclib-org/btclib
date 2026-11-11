@@ -61,10 +61,11 @@ class FakeGh:
     `commits` maps a (repo, path) pair to the sha and date
     `_latest_commit` should read back, or to None for a path the branch
     walked never held -- which the api answers with an empty list rather
-    than an error. `open_issue` is the number `_open_issue_number` should report
-    open, or None for no issue open. Every call is recorded in `calls`,
-    argv and all, so a test can assert what was asked for rather than
-    only what came back.
+    than an error. `open_issue` is the number of the open issue titled
+    as searched, or None for no such issue. `longer_titles` maps the
+    number of each other issue the search finds to its title, listed
+    first. Every call is recorded in `calls`, argv and all, so a test can
+    assert what was asked for rather than only what came back.
     """
 
     def __init__(self) -> None:
@@ -72,6 +73,7 @@ class FakeGh:
         # a (repo, tree) pair to the blobs of the entries it holds, by name
         self.trees: dict[tuple[str, str], dict[str, str]] = {}
         self.open_issue: int | None = None
+        self.longer_titles: dict[int, str] = {}
         self.calls: list[list[str]] = []
 
     def __call__(
@@ -101,9 +103,14 @@ class FakeGh:
             }
             return subprocess.CompletedProcess(argv, 0, stdout=json.dumps([commit]))
         if argv[2] == "list":
-            issues = (
-                [{"number": self.open_issue}] if self.open_issue is not None else []
-            )
+            search = argv[argv.index("--search") + 1]
+            title = search.removeprefix('"').removesuffix('" in:title')
+            issues = [
+                {"number": number, "title": longer}
+                for number, longer in self.longer_titles.items()
+            ]
+            if self.open_issue is not None:
+                issues.append({"number": self.open_issue, "title": title})
             return subprocess.CompletedProcess(argv, 0, stdout=json.dumps(issues))
         return subprocess.CompletedProcess(argv, 0, stdout="")
 
@@ -832,14 +839,28 @@ def test_the_issue_body_prints_a_pin_and_a_tip_alike_in_a_prefix_whole(
     assert f"`{_TIP}` (2026-09-11)" in body
 
 
-def test_open_issue_number_reads_the_first_match(
+def test_open_issue_number_reads_the_issue_titled_as_searched(
     checker: ModuleType, fake_gh: FakeGh
 ) -> None:
-    """The number of the first issue `gh issue list` names, as a string."""
+    """The number of the issue whose title is the one searched, as a string."""
     fake_gh.open_issue = 42
     assert checker._open_issue_number("A title") == "42"
     (call,) = fake_gh.calls
     assert '"A title" in:title' in call
+
+
+def test_open_issue_number_skips_a_longer_title_holding_the_one_searched(
+    checker: ModuleType, fake_gh: FakeGh
+) -> None:
+    """An issue the search finds under a longer title is not this one.
+
+    It is listed first, ahead of the exact title where there is one
+    (issue btclib-org/.github#2152).
+    """
+    fake_gh.longer_titles = {41: "Two vendored vectors behind upstream, in tests"}
+    assert checker._open_issue_number("Vendored vectors behind upstream") is None
+    fake_gh.open_issue = 42
+    assert checker._open_issue_number("Vendored vectors behind upstream") == "42"
 
 
 def test_open_issue_number_is_none_when_none_is_open(
