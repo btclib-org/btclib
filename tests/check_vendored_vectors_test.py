@@ -38,6 +38,9 @@ import pytest
 # path
 _GIT = shutil.which("git") or "git"
 
+# what `gh issue list --help` gives as `--limit`'s default
+_GH_DEFAULT_LIMIT = 30
+
 _SCRIPT = (
     Path(__file__).parents[1] / ".github" / "scripts" / "check_vendored_vectors.py"
 )
@@ -64,8 +67,10 @@ class FakeGh:
     than an error. `open_issue` is the number of the open issue titled
     as searched, or None for no such issue. `longer_titles` maps the
     number of each other issue the search finds to its title, listed
-    first. Every call is recorded in `calls`, argv and all, so a test can
-    assert what was asked for rather than only what came back.
+    first. A list answers at most `--limit` issues, and gh's default
+    where none is given. Every call is recorded in `calls`, argv and
+    all, so a test can assert what was asked for rather than only what
+    came back.
     """
 
     def __init__(self) -> None:
@@ -111,7 +116,14 @@ class FakeGh:
             ]
             if self.open_issue is not None:
                 issues.append({"number": self.open_issue, "title": title})
-            return subprocess.CompletedProcess(argv, 0, stdout=json.dumps(issues))
+            limit = (
+                int(argv[argv.index("--limit") + 1])
+                if "--limit" in argv
+                else _GH_DEFAULT_LIMIT
+            )
+            return subprocess.CompletedProcess(
+                argv, 0, stdout=json.dumps(issues[:limit])
+            )
         return subprocess.CompletedProcess(argv, 0, stdout="")
 
 
@@ -861,6 +873,22 @@ def test_open_issue_number_skips_a_longer_title_holding_the_one_searched(
     assert checker._open_issue_number("Vendored vectors behind upstream") is None
     fake_gh.open_issue = 42
     assert checker._open_issue_number("Vendored vectors behind upstream") == "42"
+
+
+def test_open_issue_number_reads_past_gh_s_default_page(
+    checker: ModuleType, fake_gh: FakeGh
+) -> None:
+    """The exact title is found behind a full default page of longer ones.
+
+    Those sort first, and the lookup asks for more than gh's default
+    (issue btclib-org/.github#2185).
+    """
+    title = "Vendored vectors behind upstream"
+    fake_gh.longer_titles = {
+        number: f"{title}, part {number}" for number in range(_GH_DEFAULT_LIMIT)
+    }
+    fake_gh.open_issue = 42
+    assert checker._open_issue_number(title) == "42"
 
 
 def test_open_issue_number_is_none_when_none_is_open(
