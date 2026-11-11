@@ -266,10 +266,9 @@ repos:
         # the reason check-json above is given the same exclude: those files
         # are jsonc, this hook parses json, and prettier below is what
         # formats and parses them instead -- at its own indent, which is not
-        # this hook's 4 and does not have to be, no file being read by both
-        # .bestpractices.json stays byte for byte as the --seed mode of
-        # btclib-org/.github's .github/scripts/bestpractices.py writes it:
-        # two spaces, sorted keys
+        # this hook's 4 and does not have to be, no file being read by both.
+        # .bestpractices.json keeps the format btclib-org/.github's
+        # .github/scripts/bestpractices.py writes: two spaces, sorted keys
         exclude: |
           (?x)^(\.vscode/
             |\.bestpractices\.json$
