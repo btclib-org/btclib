@@ -683,7 +683,7 @@ a force.
 | `integration-bitcoind` | pull request, push, weekly | a node |
 | `claude-review` | pull request, and `@claude` in a comment | — |
 | `codeql` | pull request, push to main, and weekly | 2 languages |
-| `fuzz` | weekly, and by hand before a release | — |
+| `fuzz` | weekly | — |
 | `qa-assets` | weekly | Core's and rust-bitcoin's fuzz corpora |
 | `scorecard` | weekly, push to main | — |
 | `verified-signatures` | push to main | — |
@@ -693,7 +693,7 @@ a force.
 | `deps-latest` | weekly | platforms sampled, deps upgraded |
 | `deps-oldest` | weekly | the floor interpreter, deps at their floors |
 | `links`, `mutation` | weekly | — |
-| `kernel-differential` | by hand, before a release | the kernel as oracle |
+| `kernel-differential` | by hand | the kernel as oracle |
 | `vendored-vectors` | weekly | the pin ledgers |
 | `btcd-oracle` | weekly | the corpora, read by btcd |
 | `pypi-install` | weekly, a release | what PyPI serves |
@@ -1233,7 +1233,7 @@ Its docstring says why it reads the session file rather than `cosmic-ray
 dump`, which cannot read one of these sessions at all.
 
 The `integration-bitcoind` workflow, which gates and is the exception here: it runs
-on every pull request, on every push to `main` and before a release, and
+on every pull request, on every push to `main` and at release, and
 `regtest / Regtest against Bitcoin Core` is required on `main`. It runs
 weekly too, and that workflow's own header says what the weekly run asks
 that the others do not: it pins one Core release, so the tree is not the

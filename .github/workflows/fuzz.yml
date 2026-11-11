@@ -84,9 +84,8 @@ name: fuzz
 # a push-triggered batch job "not recommended" for exactly the reason
 # that becomes -- one on every push queues faster than an hour-long job
 # drains. `workflow_dispatch` is required by this section regardless of
-# the above, and is what runs the batch by hand -- before a release
-# rather than waiting for the scheduled run, which is what section 10
-# names it for.
+# the above, and is what runs the batch on a pull request's own branch
+# where section 10's `fuzz` entry asks for it.
 #
 # `btclib-node` carries an identically named `fuzz.yml`, close enough in
 # length to read as this file ported, and it is not: two fuzzing engines
@@ -125,9 +124,8 @@ permissions:
 # does"). The group is `github.ref`, so a scheduled run and a dispatch
 # on the same ref share one -- wanted, not merely tolerated:
 # cancel-in-progress below means a manual run does not wait behind the
-# scheduled batch's own hour for the numbers it was asked for, which is
-# the whole of why the dispatch is there before a release. Same design
-# and same reason `mutation.yml` already carries
+# scheduled batch's own hour for the numbers it was asked for. Same
+# design and same reason `mutation.yml` already carries
 concurrency:
   group: fuzz-${{ github.ref }}
   cancel-in-progress: true
