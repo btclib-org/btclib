@@ -14,7 +14,7 @@
 # workflow_dispatch, or a night, is aimed at
 module-path = "src/btclib/script/engine"
 
-# tests/script_engine alone, where sig_hash.toml names tests/script
+# tests/script_engine without tests/script, which sig_hash.toml names
 # first, and not because the engine is out of that directory's reach:
 # some of the sighash modules there sign a transaction and hand it to
 # `verify_transaction`, so they do kill engine mutants. What they do
@@ -24,12 +24,14 @@ module-path = "src/btclib/script/engine"
 # wall clock across the whole scope to catch the few mutants that only
 # a round trip would kill; those are reported as survivors instead,
 # and the sighash session kills them from its own side.
+# tests/integer_policy_test.py is beside it because its
+# `_NON_INTEGER_CASES` asserts the engine's refusals of a non-integer.
 # python_path_test.py is ignored for the reason given in sig_hash.toml
 # -- it is a second verdict on ecc's python path and the same
 # verdict on this directory, at a real cost to the session's own
 # budget
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
-  tests/script_engine \
+  tests/script_engine tests/integer_policy_test.py \
   --ignore=tests/script_engine/python_path_test.py"""
 
 # seconds of wall clock, wide for the reason sig_hash.toml measures: a
