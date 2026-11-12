@@ -1311,17 +1311,17 @@ to a file the docs render that is left at the repository's
 the standard, *The documentation*, is the rule:
 
 ```shell
-served=$(mktemp -d)
-git clone --quiet --filter=blob:none --sparse \
-    https://github.com/btclib-org/.github "$served"
-git -C "$served" sparse-checkout set .github/scripts
-git -C "$served" checkout --quiet \
-    "$(sed -n 's/.*reusable-docs\.yml@\([0-9a-f]*\).*/\1/p' .github/workflows/docs.yml)"
 found=0
+pin=$(sed -n 's/.*reusable-docs\.yml@\([0-9a-f]*\).*/\1/p' .github/workflows/docs.yml)
+served=$(mktemp -d) &&
+git clone --quiet --filter=blob:none --sparse \
+    https://github.com/btclib-org/.github "$served" &&
+git -C "$served" sparse-checkout set .github/scripts &&
+git -C "$served" checkout --quiet "$pin" &&
 uv run --no-project --python 3.15 \
     "$served"/.github/scripts/check_included_links.py docs/build/html || found=$?
 rm -rf "$served"
-test "$found" -eq 0
+test "$found" -eq 0 || exit "$found"
 ```
 
 A link into a heading of another root file carries a fragment spelled the
