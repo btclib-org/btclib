@@ -191,7 +191,7 @@ def test_wrapped_p2pkh() -> None:
 def test_an_empty_redeem_script_is_pushed_in_any_operator(push: str) -> None:
     """The push of no data is the redeem script hash160(b"") commits to."""
     script_pub_key = serialize(["OP_HASH160", hash160(b""), "OP_EQUAL"])
-    script_sig = bytes.fromhex("51" + push)
+    script_sig = bytes.fromhex(f"51{push}")
     assert sig_hash.redeem_script(script_sig, script_pub_key) == b""
 
 

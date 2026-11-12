@@ -172,10 +172,13 @@ def _versions(pattern: re.Pattern[str], text: str) -> tuple[str, ...]:
 
 def _normalized(request: str) -> str:
     """Return the version a request names, without the platform it pins."""
-    match = _PLATFORM_REQUEST.match(request)
-    if not match:
-        return request
-    return match["version"] if match["impl"] == "cpython" else "pypy" + match["version"]
+    if match := _PLATFORM_REQUEST.match(request):
+        return (
+            match["version"]
+            if match["impl"] == "cpython"
+            else "pypy" + match["version"]
+        )
+    return request
 
 
 def _interpreters(text: str) -> set[str]:

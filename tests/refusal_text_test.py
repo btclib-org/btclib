@@ -92,7 +92,7 @@ def test_non_ascii_wif_chain_holds_no_key() -> None:
 
     No exception in the chain holds it.
     """
-    bad = WIF[:-1] + "é"
+    bad = f"{WIF[:-1]}é"
     with pytest.raises(BTClibValueError, match="non-ascii character") as refusal:
         prv_key_data_from_wif(bad)
     where = len(WIF) - 1
@@ -110,7 +110,7 @@ def test_bad_checksum_does_not_quote_the_expected_one() -> None:
         prv_key_data_from_wif(bad)
     assert str(refusal.value) == "not a WIF (invalid checksum)"
     expected = hash256(b58decode_check(WIF))[:4]
-    assert_secret_free(refusal.value, [expected, "0x" + expected.hex(), expected.hex()])
+    assert_secret_free(refusal.value, [expected, f"0x{expected.hex()}", expected.hex()])
 
 
 def test_non_ascii_bytes_chain_nothing() -> None:

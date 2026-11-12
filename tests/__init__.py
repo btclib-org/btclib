@@ -272,7 +272,7 @@ def key_pair_spellings() -> KeyPairSpellings:
     q = 12
     q_bytes = q.to_bytes(32, byteorder="big", signed=False)
     q_hexstring = q_bytes.hex()
-    q_hexstring2 = " " + q_hexstring + " "
+    q_hexstring2 = f" {q_hexstring} "
 
     # the private-key spellings a curve reads: the scalar's octets and
     # their hex, naming neither a network nor a compression
@@ -298,13 +298,13 @@ def key_pair_spellings() -> KeyPairSpellings:
     x_Q_bytes = Q[0].to_bytes(32, byteorder="big", signed=False)
     Q_compressed = (b"\x03" if (Q[1] & 1) else b"\x02") + x_Q_bytes
     Q_compressed_hexstring = Q_compressed.hex()
-    Q_compressed_hexstring2 = " " + Q_compressed_hexstring + " "
+    Q_compressed_hexstring2 = f" {Q_compressed_hexstring} "
     Q_compressed_hexstring3 = ("03" if (Q[1] & 1) else "02") + " " + x_Q_bytes.hex()
     Q_uncompressed = (
         b"\x04" + x_Q_bytes + Q[1].to_bytes(32, byteorder="big", signed=False)
     )
     Q_uncompressed_hexstring = Q_uncompressed.hex()
-    Q_uncompressed_hexstring2 = " " + Q_uncompressed_hexstring + " "
+    Q_uncompressed_hexstring2 = f" {Q_uncompressed_hexstring} "
     Q_uncompressed_hexstring3 = (
         "04 "
         + x_Q_bytes.hex()

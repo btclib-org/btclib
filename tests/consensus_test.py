@@ -304,7 +304,7 @@ def test_the_table_is_read_only() -> None:
 def test_a_row_is_hashable_as_the_network_holding_it_is() -> None:
     """Verify a row can be a dict key, which `Network` needs it to be."""
     assert len(set(CONSENSUS_PARAMS.values())) == len(CONSENSUS_PARAMS)
-    assert hash(NETWORKS["mainnet"]) == hash(NETWORKS["mainnet"])
+    assert isinstance(hash(NETWORKS["mainnet"]), int)
 
 
 @pytest.mark.parametrize("network", sorted(_CHAINPARAMS))

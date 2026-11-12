@@ -1076,7 +1076,7 @@ def test_message_verify_answers_the_four_rows_of_issue_2487() -> None:
         bms.verify(_CORE_MSG, _CORE_ADDR, longer)
 
     # white space is no base64, anywhere
-    assert _core(sig=" " + _CORE_SIG) is _Result.ERR_MALFORMED_SIGNATURE
+    assert _core(sig=f" {_CORE_SIG}") is _Result.ERR_MALFORMED_SIGNATURE
 
 
 @pytest.mark.parametrize("space", [*string.whitespace, "\xa0"])
@@ -1100,12 +1100,12 @@ def test_message_verify_reads_no_white_space_in_a_signature(space: str) -> None:
         "====",
         "A===",
         _CORE_SIG.rstrip("="),
-        _CORE_SIG + "=",
+        f"{_CORE_SIG}=",
         _CORE_SIG.replace("+", "-").replace("/", "_"),
-        _CORE_SIG[:10] + "\x00" + _CORE_SIG[10:],
-        _CORE_SIG[:10] + "\u00e9" + _CORE_SIG[11:],
+        f"{_CORE_SIG[:10]}\x00{_CORE_SIG[10:]}",
+        f"{_CORE_SIG[:10]}\u00e9{_CORE_SIG[11:]}",
         # the last character with a bit set that the 65 bytes do not use
-        _CORE_SIG[:-2] + "T=",
+        f"{_CORE_SIG[:-2]}T=",
     ],
 )
 def test_message_verify_refuses_what_is_not_the_canonical_base64(sig: str) -> None:
@@ -1196,10 +1196,10 @@ def test_message_verify_takes_a_p2pkh_address_of_the_network_alone() -> None:
     for addr in (
         "",
         "invalid_addr",
-        _CORE_ADDR[:-1] + "x",
+        f"{_CORE_ADDR[:-1]}x",
         _CORE_ADDR[:20],
-        _CORE_ADDR[:5] + "\x00" + _CORE_ADDR[5:],
-        _CORE_ADDR[:5] + " " + _CORE_ADDR[5:],
+        f"{_CORE_ADDR[:5]}\x00{_CORE_ADDR[5:]}",
+        f"{_CORE_ADDR[:5]} {_CORE_ADDR[5:]}",
         # a segwit address of the network with a wrong checksum
         b32.p2wpkh(_CORE_PUB)[:-1] + ("p" if b32.p2wpkh(_CORE_PUB)[-1] != "p" else "q"),
         # the mainnet spelling of the key, and of every other kind
@@ -1215,9 +1215,9 @@ def test_message_verify_trims_white_space_around_a_base58_address_only() -> None
     """Core's base58 reader skips ASCII white space, its bech32 one none."""
     for space in string.whitespace:
         assert _core(addr=space + _CORE_ADDR + space) is _Result.OK
-    assert _core(addr="\xa0" + _CORE_ADDR) is _Result.ERR_INVALID_ADDRESS
+    assert _core(addr=f"\xa0{_CORE_ADDR}") is _Result.ERR_INVALID_ADDRESS
     segwit = b32.p2wpkh(_CORE_PUB)
-    for padded in (" " + segwit, segwit + " "):
+    for padded in (f" {segwit}", f"{segwit} "):
         assert _core(addr=padded) is _Result.ERR_INVALID_ADDRESS
 
 

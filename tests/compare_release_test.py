@@ -335,8 +335,8 @@ def test_main_runs_the_probe(
 def test_a_changed_float_or_dataclass_is_a_difference(cmp: Any) -> None:
     """A value that is neither serialized nor a type name alone is compared."""
     for was, now in ((0.5, 1.0), (_Data(1), _Data(2))):
-        before = _run(cmp, ("h", "m:f", "a", "accepted " + cmp._describe(was)))
-        after = _run(cmp, ("h", "m:f", "a", "accepted " + cmp._describe(now)))
+        before = _run(cmp, ("h", "m:f", "a", f"accepted {cmp._describe(was)}"))
+        after = _run(cmp, ("h", "m:f", "a", f"accepted {cmp._describe(now)}"))
         found = cmp.compare(before, after)
         assert [d.kind for d in found] == ["serialized differently"]
 

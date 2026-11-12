@@ -74,7 +74,7 @@ def _signature_corpus() -> Iterator[bytes]:
     for hash_type in range(256):
         sig = _push(_sig(hash_type))
         yield bytes.fromhex(sig + _push(bytes.fromhex(PUB_KEY)))
-        yield bytes.fromhex("6a" + sig)
+        yield bytes.fromhex(f"6a{sig}")
 
 
 def corpus(count: int = 2000) -> Iterator[bytes]:

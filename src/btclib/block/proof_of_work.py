@@ -424,11 +424,9 @@ def block_work(bits: Octets) -> int:
     zero target -- which no hash can ever satisfy, so no block can ever
     carry it -- raises here rather than being reported as free.
     """
-    target = int.from_bytes(target_from_bits(bits), "big", signed=False)
-    if not target:
-        raise BTClibValueError("zero proof-of-work target")
-
-    return 2**256 // (target + 1)
+    if target := int.from_bytes(target_from_bits(bits), "big", signed=False):
+        return 2**256 // (target + 1)
+    raise BTClibValueError("zero proof-of-work target")
 
 
 def chain_work(bits_sequence: Sequence[Octets]) -> int:

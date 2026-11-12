@@ -158,9 +158,7 @@ def _claim(cls: type) -> str | None:
         return "hashable"
     if not_hashable and not hashable:
         return "not hashable"
-    if _MENTIONS_HASHABILITY.search(doc):
-        return "drift"
-    return None
+    return "drift" if _MENTIONS_HASHABILITY.search(doc) else None
 
 
 def test_claim_reads_the_two_shapes_and_flags_the_rest() -> None:

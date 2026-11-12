@@ -363,15 +363,13 @@ def _is_taproot_witness_standard(stack: tuple[bytes, ...]) -> bool:
         return True
     if stack[-1][:1] == bytes([_ANNEX_TAG]):
         return False
-    control_block = stack[-1]
-    if not control_block:
-        return False
-    if control_block[0] & _TAPROOT_LEAF_MASK != _TAPROOT_LEAF_TAPSCRIPT:
-        return True
-    # the items under the script and the control block
-    return all(
-        len(item) <= MAX_STANDARD_TAPSCRIPT_STACK_ITEM_SIZE for item in stack[:-2]
-    )
+    if control_block := stack[-1]:
+        return control_block[0] & _TAPROOT_LEAF_MASK != _TAPROOT_LEAF_TAPSCRIPT or all(
+            # the items under the script and the control block
+            len(item) <= MAX_STANDARD_TAPSCRIPT_STACK_ITEM_SIZE
+            for item in stack[:-2]
+        )
+    return False
 
 
 def spends_non_anchor_witness_prog(prevouts: Sequence[TxOut], tx: Tx) -> bool:

@@ -275,7 +275,7 @@ def check_pub_key(pub_key: bytes, segwit: bool, flags: ScriptFlag) -> bool:
     assert_type(segwit, bool, "segwit")
     compressed = len(pub_key) == 33 and pub_key[0] in {2, 3}
     uncompressed = len(pub_key) == 65 and pub_key[0] == 4
-    if ScriptFlag.STRICTENC in flags and not (compressed or uncompressed):
+    if ScriptFlag.STRICTENC in flags and not compressed and not uncompressed:
         err_msg = f"public key of {len(pub_key)} bytes "
         err_msg += "neither compressed nor uncompressed"
         raise ScriptError(err_msg, ScriptErrorCode.PUBKEYTYPE)

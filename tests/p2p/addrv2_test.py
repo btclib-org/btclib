@@ -336,7 +336,7 @@ def test_torv2_and_yggdrasil_are_held_to_no_length_but_the_bound(
     the entries after it are read. Refusing a length here would refuse a
     message Core accepts.
     """
-    octets = _entry(f"{network_id:02x}" + var_bytes.serialize(bytes(size)).hex())
+    octets = _entry(f"{network_id:02x}{var_bytes.serialize(bytes(size)).hex()}")
     entry = NetworkAddressV2.parse(octets)
 
     assert entry.network_id == network_id

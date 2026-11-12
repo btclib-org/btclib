@@ -337,9 +337,7 @@ def _round_trip(spec: str, obj: Any, data: bytes) -> bool | None:
     """
     if spec in _WRITERS:
         write, several_encodings = _WRITERS[spec]
-        if several_encodings:
-            return _written_settles(spec, obj)
-        return write(obj) == data
+        return _written_settles(spec, obj) if several_encodings else write(obj) == data
     attr = spec.rsplit(".", 1)[-1]
     if attr == "b64decode":
         if not hasattr(obj, "b64encode"):

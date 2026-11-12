@@ -932,9 +932,9 @@ def test_op_success_is_spelled_as_parse_writes_it() -> None:
     lower-case one wrote 0x50 without the refusal of what follows it.
     """
     non_ascii = (
-        "OP_" + chr(0x17F) + "UCCESS80",
-        "OP_SUCCESS" + chr(0x668) + chr(0x660),
-        "op_" + chr(0x131) + "f",
+        f"OP_{chr(0x17F)}UCCESS80",
+        f"OP_SUCCESS{chr(0x668)}{chr(0x660)}",
+        f"op_{chr(0x131)}f",
     )
     for command in non_ascii:
         with pytest.raises(BTClibValueError, match="^non-ASCII string command$"):
@@ -964,13 +964,13 @@ def test_an_op_success_number_is_read_off_its_text() -> None:
     for digits in ("255", "0"):
         err_msg = f"^invalid OP_SUCCESS number: {digits}$"
         with pytest.raises(BTClibValueError, match=err_msg):
-            serialize(["OP_SUCCESS" + digits, b"\x01"])
+            serialize([f"OP_SUCCESS{digits}", b"\x01"])
     # a longer number is described by its length, as its digits may be a
     # key's decimal
     for digits in ("1" * 5000, "1000"):
         err_msg = f"^invalid OP_SUCCESS number: {len(digits)} digits$"
         with pytest.raises(BTClibValueError, match=err_msg):
-            serialize(["OP_SUCCESS" + digits, b"\x01"])
+            serialize([f"OP_SUCCESS{digits}", b"\x01"])
     assert serialize(["OP_SUCCESS254", b"\x01"])[0] == 0xFE
 
 

@@ -407,7 +407,7 @@ def test_a_name_is_read_with_the_methods_of_str() -> None:
 def test_a_short_name_is_quoted_with_the_methods_of_str() -> None:
     """Within the bound, the quote is str's text and repr, not a subclass's."""
     # what the subclass says of itself, which no refusal above repeats
-    lying = _Lying(_HEX + "é")
+    lying = _Lying(f"{_HEX}é")
     said = (len(lying), repr(lying), f"{lying}", lying.isascii(), lying.encode())
     assert said == (1, "'short'", "short", True, b"")
 

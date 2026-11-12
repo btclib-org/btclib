@@ -28,7 +28,7 @@ import json
 import os
 from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 import pytest
 from ecc.curves import is_libsecp256k1_serving, set_libsecp256k1_serving
@@ -103,17 +103,16 @@ def asks_for_everything(
     given = [Path(path).resolve() for path in file_or_dir or []]
     if not given:
         return True
-    wanted = [(rootpath / path).resolve() for path in testpaths]
-    if not wanted:
-        # `all` over nothing is true, which would make every path named
-        # here the whole suite. With `testpaths` unset there is nothing
-        # to measure containment against, so this errs toward dropping
-        # the floor rather than gating a run it cannot call whole
-        return False
-    return all(
-        any(target == path or path in target.parents for path in given)
-        for target in wanted
-    )
+    if wanted := [(rootpath / path).resolve() for path in testpaths]:
+        return all(
+            any(target == path or path in target.parents for path in given)
+            for target in wanted
+        )
+    # `all` over nothing is true, which would make every path named here
+    # the whole suite. With `testpaths` unset there is nothing to measure
+    # containment against, so this errs toward dropping the floor rather
+    # than gating a run it cannot call whole
+    return False
 
 
 def coverage_fail_under(
@@ -223,12 +222,13 @@ def coverage_configuration(config: pytest.Config) -> CoverageConfiguration | Non
     """
     plugin = config.pluginmanager.getplugin("_cov")
     controller = getattr(plugin, "cov_controller", None)
-    if controller is None:
-        return None
-    # annotated because the plugin manager hands back `Any`, and a
-    # return of that is what mypy's strict mode refuses here
-    measuring: CoverageConfiguration = controller.cov.config
-    return measuring
+    # cast because the plugin manager hands back `Any`, and a return of
+    # that is what mypy's strict mode refuses here
+    return (
+        None
+        if controller is None
+        else cast("CoverageConfiguration", controller.cov.config)
+    )
 
 
 def held_to_a_floor(
@@ -241,12 +241,11 @@ def held_to_a_floor(
     guards below: reading the run is the hook's, and what is decided
     here is decided from what it read.
     """
-    if asked is not None:
-        # section 8 of the organization's standard has the hook never
-        # overruling an explicit `--cov-fail-under`, and a caller who
-        # named the floor has not had one taken away in silence
-        return False
-    # neither `--help` nor `--collect-only` is held to a floor to begin
+    # section 8 of the organization's standard has the hook never
+    # overruling an explicit `--cov-fail-under`, and a caller who named the
+    # floor has not had one taken away in silence.
+    #
+    # Neither `--help` nor `--collect-only` is held to a floor to begin
     # with: `--help` exits before a session, and pytest-cov never fails a
     # `--collect-only` run on the floor whatever its report prints. The
     # pair is an enumeration rather than every run pytest-cov leaves
@@ -255,7 +254,7 @@ def held_to_a_floor(
     # question is whether pytest-cov would have gated this run, which is
     # no property to read here, so a longer list is the same guess under
     # more names
-    return not (asked_for_help or collect_only)
+    return asked is None and not asked_for_help and not collect_only
 
 
 def configuration_went_unread(
