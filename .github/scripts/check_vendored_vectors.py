@@ -505,7 +505,9 @@ def _open_issue_number(title: str) -> str | None:
     """Return the open issue whose title is exactly `title`, if any.
 
     The search matches the title as a phrase, so it also finds a longer
-    title that holds it. Only an exact title is this script's issue.
+    title that holds it. Only an exact title is this script's issue, and
+    it can sort behind the longer ones, so the call asks for every issue
+    the search can answer rather than gh's default page.
     """
     issues = json.loads(
         _gh_output(
@@ -515,6 +517,9 @@ def _open_issue_number(title: str) -> str | None:
             "open",
             "--search",
             f'"{title}" in:title',
+            # the most the search API answers
+            "--limit",
+            "1000",
             "--json",
             "number,title",
         )
