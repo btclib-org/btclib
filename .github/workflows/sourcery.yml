@@ -28,8 +28,10 @@ permissions:
 
 concurrency:
   # named literally rather than through github.workflow, as everywhere
-  # else here. No push trigger, so the merged run is not cancelled: it
-  # is the last reading the merged files get
+  # else here. A merge does not cancel the run in flight: with no push
+  # trigger, it is the last reading the merged files get. A run still
+  # pending is replaced by the merge's, whose job declines closed, and
+  # the merged files then get no reading
   group: sourcery-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ !(github.event.action == 'closed' && github.event.pull_request.merged) }}
 
