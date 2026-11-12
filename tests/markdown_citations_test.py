@@ -123,12 +123,13 @@ answers to that.
 
 The documentation build answers the same question over part of the same
 population. `docs/source/conf.py` sets `myst_heading_anchors`, and its
-`RootFileLinks` hands the fragment to myst for the root files the
-`*_link.md` shims include: a fragment myst cannot find there is a
-`myst.xref_missing` warning, which the `-n -W` build fails on -- measured
-by planting `./CONTRIBUTING.md#no-such-heading-at-all` in README.md. Every
-other link it rewrites into a `BLOB` url with the fragment appended
-verbatim, and REPOSITORY.md is no page of that build at all, so a fragment
+`RootFileLinks` hands the fragment to myst for the files the build renders,
+the root files the `*_link.md` shims include and the pages of docs/source:
+a fragment myst cannot find there is a `myst.xref_missing` warning, which
+the `-n -W` build fails on -- measured by planting
+`./CONTRIBUTING.md#no-such-heading-at-all` in README.md. Every other link it
+rewrites into a `BLOB` url with the fragment appended verbatim, and
+REPOSITORY.md is no page of that build at all, so a fragment
 naming a heading of a file the build does not render reaches no resolver
 in it. Nor is myst's own slugifier what this reads: `myst-parser` is in
 the `docs` group, which no workflow's own pytest step installs, so
