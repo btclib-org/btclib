@@ -21,14 +21,16 @@ import string
 from collections.abc import Callable
 from hashlib import sha256
 from typing import Any
+from unittest.mock import MagicMock, Mock
 
 import pytest
 from ecc import dsa
 from ecc.curves import CURVES, mult, secp256k1
 from ecc.exceptions import EccRuntimeError, EccValueError
+from typing_extensions import override
 
 from btclib import b32, b58, bms
-from btclib.alias import Point
+from btclib.alias import Point, String
 from btclib.b58 import h160_from_address
 from btclib.exceptions import BTClibTypeError, BTClibValueError, NotAPrvKeyError
 from btclib.hashes import magic_message
@@ -1043,8 +1045,8 @@ _Result = bms.MessageVerificationResult
 
 
 def _core(
-    addr: str | bytes = _CORE_ADDR,
-    sig: str | bytes = _CORE_SIG,
+    addr: String = _CORE_ADDR,
+    sig: String = _CORE_SIG,
     msg: bytes = _CORE_MSG,
 ) -> bms.MessageVerificationResult:
     """`message_verify` on the regtest chain, with Core's vector by default."""
@@ -1280,6 +1282,83 @@ def test_message_verify_refuses_a_value_of_a_type_it_does_not_declare() -> None:
         bms.message_verify(12, _CORE_ADDR, _CORE_SIG)  # type: ignore[arg-type]
     with pytest.raises(BTClibValueError):
         bms.message_verify(_CORE_MSG, _CORE_ADDR, _CORE_SIG, network="nonet")
+
+
+@pytest.mark.parametrize("claimed", [bytes, bytearray, memoryview])
+@pytest.mark.parametrize("mock", [Mock, MagicMock])
+def test_message_verify_refuses_a_value_that_claims_a_type(
+    claimed: type, mock: type[Mock]
+) -> None:
+    """A `Mock(spec=...)` sets `__class__` to the type it imitates."""
+    with pytest.raises(BTClibTypeError):
+        _core(addr=mock(spec=claimed))
+    with pytest.raises(BTClibTypeError):
+        _core(sig=mock(spec=claimed))
+
+
+class _Answering:
+    """What a buffer subclass below answers in place of what it holds."""
+
+    answer = b""
+
+
+class _OwnBytes(_Answering, bytes):
+    @override
+    def __bytes__(self) -> bytes:
+        return self.answer
+
+
+class _OwnBytesOfBytearray(_Answering, bytearray):
+    def __bytes__(self) -> bytes:
+        return self.answer
+
+
+class _OwnBuffer(_Answering, bytearray):
+    # what `bytes()` and `memoryview()` read from Python 3.12 (PEP 688)
+    @override
+    def __buffer__(self, flags: int, /) -> memoryview:
+        return memoryview(self.answer)
+
+
+_BufferSubclass = _OwnBytes | _OwnBytesOfBytearray | _OwnBuffer
+
+
+def _answering(
+    subclass: type[_BufferSubclass], held: str, answer: str
+) -> _BufferSubclass:
+    value = subclass(held.encode("ascii"))
+    value.answer = answer.encode("ascii")
+    return value
+
+
+def test_the_bms_buffer_overrides_answer() -> None:
+    """Each override answers its `answer`, so a read reaching one would too."""
+    answer = _CORE_ADDR.encode()
+    for own in (_OwnBytes(b"a"), _OwnBytesOfBytearray(b"a")):
+        own.answer = answer
+        assert own.__bytes__() == answer
+    buffer = _OwnBuffer(b"a")
+    buffer.answer = answer
+    assert bytes(buffer.__buffer__(0)) == answer
+
+
+@pytest.mark.parametrize("subclass", [_OwnBytes, _OwnBytesOfBytearray, _OwnBuffer])
+def test_message_verify_reads_a_buffer_subclass_by_its_base_type(
+    subclass: type[_BufferSubclass],
+) -> None:
+    """A subclass's own `__bytes__` or `__buffer__` decides no text read.
+
+    Each override answers Core's vector, which verifies; what the value
+    holds is refused.
+    """
+    addr = _answering(subclass, "invalid_addr", _CORE_ADDR)
+    assert _core(addr=addr) is _Result.ERR_INVALID_ADDRESS
+    sig = _answering(subclass, "invalid_sig", _CORE_SIG)
+    assert _core(sig=sig) is _Result.ERR_MALFORMED_SIGNATURE
+    # and what it holds is what is verified
+    addr = _answering(subclass, _CORE_ADDR, "invalid_addr")
+    sig = _answering(subclass, _CORE_SIG, "invalid_sig")
+    assert _core(addr=addr, sig=sig) is _Result.OK
 
 
 def test_message_verify_on_an_uncompressed_key() -> None:
