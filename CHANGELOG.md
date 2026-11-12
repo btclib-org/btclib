@@ -33,6 +33,7 @@ other. Past a size ceiling GitHub's contents API answers a file with an
 empty `content` at HTTP 200, which reads as an empty file rather than as
 an error, and one file per release is what keeps each of them under it.
 
+- [v2026.11.12](./changelog/v2026.11.12.md)
 - [v2026.11.10](./changelog/v2026.11.10.md)
 - [v2026.11.7](./changelog/v2026.11.7.md)
 - [v2026.11.2](./changelog/v2026.11.2.md)
@@ -60,97 +61,35 @@ an error, and one file per release is what keeps each of them under it.
 - [v2026.8.9](./changelog/v2026.8.9.md)
 - [v2026.8.7](./changelog/v2026.8.7.md)
 
-## v2026.11.12
+## v2026.11.13
 
-### Headers
+### btclib requires ecc 2026.11.11
 
-`Headers.parse` reads the transaction count after each header and ignores it,
-as Core does, and the keyword-only `round_trip=True` refuses any count but
-zero (closes #2992).
+The floor and the lock move to the release `SECURITY.md` cites, whose DER
+size reader prints no refused size (closes #3065).
 
-### Signature hashes
+### `ellswift.xdh` refuses a non-integer party
 
-`sig_hash.from_tx` refuses a prevout, bare or wrapped in p2sh, that is a
-witness v0 program of neither 20 nor 32 bytes (closes #2997).
+A `bool` or a `float` party is refused with `BTClibTypeError` (closes #3073).
 
-### Script refusals
+### The coercions read each argument by its real type
 
-`script.read_op_code` refuses a negative start offset, and `read_push_data` an
-op code outside 0 to 78 (closes #3034). The op count refusal names the bound
-and not the count (closes #3037).
-
-### Script engine type refusals
-
-The script engine's counts and readers refuse a non-integer by its type with
-`BTClibTypeError` before they compare it (closes #3023).
-
-### Other type refusals
-
-`op_int`, `push_int`, the signature hashes, `bms.Sig` and `build_coinbase`
-refuse a non-integer by its type before they compare it (closes #3008).
-
-### Script engine tests
-
-The int refusals are held in one table (closes #3039), every walk over a
-script runs with the checked readers refused (closes #3046), and the script
-mutation profile runs that table (closes #3047).
-
-### Test harness
-
-A run that leaves `.github/scripts` unmeasured is refused (closes #3040), and a
-run from `tests/` is asserted to reach the tree holding the conftest (issue
-btclib-org/bip39-slip39#235).
-
-### Shared tests
-
-The shared `assert_secret_free` and its tests are taken (issue
-btclib-org/.github#1950).
-
-### Test prose
-
-The shape census says no private nested function (closes #2987), the citations
-docstring drops a stale example (closes #2955), and the integration tests name
-no Core 31 release where the pin has moved on (closes #2894).
-
-### btcd oracle
-
-An addrv2 entry of a known network with the wrong length counts under a rule
-of its own (closes #3024).
-
-### Vendored vectors
-
-`check_vendored_vectors.py` takes only an issue titled exactly as searched
-(issue btclib-org/.github#2152) and reads every issue its title search answers
-(issue btclib-org/.github#2185).
+`btclib.utils` and `message_verify` copy a bytes or bytearray subclass by its
+base type and test types with `type()` (closes #3076) (closes #3078)
+(closes #3081).
 
 ### Workflows
 
-The workflows call btclib-org/.github's reusable workflows at its v2026.11.10
-tag, and the actions and the pre-commit hooks move.
+The workflows call btclib-org/.github's reusable workflows at its v2026.11.12
+tag, and the dev tooling moves.
+
+### Sourcery
+
+Every Sourcery rule is on but dont-import-test-modules, the code rewritten
+keeping behaviour (issue btclib-org/.github#2162, btclib-org/.github#2190).
 
 ### bestpractices.dev
 
-The tree holds its bestpractices.dev answers (issue btclib-org/.github#2153),
-corrected (issue btclib-org/.github#2159).
-
-### Shared files
-
-RELEASING.md and CONTRIBUTING.md take btclib-org/.github's shared part again
-(issue btclib-org/.github#2107) (issue btclib-org/.github#2145), and comments
-and documents name the organization's standard as its section 11 asks.
-
-### Documentation build
-
-`docs/source/conf.py` carries section 14's RootFileLinks part verbatim (issue
-btclib-org/.github#2166).
-
-### Docs checker
-
-CONTRIBUTING.md's setup of the docs checker stops at the first step that fails
-(issue btclib-org/.github#2015).
-
-### CONTRIBUTING.md and SECURITY.md
-
-CONTRIBUTING.md states when fuzz and kernel-differential run (closes #2858),
-and SECURITY.md drops the unscripted cost figure of an unblinded `mod_inv`
-(closes #2886).
+The answers are re-measured at v2026.11.12 (closes #3062), cite
+main-self-merge by id, and record a save nobody can make as owed (issue
+btclib-org/.github#2214, btclib-org/.github#2205).
