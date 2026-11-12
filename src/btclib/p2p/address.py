@@ -69,6 +69,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.limits import MAX_ADDR_TO_SEND
 from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
+    _has_type,
     _message_text,
     assert_no_trailing,
     bytesio_from_binarydata,
@@ -150,18 +151,18 @@ def _ipv6_from_ip_address(ip: IPAddress) -> IPv6Address:
     for octets. Sixteen octets are the one bytes-shaped input, being what
     `IPv6Address` accepts and what the wire holds.
     """
-    if isinstance(ip, IPv6Address):
+    if _has_type(ip, IPv6Address):
         return ip
-    if isinstance(ip, IPv4Address):
+    if _has_type(ip, IPv4Address):
         return IPv6Address(f"::ffff:{ip}")
-    if isinstance(ip, (bytes, bytearray, memoryview)):
+    if _has_type(ip, (bytes, bytearray, memoryview)):
         octets = bytes(ip)
         if len(octets) != _IP_SIZE:
             err_msg = f"invalid ip: {len(octets)}"
             err_msg += f" instead of {_IP_SIZE} bytes"
             raise BTClibValueError(err_msg)
         return IPv6Address(octets)
-    if not isinstance(ip, str):
+    if not _has_type(ip, str):
         err_msg = f"invalid ip type: {type(ip).__name__}"  # type: ignore[unreachable]
         raise BTClibTypeError(err_msg)
 
@@ -362,7 +363,7 @@ class TimestampedNetworkAddress:
         # the annotation says this cannot happen and `check_validity=False`
         # is why it can, as it is everywhere this library asks a built
         # object what type its fields are
-        if not isinstance(self.address, NetworkAddress):
+        if not _has_type(self.address, NetworkAddress):
             err_msg = f"invalid address type: {type(self.address).__name__}"  # type: ignore[unreachable]
             raise BTClibTypeError(err_msg)
         self.address.assert_valid()
@@ -444,10 +445,10 @@ class Addr(Payload):
         # reads as never overlapping Octets now that is_octets narrows --
         # true only of a caller obeying the annotation, which the check
         # exists for the one that does not (issue #1433)
-        if is_octets(addresses) or not isinstance(  # type: ignore[redundant-expr]
+        if is_octets(addresses) or not _has_type(  # type: ignore[redundant-expr]
             addresses, Sequence
         ):
-            err_msg = f"invalid addresses type: {type(addresses).__name__}"  # type: ignore[unreachable]
+            err_msg = f"invalid addresses type: {type(addresses).__name__}"
             raise BTClibTypeError(err_msg)
         object.__setattr__(self, "addresses", tuple(addresses))
 
@@ -462,7 +463,7 @@ class Addr(Payload):
             raise BTClibValueError(err_msg)
 
         for address in self.addresses:
-            if not isinstance(address, TimestampedNetworkAddress):
+            if not _has_type(address, TimestampedNetworkAddress):
                 err_msg = f"invalid address type: {type(address).__name__}"  # type: ignore[unreachable]
                 raise BTClibTypeError(err_msg)
             address.assert_valid()

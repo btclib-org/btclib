@@ -43,6 +43,7 @@ from btclib.network import (
 )
 from btclib.utils import (
     _btclib_errors,
+    _has_type,
     _name_text,
     assert_type,
     bytes_from_octets,
@@ -97,7 +98,7 @@ def _wif_claimant(payload: bytes, network: str | Network | None) -> str | Networ
     prefix = payload[:1]
     # a Network NETWORKS does not hold claims its own prefix; the rest
     # is asked of NETWORKS
-    if isinstance(network, Network) and prefix == network.wif:
+    if _has_type(network, Network) and prefix == network.wif:
         claimed: str | Network = _normalized_network(network)
         return claimed
 
@@ -128,7 +129,7 @@ def _wif_network(
     # membership check
     kept: str | Network = _normalized_network(network)
     if prefix != _network_from(kept).wif:
-        label = kept if isinstance(kept, str) else "given network's"
+        label = kept if _has_type(kept, str) else "given network's"
         raise InvalidPrvKeyError(f"not a {label} wif: prefix 0x{prefix.hex()}")
     # the declared network, not the lookup's guess: for a caller who
     # said "signet" the answer is signet, and it is the one that ends
@@ -188,7 +189,7 @@ def prv_key_data_from_wif(
     # it is the one non-bool this position takes
     if compressed is not None:
         assert_type(compressed, bool, "compressed")
-    if isinstance(network, Network):
+    if _has_type(network, Network):
         _assert_network(network)
     # coerced before stripping, as b32.witness_from_address does, so that
     # surrounding whitespace is trimmed from bytes input too rather than

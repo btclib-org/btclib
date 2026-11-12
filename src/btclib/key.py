@@ -82,7 +82,7 @@ from btclib.network import (
     _normalized_network,
     _shown_network,
 )
-from btclib.utils import assert_type, bytes_from_octets, is_integer
+from btclib.utils import _has_type, assert_type, bytes_from_octets, is_integer
 
 __all__ = [
     "PrvKeyData",
@@ -274,7 +274,7 @@ class PrvKeyData:
         # put a key there when validity is not checked, as they do in the
         # network (see `_shown_network`)
         flag: object = self.compressed
-        compressed = repr(flag) if isinstance(flag, bool) else "..."
+        compressed = repr(flag) if _has_type(flag, bool) else "..."
         network = _shown_network(self.network)
         return (
             f"{type(self).__name__}(q=..., network={network}, compressed={compressed})"

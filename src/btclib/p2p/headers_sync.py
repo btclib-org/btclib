@@ -59,6 +59,7 @@ from btclib.consensus import ConsensusParams, HeadersSyncParams
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256, siphash
 from btclib.utils import (
+    _has_type,
     _message_text,
     assert_type,
     bytes_from_octets,
@@ -123,7 +124,7 @@ def _sequence_of(values: Sequence[object], what: str) -> None:
     An `Octets` is a sequence too, of characters or integers, which is
     what neither a batch of headers nor a locator holds.
     """
-    if is_octets(values) or not isinstance(values, Sequence):
+    if is_octets(values) or not _has_type(values, Sequence):
         raise BTClibTypeError(f"invalid {what} type: {type(values).__name__}")
 
 

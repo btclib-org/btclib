@@ -62,6 +62,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
     _MAX_QUOTED_NAME_LENGTH,
     _btclib_errors,
+    _has_type,
     _name_text,
     assert_type,
     bytes_from_octets,
@@ -612,7 +613,7 @@ def normalized_network_name(network: Any) -> Any:
     it to refuse: the refusal belongs to `validated_network_name`, and a
     caller wanting one calls that.
     """
-    if not isinstance(network, str):
+    if not _has_type(network, str):
         return network
     # ASCII whitespace alone, for the reason `utils.str_from_string` gives;
     # str's own methods, which answer a plain str whatever subclass the
@@ -631,7 +632,7 @@ def validated_network_name(network: str) -> str:
     What a caller keeping the name rather than the `Network` reaches
     for; `network_from_name` is this function and the lookup after it.
     """
-    if not isinstance(network, str):
+    if not _has_type(network, str):
         # the value is not quoted: a misplaced argument may be a key
         raise BTClibTypeError(f"not a network name: {type(network).__name__}")
     name: str = normalized_network_name(network)
@@ -754,7 +755,7 @@ def _network_from(network: str | Network) -> Network:
     that field is a name, or a Network NETWORKS does not hold. A name is
     resolved as `network_from_name` does.
     """
-    if isinstance(network, Network):
+    if _has_type(network, Network):
         network.assert_valid()
         return network
     return network_from_name(network)
@@ -769,7 +770,7 @@ def _normalized_network(network: Any) -> Any:
     spellings of one network build objects that are equal and hash alike.
     It refuses nothing, as `normalized_network_name` refuses nothing.
     """
-    if isinstance(network, Network):
+    if _has_type(network, Network):
         return _entry_name(network) or network
     return normalized_network_name(network)
 
@@ -781,7 +782,7 @@ def _known_network_name(network: object) -> str | None:
     arguments put a key in the field when validity is not checked. The
     type is checked first, so no foreign `__eq__` or `__hash__` runs.
     """
-    return network if isinstance(network, str) and network in NETWORKS else None
+    return network if _has_type(network, str) and network in NETWORKS else None
 
 
 def _shown_network(network: object) -> str:

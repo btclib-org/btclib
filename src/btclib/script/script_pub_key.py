@@ -43,6 +43,7 @@ from btclib.script.limits import MAX_PUBKEYS_PER_MULTISIG
 from btclib.script.script import Script, op_int, push_int, serialize
 from btclib.script.taproot import output_pubkey
 from btclib.utils import (
+    _has_type,
     _message_text,
     assert_type,
     bytes_from_octets,
@@ -643,7 +644,7 @@ class ScriptPubKey(Script):
 
     @override
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, ScriptPubKey):
+        if not _has_type(other, ScriptPubKey):
             return NotImplemented
 
         # the network *type*, not the name. The test networks share one
@@ -726,7 +727,7 @@ class ScriptPubKey(Script):
         # quotes the name it refuses, beside the names there are. Its
         # return value is not read: `__init__` above applies the same
         # normalization to the field
-        if isinstance(self.network, Network):
+        if _has_type(self.network, Network):
             self.network.assert_valid()
         else:
             validated_network_name(self.network)
@@ -873,12 +874,12 @@ class ScriptPubKey(Script):
                 # a Network's repr runs to its curve parameters, so it is
                 # not quoted
                 labels = [
-                    net if isinstance(net, str) else "a given network"
+                    net if _has_type(net, str) else "a given network"
                     for net in (network, key.network)
                 ]
                 mixed = (
                     f"{labels[0]} and {labels[1]}"
-                    if isinstance(network, str) or isinstance(key.network, str)
+                    if _has_type(network, str) or _has_type(key.network, str)
                     else "two given networks"
                 )
                 raise BTClibValueError(f"mixed networks in m-of-n: {mixed}")
@@ -909,7 +910,7 @@ class ScriptPubKey(Script):
         """Return the nulldata ScriptPubKey of the provided data."""
         # text is encoded with its spaces kept, a buffer becomes bytes, and
         # anything else is refused as a type
-        data = data.encode() if isinstance(data, str) else bytes_from_octets(data)
+        data = data.encode() if _has_type(data, str) else bytes_from_octets(data)
 
         if len(data) > 80:
             err_msg = f"invalid nulldata payload length: {len(data)} bytes "
@@ -1034,9 +1035,9 @@ def _script_from(script_pub_key: Octets | ScriptPubKey) -> bytes:
     it reads a `str` as hex or not at all, where a caller holding an
     output as text as readily holds an address.
     """
-    if isinstance(script_pub_key, ScriptPubKey):
+    if _has_type(script_pub_key, ScriptPubKey):
         return script_pub_key.script
-    if isinstance(script_pub_key, (bytes, bytearray, memoryview)):
+    if _has_type(script_pub_key, (bytes, bytearray, memoryview)):
         # this function exists to produce the thing a caller compares and
         # keys a dict by, and a bytearray is unhashable
         return bytes(script_pub_key)
@@ -1084,6 +1085,6 @@ def script_from_script_pub_key(script_pub_key: Octets | ScriptPubKey) -> bytes:
     reason `_script_from` gives about itself: a second copy of the rule is a
     second answer to give.
     """
-    if isinstance(script_pub_key, ScriptPubKey):
+    if _has_type(script_pub_key, ScriptPubKey):
         script_pub_key.assert_valid()
     return _script_from(script_pub_key)

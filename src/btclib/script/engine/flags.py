@@ -32,7 +32,7 @@ from collections.abc import Iterable
 from enum import Flag
 
 from btclib.exceptions import BTClibValueError
-from btclib.utils import _name_text
+from btclib.utils import _has_type, _name_text
 
 __all__ = [
     "ALL_FLAGS",
@@ -145,10 +145,10 @@ def to_script_flags(flags: ScriptFlags | None) -> ScriptFlag:
     """
     if flags is None:
         return ALL_FLAGS
-    if isinstance(flags, ScriptFlag):
+    if _has_type(flags, ScriptFlag):
         return flags
 
-    names = flags.split(",") if isinstance(flags, str) else list(flags)
+    names = flags.split(",") if _has_type(flags, str) else list(flags)
     # `""` is how Core's vectors spell an empty flag field and `"NONE"` is
     # how they spell it when the field is not left empty; both are the
     # whole field, so neither is a name to be looked up among others

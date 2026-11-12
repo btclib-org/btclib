@@ -122,7 +122,7 @@ def _has_type(value: object, expected: Any) -> bool:
     `issubclass` takes: one class, an abstract base class a class is
     registered with included, a union, or a tuple of them.
 
-    Every type test of this module is asked through it.
+    Every type test of btclib is asked through it.
     """
     return issubclass(type(value), expected)
 

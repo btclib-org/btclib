@@ -22,6 +22,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.utils import (
     _assert_valid_4_byte_field,
+    _has_type,
     _message_text,
     assert_no_trailing,
     assert_type,
@@ -65,7 +66,7 @@ def _assert_valid_version(value: int) -> None:
     (AttributeError) and `int.to_bytes` raises OverflowError outside the
     range.
     """
-    if not isinstance(value, int):
+    if not _has_type(value, int):
         raise BTClibTypeError(f"invalid version type: {type(value).__name__}")
     if not -0x80000000 <= value <= 0x7FFFFFFF:
         raise BTClibValueError(f"invalid version: {_message_text(value)}")

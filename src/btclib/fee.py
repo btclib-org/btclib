@@ -60,7 +60,13 @@ from btclib.amount import (
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script.script_pub_key import is_segwit
 from btclib.script.spendability import is_unspendable
-from btclib.utils import _message_text, assert_type, bytes_from_octets, is_integer
+from btclib.utils import (
+    _has_type,
+    _message_text,
+    assert_type,
+    bytes_from_octets,
+    is_integer,
+)
 
 __all__ = [
     "DUST_RELAY_FEE_RATE",
@@ -174,7 +180,7 @@ class FeeRate:
         # valid_btc_amount bounds its own and through the plain int
         # int.__index__ returns
         if (
-            isinstance(sats_per_vbyte, int)
+            _has_type(sats_per_vbyte, int)
             and abs(int.__index__(sats_per_vbyte)) > _MAX_SATOSHI
         ):
             raise BTClibValueError(err_msg)
@@ -282,7 +288,7 @@ class FeeRate:
             # an int is bounded as an int, before str() reads it, as
             # valid_btc_amount bounds its own and through the plain int
             # int.__index__ returns
-            if isinstance(btc_per_kvbyte, int) and abs(
+            if _has_type(btc_per_kvbyte, int) and abs(
                 int.__index__(btc_per_kvbyte)
             ) > int(_MAX_BITCOIN):
                 raise BTClibValueError(err_msg)

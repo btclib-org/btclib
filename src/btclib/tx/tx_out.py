@@ -18,6 +18,7 @@ from btclib.network import Network
 from btclib.script import ScriptPubKey, script_from_dict, script_to_dict
 from btclib.utils import (
     _assert_valid_8_byte_signed_field,
+    _has_type,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -37,7 +38,7 @@ def _network_to_json(network: str | Network) -> str | dict[str, str | None]:
     is refused, so that json written here is never json read back as
     another network.
     """
-    if isinstance(network, str):
+    if _has_type(network, str):
         return network
     dict_ = network.to_dict()
     try:
@@ -94,7 +95,7 @@ class TxOut:
         check_validity: bool = True,
     ) -> None:
         object.__setattr__(self, "value", value)
-        if not isinstance(script_pub_key, ScriptPubKey):
+        if not _has_type(script_pub_key, ScriptPubKey):
             script_bytes = bytes_from_octets(script_pub_key)
             script_pub_key = ScriptPubKey(script_bytes)
         elif check_validity:
@@ -122,7 +123,7 @@ class TxOut:
         `serialize` cannot write one. A bool is refused by
         `valid_sats_amount`.
         """
-        if not isinstance(self.value, int):
+        if not _has_type(self.value, int):
             raise BTClibTypeError(f"invalid value type: {type(self.value).__name__}")
         valid_sats_amount(self.value)
         # the amount and not the script's *contents*: a script_pub_key on
@@ -197,7 +198,7 @@ class TxOut:
         value = sats_from_btc(dict_["value"])
         script_bin = script_from_dict(dict_["scriptPubKey"])
         network = dict_.get("network", "mainnet")
-        if isinstance(network, Mapping):
+        if _has_type(network, Mapping):
             network = Network.from_dict(network, check_validity=check_validity)
         return cls(
             value, ScriptPubKey(script_bin, network), check_validity=check_validity
