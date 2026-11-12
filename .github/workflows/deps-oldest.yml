@@ -46,7 +46,7 @@ concurrency:
 
 jobs:
   suite-oldest:
-    uses: btclib-org/.github/.github/workflows/reusable-deps-oldest.yml@305b1840909ffd49d653d20cc6f5f9e1ab6a3382 # v2026.11.10
+    uses: btclib-org/.github/.github/workflows/reusable-deps-oldest.yml@cb5a79443399980ba717df2dea23dbedf6bdbc3a # v2026.11.12
     with:
       python-version: "3.11"
       pre-suite-script: .github/scripts/assert_bindings_serving.py

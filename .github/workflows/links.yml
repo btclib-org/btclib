@@ -93,6 +93,6 @@ jobs:
   # 10 of the organization's standard); what stays here is the trigger, the
   # schedule and which files are this tree's documentation
   links:
-    uses: btclib-org/.github/.github/workflows/reusable-links.yml@305b1840909ffd49d653d20cc6f5f9e1ab6a3382 # v2026.11.10
+    uses: btclib-org/.github/.github/workflows/reusable-links.yml@cb5a79443399980ba717df2dea23dbedf6bdbc3a # v2026.11.12
     with:
       targets: '"**/*.md" ".github/**/*.md" ".claude/**/*.md" "docs/**/*.rst"'
