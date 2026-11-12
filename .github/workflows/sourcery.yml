@@ -30,7 +30,7 @@ concurrency:
   # named literally rather than through github.workflow, as everywhere
   # else here. A merge does not cancel the run in flight: with no push
   # trigger, it reads the merged files only where it started on the
-  # last push. Where the last push's run is still pending instead, the
+  # last head. Where the last head's run is still pending instead, the
   # merge's run replaces it and declines closed, so the merged files
   # get no reading
   group: sourcery-${{ github.event.pull_request.number || github.ref }}
