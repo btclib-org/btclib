@@ -154,9 +154,9 @@ cryptography==50.0.2 \
     --hash=sha256:f9f6143a8c75945eb960d9eb98905a441394abfa24afaae239d514ffb2586480 \
     --hash=sha256:fa8f5efb344d6908a1ce62f4a24e2e5780f825d6f53f5f50ec5ffacac72936cb \
     --hash=sha256:fdd28f912fccfec1846a94e2e1e8f9b0012f557f0c46fe4f3eb0d7a87afcf90b
-ecc==2026.11.8 \
-    --hash=sha256:0869f1ee04d7fd90f7618b9af592d4960acb9af9c870ed58085a63eef7c775fd \
-    --hash=sha256:68abeb86eaceea66a04599683cc1ce87f5baa2733996844dc335e4f36f8fc2b0
+ecc==2026.11.11 \
+    --hash=sha256:91db56ce7db1a84fb30b5dd3bb95f31953014fb6b9617ce9cbe420cc0a0b15dc \
+    --hash=sha256:b3e7682be3b3b726c9bcae6e93ffd1f14974687e9b2c53855cc90ca0f2c59ba2
     # via btclib
 pycparser==3.0 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy' \
     --hash=sha256:600f49d217304a5902ac3c37e1281c9fe94e4d0489de643a9504c5cdfdfc6b29 \

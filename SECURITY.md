@@ -175,7 +175,7 @@ commit it was read at:
     been regular since #254, and `sign`'s own line, `s = (k_1_ +
     values.b * k_2_ + values.e * a * d) % secp256k1.n`
     ([`src/ecc/musig2.py:872`](
-    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/musig2.py#L872
+    https://github.com/btclib-org/ecc/blob/e1526a6c4fccbbeae03943eb1bf5b947c7e05ea6/src/ecc/musig2.py#L872
     )), spreads 1.016x over uniform scalars
     in `[1, n-1]` -- the magnitude leak that remains shows only for
     scalars with zero high bits, keys already lost for other reasons.
@@ -206,11 +206,11 @@ commit it was read at:
     straight into a Python `int`: `commit_nonce.commit_nonce_` at
     `int.from_bytes(tweaked, byteorder="big", signed=False)`
     ([`src/ecc/commit_nonce.py:159`](
-    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/commit_nonce.py#L159
+    https://github.com/btclib-org/ecc/blob/e1526a6c4fccbbeae03943eb1bf5b947c7e05ea6/src/ecc/commit_nonce.py#L159
     )) and, under `taproot.output_prvkey`, `ssa.prv_key_tweak_add` at
     `int.from_bytes(tweaked, byteorder="big", signed=False)`
-    ([`src/ecc/ssa.py:462`](
-    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/ssa.py#L462
+    ([`src/ecc/ssa.py:460`](
+    https://github.com/btclib-org/ecc/blob/e1526a6c4fccbbeae03943eb1bf5b947c7e05ea6/src/ecc/ssa.py#L460
     )). A caller-owned buffer can be
     wiped once the call that filled it returns; the `int` it is read
     into cannot be, and outlives the call regardless, so taking the
@@ -219,8 +219,8 @@ commit it was read at:
     holding a private key as a Python `int`, which is a change to that
     representation and not to a call site.
     `dsa.Signer.__init__` at `self._q.to_bytes(32, "big")`
-    ([`src/ecc/dsa.py:1483`](
-    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/dsa.py#L1483
+    ([`src/ecc/dsa.py:1481`](
+    https://github.com/btclib-org/ecc/blob/e1526a6c4fccbbeae03943eb1bf5b947c7e05ea6/src/ecc/dsa.py#L1481
     )) crosses the same boundary the other
     way, once, at construction: the plain `int` `scalar_from_prv_key`
     already produced becomes a transient `bytes` on the way into the
@@ -253,7 +253,7 @@ commit it was read at:
     function that is sha256 or absent, declining any other —
     `hf is not None and hf is not sha256`
     ([`src/ecc/curves/curve.py:700`](
-    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/curves/curve.py#L700
+    https://github.com/btclib-org/ecc/blob/e1526a6c4fccbbeae03943eb1bf5b947c7e05ea6/src/ecc/curves/curve.py#L700
     )) — with whatever further
     conditions the call site ands onto it. The hash function is matched
     by identity rather than by what it computes, so
@@ -378,20 +378,20 @@ commit it was read at:
     `curve._libsecp256k1_mult` at
     `libsecp256k1_shared_point(_sec_from_point(Q), m, False)`
     ([`src/ecc/curves/curve.py:976`](
-    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/curves/curve.py#L976
+    https://github.com/btclib-org/ecc/blob/e1526a6c4fccbbeae03943eb1bf5b947c7e05ea6/src/ecc/curves/curve.py#L976
     )). `dh.diffie_hellman` at
     `sec = libsecp256k1_shared_point(`
     ([`src/ecc/dh.py:123`](
-    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/dh.py#L123
+    https://github.com/btclib-org/ecc/blob/e1526a6c4fccbbeae03943eb1bf5b947c7e05ea6/src/ecc/dh.py#L123
     )), `sec_point._mult_sec` at
     `libsecp256k1_shared_point(sec, m or 1, False)`
     ([`src/ecc/curves/sec_point.py:444`](
-    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/curves/sec_point.py#L444
+    https://github.com/btclib-org/ecc/blob/e1526a6c4fccbbeae03943eb1bf5b947c7e05ea6/src/ecc/curves/sec_point.py#L444
     )), under `sec_point.mult_pub_key`, and
     `sec_point._mult_sec_compressed` at
     `libsecp256k1_shared_point(sec, m, True)`
     ([`src/ecc/curves/sec_point.py:466`](
-    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/curves/sec_point.py#L466
+    https://github.com/btclib-org/ecc/blob/e1526a6c4fccbbeae03943eb1bf5b947c7e05ea6/src/ecc/curves/sec_point.py#L466
     )), under `ecies.derive_keys`, make the same call on the octets they
     already hold.
     `double_mult_var` and `multi_mult_var`, and `ssa.batch_verify`, are
@@ -406,12 +406,12 @@ commit it was read at:
     `pedersen._commit` at
     `return _add(mult(r, ec.G, ec), mult(v, gen, ec), ec)`
     ([`src/ecc/pedersen.py:384`](
-    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/pedersen.py#L384
+    https://github.com/btclib-org/ecc/blob/e1526a6c4fccbbeae03943eb1bf5b947c7e05ea6/src/ecc/pedersen.py#L384
     )), under `pedersen.commit`,
     `rangeproof.sign` and `rangeproof.rewind`. The sum is
     `curve._add` at `return _libsecp256k1_sum((P, Q))`
     ([`src/ecc/curves/curve.py:1450`](
-    https://github.com/btclib-org/ecc/blob/9acb14805d439b06999606f0b30c63c0153b1a91/src/ecc/curves/curve.py#L1450
+    https://github.com/btclib-org/ecc/blob/e1526a6c4fccbbeae03943eb1bf5b947c7e05ea6/src/ecc/curves/curve.py#L1450
     )): `secp256k1_ec_pubkey_combine`,
     whose group law `secp256k1_gej_add_ge` and whose inversion
     `secp256k1_fe_inv` are constant time. A commitment to a zero value
