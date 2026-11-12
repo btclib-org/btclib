@@ -142,6 +142,8 @@ from btclib.hashes import hash160, magic_message
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.network import network_from_name
 from btclib.utils import (
+    _copy_bytes,
+    _has_type,
     _message_text,
     assert_no_trailing,
     assert_type,
@@ -575,9 +577,12 @@ def _core_text(value: String, what: str) -> str:
 
     Core's strings are bytes. One outside ASCII is in no alphabet, so it
     is refused later as any other character is, rather than here.
+
+    A bytes or bytearray subclass is read by its base type's own methods,
+    as `_copy_bytes` says, so that no method of its own decides the text.
     """
-    if isinstance(value, (bytes, bytearray, memoryview)):
-        return bytes(value).decode("latin-1")
+    if _has_type(value, (bytes, bytearray, memoryview)):
+        return _copy_bytes(value).decode("latin-1")
     return str_from_string(value, what)
 
 
