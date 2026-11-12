@@ -30,7 +30,7 @@ full year, short month, short day (YYYY-M-D)
   `BTClibTypeError`** (closes #3073). Before, a party equal to 0 or 1 was
   read as that int: `True` as 1, the responder, where
   `ecc.ellswift.xdh`'s `initiating=True` means the initiator, and `1.0`,
-  a `Decimal` or a `Fraction` likewise. Any other non-int raised
+  a `Decimal` or a `Fraction` likewise. A `None` or a `str` raised
   `BTClibValueError`, which an `except ValueError` caught. An int, an
   `IntEnum` included, is still accepted. Act on it if you pass anything but
   an int: pass 0 for the initiator and 1 for the responder.
