@@ -22,9 +22,10 @@ from io import BytesIO
 from typing import Any
 
 import pytest
+from ecc import ellswift as ecc_ellswift
 from ecc.exceptions import EccTypeError
 
-from btclib import bms, var_int
+from btclib import bms, ellswift, var_int
 from btclib.alias import TaprootScriptTree
 from btclib.amount import valid_sats_amount
 from btclib.b32 import address_from_witness, power_of_2_base_conversion
@@ -70,6 +71,7 @@ _PREVOUTS = [TxOut(1, b"")]
 _DSA_SIG = bms.Sig.parse(
     bytes([27]) + 2 * (1).to_bytes(32, "big"), check_validity=False
 ).dsa_sig
+_ELL = ecc_ellswift.create(1)
 
 
 def _tx(version: Any = 1, lock_time: Any = 0) -> Tx:
@@ -129,6 +131,11 @@ _NON_INTEGER_CASES: list[tuple[str, Callable[[Any], object], str]] = [
         "invalid recovery flag type",
     ),
     ("coinbase fees", lambda v: build_coinbase(1, b"", fees=v), "invalid fees type"),
+    (
+        "ellswift xdh party",
+        lambda v: ellswift.xdh(_ELL, _ELL, 1, v),
+        "invalid party type",
+    ),
     ("public key count", assert_pub_key_num, "invalid public key count type"),
     (
         "signature count",
@@ -331,6 +338,8 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert len(sig_hash.from_tx(_PREVOUTS, _tx(), 0, 1, codesep_index=0)) == 32
     assert bms.Sig(27, _DSA_SIG).rf == 27
     assert build_coinbase(1, b"", fees=1).vout[0].value == 50 * 10**8 + 1
+    assert len(ellswift.xdh(_ELL, _ELL, 1, 0)) == 32
+    assert len(ellswift.xdh(_ELL, _ELL, 1, 1)) == 32
 
 
 def test_what_is_no_integer_at_all_is_refused_the_same_way() -> None:

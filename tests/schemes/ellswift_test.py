@@ -186,6 +186,25 @@ def test_xdh_invalid_party() -> None:
             ellswift.xdh(ell, ell, 1, party)
 
 
+def test_xdh_refuses_bool_party() -> None:
+    """`party` is an integer (0 or 1); a bool is refused as a type error.
+
+    In ecc, `initiating: bool` has True as the initiator (btclib's 0),
+    whereas Python's `int(True) == 1` would read True as the responder.
+    """
+    ell = ecc_ellswift.create(_key())
+
+    for party in (True, False):
+        with pytest.raises(BTClibTypeError, match="^invalid party type: bool$"):
+            ellswift.xdh(ell, ell, 1, party)
+
+    for not_an_int in ("0", 1.0, None):
+        with pytest.raises(
+            BTClibTypeError, match=f"^invalid party type: {type(not_an_int).__name__}$"
+        ):
+            ellswift.xdh(ell, ell, 1, not_an_int)  # type: ignore[arg-type]
+
+
 def test_xdh_party_refusal_does_not_quote_a_swapped_key() -> None:
     """With `prv_key` and `party` swapped, the key is not in the message."""
     ell = ecc_ellswift.create(_key())
