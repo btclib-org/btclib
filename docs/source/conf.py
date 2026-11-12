@@ -141,8 +141,8 @@ intersphinx_cache_limit = 0
 # and source above:
 # curl -fsSL -o docs/source/_inventories/python.inv https://docs.python.org/3/objects.inv
 # `_inventories/ecc.inv` is the same for ecc: a copy of the inventory that
-# https://btclib-ecc.readthedocs.io/en/v2026.11.8/objects.inv served on
-# 2026-11-09, read only when that site fails. To refresh it, run this from
+# https://btclib-ecc.readthedocs.io/en/v2026.11.11/objects.inv served on
+# 2026-11-12, read only when that site fails. To refresh it, run this from
 # the repository root, with the version uv.lock pins, and rewrite the
 # version and date:
 # curl -fsSL -o docs/source/_inventories/ecc.inv https://btclib-ecc.readthedocs.io/en/v<version>/objects.inv
