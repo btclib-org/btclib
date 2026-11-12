@@ -19,6 +19,37 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.11.12
+
+### Breaking changes
+
+- **`Headers.parse` reads a nonzero transaction count after a header and
+  ignores it**, as Core does, where it refused the payload (closes #2992). Two
+  payloads differing only in their counts parse to equal objects, and
+  `serialize` writes a zero after every header. Act on it if you relied on the
+  refusal: pass `round_trip=True`.
+- **`sig_hash.from_tx` refuses a prevout of a witness v0 program of neither 20
+  nor 32 bytes**, bare or wrapped in p2sh, with `BTClibValueError`
+  (closes #2997), where it returned the legacy hash. Consensus fails every
+  spend of such an output.
+- **`script.read_op_code` refuses a negative start offset, and
+  `script_op_codes.read_push_data` an op code outside 0 to 78**, with
+  `BTClibValueError` (closes #3034). A start at or past the end still answers
+  `None`.
+- **A non-integer, a `bool` included, is refused by its type with
+  `BTClibTypeError`**, a `TypeError`, in the script engine's
+  `assert_pub_key_num`, `assert_signature_num`, `script_op_count`,
+  `read_push_data` and `read_op_code` (closes #3023), and in `op_int`,
+  `push_int`, `sig_hash.legacy`, the hash types of `segwit_v0` and `taproot`,
+  `from_tx`'s `codesep_index`, `bms.Sig`'s recovery flag and
+  `build_coinbase`'s fees (closes #3008). Some of them took a `bool`, a
+  `float` or a `Decimal` as a number. Act on it if you catch
+  `BTClibValueError` around these calls: some of them raised it for a value
+  they now refuse with `BTClibTypeError`, as `taproot` did for a `str` hash
+  type, so catch `BTClibTypeError` there too.
+- **The op count refusal no longer prints the count** (closes #3037): it names
+  the bound alone. Act on it if you match an error message's text.
+
 ## v2026.11.10
 
 - **btclib requires `ecc` 2026.11.8** (closes #2954), which removes
