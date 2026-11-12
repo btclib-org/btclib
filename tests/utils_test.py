@@ -698,9 +698,10 @@ def test_a_buffer_subclass_is_read_by_its_base_type(
     assert type(bytes_from_octets(octets)) is bytes
     assert str_from_string(octets, "label") == "abc"
 
-    # a plain bytes is not copied, as `_copy_bytes` says
+    # a plain bytes is not copied, as `_copy_bytes` says: a copy would be
+    # another object, at another address while `plain` is alive
     plain = b"abc"
-    assert bytes_from_octets(plain) is plain
+    assert id(bytes_from_octets(plain)) == id(plain)
 
 
 # (the call, the type its argument claims through `__class__`)
