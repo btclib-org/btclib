@@ -735,9 +735,8 @@ def test_a_value_that_claims_a_type_is_refused_as_a_type(
 ) -> None:
     """A `Mock(spec=...)` sets `__class__` to the type it imitates.
 
-    `isinstance` reads `__class__`, so the coercions took the Mock for
-    that type and left with a built-in error, or answered with the Mock
-    itself or with the empty bytes a MagicMock's buffer holds.
+    `isinstance` reads `__class__`, so a type test asking it would take
+    the Mock for that type; `_has_type` reads `type()` instead.
     """
     with pytest.raises(BTClibTypeError):
         call(mock(spec=claimed))
