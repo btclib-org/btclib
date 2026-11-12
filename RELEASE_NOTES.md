@@ -19,6 +19,33 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.11.13
+
+- **btclib requires `ecc` 2026.11.11** (closes #3065). Act on it if you pin
+  `ecc` below 2026.11.11.
+
+### Breaking changes
+
+- **`ellswift.xdh` refuses a party that is not an int with
+  `BTClibTypeError`** (closes #3073). Before, a party equal to 0 or 1 was
+  read as that int: `True` as 1, the responder, where
+  `ecc.ellswift.xdh`'s `initiating=True` means the initiator, and `1.0`,
+  a `Decimal` or a `Fraction` likewise. A `None` or a `str` raised
+  `BTClibValueError`, which an `except ValueError` caught. An int, an
+  `IntEnum` included, is still accepted. Act on it if you pass anything but
+  an int: pass 0 for the initiator and 1 for the responder.
+- **btclib's type checks and coercions read an argument by its real type**
+  (closes #3076) (closes #3078) (closes #3081). A bytes or bytearray
+  subclass is read by its base type in `btclib.utils` and `message_verify`,
+  so its own `__bytes__` or `__buffer__` no longer decides the octets. An
+  object whose `__class__` claims a type it is not, such as
+  `MagicMock(spec=bytes)` or a `wrapt.ObjectProxy`, is refused with
+  `BTClibTypeError` by the type checks of `btclib.utils`, `assert_type`
+  included, and by the parameters that pass through them, and
+  `is_integer` answers `False` for it. Before, it was read as that
+  type or failed with a plain `TypeError`. Act on it if you pass a proxy:
+  unwrap it, or convert it with `bytes()` or `int()`, before the call.
+
 ## v2026.11.12
 
 ### Breaking changes
