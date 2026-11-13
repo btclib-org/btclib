@@ -6,7 +6,6 @@ for each task, following the setup and cleanup commands in
 
 Follow [CONTRIBUTING.md](./CONTRIBUTING.md) for issues, pull requests,
 local gates, and worktree setup and cleanup. Use
-[REVIEWING.md](./REVIEWING.md) for reviews and
 [ARCHITECTURE.md](./ARCHITECTURE.md) for design, and read it before
 changing `src/btclib/bms.py` or `src/btclib/ellswift.py`: it defines the
 module boundaries and the Python and bindings paths. Read
