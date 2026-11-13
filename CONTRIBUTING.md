@@ -655,25 +655,6 @@ commits have been pushed to it, as
 says. `@dependabot recreate` in a comment rebuilds the branch without the
 commit, which is then made again.
 
-### A pre-commit.ci pull request that moves the actionlint rev
-
-The `actionlint` rev is the sha of an annotated tag, with a
-`# frozen: <tag>` comment. pre-commit.ci's bump writes that comment with two
-spaces before the `#`, and prettier rewrites them to one, so the pull
-request fails the `lint` job and, `autofix_prs` being false, nothing fixes
-it. An owner, as [`GOVERNANCE.md`][governance] names them, commits the
-rewrite to the pull request's branch before it lands, signed and signed off.
-On a checkout of that branch:
-
-```shell
-uv run --locked --only-group lint pre-commit run prettier --files .pre-commit-config.yaml
-git commit -S -s -m "Format the frozen comment" .pre-commit-config.yaml
-git push origin HEAD:<branch>
-```
-
-The hook exits 1 when it rewrites the file. The push is a plain one, never
-a force.
-
 ### What runs when
 
 | workflow | when | what it varies |
