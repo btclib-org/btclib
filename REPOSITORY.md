@@ -360,12 +360,17 @@ no force pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator is exempt from this classic
 rule, though not from the rulesets below.
 
-`main-self-merge` has no bypass actor, so every merge needs an approval
-from somebody other than its author. In an emergency the maintainer adds
-the bypass back and removes it after the merge: btclib-org/.github's
+`main-self-merge` has one bypass actor, the maintainer (`3296421`), in
+**`pull_request` mode**, so the maintainer can merge without an approval
+from somebody other than the author, and nobody else can. It is the
+organization-wide bypass, which the maintainer keeps until the backlog
+settles, with no date set (btclib-org/.github#2021). Once it is removed,
+the ruleset has no bypass actor, as the standard asks of a tree whose
+`README.md` carries the OpenSSF Best Practices badge, and
+btclib-org/.github's
 [`GOVERNANCE.md`](https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md#how-a-decision-is-made),
-*How a decision is made*, says when. CONTRIBUTING.md's *Landing it* has
-the commands.
+*How a decision is made*, says when the maintainer adds it back.
+CONTRIBUTING.md's *Landing it* has the commands.
 
 `strict` is off: a pull request need not be up to date with `main` to
 merge. [Section 11 of the
@@ -417,8 +422,9 @@ unrelated reason: `release.yml` publishes to PyPI on `push: tags:
   deletions. No bypass actor, for anyone, ever.
 - `main-self-merge`: require a pull request — one approving review,
   dismiss stale reviews, conversation resolution — and `squash` as the
-  only merge method it will accept. No bypass actor; the one the
-  maintainer adds in an emergency is in **`pull_request` mode**.
+  only merge method it will accept. One bypass actor, the maintainer, in
+  **`pull_request` mode**, while the organization-wide bypass stands
+  (*Branch protection*).
 - `tag-integrity`, `target: tag`, `refs/tags/v*`: required signatures,
   and nothing else. No `deletion` or `non_fast_forward` rule, on
   purpose — RELEASING.md's own recovery path deletes and re-tags a
@@ -428,8 +434,10 @@ unrelated reason: `release.yml` publishes to PyPI on `push: tags:
   one.
 
 **The bypass mode is the whole of the design.** `pull_request` excuses
-its holder from the rule *while merging a pull request* and at no other
-time, so it excuses the approving review and nothing further.
+its holder from the whole ruleset *while merging a pull request* and at
+no other time: the approving review, conversation resolution and the
+merge-method parameter all give way on that merge; the bypass reaches
+nothing outside this ruleset.
 btclib-org/.github's `GOVERNANCE.md`, *How a decision is made*, says
 when the maintainer adds it. A direct push to `main` is
 refused for everyone, the holder included: outside a pull request there
@@ -454,12 +462,11 @@ gh api repos/btclib-org/btclib/rulesets --jq '.[].id' \
            bypass: [.bypass_actors[] | .bypass_mode]}'
 ```
 
-All three answer with an empty bypass list. For `main-integrity` and
-`tag-integrity` it is what makes a rewritten history, or an unsigned
-commit brought by a `v*` tag push, unlandable, by anyone, admin or not,
-through a pull request or otherwise; for `main-self-merge` it is what
-makes a merge without an approval impossible until the maintainer adds
-the bypass back.
+`main-integrity` and `tag-integrity` answer with an empty bypass list,
+which is what makes a rewritten history, or an unsigned commit brought by
+a `v*` tag push, unlandable, by anyone, admin or not, through a pull
+request or otherwise. `main-self-merge` answers `["pull_request"]`, the
+maintainer's bypass *Branch protection* describes.
 
 No ruleset over `main` carries `required_signatures`, so nothing refuses an
 unsigned commit at the push. `verified-signatures.yml` checks after the
@@ -479,7 +486,7 @@ gh api repos/<owner>/<repo>/git/tags/<sha> --jq .verification
 
 **Two settings hold the door, not one.** The classic protection still
 carries `required_pull_request_reviews`, and what clears it for the
-maintainer, once the emergency bypass is added to the ruleset, is
+maintainer, when merging through the ruleset's bypass, is
 `enforce_admins` being `false` together with holding `admin` — the
 ruleset bypass alone would not be enough. Turning
 `enforce_admins` on would therefore leave the maintainer no landing
