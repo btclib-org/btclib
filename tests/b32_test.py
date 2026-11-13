@@ -364,10 +364,10 @@ def test_address_witness() -> None:
 @pytest.mark.parametrize(
     "from_bits, to_bits, err_msg",
     [
-        (8, 0, "invalid to_bits: 0 < 1"),
-        (8, -2, "invalid to_bits: -2 < 1"),
-        (0, 5, "invalid from_bits: 0 < 1"),
-        (-1, 5, "invalid from_bits: -1 < 1"),
+        (8, 0, "invalid to_bits: an int of 0 bits < 1"),
+        (8, -2, "invalid to_bits: a negative int of 2 bits < 1"),
+        (0, 5, "invalid from_bits: an int of 0 bits < 1"),
+        (-1, 5, "invalid from_bits: a negative int of 1 bits < 1"),
     ],
 )
 def test_a_conversion_width_is_positive(
@@ -385,11 +385,11 @@ def test_a_conversion_width_is_positive(
 @pytest.mark.parametrize(
     "from_bits, to_bits, err_msg",
     [
-        (5, 65, "invalid to_bits: 65 > 64"),
-        (65, 5, "invalid from_bits: 65 > 64"),
-        (5, 2**64, "invalid to_bits: 18446744073709551616 > 64"),
-        (2**64, 5, "invalid from_bits: 18446744073709551616 > 64"),
-        (2**33, 5, "invalid from_bits: 8589934592 > 64"),
+        (5, 65, "invalid to_bits: an int of 7 bits > 64"),
+        (65, 5, "invalid from_bits: an int of 7 bits > 64"),
+        (5, 2**64, "invalid to_bits: an int of 65 bits > 64"),
+        (2**64, 5, "invalid from_bits: an int of 65 bits > 64"),
+        (2**33, 5, "invalid from_bits: an int of 34 bits > 64"),
     ],
 )
 def test_a_conversion_width_is_at_most_64(
