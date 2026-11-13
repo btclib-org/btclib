@@ -457,16 +457,16 @@ def test_an_invalid_hrp_is_refused() -> None:
     outside BIP173's range is refused by assert_valid.
     """
     mainnet = NETWORKS["mainnet"].to_dict()
-    with pytest.raises(BTClibValueError, match="HRP is not lowercase: XYZ"):
+    with pytest.raises(BTClibValueError, match="HRP is not lowercase: 'XYZ'"):
         Network.from_dict({**mainnet, "hrp": "XYZ"})
 
-    with pytest.raises(BTClibValueError, match="HRP is not lowercase: XYZ"):
+    with pytest.raises(BTClibValueError, match="HRP is not lowercase: 'XYZ'"):
         replace_unchecked(NETWORKS["mainnet"], hrp="XYZ").assert_valid()
 
     with pytest.raises(BTClibValueError, match="empty HRP"):
         Network.from_dict({**mainnet, "hrp": ""})
 
-    with pytest.raises(BTClibValueError, match="HRP character out of range: bc "):
+    with pytest.raises(BTClibValueError, match="HRP character out of range: 'bc '"):
         Network.from_dict({**mainnet, "hrp": "bc "})
 
 

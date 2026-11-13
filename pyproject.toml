@@ -55,10 +55,11 @@ requires-python = ">=3.11"
 dependencies = [
     # the Base58Check and bech32 codecs and `convertbits`, which `b58`,
     # `b32`, `bms` and `network` import from `base58_bech32` and do not
-    # re-export. 2026.10.23 is the floor: its `bech32_decode` returns the
-    # constant that verified, which `b32.witness_from_address` holds to
-    # BIP350's rule, where 2026.10.18's returns the hrp and the data alone
-    "base58-bech32>=2026.10.23",
+    # re-export. 2026.11.12 is the floor: its refusals describe an int by
+    # its sign and bit length, where 2026.11.7's write the int out
+    # (btclib-org/base58-bech32#118), so a key passed as a conversion width
+    # or value is not printed, which tests/huge_int_message_test.py checks
+    "base58-bech32>=2026.11.12",
     # the curve arithmetic and the schemes built on it, which btclib
     # imports from `ecc` where it uses them and does not re-export.
     # 2026.11.11 is the floor: SECURITY.md links ecc's lines at its tag,

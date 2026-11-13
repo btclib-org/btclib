@@ -10,7 +10,10 @@ no digit of a key passed in an int's place reaches the message (issue
 #2998). The description is also what keeps an int `str()` cannot write,
 one past `sys.get_int_max_str_digits()` digits, from raising a
 ValueError of its own in place of the refusal (issue #2394). Each case
-below reaches a message quoting a caller's integer through one of them.
+below reaches a message quoting a caller's integer through one of them,
+except the base conversion cases: their text is base58-bech32's own,
+which describes the int the same way from the floor `pyproject.toml`
+sets.
 
 One file rather than a case per module, as `integer_policy_test.py` is
 for the bool: the decision is one, and each case is the shortest call
@@ -505,29 +508,12 @@ def test_a_refusal_naming_the_bound_writes_no_int_of_it(
         call(value)
 
 
-# the refusals whose text is base58-bech32's, which has a _message_text
-# of its own that writes the int
-_RELAYED = {"base conversion value", "base conversion width"}
-_RELAYED_MARK = pytest.mark.xfail(
-    raises=AssertionError,
-    reason="base58-bech32 writes the int (btclib-org/base58-bech32#118)",
-)
-
-
 _SCALAR_CASES = [*_CASES, *(case[:3] for case in _BOUND_CASES)]
 
 
 @pytest.mark.parametrize(
     "value, call",
-    [
-        pytest.param(
-            value,
-            call,
-            id=name,
-            marks=[_RELAYED_MARK] if name in _RELAYED else [],
-        )
-        for name, value, call in _SCALAR_CASES
-    ],
+    [pytest.param(value, call, id=name) for name, value, call in _SCALAR_CASES],
 )
 def test_a_refusal_prints_no_digit_of_a_scalar(
     value: int, call: Callable[[Any], object]
