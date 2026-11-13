@@ -2,14 +2,14 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""A value is tested by its own class, not by the class it claims.
+"""What btclib makes of a value whose `__class__` claims another type.
 
 `unittest.mock.Mock(spec=T)` sets its `__class__` to `T`, and
 `isinstance` reads `__class__`, so a type test asking `isinstance` takes
-the Mock for a `T`. `btclib.utils._has_type` reads `type()` instead, and
-every type test of btclib asks it. Each case below drives a public
-function with a Mock claiming the type its type test expects, and the
-value is read as the object it is (issue #3080).
+the Mock for a `T`. `btclib.utils._has_type` reads `type()` instead. Its
+docstring says which type tests ask it and which generated comparisons
+do not, and the cases below drive both with such a Mock (issues #3080
+and #3091).
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ from btclib.p2p.address import Addr, NetworkAddress, TimestampedNetworkAddress
 from btclib.p2p.addrv2 import AddrV2, NetworkAddressV2
 from btclib.p2p.compact_blocks import CmpctBlock, PrefilledTransaction, reconstruct
 from btclib.p2p.data import BlockPayload, TxPayload
-from btclib.p2p.handshake import Version
+from btclib.p2p.handshake import Verack, Version
 from btclib.p2p.headers_sync import ChainStart
 from btclib.p2p.inventory import GetHeaders, Headers, Inv, Inventory
 from btclib.p2p.keepalive import Ping
@@ -190,6 +190,23 @@ def test_a_value_that_claims_a_type_is_answered_as_its_own(mock: type[Mock]) -> 
 
     claimed_str = mock(spec=str)
     assert normalized_network_name(claimed_str) is claimed_str
+
+
+@pytest.mark.parametrize("mock", [Mock, MagicMock])
+def test_a_generated_comparison_takes_a_claimed_type_for_its_own(
+    mock: type[Mock],
+) -> None:
+    """What `@dataclass` generates reads the class the Mock claims.
+
+    `_has_type`'s docstring puts it outside its rule: the Mock is taken
+    for an instance, so a field it lacks raises, and a class with no
+    field compares equal (issue #3091).
+    """
+    with pytest.raises(AttributeError):
+        Ping(1).__eq__(mock(spec=Ping))
+    with pytest.raises(AttributeError):
+        FeeRate(sats_per_kvbyte=1000).__lt__(mock(spec=FeeRate))
+    assert Verack().__eq__(mock(spec=Verack)) is True
 
 
 @pytest.mark.parametrize("mock", [Mock, MagicMock])

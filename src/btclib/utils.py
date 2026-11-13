@@ -122,7 +122,11 @@ def _has_type(value: object, expected: Any) -> bool:
     `issubclass` takes: one class, an abstract base class a class is
     registered with included, a union, or a tuple of them.
 
-    Every type test of btclib is asked through it.
+    Every type test btclib writes is asked through it. The `__eq__` that
+    `@dataclass` generates, and the ordering `order=True` adds, are
+    outside this rule: they compare `other.__class__ is self.__class__`,
+    so they take an object claiming the class for an instance of it and
+    read its fields (issue #3091).
     """
     return issubclass(type(value), expected)
 
