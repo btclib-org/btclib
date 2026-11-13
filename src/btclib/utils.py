@@ -362,7 +362,9 @@ def read_exactly(stream: BinaryIO, size: int, what: str) -> bytes:
     `size` is a count of octets, so an integer from zero to
     `sys.maxsize`: a negative one is what `read` takes for "to the end",
     and past `sys.maxsize` `read` answers with an OverflowError of its
-    own, where no stream holds that many octets anyway.
+    own, where no stream holds that many octets anyway. Up to there it is
+    eight bytes, so a short read's refusal writes it through
+    `_message_field`, as `bytes_from_octets` writes its sizes.
     """
     # a bool is not a count, `True` reading one octet
     if not is_integer(size):
@@ -372,7 +374,7 @@ def read_exactly(stream: BinaryIO, size: int, what: str) -> bytes:
     data = stream.read(size)
     if len(data) != size:
         err_msg = f"not enough data for the {what}: "
-        err_msg += f"{len(data)} bytes instead of {size}"
+        err_msg += f"{len(data)} bytes instead of {_message_field(size, 32, 'd')}"
         raise BTClibValueError(err_msg)
     return data
 

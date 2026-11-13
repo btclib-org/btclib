@@ -43,6 +43,7 @@ from btclib.utils import (
     read_exactly,
     str_from_string,
 )
+from tests.secret_free import assert_secret_free
 
 random.seed(42)
 
@@ -91,6 +92,31 @@ def test_read_exactly_names_the_field_it_could_not_fill() -> None:
     err_msg = "not enough data for the tx_id: 0 bytes instead of 32"
     with pytest.raises(BTClibValueError, match=err_msg):
         read_exactly(BytesIO(b""), 32, "tx_id")
+
+
+def test_read_exactly_writes_no_size_wider_than_four_bytes() -> None:
+    """A short read's size is written where it fits four bytes, else described.
+
+    Section 7 of the standard, *A refusal carries no secret*, lets a
+    refusal print a field of at most four bytes, and a size up to
+    `sys.maxsize` is eight: one wider than four bytes may be a key passed
+    in its place (issue #3103). No spelling of it is in the refusal.
+    """
+    err_msg = "^not enough data for the f: 2 bytes instead of 4294967295$"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        read_exactly(BytesIO(b"ab"), 2**32 - 1, "f")
+    err_msg = "^not enough data for the f: 2 bytes instead of an int of 33 bits$"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        read_exactly(BytesIO(b"ab"), 2**32, "f")
+    err_msg = "^not enough data for the f: 2 bytes instead of an int of 63 bits$"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        read_exactly(BytesIO(b"ab"), sys.maxsize, "f")
+
+    wide = 0x1234_5678_9ABC
+    err_msg = "^not enough data for the f: 2 bytes instead of an int of 45 bits$"
+    with pytest.raises(BTClibValueError, match=err_msg) as refused:
+        read_exactly(BytesIO(b"ab"), wide, "f")
+    assert_secret_free(refused.value, [str(wide), f"{wide:x}", wide.to_bytes(6, "big")])
 
 
 def test_assert_no_trailing() -> None:
