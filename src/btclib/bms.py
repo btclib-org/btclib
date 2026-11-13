@@ -343,7 +343,7 @@ def sign(msg: Octets, prv_key: PrvKeyData | str, addr: String | None = None) -> 
     library those spell a scalar, which carries neither the network nor
     the compression.
     """
-    if isinstance(prv_key, str):
+    if _has_type(prv_key, str):
         prv_key = prv_key_data_from_wif(prv_key)
     # asked here whatever `check_validity` the object was built with: a
     # key the constructor was told not to check is one a caller may hold
@@ -450,7 +450,7 @@ def assert_as_valid(msg: Octets, addr: String, sig: Sig | String) -> None:
     flag claims; anything short of a match is an error, verify being
     the boolean answer.
     """
-    if isinstance(sig, Sig):
+    if _has_type(sig, Sig):
         sig.assert_valid()
     else:
         sig = Sig.b64decode(sig)
@@ -523,7 +523,7 @@ def _assert_structurally_valid_(addr: String, sig: Sig | String) -> Sig:
     where that was settled.
     """
     parsed_sig = (
-        sig if isinstance(sig, Sig) else Sig.b64decode(sig, check_validity=False)
+        sig if _has_type(sig, Sig) else Sig.b64decode(sig, check_validity=False)
     )
     if is_segwit_prefixed(addr):
         witness_from_address(addr)
@@ -679,7 +679,7 @@ def message_verify(
     str_sig = _core_text(sig, "signature")
 
     key_hash = _core_key_hash(str_addr, network)
-    if isinstance(key_hash, MessageVerificationResult):
+    if _has_type(key_hash, MessageVerificationResult):
         return key_hash
 
     sig_bytes = _core_decode_base64(str_sig)

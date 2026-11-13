@@ -28,6 +28,7 @@ from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS, TxIn
 from btclib.tx.tx_out import TxOut
 from btclib.utils import (
     _assert_valid_4_byte_field,
+    _has_type,
     assert_no_trailing,
     assert_type,
     bytesio_from_binarydata,
@@ -240,7 +241,7 @@ class Tx:  # noqa: PLW1641
 
     @override
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Tx):
+        if not _has_type(other, Tx):
             return NotImplemented
 
         if not TX_IN_COMPARES_WITNESS and self.vwitness != other.vwitness:

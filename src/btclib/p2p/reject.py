@@ -85,7 +85,7 @@ from btclib import var_bytes
 from btclib.alias import Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.payload import Payload, _assert_valid_int
-from btclib.utils import bytes_from_octets, is_integer, read_exactly
+from btclib.utils import _has_type, bytes_from_octets, is_integer, read_exactly
 
 __all__ = [
     "Reject",
@@ -191,10 +191,10 @@ class Reject(Payload):
 
     def assert_valid(self) -> None:
         """Refuse a wrong type, an out-of-range code, or a bad data length."""
-        if not isinstance(self.message, str):
+        if not _has_type(self.message, str):
             err_msg = f"invalid message type: {type(self.message).__name__}"  # type: ignore[unreachable]
             raise BTClibTypeError(err_msg)
-        if not isinstance(self.reason, str):
+        if not _has_type(self.reason, str):
             err_msg = f"invalid reason type: {type(self.reason).__name__}"  # type: ignore[unreachable]
             raise BTClibTypeError(err_msg)
 

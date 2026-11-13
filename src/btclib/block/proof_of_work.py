@@ -35,6 +35,7 @@ from btclib.alias import Octets
 from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
+    _has_type,
     _message_text,
     assert_type,
     bytes_from_octets,
@@ -440,7 +441,7 @@ def chain_work(bits_sequence: Sequence[Octets]) -> int:
     # every Octets is a Sequence too: passing one instead of a list of
     # them would zip through its bytes and sum the work of each as if it
     # were its own `bits` (issue #1405)
-    if is_octets(bits_sequence) or not isinstance(bits_sequence, Sequence):
+    if is_octets(bits_sequence) or not _has_type(bits_sequence, Sequence):
         raise BTClibTypeError(
             f"invalid bits sequence type: {type(bits_sequence).__name__}"
         )
@@ -482,7 +483,7 @@ def hash_rate(difficulty: float, timespan: float, block_count: int = 1) -> float
     # so it is the narrower question -- and a bool is neither, `True`
     # being one block, one second and difficulty one
     for name, value in (("timespan", timespan), ("difficulty", difficulty)):
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
+        if _has_type(value, bool) or not _has_type(value, (int, float)):
             raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
     if not is_integer(block_count):
         raise BTClibTypeError(f"invalid block count type: {type(block_count).__name__}")

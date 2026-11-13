@@ -54,6 +54,7 @@ from btclib.utils import (
 )
 from btclib.utils import (
     _assert_valid_8_byte_signed_field,
+    _has_type,
     _message_text,
     bytes_from_octets,
     is_integer,
@@ -1075,7 +1076,7 @@ def redeem_script(script_sig: Octets, script_pub_key: Octets) -> bytes:
     # contract
     command = commands[-1]
     if (
-        not isinstance(command, str)
+        not _has_type(command, str)
         or command == ERROR_COMMAND
         or (command != "OP_0" and command.startswith(("OP_", "UNKNOWN_OP_CODE_")))
     ):

@@ -31,13 +31,14 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from functools import cached_property
 from io import BytesIO
-from typing import cast
+from typing import Any, cast
 from warnings import warn
 
 from btclib.alias import BinaryData, Command, Octets, ScriptList
 from btclib.consensus import MAX_SCRIPT_SIZE
 from btclib.exceptions import BTClibTypeError, BTClibUserWarning, BTClibValueError
 from btclib.utils import (
+    _has_type,
     _message_text,
     _name_text,
     assert_type,
@@ -458,7 +459,7 @@ def _serialize_bytes_command(command: bytes | bytearray | memoryview) -> bytes:
     """
     # both serializers hand here whatever command is neither an int nor a
     # str, so a float or a None would otherwise reach `len` unasked
-    if not isinstance(command, (bytes, bytearray, memoryview)):
+    if not _has_type(command, (bytes, bytearray, memoryview)):
         raise BTClibTypeError(f"invalid script command type: {type(command).__name__}")
     out: list[bytes | bytearray | memoryview] = []
     length = len(command)
@@ -522,15 +523,15 @@ def serialize(script: Sequence[Command]) -> bytes:
     """
     # `is_octets` is the four spellings named once, so a spelling
     # `Octets` gains later is refused here too (issue #1420)
-    if is_octets(script) or not isinstance(script, Sequence):
+    if is_octets(script) or not _has_type(script, Sequence):
         err_msg = f"invalid script commands type: {type(script).__name__}"
         raise BTClibTypeError(err_msg)
 
     r: list[bytes] = []
     for command in script:
-        if isinstance(command, int):
+        if _has_type(command, int):
             r.append(_serialize_int_command(command))
-        elif isinstance(command, str):
+        elif _has_type(command, str):
             r.append(_serialize_str_command(command))
         else:  # must be bytes
             r.append(_serialize_bytes_command(command))
@@ -767,8 +768,11 @@ def script_from_dict(value: Mapping[str, str] | Octets) -> bytes:
     changed, and a reader that refused the old spelling would break
     round trips that never had an `asm` to disagree with.
     """
-    if not isinstance(value, Mapping):
-        return bytes_from_octets(value)
+    if not _has_type(value, Mapping):
+        # read as Any: `_has_type` narrows on no abstract class, as its
+        # overloads say, and `bytes_from_octets` refuses what is not octets
+        octets: Any = value
+        return bytes_from_octets(octets)
 
     value = fields_from_json_object(value, "script")
     script = bytes_from_octets(value["hex"])
@@ -893,7 +897,7 @@ class Script:
     def __add__(self, other: Script) -> Script:
         return (
             Script(self.script + other.script)
-            if isinstance(other, Script)  # type: ignore[redundant-expr]
+            if _has_type(other, Script)  # type: ignore[redundant-expr]
             else NotImplemented
         )
 

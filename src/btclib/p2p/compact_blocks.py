@@ -163,6 +163,7 @@ from btclib.p2p.limits import MAX_BLOCK_TX_INDEX
 from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.tx.tx import Tx
 from btclib.utils import (
+    _has_type,
     _message_text,
     assert_no_trailing,
     assert_type,
@@ -221,12 +222,12 @@ def _assert_valid_index(index: int, what: str, *, check_validity: bool) -> None:
     `PrefilledTransaction.parse`), and a bool is written as zero or one.
     With it True the index is also in range and not a bool.
     """
-    if not isinstance(index, int):
+    if not _has_type(index, int):
         raise BTClibTypeError(f"invalid {what} type: {type(index).__name__}")
     if check_validity:
         # a bool is an int and would read as index one or zero, which the
         # range check below cannot tell from an index whose value that is
-        if isinstance(index, bool):
+        if _has_type(index, bool):
             raise BTClibTypeError(f"invalid {what} type: bool")
         if not 0 <= index <= MAX_BLOCK_TX_INDEX:
             raise BTClibValueError(f"invalid {what}: {_message_text(index)}")
@@ -315,7 +316,7 @@ def _assert_valid_header(header: BlockHeader) -> None:
     widths and ranges, and `assert_valid_pow` beside it is the proof --
     so this asks nothing that depends on which network the header is of.
     """
-    if not isinstance(header, BlockHeader):
+    if not _has_type(header, BlockHeader):
         err_msg = f"invalid header type: {type(header).__name__}"  # type: ignore[unreachable]
         raise BTClibTypeError(err_msg)
     header.assert_valid()
@@ -330,7 +331,7 @@ def _assert_tx_type(tx: Tx, what: str) -> None:
     whole mempool would be re-checking every transaction its holder
     already has, once per compact block that arrives.
     """
-    if not isinstance(tx, Tx):
+    if not _has_type(tx, Tx):
         raise BTClibTypeError(f"invalid {what} type: {type(tx).__name__}")
 
 
@@ -679,7 +680,7 @@ class CmpctBlock(Payload):
             )
 
         for prefilled_tx in self.prefilled_txns:
-            if not isinstance(prefilled_tx, PrefilledTransaction):
+            if not _has_type(prefilled_tx, PrefilledTransaction):
                 err_msg = "invalid prefilled transaction type: "  # type: ignore[unreachable]
                 err_msg += type(prefilled_tx).__name__
                 raise BTClibTypeError(err_msg)
@@ -1091,7 +1092,7 @@ def reconstruct(compact_block: CmpctBlock, pool: Sequence[Tx] = ()) -> PartialBl
     arrived inside the message or was checked on the way in, and the
     `PartialBlock` is therefore built with the flag cleared.
     """
-    if not isinstance(compact_block, CmpctBlock):
+    if not _has_type(compact_block, CmpctBlock):
         err_msg = f"invalid compact_block type: {type(compact_block).__name__}"  # type: ignore[unreachable]
         raise BTClibTypeError(err_msg)
     for tx in _sequence_of(pool, "pool"):

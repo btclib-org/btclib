@@ -32,7 +32,7 @@ from decimal import (
 from typing import Any
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import _message_text, is_integer
+from btclib.utils import _has_type, _message_text, is_integer
 
 __all__ = [
     "btc_from_sats",
@@ -180,7 +180,7 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
     # contract. It is type-checked here, by name and not by attempting a
     # conversion, the same way valid_sats_amount type-checks its own dust
     # threshold
-    if not isinstance(dust, Decimal):
+    if not _has_type(dust, Decimal):
         err_msg = f"non-Decimal BTC dust threshold: {_message_text(dust)}"  # type: ignore[unreachable]
         raise BTClibTypeError(err_msg)
     # a threshold is an amount, and bounding it is what bounds the range
@@ -193,7 +193,7 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
     # past 4300 digits raises ValueError, and every int it would refuse
     # for that is out of range. Compared as int.__index__ returns it, a
     # plain int, so that a subclass's own comparison is never what runs
-    if isinstance(amount, int) and not 0 <= int.__index__(amount) <= int(_MAX_BITCOIN):
+    if _has_type(amount, int) and not 0 <= int.__index__(amount) <= int(_MAX_BITCOIN):
         raise BTClibValueError(f"invalid BTC amount: {_message_text(amount)}")
     with localcontext(_CONTEXT):
         # any input str() writes is read through its text
@@ -253,7 +253,7 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     # check as well: refused by name, for the reason is_integer gives --
     # and by name because this argument is Any, so a str and a Decimal are
     # legitimate here and the predicate cannot be the gate
-    if isinstance(amount, bool):
+    if _has_type(amount, bool):
         raise BTClibTypeError(f"non-integer satoshi amount: {_message_text(amount)}")
     # and the threshold it is compared against: a bool passes the
     # comparison below as zero or one, so `dust=True` is a dust level of
@@ -267,7 +267,7 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     if not 0 <= dust <= _MAX_SATOSHI:
         raise BTClibValueError("invalid satoshi dust threshold")
     text = amount
-    if isinstance(amount, str):
+    if _has_type(amount, str):
         text = _number_text(amount, f"invalid satoshi amount: {_message_text(amount)}")
     # any input that can be converted to int is fine -- and int() refuses
     # what it cannot convert with a bare ValueError ("abc", b"\x01"), a
@@ -287,7 +287,7 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     # to every str regardless of value, which is what refused every
     # numeric string despite the comment above admitting one. A str is
     # exempted from the check rather than compared under it
-    if amount is not None and not isinstance(amount, str) and sats != amount:
+    if amount is not None and not _has_type(amount, str) and sats != amount:
         err_msg = f"non-integer satoshi amount: {_message_text(amount)}"
         raise BTClibTypeError(err_msg)
     if not dust <= sats <= _MAX_SATOSHI:

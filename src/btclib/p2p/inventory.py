@@ -115,6 +115,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.limits import MAX_HEADERS_RESULTS, MAX_INV_SZ, MAX_LOCATOR_SZ
 from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
+    _has_type,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -252,7 +253,7 @@ def _sequence_of(values: Sequence[_Element], what: str) -> tuple[_Element, ...]:
     gains later is refused here too (issue #1405, as issue #1261 for
     `utils.is_octets` itself).
     """
-    if is_octets(values) or not isinstance(values, Sequence):
+    if is_octets(values) or not _has_type(values, Sequence):
         raise BTClibTypeError(f"invalid {what} type: {type(values).__name__}")
     return tuple(values)
 
@@ -385,7 +386,7 @@ class _InventoryPayload(Payload):
             raise BTClibValueError(err_msg)
 
         for item in self.items:
-            if not isinstance(item, Inventory):
+            if not _has_type(item, Inventory):
                 err_msg = f"invalid item type: {type(item).__name__}"  # type: ignore[unreachable]
                 raise BTClibTypeError(err_msg)
             item.assert_valid()
@@ -638,7 +639,7 @@ class Headers(Payload):
             raise BTClibValueError(err_msg)
 
         for header in self.headers:
-            if not isinstance(header, BlockHeader):
+            if not _has_type(header, BlockHeader):
                 err_msg = f"invalid header type: {type(header).__name__}"  # type: ignore[unreachable]
                 raise BTClibTypeError(err_msg)
             header.assert_valid()

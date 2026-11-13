@@ -52,6 +52,7 @@ from btclib.script.op_codes_tapscript import (
 )
 from btclib.script.script import _serialize_bytes_command, _serialize_int_command
 from btclib.utils import (
+    _has_type,
     _message_text,
     assert_type,
     bytes_from_octets,
@@ -110,14 +111,14 @@ def serialize(script: ScriptList) -> bytes:
     script = script[::-1]
     while script:
         command = script.pop()
-        if isinstance(command, int):
+        if _has_type(command, int):
             r.append(_serialize_int_command(command))
-        elif isinstance(command, str):
+        elif _has_type(command, str):
             serialized = _serialize_str_command(command)
             r.append(serialized)
             # keyed on the byte written, not on how the command spells it
             if len(serialized) == 1 and serialized[0] in OP_SUCCESS:
-                if len(script) != 1 or not isinstance(
+                if len(script) != 1 or not _has_type(
                     script[0], (bytes, bytearray, memoryview)
                 ):
                     raise BTClibValueError(
@@ -290,7 +291,7 @@ def _tree_helper(leaf: object) -> tuple[TaprootLeafPaths, bytes]:
     # a tuple of two and not any pair that unpacks: a two-element list
     # holding a leaf version and a script is how a branch is spelled too.
     # The arity is the alias's, `tuple[int, ScriptList]`, so it is a type
-    if not isinstance(leaf, tuple):
+    if not _has_type(leaf, tuple):
         raise BTClibTypeError(f"invalid script tree leaf type: {type(leaf).__name__}")
     if len(leaf) != 2:
         raise BTClibTypeError(f"invalid script tree leaf: {len(leaf)}-tuple")
@@ -336,7 +337,7 @@ def tree_from_weights(
     # weight is settled by it and two nodes are never compared
     heap: list[tuple[int, int, int, TaprootScriptTree]] = []
     for index, pair in enumerate(weighted_leaves):
-        if not isinstance(pair, tuple):
+        if not _has_type(pair, tuple):
             raise BTClibTypeError(f"invalid weighted leaf type: {type(pair).__name__}")
         if len(pair) != 2:
             raise BTClibTypeError(f"invalid weighted leaf: {len(pair)}-tuple")

@@ -158,6 +158,7 @@ from btclib.p2p.address import (
 from btclib.p2p.limits import MAX_ADDR_TO_SEND, MAX_ADDRV2_SIZE
 from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
+    _has_type,
     _message_text,
     assert_no_trailing,
     bytes_from_octets,
@@ -559,10 +560,10 @@ class AddrV2(Payload):
         # overlapping Octets now that is_octets narrows -- true only of a
         # caller obeying the annotation, which the check exists for the
         # one that does not (issue #1433)
-        if is_octets(addresses) or not isinstance(  # type: ignore[redundant-expr]
+        if is_octets(addresses) or not _has_type(  # type: ignore[redundant-expr]
             addresses, Sequence
         ):
-            err_msg = f"invalid addresses type: {type(addresses).__name__}"  # type: ignore[unreachable]
+            err_msg = f"invalid addresses type: {type(addresses).__name__}"
             raise BTClibTypeError(err_msg)
         object.__setattr__(self, "addresses", tuple(addresses))
 
@@ -577,7 +578,7 @@ class AddrV2(Payload):
             raise BTClibValueError(err_msg)
 
         for address in self.addresses:
-            if not isinstance(address, NetworkAddressV2):
+            if not _has_type(address, NetworkAddressV2):
                 err_msg = f"invalid address type: {type(address).__name__}"  # type: ignore[unreachable]
                 raise BTClibTypeError(err_msg)
             address.assert_valid()

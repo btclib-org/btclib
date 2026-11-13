@@ -82,6 +82,7 @@ from btclib.p2p.address import (
 from btclib.p2p.limits import MAX_SUBVERSION_LENGTH, PROTOCOL_VERSION
 from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
+    _has_type,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -248,7 +249,7 @@ class Version(Payload):
             ("addr_recv", self.addr_recv),
             ("addr_from", self.addr_from),
         ):
-            if not isinstance(address, NetworkAddress):
+            if not _has_type(address, NetworkAddress):
                 err_msg = f"invalid {what} type: {type(address).__name__}"  # type: ignore[unreachable]
                 raise BTClibTypeError(err_msg)
             address.assert_valid()
@@ -261,7 +262,7 @@ class Version(Payload):
         # a kind and not a truth: the value decides what is written, one
         # octet or none, so `relay="no"` would serialize as True rather
         # than as the False a configuration file meant by it
-        if self.relay is not None and not isinstance(self.relay, bool):
+        if self.relay is not None and not _has_type(self.relay, bool):
             err_msg = f"invalid relay type: {type(self.relay).__name__}"  # type: ignore[unreachable]
             raise BTClibTypeError(err_msg)
 
