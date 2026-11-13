@@ -285,3 +285,16 @@ def test_value_that_is_not_an_int_is_refused_by_assert_valid(value: Any) -> None
         tx_out.serialize()
     with pytest.raises(BTClibTypeError, match=message):
         _tx_with_value(value, check_validity=True)
+
+
+@pytest.mark.parametrize("network", [5, None, 1.5, object()])
+def test_network_that_is_neither_str_nor_network_is_refused_by_to_dict(
+    network: Any,
+) -> None:
+    """`to_dict` refuses what is not a network name or Network (issue 3093)."""
+    script_pub_key = ScriptPubKey(b"\x51", network, check_validity=False)
+    tx_out = TxOut(1, script_pub_key, check_validity=False)
+
+    message = f"^not a Network: {type(network).__name__}$"
+    with pytest.raises(BTClibTypeError, match=message):
+        tx_out.to_dict(check_validity=False)
