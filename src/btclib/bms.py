@@ -142,6 +142,7 @@ from btclib.hashes import hash160, magic_message
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.network import network_from_name
 from btclib.utils import (
+    _assert_byte_shaped,
     _copy_bytes,
     _has_type,
     _message_text,
@@ -580,8 +581,12 @@ def _core_text(value: String, what: str) -> str:
 
     A bytes or bytearray subclass is read by its base type's own methods,
     as `_copy_bytes` says, so that no method of its own decides the text.
+
+    A strided memoryview, or one whose format is not "B", is refused as
+    `str_from_string` refuses it: `_assert_byte_shaped` says why.
     """
     if _has_type(value, (bytes, bytearray, memoryview)):
+        _assert_byte_shaped(value)
         return _copy_bytes(value).decode("latin-1")
     return str_from_string(value, what)
 
