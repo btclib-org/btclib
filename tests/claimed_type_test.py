@@ -27,7 +27,7 @@ import pytest
 
 from btclib import bms
 from btclib.amount import valid_btc_amount, valid_sats_amount
-from btclib.b58 import p2pkh, wif_from_prv_key
+from btclib.b58 import p2pkh, prv_key_data_from_wif, wif_from_prv_key
 from btclib.block import Block, BlockHeader, PartialMerkleTree
 from btclib.block.proof_of_work import chain_work, hash_rate
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -44,7 +44,7 @@ from btclib.p2p.inventory import GetHeaders, Headers, Inv, Inventory
 from btclib.p2p.keepalive import Ping
 from btclib.p2p.merkleblock import MerkleBlock
 from btclib.p2p.reject import Reject
-from btclib.script import sig_hash, taproot
+from btclib.script import taproot
 from btclib.script.engine.flags import NO_FLAGS, ScriptFlag, to_script_flags
 from btclib.script.script import Script, serialize
 from btclib.script.script_pub_key import ScriptPubKey, script_from_script_pub_key
@@ -64,32 +64,26 @@ def _serialized_header(version: Any) -> bytes:
     return header.serialize(check_validity=False)
 
 
-def _tx_out_to_dict(network: Any) -> object:
-    """Write out an output whose network was not checked."""
-    script_pub_key = ScriptPubKey(b"", network, check_validity=False)
-    return TxOut(1, script_pub_key, check_validity=False).to_dict()
-
-
-# (the module, a call of one of its public functions, the type the
-# argument claims through `__class__`, what the call raises)
+# (the module whose type test decides the refusal, a public call that
+# reaches it, the type the argument claims through `__class__`, what the
+# call raises): put `isinstance` back in that test and the case fails
 _REFUSED: tuple[tuple[str, Callable[[Any], object], type, type[Exception]], ...] = (
     ("amount", lambda v: valid_btc_amount(1, v), Decimal, BTClibTypeError),
     # an amount is Any, read through its text, so a Mock is a bad value
     ("amount", valid_btc_amount, int, BTClibValueError),
     ("amount", valid_sats_amount, str, BTClibTypeError),
-    ("b58", lambda v: wif_from_prv_key(1, v), Network, BTClibTypeError),
-    ("b58", lambda v: wif_from_prv_key(1, v), str, BTClibTypeError),
+    ("network", lambda v: wif_from_prv_key(1, v), Network, BTClibTypeError),
+    ("network", lambda v: wif_from_prv_key(1, v), str, BTClibTypeError),
     ("block_header", _serialized_header, int, BTClibTypeError),
     ("proof_of_work", chain_work, list, BTClibTypeError),
     ("proof_of_work", lambda v: hash_rate(v, 1), int, BTClibTypeError),
     ("proof_of_work", lambda v: hash_rate(1, v), float, BTClibTypeError),
     ("bms", lambda v: bms.assert_as_valid(b"", _ADDR, v), bms.Sig, BTClibTypeError),
-    ("bms", lambda v: bms.verify(b"", _ADDR, v), bms.Sig, BTClibTypeError),
     # a fee rate is Any, read through its text, as an amount is
     ("fee", FeeRate.from_sats_per_vbyte, int, BTClibValueError),
-    ("fee", FeeRate.from_btc_per_kvbyte, int, BTClibValueError),
-    ("key", lambda v: PrvKeyData(1, v), Network, BTClibTypeError),
-    ("key", lambda v: PrvKeyData(1, v), str, BTClibTypeError),
+    ("amount", FeeRate.from_btc_per_kvbyte, int, BTClibValueError),
+    ("network", lambda v: PrvKeyData(1, v), Network, BTClibTypeError),
+    ("network", lambda v: PrvKeyData(1, v), str, BTClibTypeError),
     ("network", validated_network_name, str, BTClibTypeError),
     ("address", lambda v: NetworkAddress(ip=v), IPv6Address, BTClibTypeError),
     ("address", lambda v: NetworkAddress(ip=v), IPv4Address, BTClibTypeError),
@@ -148,7 +142,6 @@ _REFUSED: tuple[tuple[str, Callable[[Any], object], type, type[Exception]], ...]
     ("script_pub_key", ScriptPubKey.nulldata, str, BTClibTypeError),
     ("script_pub_key", script_from_script_pub_key, ScriptPubKey, BTClibTypeError),
     ("script_pub_key", script_from_script_pub_key, bytes, BTClibTypeError),
-    ("sig_hash", lambda v: sig_hash.redeem_script(v, b""), bytes, BTClibTypeError),
     ("taproot", lambda v: taproot.serialize([v]), int, BTClibTypeError),
     ("taproot", lambda v: taproot.serialize([v]), str, BTClibTypeError),
     # what follows OP_SUCCESS is no bytes command, as for any other object
@@ -161,7 +154,6 @@ _REFUSED: tuple[tuple[str, Callable[[Any], object], type, type[Exception]], ...]
     ("taproot", lambda v: taproot.tree_helper([v]), tuple, BTClibTypeError),
     ("taproot", lambda v: taproot.tree_from_weights([v]), tuple, BTClibTypeError),
     ("tx_out", lambda v: TxOut(1, v), ScriptPubKey, BTClibTypeError),
-    ("tx_out", _tx_out_to_dict, str, BTClibTypeError),
     ("utreexo", Stump, int, BTClibTypeError),
     ("utreexo", lambda v: Proof([v]), int, BTClibTypeError),
 )
@@ -197,6 +189,14 @@ def test_a_value_that_claims_a_type_is_answered_as_its_own(mock: type[Mock]) -> 
 
     claimed_str = mock(spec=str)
     assert normalized_network_name(claimed_str) is claimed_str
+
+
+@pytest.mark.parametrize("mock", [Mock, MagicMock])
+def test_a_value_that_claims_a_network_is_no_name_to_b58(mock: type[Mock]) -> None:
+    """`b58` refuses the Mock as no network name, not as a bad Network."""
+    wif = wif_from_prv_key(1)
+    with pytest.raises(BTClibTypeError, match="not a network name"):
+        prv_key_data_from_wif(wif, mock(spec=Network))
 
 
 def test_a_value_that_claims_a_flag_set_is_read_as_its_own() -> None:
