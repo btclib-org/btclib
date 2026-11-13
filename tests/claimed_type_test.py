@@ -201,7 +201,9 @@ def test_a_value_that_claims_a_network_is_no_name_to_b58(mock: type[Mock]) -> No
 
 
 def test_a_value_that_claims_a_flag_set_is_read_as_its_own() -> None:
-    """A MagicMock is an empty iterable of names by its own class."""
+    """A Mock is no iterable, and a MagicMock an empty one, by its own class."""
+    with pytest.raises(BTClibTypeError, match="^invalid script flags type: Mock$"):
+        to_script_flags(Mock(spec=ScriptFlag))
     assert to_script_flags(MagicMock(spec=ScriptFlag)) == NO_FLAGS
 
 
