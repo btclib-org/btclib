@@ -1361,6 +1361,39 @@ def test_message_verify_reads_a_buffer_subclass_by_its_base_type(
     assert _core(addr=addr, sig=sig) is _Result.OK
 
 
+def _strided(text: str) -> memoryview:
+    """Return a view whose strides gather `text` from a buffer twice as long."""
+    interleaved = bytearray(2 * len(text))
+    interleaved[::2] = text.encode("ascii")
+    return memoryview(bytes(interleaved))[::2]
+
+
+def _signed(text: str) -> memoryview:
+    """Return a contiguous view of `text` in format "b", signed bytes."""
+    return memoryview(text.encode("ascii")).cast("b")
+
+
+@pytest.mark.parametrize(
+    "view, refusal",
+    [(_strided, "non-contiguous"), (_signed, "memoryview format 'b'")],
+)
+def test_message_verify_refuses_a_memoryview_that_is_not_plain_bytes(
+    view: Callable[[str], memoryview], refusal: str
+) -> None:
+    """A strided view, or one of another format than "B", is refused.
+
+    `bytes()` of each view is Core's vector, which verifies.
+    """
+    addr = view(_CORE_ADDR)
+    sig = view(_CORE_SIG)
+    assert bytes(addr) == _CORE_ADDR.encode("ascii")
+    assert bytes(sig) == _CORE_SIG.encode("ascii")
+    with pytest.raises(BTClibValueError, match=refusal):
+        _core(addr=addr)
+    with pytest.raises(BTClibValueError, match=refusal):
+        _core(sig=sig)
+
+
 def test_message_verify_on_an_uncompressed_key() -> None:
     """The compressed bit of the first byte picks the serialization hashed."""
     prv_key = PrvKeyData(0x1234567, "mainnet", compressed=False)
