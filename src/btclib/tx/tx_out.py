@@ -34,12 +34,15 @@ __all__ = [
 def _network_to_json(network: str | Network) -> str | dict[str, str | None]:
     """Return a network name as it is, a Network as its own dict.
 
-    A Network that `Network.from_dict` does not read back as an equal one
-    is refused, so that json written here is never json read back as
-    another network.
+    A value that is neither a str nor a Network is refused with
+    `BTClibTypeError`. A Network that `Network.from_dict` does not read
+    back as an equal one is refused, so that json written here is never
+    json read back as another network.
     """
     if _has_type(network, str):
         return network
+    if not _has_type(network, Network):
+        raise BTClibTypeError(f"not a Network: {type(network).__name__}")
     dict_ = network.to_dict()
     try:
         back = Network.from_dict(dict_)

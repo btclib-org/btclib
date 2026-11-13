@@ -17,6 +17,7 @@ from btclib.script import ScriptPubKey
 from btclib.testing.strategies import TX_OUTS
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests.conftest import JsonGolden
+from tests.secret_free import assert_secret_free
 
 
 def test_tx_out() -> None:
@@ -285,3 +286,42 @@ def test_value_that_is_not_an_int_is_refused_by_assert_valid(value: Any) -> None
         tx_out.serialize()
     with pytest.raises(BTClibTypeError, match=message):
         _tx_with_value(value, check_validity=True)
+
+
+@pytest.mark.parametrize("network", [5, None, 1.5, object()])
+def test_network_that_is_neither_str_nor_network_is_refused_by_to_dict(
+    network: Any,
+) -> None:
+    """`to_dict` refuses what is not a network name or Network (issue 3093)."""
+    script_pub_key = ScriptPubKey(b"\x51", network, check_validity=False)
+    tx_out = TxOut(1, script_pub_key, check_validity=False)
+
+    message = f"^not a Network: {type(network).__name__}$"
+    with pytest.raises(BTClibTypeError, match=message):
+        tx_out.to_dict(check_validity=False)
+
+
+# a fixed random scalar, as `assert_secret_free` asks
+_SECRET = bytes.fromhex(
+    "7fe1e91aa50be99e8439824f132d3f8e82d2765d842e2f1be76ef1c6588745f9"
+)
+
+
+@pytest.mark.parametrize(
+    "network",
+    [_SECRET, int.from_bytes(_SECRET, "big")],
+    ids=["bytes", "int"],
+)
+def test_network_refused_by_to_dict_prints_no_secret(network: Any) -> None:
+    """A key passed as the network is refused by its type alone.
+
+    Section 7 of the organization's standard: an argument in the wrong
+    place may be a key.
+    """
+    script_pub_key = ScriptPubKey(b"\x51", network, check_validity=False)
+    tx_out = TxOut(1, script_pub_key, check_validity=False)
+
+    with pytest.raises(BTClibTypeError) as refusal:
+        tx_out.to_dict(check_validity=False)
+    decimal = str(int.from_bytes(_SECRET, "big"))
+    assert_secret_free(refusal.value, [_SECRET, decimal])
