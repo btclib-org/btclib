@@ -44,7 +44,7 @@ from btclib.p2p.inventory import GetHeaders, Headers, Inv, Inventory
 from btclib.p2p.keepalive import Ping
 from btclib.p2p.merkleblock import MerkleBlock
 from btclib.p2p.reject import Reject
-from btclib.script import taproot
+from btclib.script import sig_hash, taproot
 from btclib.script.engine.flags import NO_FLAGS, ScriptFlag, to_script_flags
 from btclib.script.script import Script, serialize
 from btclib.script.script_pub_key import ScriptPubKey, script_from_script_pub_key
@@ -66,7 +66,7 @@ def _serialized_header(version: Any) -> bytes:
 
 # (the module whose type test decides the refusal, a public call that
 # reaches it, the type the argument claims through `__class__`, what the
-# call raises): put `isinstance` back in that test and the case fails
+# call raises): put `isinstance` back in that test and its Mock case fails
 _REFUSED: tuple[tuple[str, Callable[[Any], object], type, type[Exception]], ...] = (
     ("amount", lambda v: valid_btc_amount(1, v), Decimal, BTClibTypeError),
     # an amount is Any, read through its text, so a Mock is a bad value
@@ -142,6 +142,7 @@ _REFUSED: tuple[tuple[str, Callable[[Any], object], type, type[Exception]], ...]
     ("script_pub_key", ScriptPubKey.nulldata, str, BTClibTypeError),
     ("script_pub_key", script_from_script_pub_key, ScriptPubKey, BTClibTypeError),
     ("script_pub_key", script_from_script_pub_key, bytes, BTClibTypeError),
+    ("utils", lambda v: sig_hash.redeem_script(v, b""), bytes, BTClibTypeError),
     ("taproot", lambda v: taproot.serialize([v]), int, BTClibTypeError),
     ("taproot", lambda v: taproot.serialize([v]), str, BTClibTypeError),
     # what follows OP_SUCCESS is no bytes command, as for any other object
