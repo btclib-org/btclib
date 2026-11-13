@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 import btclib.script.engine
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import ScriptPubKey
 from btclib.script.engine import (
     ALL_FLAGS,
@@ -149,6 +149,31 @@ def test_unknown_flag_name_raises(flags: ScriptFlags) -> None:
     """
     with pytest.raises(BTClibValueError, match="unknown script flag"):
         to_script_flags(flags)
+
+
+# a key in the wrong place: the refusal names a type and no byte or digit
+_KEY = bytes.fromhex("9ed7f12938cd646f2866d454cc247f688b857424cc4ee6bec49c16f1200bd5b9")
+
+
+@pytest.mark.parametrize(
+    "flags, err_msg",
+    [
+        (5, "invalid script flags type: int"),
+        (int.from_bytes(_KEY, "big"), "invalid script flags type: int"),
+        (1.5, "invalid script flags type: float"),
+        (object(), "invalid script flags type: object"),
+        # a bytes is an iterable of ints, refused at its first name
+        (b"P2SH", "invalid script flag type: int"),
+        (_KEY, "invalid script flag type: int"),
+        ([5], "invalid script flag type: int"),
+        (["P2SH", b"DERSIG"], "invalid script flag type: bytes"),
+    ],
+)
+def test_a_flag_set_of_another_type_is_refused(flags: object, err_msg: str) -> None:
+    """What is no ScriptFlag, str or iterable of str is a type error."""
+    with pytest.raises(BTClibTypeError) as refusal:
+        to_script_flags(flags)  # type: ignore[arg-type]
+    assert str(refusal.value) == err_msg
 
 
 def test_default_flags_cannot_be_mutated() -> None:

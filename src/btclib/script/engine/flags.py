@@ -32,7 +32,7 @@ from collections.abc import Iterable
 from enum import Flag
 
 from btclib.exceptions import BTClibValueError
-from btclib.utils import _has_type, _name_text
+from btclib.utils import _has_type, _name_text, assert_type
 
 __all__ = [
     "ALL_FLAGS",
@@ -137,6 +137,10 @@ def to_script_flags(flags: ScriptFlags | None) -> ScriptFlag:
     anything else is taken as an iterable of names; an unknown name raises
     rather than being skipped, which is the whole point of the enum.
 
+    A value whose class has no `__iter__`, and a name that is not a str,
+    raise BTClibTypeError naming its type. A bytes is an iterable of
+    ints, so `b"P2SH"` is refused at its first name, an int.
+
     `None` is `ALL_FLAGS`, the default set, while an empty string, an
     empty iterable and Core's `"NONE"` are `NO_FLAGS`, no rule at all.
     Those two must stay tellable apart -- the first says "whatever btclib
@@ -148,7 +152,13 @@ def to_script_flags(flags: ScriptFlags | None) -> ScriptFlag:
     if _has_type(flags, ScriptFlag):
         return flags
 
-    names = flags.split(",") if _has_type(flags, str) else list(flags)
+    if _has_type(flags, str):
+        names = flags.split(",")
+    else:
+        assert_type(flags, Iterable, "script flags")
+        names = list(flags)
+    for name in names:
+        assert_type(name, str, "script flag")
     # `""` is how Core's vectors spell an empty flag field and `"NONE"` is
     # how they spell it when the field is not left empty; both are the
     # whole field, so neither is a name to be looked up among others
