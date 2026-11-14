@@ -33,6 +33,7 @@ other. Past a size ceiling GitHub's contents API answers a file with an
 empty `content` at HTTP 200, which reads as an empty file rather than as
 an error, and one file per release is what keeps each of them under it.
 
+- [v2026.11.13](./changelog/v2026.11.13.md)
 - [v2026.11.12](./changelog/v2026.11.12.md)
 - [v2026.11.10](./changelog/v2026.11.10.md)
 - [v2026.11.7](./changelog/v2026.11.7.md)
@@ -61,35 +62,56 @@ an error, and one file per release is what keeps each of them under it.
 - [v2026.8.9](./changelog/v2026.8.9.md)
 - [v2026.8.7](./changelog/v2026.8.7.md)
 
-## v2026.11.13
+## v2026.11.14
 
-### btclib requires ecc 2026.11.11
+### btclib requires base58-bech32 2026.11.12
 
-The floor and the lock move to the release `SECURITY.md` cites, whose DER
-size reader prints no refused size (closes #3065).
+The floor moves to the release whose refusals print no int passed as a
+conversion width or value, the lock moves with it, and the suite matches its
+refusal texts (closes #3086).
 
-### `ellswift.xdh` refuses a non-integer party
+### Type tests read a value's own class
 
-A `bool` or a `float` party is refused with `BTClibTypeError` (closes #3073).
+Every type test of `src/btclib` asks `utils._has_type`, so an object claiming a
+type it is not is refused or read as the object it is (closes #3080).
 
-### The coercions read each argument by its real type
+### Type test docstrings
 
-`btclib.utils` and `message_verify` copy a bytes or bytearray subclass by its
-base type and test types with `type()` (closes #3076) (closes #3078)
-(closes #3081).
+`_has_type`'s says a dataclass's generated `__eq__` is outside its rule
+(closes #3091), and `assert_type`'s points to it (issue #3090).
 
-### Workflows
+### Script flags
 
-The workflows call btclib-org/.github's reusable workflows at its v2026.11.12
-tag, and the dev tooling moves.
+`to_script_flags` refuses a value that is not an iterable, and a name that is
+not a str, with `BTClibTypeError` (closes #3088).
 
-### Sourcery
+### `TxOut.to_dict`
 
-Every Sourcery rule is on but dont-import-test-modules, the code rewritten
-keeping behaviour (issue btclib-org/.github#2162, btclib-org/.github#2190).
+A network that is neither a str nor a `Network` is refused with
+`BTClibTypeError` (closes #3093).
+
+### `message_verify`
+
+A strided memoryview, or one whose format is not `"B"`, is refused as the
+address or the signature (closes #3085).
+
+### Lock
+
+soupsieve, which furo brings into the dev and docs groups, is relocked past
+GHSA-mmhr-3c5m-f64f (closes #3094).
+
+### Repository
+
+AGENTS.md carries Code Review Rules and points at REVIEWING.md once (issue
+btclib-org/.github#2009), and REPOSITORY.md says main-self-merge holds the
+maintainer's standing bypass (issue btclib-org/.github#2212).
+
+### pre-commit
+
+prettier leaves `.pre-commit-config.yaml` to pre-commit.ci (issue
+btclib-org/.github#2038).
 
 ### bestpractices.dev
 
-The answers are re-measured at v2026.11.12 (closes #3062), cite
-main-self-merge by id, and record a save nobody can make as owed (issue
-btclib-org/.github#2214, btclib-org/.github#2205).
+The answers are re-measured at v2026.11.13, and osps_qa_07_01 says how long
+the maintainer's bypass stands (issue btclib-org/.github#2212).

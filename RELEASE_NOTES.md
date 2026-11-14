@@ -19,6 +19,33 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.11.14
+
+- **btclib requires `base58-bech32` 2026.11.12** (closes #3086). Act on it if
+  you pin `base58-bech32` below 2026.11.12.
+
+### Breaking changes
+
+- **Every btclib module reads a value by its own class** (closes #3080), as
+  `btclib.utils` does since v2026.11.13. An object whose `__class__` claims a
+  type it is not, such as `Mock(spec=int)`, is refused or answered as the
+  object it is, where it was read as that type. `to_script_flags` refuses a
+  `Mock(spec=ScriptFlag)` where it returned it, and `ScriptPubKey` and `Tx`
+  compare unequal to a Mock claiming their class where they raised
+  `AttributeError`. Act on it if you pass a stand-in: pass the object itself.
+- **`to_script_flags` refuses a value that is not an iterable, and a name that
+  is not a str, with `BTClibTypeError`** (closes #3088). Before, a value with
+  no `__iter__` raised a plain `TypeError`, and a name that is not a str, such
+  as an int of a bytes, raised `BTClibValueError` as an unknown flag. Act on it
+  if you catch `ValueError` for such a name: catch `TypeError`.
+- **`TxOut.to_dict` refuses a network that is neither a str nor a `Network`
+  with `BTClibTypeError`** (closes #3093), where it raised `AttributeError`.
+  Act on it if you catch `AttributeError` there: catch `TypeError`.
+- **`message_verify` refuses a strided memoryview, or one whose format is not
+  `"B"`, as the address or the signature, with `BTClibValueError`**
+  (closes #3085). Before, it read the bytes the view gathered. Act on it if
+  you pass such a view: pass `bytes(view)`.
+
 ## v2026.11.13
 
 - **btclib requires `ecc` 2026.11.11** (closes #3065). Act on it if you pin
