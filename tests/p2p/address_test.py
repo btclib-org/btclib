@@ -43,6 +43,7 @@ from ipaddress import IPv4Address, IPv6Address
 
 import pytest
 from hypothesis import given
+from typing_extensions import override
 
 from btclib import var_int
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -188,6 +189,44 @@ def test_the_ip_text_is_an_address_and_never_hex() -> None:
         NetworkAddress(0, bytes(17), 0)
     with pytest.raises(BTClibTypeError, match="invalid ip type"):
         NetworkAddress(0, 1, 0)  # type: ignore[arg-type]
+
+
+class _OwnBytes(bytes):
+    @override
+    def __bytes__(self) -> bytes:
+        return b"\x00" * len(self)
+
+
+def _strided(octets: bytes) -> memoryview:
+    raw = bytearray(2 * len(octets))
+    raw[::2] = octets
+    return memoryview(bytes(raw))[::2]
+
+
+def test_an_ip_buffer_is_read_as_the_octets_it_holds() -> None:
+    """A strided or signed view is refused, and a subclass is not trusted.
+
+    `bytes()` gathered `mv[::2]` and a format "b" view, and it called a
+    bytes subclass's own `__bytes__`. The checks `bytes_from_octets`
+    uses refuse the first two and read the third through `bytes`
+    (issue #3106).
+    """
+    ip = bytes(range(16))
+    assert NetworkAddress(ip=ip).ip.packed == ip
+    assert NetworkAddress(ip=bytearray(ip)).ip.packed == ip  # type: ignore[arg-type]
+    assert NetworkAddress(ip=memoryview(ip)).ip.packed == ip  # type: ignore[arg-type]
+
+    own = _OwnBytes(ip)
+    assert own.__bytes__() == b"\x00" * 16
+    assert NetworkAddress(ip=own).ip.packed == ip
+    assert type(NetworkAddress(ip=own).ip.packed) is bytes
+
+    with pytest.raises(BTClibValueError, match="invalid octets: non-contiguous"):
+        NetworkAddress(ip=_strided(ip))  # type: ignore[arg-type]
+    signed = memoryview(ip).cast("b")
+    assert signed.format == "b"
+    with pytest.raises(BTClibValueError, match="invalid octets: memoryview format"):
+        NetworkAddress(ip=signed)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(

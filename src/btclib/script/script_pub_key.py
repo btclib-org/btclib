@@ -43,6 +43,8 @@ from btclib.script.limits import MAX_PUBKEYS_PER_MULTISIG
 from btclib.script.script import Script, op_int, push_int, serialize
 from btclib.script.taproot import output_pubkey
 from btclib.utils import (
+    _assert_byte_shaped,
+    _copy_bytes,
     _has_type,
     _message_text,
     assert_type,
@@ -1034,13 +1036,19 @@ def _script_from(script_pub_key: Octets | ScriptPubKey) -> bytes:
     `ScriptPubKey` that a wallet and a descriptor both answer with, and
     it reads a `str` as hex or not at all, where a caller holding an
     output as text as readily holds an address.
+
+    A buffer is checked and copied the way `bytes_from_octets` does it,
+    so a strided memoryview or one whose format is not "B" is refused
+    and a subclass's own `__bytes__` is not what is read (issue #3106).
     """
     if _has_type(script_pub_key, ScriptPubKey):
         return script_pub_key.script
     if _has_type(script_pub_key, (bytes, bytearray, memoryview)):
         # this function exists to produce the thing a caller compares and
-        # keys a dict by, and a bytearray is unhashable
-        return bytes(script_pub_key)
+        # keys a dict by, and a bytearray is unhashable. bytes() would
+        # also gather a strided view and trust a subclass (issue #3106)
+        _assert_byte_shaped(script_pub_key)
+        return _copy_bytes(script_pub_key)
     # unreachable to mypy, the annotation having no fourth case, and the
     # whole point to a caller who is not running it: `Octets` is honoured
     # inside btclib and nowhere else

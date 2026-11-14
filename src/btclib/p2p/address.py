@@ -69,6 +69,8 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.limits import MAX_ADDR_TO_SEND
 from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
+    _assert_byte_shaped,
+    _copy_bytes,
     _has_type,
     _message_text,
     assert_no_trailing,
@@ -150,13 +152,20 @@ def _ipv6_from_ip_address(ip: IPAddress) -> IPv6Address:
     it, and would take a sixteen-character dotted quad -- there is none --
     for octets. Sixteen octets are the one bytes-shaped input, being what
     `IPv6Address` accepts and what the wire holds.
+
+    A buffer is read the way `bytes_from_octets` reads one: a strided
+    memoryview, or one whose format is not "B", is refused, and a
+    subclass is copied by its base type rather than by its own
+    `__bytes__` (issue #3106).
     """
     if _has_type(ip, IPv6Address):
         return ip
     if _has_type(ip, IPv4Address):
         return IPv6Address(f"::ffff:{ip}")
     if _has_type(ip, (bytes, bytearray, memoryview)):
-        octets = bytes(ip)
+        # bytes() gathers a strided view and trusts a subclass (issue #3106)
+        _assert_byte_shaped(ip)
+        octets = _copy_bytes(ip)
         if len(octets) != _IP_SIZE:
             err_msg = f"invalid ip: {len(octets)}"
             err_msg += f" instead of {_IP_SIZE} bytes"
