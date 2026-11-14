@@ -198,11 +198,10 @@ has seen.
 
 When `main`'s CI is red after a merge, its repair takes priority over
 every other pull request, because until it lands `main`'s runs cannot
-tell a new failure from the one already there. A pull request armed with
-`--auto` (below) stays armed, and others keep landing meanwhile. Holding
-every landing for a repair costs more than the break it guards against,
-so the risk of landing on a red `main` is accepted
-(btclib-org/.github#1777).
+tell a new failure from the one already there. Other pull requests keep
+landing meanwhile. Holding every landing for a repair costs more than
+the break it guards against, so the risk of landing on a red `main` is
+accepted (btclib-org/.github#1777).
 
 A pull request whose required check is red only because `main` was red
 is closed and reopened once the repair lands (`gh pr close <n>`, then
@@ -213,9 +212,8 @@ run's log is read before the run is relied on: its line `HEAD is now at
 <sha> Merge <head> into <base>` names the merge it tested, and where
 `<base>` lacks the repair, the pull request is closed and reopened
 again. No push is made, so its approvals and its ack of record stand.
-Closing disarms `--auto`, so it is armed again once the checks are
-green. The reopen also runs the review bot again, and changes that
-review requests are answered like any other review's.
+The reopen also runs the review bot again, and changes that review
+requests are answered like any other review's.
 
 Then squash, [the only method the rule accepts][s11].
 
@@ -226,8 +224,9 @@ head**, through `gh pr merge` pinned to it:
 gh pr merge <n> --squash --match-head-commit <the head the checks ran on>
 ```
 
-With `--auto` added, GitHub runs the same merge once the approval and
-the checks are in.
+Whoever approved it runs that merge, or a session on the maintainer's
+word. Auto-merge is off, so no pull request can be armed, for the reason
+[section 11's *Merge method*][s11] gives.
 
 **Where the repository has a bypass, the maintainer may land without
 that approval, through it**: [`GOVERNANCE.md`][governance]'s *How a
