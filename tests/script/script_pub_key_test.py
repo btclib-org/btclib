@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 from ecc.curves import bytes_from_point, mult
 from hypothesis import given
+from typing_extensions import override
 
 from btclib import b32, b58, var_bytes
 from btclib.alias import ScriptList
@@ -1554,6 +1555,48 @@ def test_script_from_script_pub_key_does_not_quote_what_it_refuses() -> None:
         cause = exc_info.value.__cause__
         assert isinstance(cause, ValueError)
         assert wif not in str(cause)
+
+
+class _OwnBytes(bytes):
+    @override
+    def __bytes__(self) -> bytes:
+        return b"\x00" * len(self)
+
+
+def _strided(octets: bytes) -> memoryview:
+    raw = bytearray(2 * len(octets))
+    raw[::2] = octets
+    return memoryview(bytes(raw))[::2]
+
+
+def test_script_from_script_pub_key_reads_the_octets_a_buffer_holds() -> None:
+    """A strided or signed view is refused, and a subclass is not trusted.
+
+    `bytes()` gathered `mv[::2]` and a format "b" view, and it called a
+    bytes subclass's own `__bytes__`. The checks `bytes_from_octets`
+    uses refuse the first two and read the third through `bytes`
+    (issue #3106).
+    """
+    script = bytes.fromhex("0014" + "11" * 20)
+    assert script_from_script_pub_key(script) == script
+    assert script_from_script_pub_key(bytearray(script)) == script
+    assert script_from_script_pub_key(memoryview(script)) == script
+
+    own = _OwnBytes(script)
+    assert own.__bytes__() == b"\x00" * len(script)
+    copied = script_from_script_pub_key(own)
+    assert copied == script
+    assert type(copied) is bytes
+    copied = _script_from(own)
+    assert copied == script
+    assert type(copied) is bytes
+
+    with pytest.raises(BTClibValueError, match="invalid octets: non-contiguous"):
+        script_from_script_pub_key(_strided(script))
+    signed = memoryview(script).cast("b")
+    assert signed.format == "b"
+    with pytest.raises(BTClibValueError, match="invalid octets: memoryview format"):
+        script_from_script_pub_key(signed)
 
 
 def test_script_from_script_pub_key_asks_the_object_first() -> None:
