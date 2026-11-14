@@ -1,9 +1,9 @@
 # Repository instructions
 
-When an agent works here, a separate worktree per task keeps your own
-checkout clean: hooks and agents change files where they run. For
-example, `git worktree add ../<name> origin/main -b <branch>`, and
-`git worktree remove ../<name>` when done.
+When an agent works here, a separate worktree per task keeps the
+contributor's own checkout clean: hooks and agents change files where
+they run. For example, `git worktree add ../<name> origin/main -b <branch>`,
+and `git worktree remove ../<name>` when done.
 
 Follow [CONTRIBUTING.md](./CONTRIBUTING.md) for issues, pull requests,
 and local gates. Use [ARCHITECTURE.md](./ARCHITECTURE.md) for design,
