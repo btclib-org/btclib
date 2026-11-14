@@ -26,23 +26,6 @@ on:
     # every pull request starts cold. Tag pushes are covered by the release
     # workflow
     branches: [main]
-    # a prose-only commit would otherwise run the whole gate. `*` does not
-    # match a slash, so this is the root's own markdown: mostly prose no
-    # test reads, markdownlint being the lint workflow's business.
-    # CHANGELOG.md and RELEASE_NOTES.md are the exception and are read by
-    # changelog_immutability_test.py and release_notes_test.py off disk,
-    # so a push touching only those skips the two tests whose whole
-    # subject they are -- the pull_request trigger below carries no such
-    # filter, which is where they are answered.
-    # The archived releases under changelog/ are read off disk by
-    # changelog_immutability_test.py as well, and the same `*` is what
-    # leaves them out of this list: a push touching one of them runs the
-    # gate rather than skipping the test it is the subject of.
-    # Only on push: the same list on pull_request would be wrong, because
-    # the aggregate below is a required check on main, and a required check
-    # that produces no run at all blocks the merge instead of passing it
-    paths-ignore:
-      - "*.md"
   pull_request:
     # ready_for_review, so a pull request marked ready gets the run the
     # draft condition below withheld while it was a draft: the default
