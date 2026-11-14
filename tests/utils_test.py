@@ -754,3 +754,21 @@ def test_a_value_that_claims_a_list_is_read_by_its_own_class() -> None:
     with pytest.raises(BTClibTypeError):
         list_from_json_array(Mock(spec=list), "label")
     assert list_from_json_array(MagicMock(spec=list), "label") == []
+
+
+def test_an_int_subclass_out_size_is_read_as_its_plain_int() -> None:
+    """An int subclass's own `__eq__` decides nothing in `bytes_from_octets`."""
+
+    class AlwaysEqual(int):
+        @override
+        def __eq__(self, other: object) -> bool:
+            return True
+
+        __hash__ = int.__hash__
+
+    assert AlwaysEqual(5) == 1
+    with pytest.raises(BTClibValueError, match="invalid size: 1 bytes instead of 5"):
+        bytes_from_octets(b"\x01", AlwaysEqual(5))
+    with pytest.raises(BTClibValueError, match="invalid size: 1 bytes instead of 5"):
+        bytes_from_octets(b"\x01", [AlwaysEqual(5)])
+    assert bytes_from_octets(b"\x01", AlwaysEqual(1)) == b"\x01"
