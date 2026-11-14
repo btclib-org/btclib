@@ -508,6 +508,10 @@ flags select is section 8 of the organization's standard's, and
 `tests/README.md` is where this tree states it.
 See [Tests, code coverage, and profiling](./tests/README.md).
 
+Beyond that floor, new or changed functionality must come with tests of
+its own, added or updated in the same pull request, and a fix must come
+with a test that fails without the fix.
+
 **The ratchet needs the release tags in the clone.**
 `tests/changelog_immutability_test.py` and `tests/declared_version_test.py`
 read the `v*` tags. A clone holding none — `--no-tags`, or a `--depth` that
