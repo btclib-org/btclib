@@ -509,7 +509,9 @@ See [Tests, code coverage, and profiling](./tests/README.md).
 
 Beyond that floor, new or changed functionality must come with tests of
 its own, added or updated in the same pull request, and a fix must come
-with a test that fails without the fix.
+with a test that fails without the fix. Coverage shows that a line ran,
+not that anything checked what it did, and a test that passes without
+the fix proves nothing about it.
 
 **The ratchet needs the release tags in the clone.**
 `tests/changelog_immutability_test.py` and `tests/declared_version_test.py`
