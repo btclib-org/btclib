@@ -515,17 +515,14 @@ gh api repos/btclib-org/btclib \
   --jq '{allow_squash_merge, allow_merge_commit, allow_rebase_merge,
          allow_auto_merge, squash_merge_commit_title,
          squash_merge_commit_message}'
-# {"allow_auto_merge":true,"allow_merge_commit":false,
+# {"allow_auto_merge":false,"allow_merge_commit":false,
 #  "allow_rebase_merge":false,"allow_squash_merge":true,
 #  "squash_merge_commit_message":"COMMIT_MESSAGES",
 #  "squash_merge_commit_title":"COMMIT_OR_PR_TITLE"}
 ```
 
-`allow_auto_merge` is what makes the auto-merge landing in
-CONTRIBUTING.md's *Landing it* a setting this file reads back rather
-than a fact about a workflow: turned off, an approved pull request would
-wait for somebody to merge it by hand at the moment the last check goes
-green, and nothing would turn red to say so.
+Auto-merge is off, so no pull request can be armed: the merge is
+explicit.
 
 **There is no second path**, the section above having the bypass mode
 that closes it and the ruleset entry that names `squash` as the only
@@ -548,12 +545,9 @@ rebase merge could have, and that is the one this removes: it replays a
 branch's commits onto `main`, where one change is one commit and the steps
 of a review belong to the pull request that carries them.
 
-What a single method buys is not the button on a pull request somebody is
-looking at. GitHub preselects whichever method was used last, and the
-dialog that switches auto-merge on carries the same dropdown — so the
-answer can be given hours before anything merges, by whoever switched it
-on, with nothing asking again. One method is one entry: there is no wrong
-one to preselect, and nothing to read before pressing.
+GitHub preselects whichever method was used last. One method is one
+entry: there is no wrong one to preselect, and nothing to read before
+pressing.
 
 What the commit a squash writes then says is
 `squash_merge_commit_title` and `squash_merge_commit_message`, the last
