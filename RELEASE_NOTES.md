@@ -19,6 +19,49 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.11.14
+
+- **btclib requires `base58-bech32` 2026.11.12** (closes #3086). Act on it if
+  you pin `base58-bech32` below 2026.11.12. The floor brings base58-bech32's
+  changed refusal texts: if you match on the text of a refusal, read its
+  v2026.11.12
+  [release notes](https://github.com/btclib-org/base58-bech32/releases/tag/v2026.11.12).
+
+### Breaking changes
+
+- **Every btclib module reads a value by its own class** (closes #3080), as
+  `btclib.utils` does since v2026.11.13. An object whose `__class__` claims a
+  type it is not, such as `Mock(spec=int)`, is refused or answered as the
+  object it is, where it was read as that type. `to_script_flags` refuses a
+  `Mock(spec=ScriptFlag)` where it returned it, and `ScriptPubKey` and `Tx`
+  compare unequal to a Mock claiming their class where they raised
+  `AttributeError`. The `__eq__` and the ordering that `@dataclass` generates
+  are the exception, as `_has_type`'s docstring says (closes #3091):
+  `TxOut(...) == Mock(spec=TxOut)` still raises `AttributeError`, or answers
+  `True` where the Mock's fields match. Act on it if you pass a stand-in: pass
+  the object itself.
+- **`to_script_flags` refuses, with `BTClibTypeError`, a value other than `None`
+  whose class is not a `collections.abc.Iterable` subclass, and a name that is
+  not a str** (closes #3088). Before, such a value, or such a name, got what its
+  own attributes led to, such as a plain `TypeError` for an int, its names for a
+  sequence with `__getitem__` alone, itself back for a `Mock(spec=ScriptFlag)`,
+  and `BTClibValueError` for a name that is an int. Act on it if you pass a
+  sequence whose class is not an `Iterable` subclass, such as one with
+  `__getitem__` alone: pass a list, or register its class with
+  `collections.abc.Iterable`. Act on it too if you catch `ValueError` for a name
+  that is not a str: catch `TypeError`.
+- **`TxOut.to_dict(check_validity=False)` refuses a network that is neither a
+  str nor a `Network` with `BTClibTypeError`** (closes #3093). Before, there,
+  such a network raised what its own attributes led to, such as `AttributeError`
+  for an int and `BTClibValueError` for an object whose `to_dict` returns
+  mainnet's dict, both on a nulldata script. On a p2pkh script, and in the
+  default `to_dict()`, an int already raised `BTClibTypeError`. Act on it if you
+  catch `AttributeError` or `BTClibValueError` there: catch `TypeError`.
+- **`message_verify` refuses a memoryview that is not C-contiguous, or whose
+  format is not `"B"`, as the address or the signature, with
+  `BTClibValueError`** (closes #3085). Before, it read the bytes `bytes()` of
+  the view yields. Act on it if you pass such a view: pass `bytes(view)`.
+
 ## v2026.11.13
 
 - **btclib requires `ecc` 2026.11.11** (closes #3065). Act on it if you pin
