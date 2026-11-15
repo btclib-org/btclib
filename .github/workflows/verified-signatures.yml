@@ -35,11 +35,19 @@ permissions:
 
 concurrency:
   # named literally rather than through github.workflow, as everywhere
-  # else here. Keyed on the commit pushed, and not cancelling: two
-  # pushes in a row each have a range to check, and the later run does
-  # not cover the earlier one's
-  group: verified-signatures-${{ github.sha }}
+  # else here. Section 10's key: a push run is keyed on the commit and
+  # the ref pushed, and a dispatch falls back to github.ref, so a
+  # dispatch at that commit cannot share the push run's group. Only
+  # dispatches on one ref share a group, and each names its own range in
+  # its inputs, which a later dispatch does not check: none is cancelled,
+  # and queue: max keeps each waiting one where GitHub would cancel it
+  # for the next
+  group: >-
+    verified-signatures-${{ github.event_name == 'push'
+    && format('{0}-{1}', github.sha, github.ref)
+    || github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   verified-signatures:

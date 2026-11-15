@@ -64,7 +64,8 @@ on:
 permissions:
   contents: read
 
-# cancel superseded runs on the same branch/PR.
+# cancel superseded runs of a pull request, and of dispatches on one
+# branch.
 # The group is named literally rather than with github.workflow, which in
 # a called workflow is the caller's name: the release workflow calls both
 # this and test.yml, and with that expression the two would share a group
@@ -73,9 +74,9 @@ permissions:
 # the suffix is there. Inside a called workflow that context is the
 # caller's ref, so a rehearsal -- a workflow_dispatch of release.yml on a
 # branch, which is what RELEASING.md prescribes -- computes
-# lint-refs/heads/<branch>, the very group a push to that branch or a
-# direct dispatch of this workflow computes. One then kills the other:
-# either the rehearsal dies mid-build, or it cancels the run of the push.
+# lint-refs/heads/<branch>, the very group a direct dispatch of this
+# workflow on that branch computes. One then kills the other: either
+# the rehearsal dies mid-build, or it cancels the dispatch's run.
 # A tag run is unaffected, refs/tags/v* being a ref nothing else uses.
 # release.yml passes a suffix of its own, which keeps the release path
 # out of the branch groups while still letting a second rehearsal of the
@@ -83,13 +84,20 @@ permissions:
 # github.event.pull_request.number, not github.ref alone, is a third
 # problem with the same shape: for a closed, merged pull request's run,
 # github.ref resolves to the base branch's ref rather than
-# refs/pull/N/merge, colliding with the push trigger's own group --
-# PR 1023's bug, recorded in the pull_request trigger's own comment
-# above. A pull_request run of any action, closed included, now groups
-# by the pull request's own number instead, which a push never carries
-# and so still groups by github.ref, unchanged
+# refs/pull/N/merge, colliding with a dispatch's group on that branch --
+# the shape of PR 1023's bug, recorded in the pull_request trigger's own comment
+# above. A pull_request run of any action, closed included, groups by
+# the pull request's own number instead.
+# A push run is keyed on its commit and its ref, so each push to main has
+# a group of its own, and a run that no later push cancels or replaces:
+# section 10 of the organization's standard has why cancel-in-progress:
+# false and queue: max do not give that. A dispatch has no number and
+# falls back to github.ref
 concurrency:
-  group: lint-${{ github.event.pull_request.number || github.ref }}${{ inputs.concurrency-suffix }}
+  group: >-
+    lint-${{ github.event_name == 'push'
+    && format('{0}-{1}', github.sha, github.ref)
+    || github.event.pull_request.number || github.ref }}${{ inputs.concurrency-suffix }}
   cancel-in-progress: true
 
 jobs:

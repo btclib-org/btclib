@@ -119,15 +119,16 @@ on:
 permissions:
   contents: read
 
-# cancel superseded runs. Named literally rather than through
+# cancel superseded runs of a pull request, and of dispatches on one
+# branch. Named literally rather than through
 # github.workflow, as everywhere else here: in a called workflow that
 # expression is the caller's name.
 # github.ref has the same shape of problem one level down, and it is why
 # the suffix is there. Inside a called workflow that context is the
 # caller's ref, so a rehearsal -- a workflow_dispatch of release.yml on a
 # branch -- computes integration-bitcoind-refs/heads/<branch>, the very
-# group a push to that branch or a direct dispatch of this workflow
-# computes. One then kills the other. release.yml passes a suffix of its
+# group a direct dispatch of this workflow on that branch computes. One
+# then kills the other. release.yml passes a suffix of its
 # own, which keeps the release path out of the branch groups
 # (issue btclib-org/.github#1083).
 # github.event.pull_request.number, not github.head_ref, is the key: a
@@ -135,11 +136,17 @@ permissions:
 # merged ones included, so it never collides with a push's group the way
 # bare ref did, and it also survives two forks whose head branches share a
 # name -- head_ref does not, being the branch's name rather than the pull
-# request's own number (issue #1158)
+# request's own number (issue #1158).
+# A push run is keyed on its commit and its ref, so each push to main has
+# a group of its own, and a run that no later push cancels or replaces:
+# section 10 of the organization's standard has why cancel-in-progress:
+# false and queue: max do not give that. A dispatch has no number and
+# falls back to github.ref
 concurrency:
   group: >-
-    integration-bitcoind-${{ github.event.pull_request.number ||
-    github.ref }}${{ inputs.concurrency-suffix }}
+    integration-bitcoind-${{ github.event_name == 'push'
+    && format('{0}-{1}', github.sha, github.ref)
+    || github.event.pull_request.number || github.ref }}${{ inputs.concurrency-suffix }}
   cancel-in-progress: true
 
 jobs:

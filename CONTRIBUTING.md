@@ -52,9 +52,11 @@ long after the branch is gone.
 
 ## Working with an LLM
 
-**Development here is LLM-based.** Most issues, code and reviews are
-written by agentic sessions that the maintainer directs and reads.
-Humans are welcome, as long as they are comfortable working that way.
+**Your agents are welcome.** Use them to solve the open issues and to
+review the open pull requests. There is no cap on how many pull requests
+you open, and no rule to disclose an agent's part: every change is held
+to the same review, whoever or whatever wrote it, as the rest of this
+file and `REVIEWING.md` say.
 
 **A contribution is yours, whoever wrote it.** Read every line before
 you open the pull request, understand it, and be ready to answer a
@@ -142,9 +144,12 @@ It is opened the moment it is written and verified — not held for the
 previous one to be reviewed or to land, and not batched with the next. A
 batch arrives as one reviewing job with several subjects, which is the
 shape that costs the most to read; a finished pull request held back is
-review that could have started and did not. A security advisory's fix is
-the exception, held back as [section 12][s12]'s *A security advisory is
-worked in this order* says.
+review that could have started and did not. A port of the standard is
+one subject: one pull request per tree, holding every change to the
+standard landed since that tree's last port. Its review asks one
+question: does each copy now match the standard's source? A security
+advisory's fix is the exception, held back as [section 12][s12]'s *A
+security advisory is worked in this order* says.
 
 Working this way stacks branches, which is fine and costs one rule: a
 child whose base was amended is moved with the old base named,
@@ -228,6 +233,35 @@ Whoever approved it runs that merge, or a session on the maintainer's
 word. Auto-merge is off, so no pull request can be armed, for the reason
 [section 11's *Merge method*][s11] gives.
 
+**A release can hold the landing.** Before every merge, these two read
+the repository `gh` resolves, from `GH_REPO` where it is set and from the
+checkout otherwise, and its open or merged pull requests carrying
+`release-hold`:
+
+```shell
+gh api 'repos/{owner}/{repo}' --jq .full_name
+```
+
+```shell
+gh api --paginate \
+  'repos/{owner}/{repo}/issues?labels=release-hold&state=all&per_page=100' \
+  --jq '.[] | select(.pull_request)
+    | select(.state == "open" or .pull_request.merged_at != null)
+    | {number, state, merged: .pull_request.merged_at}'
+```
+
+The first must print the tree's own `owner/name`. The second reads every
+page and prints one line per hold, so where it prints nothing there is
+no hold, and each line it prints is read as a publishing tree's
+`RELEASING.md` says in *Release to PyPI*. A nonzero exit of either, as
+the `404` of a repository that does not exist, is an error, and the
+merge waits until both answer.
+
+The check and the merge are two calls, and none of the [rules a GitHub
+ruleset offers][rulesets] reads a label, so a label put on between them
+does not stop the merge. Until the release merges, its own check that
+`main` has not moved catches such a merge, as *Release to PyPI* says.
+
 **Where the repository has a bypass, the maintainer may land without
 that approval, through it**: [`GOVERNANCE.md`][governance]'s *How a
 decision is made* says which repositories.
@@ -284,6 +318,7 @@ settings and why they are what they are.
 [s-sigs]: https://github.com/btclib-org/.github#signatures
 [s-branch]: https://github.com/btclib-org/.github#branch-protection-and-rulesets
 [dco]: https://developercertificate.org/
+[rulesets]: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets
 [governance]: https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md
 [roadmap]: https://github.com/btclib-org/.github/blob/main/ROADMAP.md
 [good-first]: https://github.com/search?q=org%3Abtclib-org+label%3A%22good+first+issue%22+is%3Aopen&type=issues
