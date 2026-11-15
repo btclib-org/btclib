@@ -24,6 +24,7 @@ __all__ = [
     "levels",
     "read_back",
     "spellings",
+    "spread",
     "text_of",
     "windows",
     "without_whitespace",
@@ -40,6 +41,13 @@ ESCAPED = {"\\\\": "\\", "\\'": "'", "\\t": "\t", "\\n": "\n", "\\r": "\r"}
 #: One of `ESCAPED`, matched from the left, so that the second half of a doubled
 #: backslash starts no escape.
 REPR_ESCAPE = re.compile("|".join(map(re.escape, ESCAPED)))
+
+#: One of `ESCAPED`, or any other character.
+UNIT = re.compile(f"{REPR_ESCAPE.pattern}|.", re.DOTALL)
+
+#: One whitespace character, as itself or as the escape `repr` writes for a
+#: tab, a newline or a carriage return.
+SPACE = r"(?:\s|\\[tnr])"
 
 
 def chained(exc: BaseException) -> Iterator[BaseException]:
@@ -141,6 +149,36 @@ def without_whitespace(text: str) -> str:
     return REPR_ESCAPE.sub(lambda m: "" if ESCAPED[m[0]].isspace() else m[0], compact)
 
 
+def spread(piece: str, *, escaped: bool) -> re.Pattern[str]:
+    r"""Return a pattern matching a piece with whitespace between its units.
+
+    Each gap is possessive, so a search never backtracks into one. The gap
+    before a unit that is whitespace stops where that unit first matches,
+    which finds the piece's own whitespace among any other. A gap before
+    any other unit loses no match: no such unit starts with what a gap
+    holds, and in the `repr` of bytes neither do the backslash and `x` of a
+    `\x` escape.
+
+    :param piece: a spelling of a piece.
+    :param escaped: whether the spelling is of bytes, whose units are read
+        with `UNIT` and whose gaps hold `SPACE`, their hex holding no escape;
+        otherwise each character is a unit and the gaps hold whitespace as
+        itself.
+    :returns: the piece's units, each matched as itself, with whitespace
+        allowed between each two.
+    """
+    units = UNIT.findall(piece) if escaped else list(piece)
+    space = SPACE if escaped else r"\s"
+    pattern = ""
+    for i, unit in enumerate(units):
+        if i and ESCAPED.get(unit, unit).isspace():
+            pattern += f"(?:(?!{re.escape(unit)}){space})*+"
+        elif i:
+            pattern += f"{space}*+"
+        pattern += re.escape(unit)
+    return re.compile(pattern)
+
+
 def spellings(secret: str | bytes | bytearray) -> list[str]:
     """Return what a secret is looked for as, lowercased.
 
@@ -185,18 +223,21 @@ def assert_secret_free(
     secret fed is a fixed random value, not a run such as all zeros, and
     a mnemonic's words are not words of the refusal's own text.
 
-    A piece with no whitespace of its own, found where a refusal shows it
-    whole, is still found where the refusal puts whitespace inside it, whether
-    the text holds that whitespace as itself or as the `\t`, `\n` or `\r`
-    escape that `repr` writes. Those escapes are dropped from the text, never
-    from a piece, and the text is also searched with them kept, so a piece
-    whose own spelling holds one, as the `repr` of bytes holding a tab does, is
-    not hidden by whitespace a message puts inside it. Dropping the escapes
-    from each piece too is the rejected alternative: a piece spelled with them
-    but for one letter, as the `repr` of bytes that are tabs but for that
-    letter is, shrinks to the letter, which is inside many clean messages. A
-    piece with whitespace of its own is looked for as given, so a refusal that
-    changes that whitespace does not match it.
+    A piece found where a refusal shows it whole is still found where the
+    refusal puts whitespace inside it, whether the text holds that whitespace
+    as itself or as the `\t`, `\n` or `\r` escape that `repr` writes. The
+    exception is whitespace put inside an escape, as between the backslash of
+    `\t` and its `t`, or between the halves of a doubled backslash: the
+    `levels` below find that only by dropping all whitespace, the piece's own
+    with it, so a piece holding whitespace of its own can be missed there. The
+    whitespace is looked for between each two units of the piece's spelling, as
+    `spread` reads them, and the piece's own whitespace is matched as given, so
+    a refusal that changes it does not match the piece. Whitespace a string's
+    text holds as an escape is found at one of the `levels` below, which read
+    it back. Dropping the escapes from each piece is the rejected alternative:
+    a piece spelled with them but for one letter, as the `repr` of bytes that
+    are tabs but for that letter is, shrinks to the letter, which is inside
+    many clean messages.
 
     A backslash or a quote that `repr` escapes does not hide a piece either,
     however many times a refusal shows it through `repr`. `repr` doubles a
@@ -204,31 +245,36 @@ def assert_secret_free(
     `'` as `\'` in a text holding both quotes. So every search is made again at
     each of the `levels` of the text, until reading back changes nothing. The
     levels are walked twice, the second time with whitespace dropped before
-    each reading back, so whitespace put inside an escape, such as between the
-    halves of a doubled backslash, does not hide a piece either. Every other
-    escape `repr` writes stays in the text: a character `repr` does not print,
-    such as `\x0b` or `\u2003`, hides a piece it splits, or a piece of a string
-    holding it, where the text holds it only as that escape, as a `KeyError`
-    shows its key.
+    each reading back, for the whitespace put inside an escape that the
+    paragraph above names. Every other escape `repr` writes stays in the text:
+    a character `repr` does not print, such as `\x0b` or `\u2003`, hides a
+    piece it splits, or a piece of a string holding it, where the text holds it
+    only as that escape, as a `KeyError` shows its key.
 
     :param exc: the exception raised.
     :param secrets: the secret fed, as bytes, as a bytearray, or in each
         spelling a refusal could print: the decimal of a scalar, its
         encodings, each word of a mnemonic.
     """
-    pieces = {
-        spelling
+    read = {
+        (spelling, not isinstance(secret, str))
         for secret in secrets
         for piece in windows(secret)
         for spelling in spellings(piece)
     }
+    pieces = {spelling for spelling, _ in read}
+    patterns = [spread(spelling, escaped=escaped) for spelling, escaped in read]
     for e in chained(exc):
         text = text_of(e)
+        every = {*levels(text), *levels(text, compact=True)}
         searched = {
             found
-            for level in (*levels(text), *levels(text, compact=True))
+            for level in every
             for found in (level, "".join(level.split()), without_whitespace(level))
         }
         for piece in pieces:
             for found in searched:
                 assert piece not in found
+        for pattern in patterns:
+            for level in every:
+                assert not pattern.search(level)

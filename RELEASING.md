@@ -209,6 +209,31 @@ the tag exercises the first.
    branch as its source ref, so the `--source-ref` of *Verify the
    provenance of an asset* refuses it.
 
+**A rehearsal that is not to be approved is closed by rejecting its
+`testpypi` deployment, before the branch is rehearsed again.** Section 12
+of the organization's standard says why. The runs waiting at an approval
+are listed by:
+
+```shell
+gh run list --repo "btclib-org/${repo:?}" --workflow release.yml \
+  --status waiting
+```
+
+```shell
+run=<run id>
+```
+
+```shell
+env=$(gh api "repos/btclib-org/${repo:?}/environments" \
+  --jq '.environments[] | select(.name == "testpypi") | .id')
+```
+
+```shell
+gh api -X POST \
+  "repos/btclib-org/${repo:?}/actions/runs/${run:?}/pending_deployments" \
+  -F "environment_ids[]=${env:?}" -f state=rejected -f comment=superseded
+```
+
 ## Release to PyPI
 
 **A release is a tag on `main`, and everything below that edits a file
@@ -455,6 +480,63 @@ request, next to `deps-latest`'s own result.
    pull request that never mentions it reads exactly like one that skipped
    it.
 
+1. Hold the repository's other merges until the release is published, so
+   that `main` does not move under the release between its gates and its
+   tag. Put `release-hold` on the release pull request:
+
+   ```shell
+   pr=<the release pull request's number>
+   ```
+
+   ```shell
+   gh pr edit "${pr:?}" --add-label release-hold
+   ```
+
+   While an open or merged pull request carries the label, nobody merges
+   another pull request into `main` here. A red `main`'s repair is the
+   exception: it goes first, as `CONTRIBUTING.md`'s *Landing it* says. A
+   release pull request waits while a merged pull request carries the
+   label, and otherwise only while a lower-numbered open one does, so that
+   releases go out oldest first instead of each waiting on the others. On
+   a pull request closed without merging, the label holds nothing: that
+   release never reached `main`.
+
+   A pull request can merge between the version step and the label. So
+   once the label is on, fetch, and check that `origin/main` is still the
+   branch's base:
+
+   ```shell
+   git fetch origin
+   ```
+
+   ```shell
+   git merge-base --is-ancestor origin/main HEAD
+   ```
+
+   After a fetch that succeeded, where `merge-base` exits 1, `main` has
+   moved, and the branch is redone on it as the version step says, before
+   the gates. Any other non-zero exit, of either command, is an error to
+   read, not an answer.
+
+   An older release or a red `main`'s repair can still move `main` during
+   the hold. So both commands run again just before the merge, and where
+   `main` has moved, the branch is redone as the version step says, which
+   gates it again.
+
+   Remove the label once `release.yml`'s run on the tag has published the
+   release, or once the release is abandoned and its pull request closed:
+
+   ```shell
+   gh pr edit "${pr:?}" --remove-label release-hold
+   ```
+
+   A label left behind on a merged release already published still holds
+   every merge here. Whoever finds one checks that the release is out,
+   tells the maintainer, and removes the label on his word: a merged
+   release pull request holds until its release is published. One left on
+   a pull request closed without merging holds nothing, and whoever finds
+   it removes it.
+
 1. Run `uv run pre-commit run --all-files` and `uv run pytest --cov`
    before pressing anything, then verify the Read the Docs build renders,
    on `https://app.readthedocs.org/projects/<rtd>/builds/`. Read the
@@ -643,9 +725,11 @@ request, next to `deps-latest`'s own result.
    `pypi-install.yml`.
 
    A dispatch of `pypi-install.yml` passes no version, so it waits for
-   nothing and installs what the index serves at the time. Read the
-   installed version each cell prints in its log, and dispatch again
-   where a cell installed the previous release.
+   no version and installs what the index serves at the time, or skips
+   as `btclib-org/.github`'s `reusable-wait-for-index.yml` header says
+   of its `published` output. Read the installed version each cell
+   prints in its log, and dispatch again where a cell installed the
+   previous release.
 
    Read the Docs builds a tag on its first push only: a deleted and
    re-pushed tag is rebuilt by hand from the builds page, and `documented`
@@ -788,8 +872,8 @@ request, next to `deps-latest`'s own result.
    change in a pull request of its own every answer the release changed:
    the release notes and the vulnerabilities it fixed, signed tags and
    assets, attestation names. Once it lands, open each URL the script's
-   `--drift` prints for this repository, one for each section of the form,
-   and save the form at each. Whoever cannot
+   `--drift` prints for this repository, save the form at each, and type
+   by hand each criterion it names as too long for a URL. Whoever cannot
    sign in to bestpractices.dev comments on the answers' pull request
    that the save is owed, so that the debt is on record and not in
    anybody's memory, and whoever next can saves it. The step stays open

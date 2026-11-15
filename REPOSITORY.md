@@ -189,7 +189,10 @@ setting that used to hold it — is off:
 
 ```shell
 gh api repos/btclib-org/btclib/code-scanning/default-setup --jq '.state'
-# not-configured
+```
+
+```text
+not-configured
 ```
 
 **The two cannot both be on**, and what that costs is not a workflow that
@@ -267,8 +270,13 @@ owns. The endpoint that reports it is the one that sets it:
 
 ```shell
 gh api repos/btclib-org/btclib/code-quality/setup --jq '{state, languages}'
-# {"languages":["python"],"state":"not-configured"}
+```
 
+```json
+{"languages":["python"],"state":"not-configured"}
+```
+
+```shell
 gh api -X PATCH repos/btclib-org/btclib/code-quality/setup \
   -F state=not-configured
 ```
@@ -297,7 +305,10 @@ of a commit with no sha.
 ```shell
 gh api "repos/btclib-org/btclib/commits/${head:?}/check-runs" \
   --jq '.total_count'
-# 14 and 15, the two open when this was written
+```
+
+```text
+14 and 15, the two open when this was written
 ```
 
 **An open one.** Every workflow here that triggers on a pull request
@@ -351,7 +362,10 @@ waiting for slots is what would change it.
 
 ```shell
 gh api repos/btclib-org/btclib --jq '.default_branch'
-# main
+```
+
+```text
+main
 ```
 
 Everything reaches it through a pull request: the checks above, one
@@ -380,13 +394,19 @@ has the ground.
 ```shell
 gh api repos/btclib-org/btclib/branches/main/protection/required_status_checks \
   --jq '.strict'
-# false
+```
+
+```text
+false
 ```
 
 ```shell
 gh api repos/btclib-org/btclib/branches/main/protection \
   --jq '.required_signatures.enabled'
-# false
+```
+
+```text
+false
 ```
 
 Classic protection's own copy of the signature rule is off, as is the rule
@@ -515,14 +535,17 @@ gh api repos/btclib-org/btclib \
   --jq '{allow_squash_merge, allow_merge_commit, allow_rebase_merge,
          allow_auto_merge, squash_merge_commit_title,
          squash_merge_commit_message}'
-# {"allow_auto_merge":false,"allow_merge_commit":false,
-#  "allow_rebase_merge":false,"allow_squash_merge":true,
-#  "squash_merge_commit_message":"COMMIT_MESSAGES",
-#  "squash_merge_commit_title":"COMMIT_OR_PR_TITLE"}
 ```
 
-Auto-merge is off, so no pull request can be armed: the merge is
-explicit.
+```json
+{"allow_auto_merge":false,"allow_merge_commit":false,
+ "allow_rebase_merge":false,"allow_squash_merge":true,
+ "squash_merge_commit_message":"COMMIT_MESSAGES",
+ "squash_merge_commit_title":"COMMIT_OR_PR_TITLE"}
+```
+
+Auto-merge is off, [for the reason section 11
+gives](https://github.com/btclib-org/.github/blob/main/README.md#merge-method).
 
 **There is no second path**, the section above having the bypass mode
 that closes it and the ruleset entry that names `squash` as the only
@@ -666,8 +689,11 @@ hook in `.pre-commit-config.yaml` reports it.
 
 ```shell
 gh api repos/btclib-org/btclib/actions/permissions/workflow
-# {"default_workflow_permissions":"read",
-#  "can_approve_pull_request_reviews":false}
+```
+
+```json
+{"default_workflow_permissions":"read",
+ "can_approve_pull_request_reviews":false}
 ```
 
 `read`, and a false `can_approve_pull_request_reviews` beside it. What
@@ -701,10 +727,19 @@ gh api -X PUT repos/btclib-org/btclib/actions/permissions/workflow \
 
 ```shell
 gh api repos/btclib-org/btclib/actions/permissions
-# {"enabled":true,"allowed_actions":"all","sha_pinning_required":true}
+```
+
+```json
+{"enabled":true,"allowed_actions":"all","sha_pinning_required":true}
+```
+
+```shell
 gh api orgs/btclib-org/actions/permissions \
   --jq '{allowed_actions, sha_pinning_required}'
-# {"allowed_actions":"all","sha_pinning_required":true}
+```
+
+```json
+{"allowed_actions":"all","sha_pinning_required":true}
 ```
 
 The organization gives the same two answers, `sha_pinning_required`
@@ -715,9 +750,18 @@ fields](https://github.com/btclib-org/.github/blob/main/README.md#tokens-publish
 
 ```shell
 gh api repos/btclib-org/btclib --jq .web_commit_signoff_required
-# true
+```
+
+```text
+true
+```
+
+```shell
 gh api orgs/btclib-org --jq .web_commit_signoff_required
-# true
+```
+
+```text
+true
 ```
 
 Set at the organization level, [for the reason section 11
@@ -734,8 +778,11 @@ stays allowed.
 gh api repos/btclib-org/btclib/environments \
   --jq '.environments[] | select(.name == "pypi" or .name == "testpypi") |
         {name, protection_rules: [.protection_rules[]?.type]}'
-# {"name":"pypi","protection_rules":["required_reviewers","branch_policy"]}
-# {"name":"testpypi","protection_rules":["required_reviewers"]}
+```
+
+```text
+{"name":"pypi","protection_rules":["required_reviewers","branch_policy"]}
+{"name":"testpypi","protection_rules":["required_reviewers"]}
 ```
 
 `pypi`'s `branch_policy` is the `v*` tag restriction stated above:
@@ -743,7 +790,10 @@ gh api repos/btclib-org/btclib/environments \
 ```shell
 gh api repos/btclib-org/btclib/environments/pypi/deployment-branch-policies \
   --jq '.branch_policies[] | {name, type}'
-# {"name":"v*","type":"tag"}
+```
+
+```json
+{"name":"v*","type":"tag"}
 ```
 
 `testpypi` carries `required_reviewers` with no `branch_policy` beside
@@ -761,7 +811,10 @@ below:
 
 ```shell
 gh api -i repos/btclib-org/btclib/pages 2>/dev/null | head -1
-# HTTP/2.0 404 Not Found
+```
+
+```text
+HTTP/2.0 404 Not Found
 ```
 
 `--jq` is the wrong tool for it and quietly so: on an error response `gh`
@@ -786,7 +839,10 @@ homepage and `btclib-org/btclib-org.github.io` serves. The repository's
 
 ```shell
 gh api repos/btclib-org/btclib --jq '.homepage'
-# https://btclib.org/btclib/
+```
+
+```text
+https://btclib.org/btclib/
 ```
 
 The documentation is the *Read the Docs* section below, which
@@ -808,7 +864,10 @@ in the tree records them:
 curl -s https://app.readthedocs.org/api/v3/projects/btclib/ \
   | python3 -c 'import json, sys; p = json.load(sys.stdin); \
       print(p["default_branch"], p["default_version"])'
-# main latest
+```
+
+```text
+main latest
 ```
 
 - **`latest` follows the default branch, which is `main`.** That setting is
@@ -851,12 +910,27 @@ carries no webhook of its own and none to give a secret to:
 gh api orgs/btclib-org/installations \
   --jq '.installations[] | select(.app_slug == "read-the-docs-community")
         | [.app_slug, .repository_selection]'
-# ["read-the-docs-community","all"]
+```
+
+```json
+["read-the-docs-community","all"]
+```
+
+```shell
 gh api repos/btclib-org/btclib/hooks --jq 'length'
-# 0
+```
+
+```text
+0
+```
+
+```shell
 gh api repos/octocat/Hello-World/hooks --jq 'length'
-# gh: Not Found (HTTP 404)
-# gh: This API operation needs the "admin:repo_hook" scope.
+```
+
+```text
+gh: Not Found (HTTP 404)
+gh: This API operation needs the "admin:repo_hook" scope.
 ```
 
 The third command is the control, and it is what makes the second an
@@ -926,7 +1000,10 @@ repository in it, and the plan is what sets it.
 
 ```shell
 gh api orgs/btclib-org --jq .plan.name
-# free
+```
+
+```text
+free
 ```
 
 The plan is a fact about a changing world rather than a setting this
@@ -957,7 +1034,10 @@ view.
 ```shell
 gh api repos/btclib-org/btclib \
   --jq '{visibility, has_issues, wiki: .has_wiki, projects: .has_projects}'
-# {"has_issues":true,"projects":false,"visibility":"public","wiki":false}
+```
+
+```json
+{"has_issues":true,"projects":false,"visibility":"public","wiki":false}
 ```
 
 Section 10's `scorecard` sentinel rests on the first answer: public is
@@ -1029,9 +1109,18 @@ for f in allow_forking allow_update_branch has_discussions has_downloads \
          is_template; do
   printf '%s %s\n' "$f" "$(printf '%s' "$std" | grep -c "$f")"
 done
-# 0 each
+```
+
+```text
+0 each
+```
+
+```shell
 printf '%s' "$std" | grep -c delete_branch_on_merge
-# not 0, which is what makes those zeros absences
+```
+
+```text
+not 0, which is what makes those zeros absences
 ```
 
 Recording a field on no rule grows this file with GitHub's API rather
@@ -1044,15 +1133,36 @@ repository:
 
 ```shell
 gh api repos/btclib-org/btclib/actions/secrets --jq '.total_count'
-# 0
+```
+
+```text
+0
+```
+
+```shell
 gh api repos/btclib-org/btclib/dependabot/secrets --jq '.total_count'
-# 0
+```
+
+```text
+0
+```
+
+```shell
 gh api orgs/btclib-org/actions/secrets \
   --jq '.secrets[] | "\(.name) \(.visibility)"'
-# CLAUDE_CODE_OAUTH_TOKEN all
+```
+
+```text
+CLAUDE_CODE_OAUTH_TOKEN all
+```
+
+```shell
 gh api orgs/btclib-org/dependabot/secrets \
   --jq '.secrets[] | "\(.name) \(.visibility)"'
-# CLAUDE_CODE_OAUTH_TOKEN all
+```
+
+```text
+CLAUDE_CODE_OAUTH_TOKEN all
 ```
 
 The organization's stores answering with a name are what make the two
@@ -1068,7 +1178,10 @@ store is read too:
 
 ```shell
 gh api repos/btclib-org/btclib/actions/variables --jq .total_count
-# 0
+```
+
+```text
+0
 ```
 
 **A facility nobody reached for.** The repository's self-hosted
