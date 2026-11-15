@@ -54,6 +54,10 @@ What belongs here is everything btclib does around the arithmetic:
 - a refusal that prints more of a value that may be secret than
     [*A refusal carries no secret*](https://github.com/btclib-org/.github/blob/main/README.md#a-refusal-carries-no-secret)
     allows
+- a flaw in what btclib builds or accepts that lets funds be stolen,
+    lost or locked: lost includes a transaction that pays far more fee
+    than was asked, and locked includes an output that consensus can
+    spend but standard relay policy refuses
 
 Report it wherever you found it, though: routing a report is the
 maintainers' job, not the reporter's, and a doubt about which project
