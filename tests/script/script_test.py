@@ -29,6 +29,7 @@ from btclib.script.script import (
     BYTE_FROM_OP_CODE_NAME,
     ERROR_COMMAND,
     OP_CODE_NAME_FROM_INT,
+    _serialize_push_prefix,
     op_code_spans,
     read_op_code,
 )
@@ -114,6 +115,33 @@ def test_serialize_bytes_command() -> None:
     assert len(serialize([b])) == length + 2
     b = b"\x0a" * (length + 1)
     assert len(serialize([b])) == (length + 1) + 3
+
+
+def test_a_bytes_command_is_sized_by_the_octets_it_holds() -> None:
+    """ISS 3115: a subclass's `__len__` does not choose the push length.
+
+    `_serialize_bytes_command` writes a length for the octets the command
+    holds, so a subclass that reports fewer or more than that payload
+    still serializes as the payload itself does.
+    """
+
+    class Short(bytes):
+        @override
+        def __len__(self) -> int:
+            return 0
+
+    class Long(bytes):
+        @override
+        def __len__(self) -> int:
+            return 100
+
+    payload = bytes(20)
+    short, long_ = Short(payload), Long(payload)
+    assert len(short) == 0
+    assert len(long_) == 100
+    assert serialize([short]) == serialize([payload])
+    assert serialize([long_]) == serialize([payload])
+    assert serialize([short]).hex() == "14" + "00" * 20
 
 
 def test_a_command_of_no_script_type_is_refused_as_a_type() -> None:
@@ -310,15 +338,12 @@ def test_pushdata4_and_the_only_length_left_to_refuse() -> None:
         assert len(script) == length + head
         assert parse(script) == [data.hex().upper()]
 
-    # __len__ lies rather than have the test allocate four gibibytes
-    class TooLong(bytes):
-        @override
-        def __len__(self) -> int:
-            return 4294967296
-
+    # the bound is on the count, not on a subclass's __len__: a copy
+    # already holds the octets (issue #3115), so the refusal is tested
+    # against the prefix writer rather than a four-gibibyte buffer
     err_msg = "too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        serialize([TooLong()])
+        _serialize_push_prefix(4294967296, [])
 
 
 def test_nulldata() -> None:

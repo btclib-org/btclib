@@ -461,8 +461,24 @@ def _serialize_bytes_command(command: bytes | bytearray | memoryview) -> bytes:
     # str, so a float or a None would otherwise reach `len` unasked
     if not _has_type(command, (bytes, bytearray, memoryview)):
         raise BTClibTypeError(f"invalid script command type: {type(command).__name__}")
+    # a bytes subclass may report a length that is not the payload it
+    # holds (issue #3115); size the copy `bytes_from_octets` already does
+    command = bytes_from_octets(command)
     out: list[bytes | bytearray | memoryview] = []
-    length = len(command)
+    _serialize_push_prefix(len(command), out)
+    out.append(command)
+    return b"".join(out)
+
+
+def _serialize_push_prefix(
+    length: int, out: list[bytes | bytearray | memoryview]
+) -> None:
+    """Write the minimal push operator and the length of the data to follow.
+
+    The length is a count already taken from the octets, so a test can
+    refuse a size no buffer here could hold without allocating one
+    (issue #3115).
+    """
     if length < 76:  # 1-byte-length
         out.append(length.to_bytes(1, byteorder="little", signed=False))
     elif length < 256:  # OP_PUSHDATA1 | 1-byte-length
@@ -473,8 +489,6 @@ def _serialize_bytes_command(command: bytes | bytearray | memoryview) -> bytes:
         _pushdata(4, length, out)
     else:
         raise BTClibValueError(f"too many bytes for OP_PUSHDATA: {length}")
-    out.append(command)
-    return b"".join(out)
 
 
 def _pushdata(i: int, length: int, out: list[bytes | bytearray | memoryview]) -> None:
