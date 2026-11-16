@@ -139,8 +139,8 @@ def test_read_exactly_writes_no_size_decoded_from_the_data() -> None:
     assert_secret_free(refused.value, ["10078", "cd64", bytes.fromhex("cd64")])
 
     # a special script's size, 20 or 32, narrows down its type octet
+    err_msg = "^not enough data for the script: 1 bytes, fewer than its size$"
     for kind in (b"\x00", b"\x02"):
-        err_msg = "^not enough data for the script: 1 bytes, fewer than its size$"
         with pytest.raises(BTClibValueError, match=err_msg):
             parse_script(kind + b"\x01")
 
