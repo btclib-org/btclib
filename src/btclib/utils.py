@@ -662,14 +662,18 @@ def int_from_json_number(value: Any, what: str) -> int:
         else:
             # Other Number implementations keep the original inequality check.
             result = int(number)
-            whole = not (result != number)
+            whole = None
     # Complex numbers cannot be converted to int; NaN and infinity cannot
     # be whole. Normalize these errors to btclib's refusal types.
     except TypeError as e:
         raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}") from e
     except (ValueError, OverflowError) as e:
         raise BTClibValueError(f"invalid {what}: not a whole number") from e
-    if not whole:
+    # The generic fallback keeps the exact prior result != number check.
+    if whole is None:
+        if result != number:
+            raise BTClibValueError(f"invalid {what}: not a whole number")
+    elif not whole:
         raise BTClibValueError(f"invalid {what}: not a whole number")
     return result
 
