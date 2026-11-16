@@ -359,8 +359,27 @@ def read_exactly(stream: BinaryIO, size: int, what: str) -> bytes:
     `size` is a count of octets, so an integer from zero to
     `sys.maxsize`: a negative one is what `read` takes for "to the end",
     and past `sys.maxsize` `read` answers with an OverflowError of its
-    own, where no stream holds that many octets anyway.
+    own, where no stream holds that many octets anyway. Up to there it is
+    eight bytes on a 64-bit build, so a short read's refusal writes it
+    through `_message_field`, as `bytes_from_octets` writes its sizes.
     """
+    return _read_exactly(stream, size, what, decoded=False)
+
+
+def _read_decoded(stream: BinaryIO, size: int, what: str) -> bytes:
+    """Return `read_exactly`'s octets for a size read off the data.
+
+    A script's length is one, and so is any length or count a parser
+    decodes before the octets it sizes. Section 7's *A refusal carries no
+    secret* allows a value's actual length and not a field decoded from
+    it, which gives back the octets that spelled it, so a short read's
+    refusal leaves the size out (issue #3103).
+    """
+    return _read_exactly(stream, size, what, decoded=True)
+
+
+def _read_exactly(stream: BinaryIO, size: int, what: str, *, decoded: bool) -> bytes:
+    """Return size octets, refusing a short read with or without its size."""
     # a bool is not a count, `True` reading one octet
     if not is_integer(size):
         raise BTClibTypeError(f"invalid {what} size type: {type(size).__name__}")
@@ -369,7 +388,10 @@ def read_exactly(stream: BinaryIO, size: int, what: str) -> bytes:
     data = stream.read(size)
     if len(data) != size:
         err_msg = f"not enough data for the {what}: "
-        err_msg += f"{len(data)} bytes instead of {size}"
+        if decoded:
+            err_msg += f"{len(data)} bytes, fewer than its size"
+        else:
+            err_msg += f"{len(data)} bytes instead of {_message_field(size, 32, 'd')}"
         raise BTClibValueError(err_msg)
     return data
 

@@ -29,6 +29,7 @@ from btclib.consensus import MAX_SCRIPT_SIZE
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
     _message_text,
+    _read_decoded,
     bytes_from_octets,
     bytesio_from_binarydata,
     is_integer,
@@ -289,16 +290,16 @@ def parse_script(stream: BinaryData) -> bytes:
     stream = bytesio_from_binarydata(stream)
     size = parse_varint(stream, 32)
     if size < _SPECIAL_SCRIPTS:
-        compressed = read_exactly(stream, _special_script_size(size), "script")
+        compressed = _read_decoded(stream, _special_script_size(size), "script")
         try:
             return decompress_script(size, compressed)
         except BTClibValueError:
             return b""
     size -= _SPECIAL_SCRIPTS
     if size <= MAX_SCRIPT_SIZE:
-        return read_exactly(stream, size, "script")
+        return _read_decoded(stream, size, "script")
     while size:
         chunk = min(size, _SKIP_CHUNK)
-        read_exactly(stream, chunk, "script")
+        _read_decoded(stream, chunk, "script")
         size -= chunk
     return bytes([_OP_RETURN])

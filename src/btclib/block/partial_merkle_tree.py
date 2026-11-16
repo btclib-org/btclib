@@ -70,6 +70,7 @@ from btclib.hashes import hash256
 from btclib.utils import (
     _assert_valid_4_byte_field,
     _message_text,
+    _read_decoded,
     assert_no_trailing,
     assert_type,
     bytes_from_octets,
@@ -470,7 +471,7 @@ class PartialMerkleTree:
         ]
 
         flag_byte_count = var_int.parse(stream)
-        flags = read_exactly(stream, flag_byte_count, "flags")
+        flags = _read_decoded(stream, flag_byte_count, "flags")
         assert_no_trailing(data, stream, "partial merkle tree")
 
         return cls(n_transactions, hashes, flags, check_validity=check_validity)

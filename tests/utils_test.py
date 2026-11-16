@@ -17,9 +17,11 @@ from unittest.mock import MagicMock, Mock
 import pytest
 from typing_extensions import override
 
-from btclib.block import BlockHeader
+from btclib.block import BlockHeader, PartialMerkleTree
+from btclib.compressor import parse_script
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, magic_message, siphash
+from btclib.p2p.addrv2 import NetworkAddressV2
 from btclib.utils import (
     _assert_valid_4_byte_field,
     _assert_valid_8_byte_signed_field,
@@ -43,6 +45,7 @@ from btclib.utils import (
     read_exactly,
     str_from_string,
 )
+from tests.secret_free import assert_secret_free
 
 random.seed(42)
 
@@ -91,6 +94,69 @@ def test_read_exactly_names_the_field_it_could_not_fill() -> None:
     err_msg = "not enough data for the tx_id: 0 bytes instead of 32"
     with pytest.raises(BTClibValueError, match=err_msg):
         read_exactly(BytesIO(b""), 32, "tx_id")
+
+
+@pytest.mark.skipif(
+    sys.maxsize < 2**63 - 1, reason="sizes past four bytes need a 64-bit build"
+)
+def test_read_exactly_writes_no_size_wider_than_four_bytes() -> None:
+    """A short read's size is written where it fits four bytes, else described.
+
+    Section 7 of the standard, *A refusal carries no secret*, lets a
+    refusal print a field of at most four bytes, and a size up to
+    `sys.maxsize` is eight on a 64-bit build: one wider than four bytes
+    may be a key passed in its place (issue #3103). No spelling of it is
+    in the refusal.
+    """
+    err_msg = "^not enough data for the f: 2 bytes instead of 4294967295$"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        read_exactly(BytesIO(b"ab"), 2**32 - 1, "f")
+    err_msg = "^not enough data for the f: 2 bytes instead of an int of 33 bits$"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        read_exactly(BytesIO(b"ab"), 2**32, "f")
+    err_msg = "^not enough data for the f: 2 bytes instead of an int of 63 bits$"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        read_exactly(BytesIO(b"ab"), sys.maxsize, "f")
+
+    wide = 0x1234_5678_9ABC
+    err_msg = "^not enough data for the f: 2 bytes instead of an int of 45 bits$"
+    with pytest.raises(BTClibValueError, match=err_msg) as refused:
+        read_exactly(BytesIO(b"ab"), wide, "f")
+    assert_secret_free(refused.value, [str(wide), f"{wide:x}", wide.to_bytes(6, "big")])
+
+
+def test_read_exactly_writes_no_size_decoded_from_the_data() -> None:
+    """A short read leaves out a size the data gave, however narrow it is.
+
+    Section 7's *A refusal carries no secret* allows a value's actual
+    length, not a field decoded from it: a size read off the stream gives
+    back the octets that spelled it. `parse_script` of the octets `cd64` printed
+    10078, from two octets of a fixed random test key (issue #3103).
+    """
+    err_msg = "^not enough data for the script: 0 bytes, fewer than its size$"
+    with pytest.raises(BTClibValueError, match=err_msg) as refused:
+        parse_script(BytesIO(bytes.fromhex("cd64")))
+    assert_secret_free(refused.value, ["10078", "cd64", bytes.fromhex("cd64")])
+
+    # a special script's size, 20 or 32, narrows down its type octet
+    err_msg = "^not enough data for the script: 1 bytes, fewer than its size$"
+    for kind in (b"\x00", b"\x02"):
+        with pytest.raises(BTClibValueError, match=err_msg):
+            parse_script(kind + b"\x01")
+
+    # the address length, at most `MAX_ADDRV2_SIZE` and the peer's to choose
+    entry = bytes(4) + b"\x00\x01" + bytes.fromhex("fda301")
+    err_msg = "^not enough data for the address: 0 bytes, fewer than its size$"
+    with pytest.raises(BTClibValueError, match=err_msg) as refused:
+        NetworkAddressV2.parse(entry)
+    assert_secret_free(refused.value, ["419", "a301", bytes.fromhex("a301")])
+
+    # the flag byte count of a partial merkle tree
+    tree = bytes(4) + b"\x00" + bytes.fromhex("fd5e9c")
+    err_msg = "^not enough data for the flags: 0 bytes, fewer than its size$"
+    with pytest.raises(BTClibValueError, match=err_msg) as refused:
+        PartialMerkleTree.parse(tree)
+    assert_secret_free(refused.value, ["40030", "5e9c", bytes.fromhex("5e9c")])
 
 
 def test_assert_no_trailing() -> None:
