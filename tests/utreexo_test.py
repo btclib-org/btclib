@@ -20,6 +20,7 @@ from typing import Any
 import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
+from typing_extensions import override
 
 from btclib import utreexo
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
@@ -442,6 +443,34 @@ def test_the_leaf_count_has_a_ceiling() -> None:
         stump.modify([leaf(0)], [], Proof())
     with pytest.raises(BTClibValueError, match="too many leaves"):
         stump.update_data([leaf(0)], [], Proof())
+
+
+class _InRange(int):
+    @override
+    def __lt__(self, other: object) -> bool:
+        return True
+
+    @override
+    def __ge__(self, other: object) -> bool:
+        return True
+
+
+@pytest.mark.parametrize("value", [-1, 1 << 64])
+def test_an_int_subclass_is_read_as_its_plain_int(value: int) -> None:
+    """An int subclass's own comparisons decide no range check."""
+    assert 0 <= _InRange(value) < 1 << 64
+    with pytest.raises(BTClibValueError, match="invalid leaves"):
+        Stump(_InRange(value), [EMPTY])
+    with pytest.raises(BTClibValueError, match="invalid leaves"):
+        UpdateData(prev_num_leaves=_InRange(value))
+    with pytest.raises(BTClibValueError, match="invalid targets"):
+        Proof([_InRange(value)])
+    with pytest.raises(BTClibValueError, match="invalid to_destroy"):
+        UpdateData(to_destroy=[_InRange(value)])
+    with pytest.raises(BTClibValueError, match="invalid new_add"):
+        UpdateData(new_add=[(_InRange(value), EMPTY)])
+    assert type(Stump(_InRange(1), [EMPTY]).leaves) is int
+    assert type(Proof([_InRange(1)]).targets[0]) is int
 
 
 def test_a_cached_proof_update_is_checked() -> None:
