@@ -160,6 +160,7 @@ from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
     _has_type,
     _message_text,
+    _read_decoded,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -411,7 +412,7 @@ class NetworkAddressV2:
             err_msg = "invalid address length:"
             err_msg += f" at most {MAX_ADDRV2_SIZE} bytes expected"
             raise BTClibValueError(err_msg)
-        address = read_exactly(stream, size, "address")
+        address = _read_decoded(stream, size, "address")
         port = int.from_bytes(
             read_exactly(stream, _PORT_SIZE, "address port"),
             byteorder="big",
