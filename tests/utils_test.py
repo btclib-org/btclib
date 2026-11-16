@@ -368,6 +368,58 @@ def test_a_json_number_is_a_whole_one_or_it_is_an_error() -> None:
             int_from_json_number(not_a_number, "version")
 
 
+
+def test_json_number_subclasses_cannot_override_whole_number_checks() -> None:
+    """Read the underlying numeric value, never the subclass's overrides.
+
+    A subclass must not turn 1.5 into 7 or decide its own comparison;
+    an overridden __ne__ must not leak a caller-provided exception.
+    """
+
+    class MisleadingFloat(float):
+        def __int__(self) -> int:
+            return 7
+
+        def __ne__(self, other: object) -> bool:
+            return False
+
+    class MisleadingDecimal(Decimal):
+        def __int__(self) -> int:
+            return 7
+
+        def __ne__(self, other: object) -> bool:
+            return False
+
+    class MisleadingFraction(Fraction):
+        def __int__(self) -> int:
+            return 7
+
+        def __ne__(self, other: object) -> bool:
+            return False
+
+    class LeakingFloat(float):
+        def __ne__(self, other: object) -> bool:
+            raise ValueError("sensitive data must not escape")
+
+    for whole in (
+        MisleadingFloat(2.0),
+        MisleadingDecimal("2"),
+        MisleadingFraction(2),
+    ):
+        assert int_from_json_number(whole, "version") == 2
+
+    for fractional in (
+        MisleadingFloat(1.5),
+        MisleadingDecimal("1.5"),
+        MisleadingFraction(3, 2),
+        LeakingFloat(1.5),
+    ):
+        with pytest.raises(
+            BTClibValueError, match="invalid version: not a whole number"
+        ):
+            int_from_json_number(fractional, "version")
+
+
 def test_octets_are_bytes_or_the_hex_string_of_bytes_and_nothing_else() -> None:
     """A tuple went through untouched, to be measured as if it were octets.
 
