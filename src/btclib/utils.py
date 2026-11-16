@@ -660,9 +660,9 @@ def int_from_json_number(value: Any, what: str) -> int:
             result = Fraction.__int__(number)
             whole = Fraction.__eq__(number, result)
         else:
-            # Other Number implementations keep their original coercion.
+            # Other Number implementations keep the original inequality check.
             result = int(number)
-            whole = result == number
+            whole = not (result != number)
     # Complex numbers cannot be converted to int; NaN and infinity cannot
     # be whole. Normalize these errors to btclib's refusal types.
     except TypeError as e:
