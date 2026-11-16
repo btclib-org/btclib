@@ -649,6 +649,7 @@ def int_from_json_number(value: Any, what: str) -> int:
     number: Any = value
     if _has_type(number, int):
         return int.__add__(number, 0)
+    whole: bool | None
     try:
         if _has_type(number, float):
             result = float.__int__(number)
