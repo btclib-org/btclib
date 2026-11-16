@@ -46,10 +46,9 @@ permissions:
 concurrency:
   # named literally, never through github.workflow. A run with no pull
   # request -- every run of this workflow, since it carries none -- has
-  # no number and groups by github.ref, which is refs/heads/main for the
-  # one trigger this workflow has, so two pushes in quick succession
-  # supersede each other -- wanted, since they ask the same question of
-  # the same tree
+  # no number and groups by github.ref, which is refs/heads/main for
+  # both of its triggers, so two runs in quick succession supersede each
+  # other -- wanted, since they ask the same question of the same tree
   group: scorecard-${{ github.ref }}
   cancel-in-progress: true
 
