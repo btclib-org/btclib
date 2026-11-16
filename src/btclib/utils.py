@@ -59,6 +59,8 @@ import string
 import sys
 from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
+from decimal import Decimal
+from fractions import Fraction
 from io import BytesIO
 from numbers import Number
 from typing import Any, BinaryIO, TypeVar, overload
@@ -642,18 +644,32 @@ def int_from_json_number(value: Any, what: str) -> int:
     if _has_type(value, bool) or not _has_type(value, Number):
         raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
     # `Number` declares no `__int__`, so the check above narrows past what
-    # `int` and `!=` accept; the value is read back as the Any it came in as
+    # `int` and comparisons accept; read the known numeric types through
+    # their base implementations, not a subclass's overridden methods.
     number: Any = value
+    if _has_type(number, int):
+        return int.__add__(number, 0)
     try:
-        result = int(number)
-    # a complex is a Number `int` cannot convert, and neither error is
-    # btclib's as it stands: `except ValueError` is what a caller of a
-    # json reader writes, and OverflowError, out of `inf`, is not even one
+        if _has_type(number, float):
+            result = float.__int__(number)
+            whole = float.__eq__(number, result)
+        elif _has_type(number, Decimal):
+            result = Decimal.__int__(number)
+            whole = Decimal.__eq__(number, result)
+        elif _has_type(number, Fraction):
+            result = Fraction.__int__(number)
+            whole = Fraction.__eq__(number, result)
+        else:
+            # Other Number implementations keep their original coercion.
+            result = int(number)
+            whole = result == number
+    # Complex numbers cannot be converted to int; NaN and infinity cannot
+    # be whole. Normalize these errors to btclib's refusal types.
     except TypeError as e:
         raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}") from e
     except (ValueError, OverflowError) as e:
         raise BTClibValueError(f"invalid {what}: not a whole number") from e
-    if result != number:
+    if not whole:
         raise BTClibValueError(f"invalid {what}: not a whole number")
     return result
 
