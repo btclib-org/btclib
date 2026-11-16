@@ -88,7 +88,7 @@ from typing import Self, cast
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.utils import (
-    _has_type,
+    _int_from_integer,
     _message_text,
     assert_no_trailing,
     assert_type,
@@ -149,9 +149,8 @@ def _parent_hash(left: bytes, right: bytes) -> bytes:
 
 
 def _int(value: object, what: str, ceiling: int) -> int:
-    """Return a value that is an int in `[0, ceiling)`, refusing any other."""
-    if not _has_type(value, int) or _has_type(value, bool):
-        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+    """Return the plain int of an int in `[0, ceiling)`, refusing any other."""
+    value = _int_from_integer(value, what)
     if not 0 <= value < ceiling:
         raise BTClibValueError(f"invalid {what}: {_message_text(value)}")
     return value
