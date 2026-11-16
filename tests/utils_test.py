@@ -396,7 +396,9 @@ def test_json_number_subclasses_cannot_override_whole_number_checks() -> None:
 
     class MisleadingFraction(Fraction):
         @override
-        def __int__(self, *_args: Any, **_kwargs: Any) -> int:  # pragma: no cover -- no dispatch
+        def __int__(
+            self, *_args: Any, **_kwargs: Any
+        ) -> int:  # pragma: no cover -- no dispatch
             return 7
 
         @override
@@ -421,7 +423,9 @@ def test_json_number_subclasses_cannot_override_whole_number_checks() -> None:
         MisleadingFraction(3, 2),
         LeakingFloat(1.5),
     ):
-        with pytest.raises(BTClibValueError, match="invalid version: not a whole number"):
+        with pytest.raises(
+            BTClibValueError, match="invalid version: not a whole number"
+        ):
             int_from_json_number(fractional, "version")
 
 
@@ -439,6 +443,11 @@ def test_json_number_keeps_other_number_implementations() -> None:
         def __ne__(self, other: object) -> bool:
             return self.value != other
 
+        @override
+        def __hash__(self) -> int:
+            return hash(self.value)
+
+    assert hash(OtherNumber(2.0)) == hash(2.0)
     assert int_from_json_number(OtherNumber(2.0), "version") == 2
     with pytest.raises(BTClibValueError, match="invalid version: not a whole number"):
         int_from_json_number(OtherNumber(1.5), "version")
