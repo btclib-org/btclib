@@ -409,12 +409,12 @@ repos:
   # ahead of markdownlint-cli2 below on purpose: that hook's `--fix`
   # repairs the very seam this hook exists to name (btclib-org/.github#1293)
   - repo: https://github.com/btclib-org/.github
-    rev: 0ab5b1440e2cfe45877dc8cf3a4a9187ca935d61 # frozen: v2026.11.10
+    rev: f88870c9246bf313eb7f200c358b49b0938d89a3  # frozen: v2026.11.14
     hooks:
       - id: check-changelog
         args: [--grandfathered, "23"]
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.24.0
+    rev: v0.24.1
     hooks:
       # --fix: corrects in place, like every other fixing hook here
       - id: markdownlint-cli2
@@ -606,7 +606,7 @@ repos:
   # prettier is also what parses the last two -- check-json cannot read a
   # comment
   - repo: https://github.com/rbubley/mirrors-prettier
-    rev: v3.9.10
+    rev: v3.10.1
     hooks:
       - id: prettier
         name: prettier (yaml and jsonc, in place fixes)
@@ -727,7 +727,7 @@ repos:
   # `shell: python` step, so the pyflakes it also delegates to is not
   # declared.
   - repo: https://github.com/kjanat/actionlint
-    rev: 2da2ceb4af2c7ecc48f5b9311d85080c3971b5f0 # frozen: v1.17.0
+    rev: 1a9278318c43b72cdf644214128fb0786d210147  # frozen: v1.17
     hooks:
       - id: actionlint-shellcheck
         name: actionlint (github workflows)
@@ -766,7 +766,7 @@ repos:
   # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
   # pyupgrade, and yesqa
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.4
+    rev: v0.17.5
     hooks:
       - id: ruff-check
         name: ruff check (in place fixes)
@@ -866,7 +866,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.13.7
+    rev: 0.13.8
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock
