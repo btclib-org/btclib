@@ -649,32 +649,28 @@ def int_from_json_number(value: Any, what: str) -> int:
     number: Any = value
     if _has_type(number, int):
         return int.__add__(number, 0)
-    whole: bool | None
+    fractional: bool
     try:
         if _has_type(number, float):
             result = float.__int__(number)
-            whole = float.__eq__(number, result)
+            fractional = not float.__eq__(number, result)
         elif _has_type(number, Decimal):
             result = Decimal.__int__(number)
-            whole = Decimal.__eq__(number, result)
+            fractional = not Decimal.__eq__(number, result)
         elif _has_type(number, Fraction):
             result = Fraction.__int__(number)
-            whole = Fraction.__eq__(number, result)
+            fractional = not Fraction.__eq__(number, result)
         else:
-            # Other Number implementations keep the original inequality check.
+            # Keep the old inequality behavior for other Number subclasses.
             result = int(number)
-            whole = None
+            fractional = result != number
     # Complex numbers cannot be converted to int; NaN and infinity cannot
     # be whole. Normalize these errors to btclib's refusal types.
     except TypeError as e:
         raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}") from e
     except (ValueError, OverflowError) as e:
         raise BTClibValueError(f"invalid {what}: not a whole number") from e
-    # The generic fallback keeps the exact prior result != number check.
-    if whole is None:
-        if result != number:
-            raise BTClibValueError(f"invalid {what}: not a whole number")
-    elif not whole:
+    if fractional:
         raise BTClibValueError(f"invalid {what}: not a whole number")
     return result
 
