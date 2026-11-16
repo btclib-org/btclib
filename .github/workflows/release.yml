@@ -19,12 +19,13 @@ on:
 permissions:
   contents: read
 
-# never two runs of this workflow at once, and never a cancellation: the
-# other workflows cancel a superseded run because their subject is the
-# commit, and a newer commit supersedes the answer. Here the subject is a
-# publication -- a version on an index, an attestation, a release -- so a
-# second run is a second attempt at the same side effects, and cancelling one
-# halfway is how a version reaches PyPI with no release cut for it.
+# one run per ref at a time, and a later run never cancels a running one: the
+# subject here is a publication -- a version on an index, an attestation, a
+# release -- so a second run on the same ref is a second attempt at the same
+# side effects, and cancelling one halfway is how a version reaches PyPI with
+# no release cut for it. Section 12 of the organization's standard says what
+# becomes of a later run on the same ref, and how to close a rehearsal left
+# waiting.
 # Named literally, as everywhere else: github.workflow in a called workflow
 # is the caller's name, and this workflow is a caller
 concurrency:
