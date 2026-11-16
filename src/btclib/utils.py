@@ -240,10 +240,7 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
         err_msg = f"invalid output size type: {type(out_size).__name__}"
         raise BTClibTypeError(err_msg)
 
-    for size in sizes:
-        if not is_integer(size):
-            err_msg = f"invalid output size type: {type(size).__name__}"
-            raise BTClibTypeError(err_msg)
+    sizes = tuple(_int_from_integer(size, "output size") for size in sizes)
 
     size = len(octets)
     if size in sizes:
@@ -552,6 +549,21 @@ def is_integer(value: Any) -> bool:
     subclass excluded, and by name.
     """
     return _has_type(value, int) and not _has_type(value, bool)
+
+
+def _int_from_integer(value: Any, what: str) -> int:
+    """Return the plain int of an integer, refusing what `is_integer` refuses.
+
+    An int subclass passes `is_integer`, and its own comparisons and
+    operators would decide a range check and what an encoder writes.
+    `int.__add__(value, 0)` answers a plain int of the same value on
+    CPython and on PyPy, so the caller checks and writes that.
+    `int.__index__` does not on PyPy, where it calls the subclass's own
+    `__int__`. `what` names the value in the refusal.
+    """
+    if not is_integer(value):
+        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+    return int.__add__(value, 0)
 
 
 def is_octets(value: Any) -> TypeIs[Octets]:
