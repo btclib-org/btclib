@@ -369,37 +369,43 @@ def test_a_json_number_is_a_whole_one_or_it_is_an_error() -> None:
             int_from_json_number(not_a_number, "version")
 
 
-
 def test_json_number_subclasses_cannot_override_whole_number_checks() -> None:
-    """Read the underlying numeric value, never the subclass's overrides.
+    """Read the underlying numeric value, never a subclass's overrides.
 
-    A subclass must not turn 1.5 into 7 or decide its own comparison;
-    an overridden __ne__ must not leak a caller-provided exception.
+    These methods must remain uncalled on the passing path; their bodies
+    are excluded from coverage because invoking them defeats the test.
     """
 
     class MisleadingFloat(float):
-        def __int__(self) -> int:
+        @override
+        def __int__(self) -> int:  # pragma: no cover -- must not be called
             return 7
 
-        def __ne__(self, other: object) -> bool:
+        @override
+        def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
             return False
 
     class MisleadingDecimal(Decimal):
-        def __int__(self) -> int:
+        @override
+        def __int__(self) -> int:  # pragma: no cover -- must not be called
             return 7
 
-        def __ne__(self, other: object) -> bool:
+        @override
+        def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
             return False
 
     class MisleadingFraction(Fraction):
-        def __int__(self) -> int:
+        @override
+        def __int__(self, *_args: Any, **_kwargs: Any) -> int:  # pragma: no cover -- no dispatch
             return 7
 
-        def __ne__(self, other: object) -> bool:
+        @override
+        def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
             return False
 
     class LeakingFloat(float):
-        def __ne__(self, other: object) -> bool:
+        @override
+        def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
             raise ValueError("sensitive data must not escape")
 
     for whole in (
@@ -415,15 +421,12 @@ def test_json_number_subclasses_cannot_override_whole_number_checks() -> None:
         MisleadingFraction(3, 2),
         LeakingFloat(1.5),
     ):
-        with pytest.raises(
-            BTClibValueError, match="invalid version: not a whole number"
-        ):
+        with pytest.raises(BTClibValueError, match="invalid version: not a whole number"):
             int_from_json_number(fractional, "version")
 
 
-
 def test_json_number_keeps_other_number_implementations() -> None:
-    """Number implementations beyond the built-in families still coerce."""
+    """The generic Number fallback still honors inequality, not equality."""
 
     class OtherNumber(Number):
         def __init__(self, value: float) -> None:
@@ -432,13 +435,12 @@ def test_json_number_keeps_other_number_implementations() -> None:
         def __int__(self) -> int:
             return int(self.value)
 
-        def __eq__(self, other: object) -> bool:
-            return self.value == other
+        @override
+        def __ne__(self, other: object) -> bool:
+            return self.value != other
 
     assert int_from_json_number(OtherNumber(2.0), "version") == 2
-    with pytest.raises(
-        BTClibValueError, match="invalid version: not a whole number"
-    ):
+    with pytest.raises(BTClibValueError, match="invalid version: not a whole number"):
         int_from_json_number(OtherNumber(1.5), "version")
 
 
