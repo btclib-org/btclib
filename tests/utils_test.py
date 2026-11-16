@@ -11,6 +11,7 @@ from collections.abc import Callable
 from decimal import Decimal
 from fractions import Fraction
 from io import BytesIO
+from numbers import Number
 from typing import Any
 from unittest.mock import MagicMock, Mock
 
@@ -418,6 +419,27 @@ def test_json_number_subclasses_cannot_override_whole_number_checks() -> None:
             BTClibValueError, match="invalid version: not a whole number"
         ):
             int_from_json_number(fractional, "version")
+
+
+
+def test_json_number_keeps_other_number_implementations() -> None:
+    """Number implementations beyond the built-in families still coerce."""
+
+    class OtherNumber(Number):
+        def __init__(self, value: float) -> None:
+            self.value = value
+
+        def __int__(self) -> int:
+            return int(self.value)
+
+        def __eq__(self, other: object) -> bool:
+            return self.value == other
+
+    assert int_from_json_number(OtherNumber(2.0), "version") == 2
+    with pytest.raises(
+        BTClibValueError, match="invalid version: not a whole number"
+    ):
+        int_from_json_number(OtherNumber(1.5), "version")
 
 
 def test_octets_are_bytes_or_the_hex_string_of_bytes_and_nothing_else() -> None:
