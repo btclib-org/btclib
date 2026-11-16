@@ -657,7 +657,7 @@ re-check should compare.
 ```text
 repo    bitcoin-core/secp256k1
 path    src
-commit  1c088b64867d63f489d9d2ec58219e21f28357dd  2026-11-03
+commit  a0e2e23a71bf2aaae910f81cb2bd8aa0ae49d544  2026-11-16
 ours    a8f306732166cf782473ecbd2b90030616953689
 pulled  2026-09-10, refreshed 2026-09-14, 2026-10-07 and 2026-10-26
 behind  0 revisions; that commit is the tip of the path
