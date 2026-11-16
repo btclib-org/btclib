@@ -454,15 +454,33 @@ def _serialize_bytes_command(command: bytes | bytearray | memoryview) -> bytes:
     serialize must be able to write back: a push over 520 bytes is one
     the stack cannot hold, i.e. a script no one can spend, and not one
     that cannot be encoded -- there are such pushes on chain (issue
-    #123). The last branch is Core's own bound, `CScript::operator<<`
-    having nothing wider than a four-byte length either.
+    #123). The refusal in `_serialize_push_prefix` is Core's own bound,
+    `CScript::operator<<` having nothing wider than a four-byte length
+    either.
     """
     # both serializers hand here whatever command is neither an int nor a
-    # str, so a float or a None would otherwise reach `len` unasked
+    # str: a float or a None is refused here as a command, not by
+    # `bytes_from_octets` as octets
     if not _has_type(command, (bytes, bytearray, memoryview)):
         raise BTClibTypeError(f"invalid script command type: {type(command).__name__}")
+    # a subclass's `__len__` need not count the octets it holds (issue
+    # #3115): the length is the plain copy's
+    command = bytes_from_octets(command)
     out: list[bytes | bytearray | memoryview] = []
-    length = len(command)
+    _serialize_push_prefix(len(command), out)
+    out.append(command)
+    return b"".join(out)
+
+
+def _serialize_push_prefix(
+    length: int, out: list[bytes | bytearray | memoryview]
+) -> None:
+    """Write the minimal push operator for `length` octets.
+
+    A length no OP_PUSHDATA field can carry is refused. It takes the
+    length rather than the data, so that a test reaches the refusal
+    without allocating four gibibytes (issue #3115).
+    """
     if length < 76:  # 1-byte-length
         out.append(length.to_bytes(1, byteorder="little", signed=False))
     elif length < 256:  # OP_PUSHDATA1 | 1-byte-length
@@ -473,8 +491,6 @@ def _serialize_bytes_command(command: bytes | bytearray | memoryview) -> bytes:
         _pushdata(4, length, out)
     else:
         raise BTClibValueError(f"too many bytes for OP_PUSHDATA: {length}")
-    out.append(command)
-    return b"".join(out)
 
 
 def _pushdata(i: int, length: int, out: list[bytes | bytearray | memoryview]) -> None:

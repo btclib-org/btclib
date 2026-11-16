@@ -14,6 +14,7 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 from typing_extensions import override
 
+import btclib.script.script as script_module
 from btclib.alias import ScriptList
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import (
@@ -29,6 +30,7 @@ from btclib.script.script import (
     BYTE_FROM_OP_CODE_NAME,
     ERROR_COMMAND,
     OP_CODE_NAME_FROM_INT,
+    _serialize_push_prefix,
     op_code_spans,
     read_op_code,
 )
@@ -114,6 +116,33 @@ def test_serialize_bytes_command() -> None:
     assert len(serialize([b])) == length + 2
     b = b"\x0a" * (length + 1)
     assert len(serialize([b])) == (length + 1) + 3
+
+
+def test_a_bytes_command_is_sized_by_the_octets_it_holds() -> None:
+    """ISS 3115: a subclass's `__len__` does not choose the push length.
+
+    `_serialize_bytes_command` writes a length for the octets the command
+    holds, so a subclass that reports fewer or more than that payload
+    still serializes as the payload itself does.
+    """
+
+    class Short(bytes):
+        @override
+        def __len__(self) -> int:
+            return 0
+
+    class Long(bytes):
+        @override
+        def __len__(self) -> int:
+            return 100
+
+    payload = bytes(20)
+    short, long_ = Short(payload), Long(payload)
+    assert len(short) == 0
+    assert len(long_) == 100
+    assert serialize([short]) == serialize([payload])
+    assert serialize([long_]) == serialize([payload])
+    assert serialize([short]).hex() == "14" + "00" * 20
 
 
 def test_a_command_of_no_script_type_is_refused_as_a_type() -> None:
@@ -295,7 +324,9 @@ def test_a_string_command_is_stripped_of_ascii_whitespace_alone() -> None:
                 serialize([command + c])
 
 
-def test_pushdata4_and_the_only_length_left_to_refuse() -> None:
+def test_pushdata4_and_the_only_length_left_to_refuse(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """All four push widths are written, and read back.
 
     A push over 520 bytes is one the stack cannot hold, i.e. a script
@@ -310,15 +341,23 @@ def test_pushdata4_and_the_only_length_left_to_refuse() -> None:
         assert len(script) == length + head
         assert parse(script) == [data.hex().upper()]
 
-    # __len__ lies rather than have the test allocate four gibibytes
+    # the bound is on the count, not on a subclass's __len__: a copy
+    # already holds the octets (issue #3115), so the refusal is tested
+    # against the prefix writer rather than a four-gibibyte buffer
+    err_msg = "too many bytes for OP_PUSHDATA: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        _serialize_push_prefix(4294967296, [])
+
+    # and through serialize, the public caller: the copy is made to report
+    # that length, which no real buffer here has to hold
     class TooLong(bytes):
         @override
         def __len__(self) -> int:
             return 4294967296
 
-    err_msg = "too many bytes for OP_PUSHDATA: "
+    monkeypatch.setattr(script_module, "bytes_from_octets", lambda _: TooLong())
     with pytest.raises(BTClibValueError, match=err_msg):
-        serialize([TooLong()])
+        serialize([b"\x0a"])
 
 
 def test_nulldata() -> None:
