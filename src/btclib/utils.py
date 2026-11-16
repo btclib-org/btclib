@@ -222,7 +222,7 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
         # caller went on to do with it: `len` of a tuple of 33 ints is 33,
         # so `taproot.assert_valid_control_block` accepted one as a
         # control block size
-        err_msg = f"invalid octets type: {type(octets).__name__}"  # type: ignore[unreachable]
+        err_msg = f"invalid octets type: {_type_name(octets)}"  # type: ignore[unreachable]
         raise BTClibTypeError(err_msg)
 
     if out_size is None:
@@ -237,7 +237,7 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     elif _has_type(out_size, Iterable):
         sizes = tuple(out_size)
     else:
-        err_msg = f"invalid output size type: {type(out_size).__name__}"
+        err_msg = f"invalid output size type: {_type_name(out_size)}"
         raise BTClibTypeError(err_msg)
 
     sizes = tuple(_int_from_integer(size, "output size") for size in sizes)
@@ -296,7 +296,7 @@ def str_from_string(s: String, what: str) -> str:
         # what is neither went through untouched, to fail on `len` or on
         # a method of str that the value does not have -- a complaint
         # about a builtin rather than about the argument
-        err_msg = f"invalid {what} type: {type(s).__name__}"  # type: ignore[unreachable]
+        err_msg = f"invalid {what} type: {_type_name(s)}"  # type: ignore[unreachable]
         raise BTClibTypeError(err_msg)
 
     # a strided memoryview or one whose format is not "B" is refused here
@@ -382,7 +382,7 @@ def _read_exactly(stream: BinaryIO, size: int, what: str, *, decoded: bool) -> b
     """Return size octets, refusing a short read with or without its size."""
     # a bool is not a count, `True` reading one octet
     if not is_integer(size):
-        raise BTClibTypeError(f"invalid {what} size type: {type(size).__name__}")
+        raise BTClibTypeError(f"invalid {what} size type: {_type_name(size)}")
     if not 0 <= size <= sys.maxsize:
         raise BTClibValueError(f"invalid {what} size: {_message_text(size)}")
     data = stream.read(size)
@@ -429,9 +429,11 @@ def _message_text(value: object) -> str:
 
     An int, a bool excepted, is described by its sign and bit length.
     Anything else, a bool included, is described by its type name, and
-    by its length where `len()` gives one: "a str of length 64", "an
+    by its length where `_length` gives one: "a str of length 64", "an
     object". The article is "an" before a name whose first letter, past
-    any underscore, is a vowel.
+    any underscore, is a vowel. A value whose type name `_type_name` does
+    not print is "a value of" what `_type_name` writes in its place, with
+    no length of its own.
 
     Neither reads the value's `str()`. That of an int past
     `sys.get_int_max_str_digits()` digits, or of what is written with
@@ -441,20 +443,83 @@ def _message_text(value: object) -> str:
     """
     if _has_type(value, int) and not _has_type(value, bool):
         return _int_description(value)
-    name = type(value).__name__
+    name = _type_name(value)
+    if not name.isidentifier():
+        # what `_type_name` writes for a name it does not print
+        return f"a value of {name}"
     article = "an" if name.lstrip("_")[:1].lower() in tuple("aeiou") else "a"
     description = f"{article} {name}"
-    # every Exception and not only TypeError: a `__len__` of the caller's
-    # own can raise anything, and no failure to describe a value may
-    # replace the refusal the description is for
-    try:
-        return f"{description} of length {len(value)}"  # type: ignore[arg-type]
-    except Exception:  # noqa: BLE001
-        return description
+    length = _length(value)
+    return description if length is None else f"{description} of length {length}"
 
 
 #: The most characters of a refused name that a refusal quotes.
 _MAX_QUOTED_NAME_LENGTH = 16
+
+# the descriptor `type` reads a class's name with, whatever its metaclass
+_TYPE_NAME = vars(type)["__name__"]
+
+#: The names of btclib's own classes longer than `_MAX_QUOTED_NAME_LENGTH`,
+#: which a refusal prints whole: they are the library's own text.
+_LONG_TYPE_NAMES = (
+    "BTClibRuntimeError",
+    "BTClibUserWarning",
+    "FSChaCha20Poly1305",
+    "HeadersSyncParams",
+    "IncompleteMessageError",
+    "InvalidPrvKeyError",
+    "MessageVerificationResult",
+    "PartialMerkleTree",
+    "PrecomputedTxData",
+    "PrefilledTransaction",
+    "ShortIdCollisionError",
+    "TimestampedNetworkAddress",
+    "_FilterRangeRequest",
+    "_InventoryPayload",
+    "_TaprootInputHashes",
+)
+
+
+def _type_name(value: object) -> str:
+    """Return a value's type name as a refusal may print it, never raising.
+
+    Read through `type`'s own descriptor and not `type(value).__name__`,
+    which a metaclass can answer or raise from, and copied to an exact
+    str, since a class's name can be a str subclass. A class can be given
+    any name, a key's hex among them, so a name is printed where it is an
+    ASCII identifier of at most `_MAX_QUOTED_NAME_LENGTH` characters, the
+    most `_name_text` quotes of a name, or one of `_LONG_TYPE_NAMES`. Any
+    other is described by its length.
+    """
+    name = "".join((_TYPE_NAME.__get__(type(value), type),))
+    if (
+        len(name) <= _MAX_QUOTED_NAME_LENGTH and name.isascii() and name.isidentifier()
+    ) or name in _LONG_TYPE_NAMES:
+        return name
+    return f"a type whose name has {len(name)} characters"
+
+
+# the built-in types whose own `__len__` a refusal reads a length with
+_SIZED = (str, bytes, bytearray, memoryview, tuple, list, dict, set, frozenset, range)
+
+
+def _length(value: object) -> int | None:
+    """Return the length of a value of one of `_SIZED`, else None.
+
+    The first of `_SIZED` its type derives from measures it, with its own
+    `__len__` and not one a subclass defines, which can answer any number;
+    a length that type cannot measure, as that of a released memoryview,
+    is None too.
+    """
+    for base in _SIZED:
+        if _has_type(value, base):
+            # every Exception: no failure to measure a value may replace
+            # the refusal the measure is for
+            try:
+                return base.__len__(value)  # type: ignore[arg-type]
+            except Exception:  # noqa: BLE001
+                return None
+    return None
 
 
 def _name_text(value: object) -> str:
@@ -511,7 +576,7 @@ def _assert_valid_4_byte_field(name: str, value: int) -> None:
     caller copy or walk an object without judging it whole.
     """
     if not _has_type(value, int):
-        raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+        raise BTClibTypeError(f"invalid {name} type: {_type_name(value)}")
     if not 0 <= value <= 0xFFFFFFFF:
         raise BTClibValueError(f"invalid {name}: {_message_text(value)}")
 
@@ -535,7 +600,7 @@ def _assert_valid_8_byte_signed_field(name: str, value: int) -> None:
     from `sig_hash`, which also refuses a bool.
     """
     if not _has_type(value, int):
-        raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+        raise BTClibTypeError(f"invalid {name} type: {_type_name(value)}")
     if not -(2**63) <= value <= 2**63 - 1:
         raise BTClibValueError(f"invalid {name}: {_message_text(value)}")
 
@@ -584,7 +649,7 @@ def _int_from_integer(value: Any, what: str) -> int:
     `__int__`. `what` names the value in the refusal.
     """
     if not is_integer(value):
-        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+        raise BTClibTypeError(f"invalid {what} type: {_type_name(value)}")
     return int.__add__(value, 0)
 
 
@@ -640,22 +705,28 @@ def int_from_json_number(value: Any, what: str) -> int:
     `is_integer` is the same decision where there is nothing to coerce.
     """
     if _has_type(value, bool) or not _has_type(value, Number):
-        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+        raise BTClibTypeError(f"invalid {what} type: {_type_name(value)}")
     # `Number` declares no `__int__`, so the check above narrows past what
     # `int` and `!=` accept; the value is read back as the Any it came in as
     number: Any = value
-    try:
-        result = int(number)
     # a complex is a Number `int` cannot convert, and neither error is
     # btclib's as it stands: `except ValueError` is what a caller of a
-    # json reader writes, and OverflowError, out of `inf`, is not even one
-    except TypeError as e:
-        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}") from e
-    except (ValueError, OverflowError) as e:
-        raise BTClibValueError(f"invalid {what}: not a whole number") from e
-    if result != number:
-        raise BTClibValueError(f"invalid {what}: not a whole number")
-    return result
+    # json reader writes, and OverflowError, out of `inf`, is not even one.
+    # The refusal is raised after the `except` block: the error may be a
+    # subclass's own `__int__`'s, holding the value, and must not be left
+    # as the refusal's cause or context
+    refusal: BTClibTypeError | BTClibValueError
+    try:
+        result = int(number)
+    except TypeError:
+        refusal = BTClibTypeError(f"invalid {what} type: {_type_name(value)}")
+    except (ValueError, OverflowError):
+        refusal = BTClibValueError(f"invalid {what}: not a whole number")
+    else:
+        if result != number:
+            raise BTClibValueError(f"invalid {what}: not a whole number")
+        return result
+    raise refusal
 
 
 def assert_type(value: Any, expected: Any, what: str) -> None:
@@ -677,7 +748,7 @@ def assert_type(value: Any, expected: Any, what: str) -> None:
     the caller who has not run mypy is who this is for.
     """
     if not _has_type(value, expected):
-        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+        raise BTClibTypeError(f"invalid {what} type: {_type_name(value)}")
 
 
 @contextmanager
@@ -759,7 +830,7 @@ def list_from_json_array(value: Any, what: str) -> list[Any]:
     named check.
     """
     if is_octets(value) or _has_type(value, Mapping) or not _has_type(value, Iterable):
-        err_msg = f"invalid {what} type: {type(value).__name__}"
+        err_msg = f"invalid {what} type: {_type_name(value)}"
         raise BTClibTypeError(err_msg)
     return list(value)
 
@@ -950,7 +1021,7 @@ def encode_num(i: int) -> bytes:
     # rather than through its exception contract, and True would be the
     # script number one -- the reason `is_integer` names bool
     if not is_integer(i):
-        raise BTClibTypeError(f"non-integer script number: {type(i).__name__}")
+        raise BTClibTypeError(f"non-integer script number: {_type_name(i)}")
     if not _MIN_SCRIPT_NUM <= i <= _MAX_SCRIPT_NUM:
         err_msg = f"script number out of range: {_message_text(i)}"
         err_msg += f", not in [{_MIN_SCRIPT_NUM}, {_MAX_SCRIPT_NUM}]"

@@ -85,7 +85,13 @@ from btclib.tx.limits import (
 )
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import _message_field, _message_text, assert_type, is_integer
+from btclib.utils import (
+    _message_field,
+    _message_text,
+    _type_name,
+    assert_type,
+    is_integer,
+)
 
 __all__ = [
     "AncestorMedianTimePast",
@@ -126,7 +132,7 @@ def is_final(tx: Tx, height: int, block_time: int) -> bool:
     """
     for name, value in (("height", height), ("block_time", block_time)):
         if not is_integer(value):
-            err_msg = f"invalid {name} type: {type(value).__name__}"
+            err_msg = f"invalid {name} type: {_type_name(value)}"
             raise BTClibTypeError(err_msg)
 
     if tx.lock_time == 0:
@@ -180,7 +186,7 @@ def assert_sequence_locks(
         ("tip_median_time_past", tip_median_time_past),
     ):
         if not is_integer(value):
-            err_msg = f"invalid {name} type: {type(value).__name__}"
+            err_msg = f"invalid {name} type: {_type_name(value)}"
             raise BTClibTypeError(err_msg)
 
     if tx.version < 2:
@@ -224,7 +230,7 @@ def assert_coinbase_maturity(prevouts: Sequence[Coin], spend_height: int) -> Non
     same tag).
     """
     if not is_integer(spend_height):
-        err_msg = f"invalid spend_height type: {type(spend_height).__name__}"
+        err_msg = f"invalid spend_height type: {_type_name(spend_height)}"
         raise BTClibTypeError(err_msg)
 
     for coin in prevouts:
@@ -246,7 +252,7 @@ def assert_coinbase_value(coinbase: Tx, subsidy: int, fees: int) -> None:
     """
     for name, value in (("subsidy", subsidy), ("fees", fees)):
         if not is_integer(value):
-            err_msg = f"invalid {name} type: {type(value).__name__}"
+            err_msg = f"invalid {name} type: {_type_name(value)}"
             raise BTClibTypeError(err_msg)
 
     coinbase_value = sum(tx_out.value for tx_out in coinbase.vout)
@@ -321,7 +327,7 @@ def assert_bip54_coinbase(coinbase: Tx, height: int) -> None:
     """
     assert_type(coinbase, Tx, "coinbase")
     if not is_integer(height):
-        raise BTClibTypeError(f"invalid height type: {type(height).__name__}")
+        raise BTClibTypeError(f"invalid height type: {_type_name(height)}")
     if height < 0:
         raise BTClibValueError(f"invalid height: {_message_text(height)}")
     if not coinbase.is_coinbase:

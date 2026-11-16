@@ -44,7 +44,7 @@ from btclib.tx.tx import _TX_MAX_STANDARD_VERSION, _TX_MIN_STANDARD_VERSION, Tx
 from btclib.tx.tx_context import _legacy_sig_ops_within_limit
 from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
-from btclib.utils import _message_text, assert_type, is_integer
+from btclib.utils import _message_text, _type_name, assert_type, is_integer
 
 __all__ = [
     "DEFAULT_ACCEPT_DATACARRIER",
@@ -120,7 +120,7 @@ _WITNESS_V1_TAPROOT_SIZE = 32
 
 def _assert_non_negative_integer(value: object, what: str) -> None:
     if not is_integer(value):
-        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+        raise BTClibTypeError(f"invalid {what} type: {_type_name(value)}")
     if value < 0:  # type: ignore[operator]
         raise BTClibValueError(f"negative {what}: {_message_text(value)}")
 

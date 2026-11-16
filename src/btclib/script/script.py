@@ -41,6 +41,7 @@ from btclib.utils import (
     _has_type,
     _message_text,
     _name_text,
+    _type_name,
     assert_type,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -345,7 +346,7 @@ def op_int(i: int) -> str:
     # meets `<=` as a bare TypeError, and True and 1.0 would be named
     # OP_True and OP_1.0
     if not is_integer(i):
-        raise BTClibTypeError(f"invalid OP_INT type: {type(i).__name__}")
+        raise BTClibTypeError(f"invalid OP_INT type: {_type_name(i)}")
     # Short 1-byte op_codes exist
     # to push numbers in [-1, 16]
     if i == -1:
@@ -462,7 +463,7 @@ def _serialize_bytes_command(command: bytes | bytearray | memoryview) -> bytes:
     # str: a float or a None is refused here as a command, not by
     # `bytes_from_octets` as octets
     if not _has_type(command, (bytes, bytearray, memoryview)):
-        raise BTClibTypeError(f"invalid script command type: {type(command).__name__}")
+        raise BTClibTypeError(f"invalid script command type: {_type_name(command)}")
     # a subclass's `__len__` need not count the octets it holds (issue
     # #3115): the length is the plain copy's
     command = bytes_from_octets(command)
@@ -540,7 +541,7 @@ def serialize(script: Sequence[Command]) -> bytes:
     # `is_octets` is the four spellings named once, so a spelling
     # `Octets` gains later is refused here too (issue #1420)
     if is_octets(script) or not _has_type(script, Sequence):
-        err_msg = f"invalid script commands type: {type(script).__name__}"
+        err_msg = f"invalid script commands type: {_type_name(script)}"
         raise BTClibTypeError(err_msg)
 
     r: list[bytes] = []
@@ -824,7 +825,7 @@ def read_op_code(script: bytes, start: int) -> tuple[int, int] | None:
     # TypeError, a float or a Decimal meets the index as one, and True
     # reads from the second byte
     if not is_integer(start):
-        raise BTClibTypeError(f"invalid start offset type: {type(start).__name__}")
+        raise BTClibTypeError(f"invalid start offset type: {_type_name(start)}")
     # a negative offset would index from the end of the script; one at or
     # past the end answers None, as Core's GetScriptOp answers false for
     # `pc >= end`

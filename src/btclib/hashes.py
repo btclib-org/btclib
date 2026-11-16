@@ -22,7 +22,13 @@ from btclib import var_int
 from btclib._ripemd160 import ripemd160 as pure_python_ripemd160
 from btclib.alias import HashDigestF, Octets
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
-from btclib.utils import _message_text, bytes_from_octets, is_integer, is_octets
+from btclib.utils import (
+    _message_text,
+    _type_name,
+    bytes_from_octets,
+    is_integer,
+    is_octets,
+)
 
 __all__ = [
     "hash160",
@@ -153,7 +159,7 @@ def hash256(octets: Octets) -> bytes:
 def _sip_key_word(value: int, name: str) -> int:
     """Return value, refusing anything that is not an unsigned 64-bit word."""
     if not is_integer(value):
-        raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+        raise BTClibTypeError(f"invalid {name} type: {_type_name(value)}")
     if not 0 <= value <= _MASK64:
         raise BTClibValueError(f"{name} out of range: {_message_text(value)}")
     return value
@@ -381,13 +387,13 @@ def merkle_root_from_branch(
     # of siblings would zip through its bytes and hash each as its own
     # sibling (issue #1405)
     if is_octets(branch):
-        raise BTClibTypeError(f"invalid branch type: {type(branch).__name__}")
+        raise BTClibTypeError(f"invalid branch type: {_type_name(branch)}")
 
     # the type before the sign, `"0" < 0` being a bare TypeError about
     # the operands: an index is a position and a bool is not one, `True`
     # naming the second leaf of every tree it is passed to
     if not is_integer(index):
-        raise BTClibTypeError(f"invalid leaf index type: {type(index).__name__}")
+        raise BTClibTypeError(f"invalid leaf index type: {_type_name(index)}")
     if index < 0:
         raise BTClibValueError(f"negative leaf index: {_message_text(index)}")
 

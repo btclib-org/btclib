@@ -180,11 +180,11 @@ def subsidy(height: int, halving_interval: int = 210_000) -> int:
     schedule for it.
     """
     from btclib.exceptions import BTClibTypeError, BTClibValueError  # noqa: PLC0415
-    from btclib.utils import _message_text, is_integer  # noqa: PLC0415
+    from btclib.utils import _message_text, _type_name, is_integer  # noqa: PLC0415
 
     for name, value in (("height", height), ("halving_interval", halving_interval)):
         if not is_integer(value):
-            raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+            raise BTClibTypeError(f"invalid {name} type: {_type_name(value)}")
     if height < 0:
         raise BTClibValueError(f"invalid height: {_message_text(height)}")
     if halving_interval < 1:
@@ -335,12 +335,12 @@ class ConsensusParams:
         # sys.modules lookup once the engine is loaded -- which it is,
         # anybody asking for these flags being about to run a script
         from btclib.script.engine.flags import to_script_flags  # noqa: PLC0415
-        from btclib.utils import bytes_from_octets, is_integer  # noqa: PLC0415
+        from btclib.utils import _type_name, bytes_from_octets, is_integer  # noqa: PLC0415
 
         if not is_integer(height):
             from btclib.exceptions import BTClibTypeError  # noqa: PLC0415
 
-            err_msg = f"invalid height type: {type(height).__name__}"
+            err_msg = f"invalid height type: {_type_name(height)}"
             raise BTClibTypeError(err_msg)
 
         names = _ALWAYS_ON_FLAGS

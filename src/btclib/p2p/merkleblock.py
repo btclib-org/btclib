@@ -58,7 +58,12 @@ from btclib.block.block_header import BlockHeader
 from btclib.block.partial_merkle_tree import PartialMerkleTree
 from btclib.exceptions import BTClibTypeError
 from btclib.p2p.payload import Payload
-from btclib.utils import _has_type, assert_no_trailing, bytesio_from_binarydata
+from btclib.utils import (
+    _has_type,
+    _type_name,
+    assert_no_trailing,
+    bytesio_from_binarydata,
+)
 
 __all__ = [
     "MerkleBlock",
@@ -107,13 +112,13 @@ class MerkleBlock(Payload):
         """Refuse what is no valid header, or no tree the walk can accept."""
         if not _has_type(self.header, BlockHeader):
             err_msg = "invalid header type: "  # type: ignore[unreachable]
-            err_msg += type(self.header).__name__
+            err_msg += _type_name(self.header)
             raise BTClibTypeError(err_msg)
         self.header.assert_valid()
 
         if not _has_type(self.tree, PartialMerkleTree):
             err_msg = "invalid tree type: "  # type: ignore[unreachable]
-            err_msg += type(self.tree).__name__
+            err_msg += _type_name(self.tree)
             raise BTClibTypeError(err_msg)
         self.tree.assert_valid()
 

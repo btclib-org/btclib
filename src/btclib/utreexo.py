@@ -90,6 +90,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueEr
 from btclib.utils import (
     _int_from_integer,
     _message_text,
+    _type_name,
     assert_no_trailing,
     assert_type,
     bytes_from_octets,
@@ -167,7 +168,7 @@ def _leaf_count(value: object) -> int:
 def _sequence(values: object, what: str) -> Sequence[object]:
     """Refuse an `Octets`, a sequence of ints, as a sequence of items."""
     if is_octets(values):
-        raise BTClibTypeError(f"invalid {what} type: {type(values).__name__}")
+        raise BTClibTypeError(f"invalid {what} type: {_type_name(values)}")
     assert_type(values, Sequence, what)
     return cast("Sequence[object]", values)
 

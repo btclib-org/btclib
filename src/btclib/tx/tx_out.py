@@ -19,6 +19,7 @@ from btclib.script import ScriptPubKey, script_from_dict, script_to_dict
 from btclib.utils import (
     _assert_valid_8_byte_signed_field,
     _has_type,
+    _type_name,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -42,7 +43,7 @@ def _network_to_json(network: str | Network) -> str | dict[str, str | None]:
     if _has_type(network, str):
         return network
     if not _has_type(network, Network):
-        raise BTClibTypeError(f"not a Network: {type(network).__name__}")
+        raise BTClibTypeError(f"not a Network: {_type_name(network)}")
     dict_ = network.to_dict()
     try:
         back = Network.from_dict(dict_)
@@ -127,7 +128,7 @@ class TxOut:
         `valid_sats_amount`.
         """
         if not _has_type(self.value, int):
-            raise BTClibTypeError(f"invalid value type: {type(self.value).__name__}")
+            raise BTClibTypeError(f"invalid value type: {_type_name(self.value)}")
         valid_sats_amount(self.value)
         # the amount and not the script's *contents*: a script_pub_key on
         # chain need not parse, and validating that here would refuse

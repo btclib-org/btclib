@@ -100,7 +100,7 @@ from btclib.block.block import Block
 from btclib.exceptions import BTClibTypeError
 from btclib.p2p.payload import Payload
 from btclib.tx.tx import Tx
-from btclib.utils import _has_type, assert_type
+from btclib.utils import _has_type, _type_name, assert_type
 
 __all__ = [
     "BlockPayload",
@@ -144,7 +144,7 @@ class TxPayload(Payload):
     def assert_valid(self) -> None:
         """Refuse what is no transaction, no bool, and no valid transaction."""
         if not _has_type(self.tx, Tx):
-            err_msg = f"invalid tx type: {type(self.tx).__name__}"  # type: ignore[unreachable]
+            err_msg = f"invalid tx type: {_type_name(self.tx)}"  # type: ignore[unreachable]
             raise BTClibTypeError(err_msg)
         # a kind and not a truth: it decides which of two serializations
         # is written, so `"no"` would answer the wire one where the
@@ -210,7 +210,7 @@ class BlockPayload(Payload):
     def assert_valid(self) -> None:
         """Refuse what is no block, no bool, and no valid block."""
         if not _has_type(self.block, Block):
-            err_msg = f"invalid block type: {type(self.block).__name__}"  # type: ignore[unreachable]
+            err_msg = f"invalid block type: {_type_name(self.block)}"  # type: ignore[unreachable]
             raise BTClibTypeError(err_msg)
         assert_type(self.include_witness, bool, "include_witness")
 

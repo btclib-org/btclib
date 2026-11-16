@@ -47,6 +47,7 @@ from btclib.utils import (
     _copy_bytes,
     _has_type,
     _message_text,
+    _type_name,
     assert_type,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -847,9 +848,9 @@ class ScriptPubKey(Script):
         # One key's octets are a `Sequence` as well, whose length would be
         # read as n, and `is_octets` is what refuses that shape
         if not is_integer(m):
-            raise BTClibTypeError(f"invalid m type: {type(m).__name__}")
+            raise BTClibTypeError(f"invalid m type: {_type_name(m)}")
         if is_octets(keys):
-            raise BTClibTypeError(f"invalid keys type: {type(keys).__name__}")
+            raise BTClibTypeError(f"invalid keys type: {_type_name(keys)}")
         assert_type(keys, Sequence, "keys")
         assert_type(lexicographic_sorting, bool, "lexicographic_sorting")
 

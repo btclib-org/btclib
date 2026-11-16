@@ -52,6 +52,7 @@ from btclib.tx.tx import Tx
 from btclib.utils import (
     _message_field,
     _message_text,
+    _type_name,
     assert_type,
     decode_num,
     encode_num,
@@ -306,7 +307,7 @@ def read_push_data(
     # TypeError, a float or a Decimal meets `read` as one, and True is read
     # as a push of one byte
     if not is_integer(op_code):
-        raise BTClibTypeError(f"invalid op code type: {type(op_code).__name__}")
+        raise BTClibTypeError(f"invalid op code type: {_type_name(op_code)}")
     # Core's pushes, OP_0 to OP_PUSHDATA4: unbounded, a negative op code
     # reads the rest of the stream as its data, and one past OP_PUSHDATA4
     # computes 2 ** (op_code - 76) length bytes, however large the op code
