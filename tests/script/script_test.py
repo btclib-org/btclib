@@ -14,6 +14,7 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 from typing_extensions import override
 
+import btclib.script.script as script_module
 from btclib.alias import ScriptList
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import (
@@ -323,7 +324,9 @@ def test_a_string_command_is_stripped_of_ascii_whitespace_alone() -> None:
                 serialize([command + c])
 
 
-def test_pushdata4_and_the_only_length_left_to_refuse() -> None:
+def test_pushdata4_and_the_only_length_left_to_refuse(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """All four push widths are written, and read back.
 
     A push over 520 bytes is one the stack cannot hold, i.e. a script
@@ -344,6 +347,17 @@ def test_pushdata4_and_the_only_length_left_to_refuse() -> None:
     err_msg = "too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):
         _serialize_push_prefix(4294967296, [])
+
+    # and through serialize, the public caller: the copy is made to report
+    # that length, which no real buffer here has to hold
+    class TooLong(bytes):
+        @override
+        def __len__(self) -> int:
+            return 4294967296
+
+    monkeypatch.setattr(script_module, "bytes_from_octets", lambda _: TooLong())
+    with pytest.raises(BTClibValueError, match=err_msg):
+        serialize([b"\x0a"])
 
 
 def test_nulldata() -> None:
