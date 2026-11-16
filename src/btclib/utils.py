@@ -363,8 +363,8 @@ def read_exactly(stream: BinaryIO, size: int, what: str) -> bytes:
     `sys.maxsize`: a negative one is what `read` takes for "to the end",
     and past `sys.maxsize` `read` answers with an OverflowError of its
     own, where no stream holds that many octets anyway. Up to there it is
-    eight bytes, so a short read's refusal writes it through
-    `_message_field`, as `bytes_from_octets` writes its sizes.
+    eight bytes on a 64-bit build, so a short read's refusal writes it
+    through `_message_field`, as `bytes_from_octets` writes its sizes.
     """
     return _read_exactly(stream, size, what, decoded=False)
 

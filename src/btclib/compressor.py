@@ -290,7 +290,7 @@ def parse_script(stream: BinaryData) -> bytes:
     stream = bytesio_from_binarydata(stream)
     size = parse_varint(stream, 32)
     if size < _SPECIAL_SCRIPTS:
-        compressed = read_exactly(stream, _special_script_size(size), "script")
+        compressed = _read_decoded(stream, _special_script_size(size), "script")
         try:
             return decompress_script(size, compressed)
         except BTClibValueError:
