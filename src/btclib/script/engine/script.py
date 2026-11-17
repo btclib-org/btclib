@@ -54,6 +54,7 @@ from btclib.script.sig_hash import (
 )
 from btclib.tx.tx import Tx
 from btclib.utils import (
+    _type_name,
     assert_type,
     bytesio_from_binarydata,
     encode_num,
@@ -528,7 +529,7 @@ def _assert_count_type(value: int, name: str) -> None:
     True passes as a number.
     """
     if not is_integer(value):
-        raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+        raise BTClibTypeError(f"invalid {name} type: {_type_name(value)}")
 
 
 def _assert_pub_key_num(pub_key_num: int) -> None:

@@ -400,8 +400,9 @@ def test_a_name_is_read_with_the_methods_of_str() -> None:
     disguised = Disguised("A" * 16)
     assert (len(disguised), repr(disguised)) == (1, "'short'")
     assert _name_text(disguised) == f"{'A' * 16!r}"
-    # the description past the bound is _message_text's, which reads len()
-    assert _name_text(Disguised("A" * 17)) == "a Disguised of length 1"
+    # the description past the bound is _message_text's, which reads the
+    # length with str's own `__len__`
+    assert _name_text(Disguised("A" * 17)) == "a Disguised of length 17"
 
 
 def test_a_short_name_is_quoted_with_the_methods_of_str() -> None:

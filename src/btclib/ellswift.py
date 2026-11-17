@@ -35,7 +35,7 @@ from ecc.hashes import tagged_hash
 
 from btclib.alias import Integer, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import assert_type, bytes_from_octets, is_integer
+from btclib.utils import _type_name, assert_type, bytes_from_octets, is_integer
 
 __all__ = [
     "ELL_SIZE",
@@ -84,7 +84,7 @@ def xdh(
     ell_a = _ell_from_octets(ell_a, ec)
     ell_b = _ell_from_octets(ell_b, ec)
     if not is_integer(party):
-        raise BTClibTypeError(f"invalid party type: {type(party).__name__}")
+        raise BTClibTypeError(f"invalid party type: {_type_name(party)}")
     if party not in {0, 1}:
         # the value is not quoted: with the arguments swapped it is the key
         raise BTClibValueError("invalid party, not 0 (A) or 1 (B)")

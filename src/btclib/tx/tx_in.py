@@ -19,6 +19,7 @@ from btclib.tx.out_point import OutPoint
 from btclib.utils import (
     _assert_valid_4_byte_field,
     _message_text,
+    _type_name,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -123,7 +124,7 @@ class TxIn:
         # sequence of one, and a sequence is where a locktime-enabled
         # input is told from a final one
         if not is_integer(self.sequence):
-            err_msg = f"invalid sequence type: {type(self.sequence).__name__}"
+            err_msg = f"invalid sequence type: {_type_name(self.sequence)}"
             raise BTClibTypeError(err_msg)
 
         # script_sig is deliberately not looked at, and the marker asking

@@ -652,7 +652,7 @@ class _Unsized:
 
 
 def test_a_message_describes_every_other_value() -> None:
-    """Type name, and length where `len()` gives one, for what is no int.
+    """Type name, and length where `_length` gives one, for what is no int.
 
     A str of hex, a Decimal, a float or bytes in an int's place may hold
     a key (issue #3002): section 7 of the organization's standard lets a

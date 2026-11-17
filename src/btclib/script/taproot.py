@@ -54,6 +54,7 @@ from btclib.script.script import _serialize_bytes_command, _serialize_int_comman
 from btclib.utils import (
     _has_type,
     _message_text,
+    _type_name,
     assert_type,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -236,7 +237,7 @@ def leaf_hash(leaf_version: int, script: bytes) -> bytes:
     given.
     """
     if not is_integer(leaf_version):
-        err_msg = f"invalid leaf version type: {type(leaf_version).__name__}"
+        err_msg = f"invalid leaf version type: {_type_name(leaf_version)}"
         raise BTClibTypeError(err_msg)
     if not 0 <= leaf_version <= 0xFE or leaf_version & 1:
         raise BTClibValueError(f"invalid leaf version: {_message_text(leaf_version)}")
@@ -292,12 +293,12 @@ def _tree_helper(leaf: object) -> tuple[TaprootLeafPaths, bytes]:
     # holding a leaf version and a script is how a branch is spelled too.
     # The arity is the alias's, `tuple[int, ScriptList]`, so it is a type
     if not _has_type(leaf, tuple):
-        raise BTClibTypeError(f"invalid script tree leaf type: {type(leaf).__name__}")
+        raise BTClibTypeError(f"invalid script tree leaf type: {_type_name(leaf)}")
     if len(leaf) != 2:
         raise BTClibTypeError(f"invalid script tree leaf: {len(leaf)}-tuple")
     leaf_version, script = leaf
     if not is_integer(leaf_version):
-        err_msg = f"invalid leaf version type: {type(leaf_version).__name__}"
+        err_msg = f"invalid leaf version type: {_type_name(leaf_version)}"
         raise BTClibTypeError(err_msg)
     # BIP341: a leaf version "cannot be odd" and "cannot be 0x50 as that
     # would result in ambiguity with the annex". leaf_hash refuses the odd
@@ -338,12 +339,12 @@ def tree_from_weights(
     heap: list[tuple[int, int, int, TaprootScriptTree]] = []
     for index, pair in enumerate(weighted_leaves):
         if not _has_type(pair, tuple):
-            raise BTClibTypeError(f"invalid weighted leaf type: {type(pair).__name__}")
+            raise BTClibTypeError(f"invalid weighted leaf type: {_type_name(pair)}")
         if len(pair) != 2:
             raise BTClibTypeError(f"invalid weighted leaf: {len(pair)}-tuple")
         weight, leaf = pair
         if not is_integer(weight):
-            raise BTClibTypeError(f"invalid leaf weight type: {type(weight).__name__}")
+            raise BTClibTypeError(f"invalid leaf weight type: {_type_name(weight)}")
         if weight <= 0:
             raise BTClibValueError(f"invalid leaf weight: {_message_text(weight)}")
         _tree_helper(leaf)
@@ -581,7 +582,7 @@ def input_script_sig(
     )
     leaves = tree_helper(script_tree)[0]
     if not is_integer(script_num):
-        raise BTClibTypeError(f"invalid leaf index type: {type(script_num).__name__}")
+        raise BTClibTypeError(f"invalid leaf index type: {_type_name(script_num)}")
     if not 0 <= script_num < len(leaves):
         raise BTClibValueError(f"invalid leaf index: {_message_text(script_num)}")
     (leaf_version, script), path = leaves[script_num]
