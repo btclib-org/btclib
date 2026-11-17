@@ -30,7 +30,7 @@ from btclib.block.block import merkle_root_and_mutated_from_transactions
 from btclib.block.block_header import BlockHeader
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.tx import Tx
-from btclib.utils import _message_text, assert_type, is_integer
+from btclib.utils import _message_text, _type_name, assert_type, is_integer
 
 __all__ = [
     "NONCE_SPACE",
@@ -116,7 +116,7 @@ def mine(header: BlockHeader, max_tries: int = 1 << 20) -> BlockHeader | None:
     # and a float passes it to fail at `range` a few lines down
     assert_type(header, BlockHeader, "header")
     if not is_integer(max_tries):
-        raise BTClibTypeError(f"invalid max_tries type: {type(max_tries).__name__}")
+        raise BTClibTypeError(f"invalid max_tries type: {_type_name(max_tries)}")
     if max_tries < 1:
         raise BTClibValueError(f"invalid max_tries: {_message_text(max_tries)}")
 

@@ -146,6 +146,7 @@ from btclib.utils import (
     _copy_bytes,
     _has_type,
     _message_text,
+    _type_name,
     assert_no_trailing,
     assert_type,
     bytesio_from_binarydata,
@@ -216,7 +217,7 @@ class Sig:
         # the type before the bounds: a str or None meets `<` as a bare
         # TypeError, and a bool is no flag (`is_integer`)
         if not is_integer(self.rf):
-            err_msg = f"invalid recovery flag type: {type(self.rf).__name__}"
+            err_msg = f"invalid recovery flag type: {_type_name(self.rf)}"
             raise BTClibTypeError(err_msg)
         if self.rf < 27 or self.rf > 42:
             raise BTClibValueError(f"invalid recovery flag: {_message_text(self.rf)}")

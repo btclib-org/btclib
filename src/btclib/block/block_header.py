@@ -24,6 +24,7 @@ from btclib.utils import (
     _assert_valid_4_byte_field,
     _has_type,
     _message_text,
+    _type_name,
     assert_no_trailing,
     assert_type,
     bytes_from_octets,
@@ -67,7 +68,7 @@ def _assert_valid_version(value: int) -> None:
     range.
     """
     if not _has_type(value, int):
-        raise BTClibTypeError(f"invalid version type: {type(value).__name__}")
+        raise BTClibTypeError(f"invalid version type: {_type_name(value)}")
     if not -0x80000000 <= value <= 0x7FFFFFFF:
         raise BTClibValueError(f"invalid version: {_message_text(value)}")
 
@@ -381,7 +382,7 @@ class BlockHeader:
         for key in ("version", "nonce"):
             value = getattr(self, key)
             if not is_integer(value):
-                err_msg = f"invalid {key} type: {type(value).__name__}"
+                err_msg = f"invalid {key} type: {_type_name(value)}"
                 raise BTClibTypeError(err_msg)
 
         assert_type(self.time, datetime, "timestamp")

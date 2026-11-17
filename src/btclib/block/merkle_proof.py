@@ -35,7 +35,7 @@ from btclib.exceptions import (
 )
 from btclib.hashes import hash256, merkle_root_from_branch
 from btclib.tx import Tx
-from btclib.utils import assert_type, bytes_from_octets, is_octets
+from btclib.utils import _type_name, assert_type, bytes_from_octets, is_octets
 
 __all__ = [
     "assert_as_valid",
@@ -104,7 +104,7 @@ def assert_as_valid(
     # through -- zipped through its bytes and treated as one sibling per
     # byte -- and is_octets is what refuses that shape (issue #1405)
     if is_octets(branch):
-        raise BTClibTypeError(f"invalid branch type: {type(branch).__name__}")
+        raise BTClibTypeError(f"invalid branch type: {_type_name(branch)}")
     assert_type(branch, Sequence, "branch")
 
     root = bytes_from_octets(merkle_root, 32)

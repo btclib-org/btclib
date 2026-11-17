@@ -35,7 +35,7 @@ from btclib.block.limits import MAX_TIMEWARP, MAX_TIMEWARP_BIP54
 from btclib.block.proof_of_work import next_bits
 from btclib.consensus import ConsensusParams
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import _message_text, is_integer
+from btclib.utils import _message_text, _type_name, is_integer
 
 __all__ = [
     "MEDIAN_TIME_SPAN",
@@ -77,7 +77,7 @@ def median_time_past(header: BlockHeader, height: int, parent_of: ParentOf) -> i
     pointer arithmetic does.
     """
     if not is_integer(height):
-        raise BTClibTypeError(f"invalid height type: {type(height).__name__}")
+        raise BTClibTypeError(f"invalid height type: {_type_name(height)}")
     if height < 0:
         raise BTClibValueError(f"invalid height: {_message_text(height)}")
 
@@ -106,7 +106,7 @@ def header_at_height(
     """
     for name, value in (("height", height), ("target height", target_height)):
         if not is_integer(value):
-            raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+            raise BTClibTypeError(f"invalid {name} type: {_type_name(value)}")
     if height < 0:
         raise BTClibValueError(f"invalid height: {_message_text(height)}")
     if not 0 <= target_height <= height:
@@ -148,7 +148,7 @@ def _min_difficulty_bits(
 
 def _assert_valid_parent_height(parent_height: int) -> None:
     if not is_integer(parent_height):
-        err_msg = f"invalid parent height type: {type(parent_height).__name__}"
+        err_msg = f"invalid parent height type: {_type_name(parent_height)}"
         raise BTClibTypeError(err_msg)
     if parent_height < 0:
         raise BTClibValueError(f"invalid parent height: {_message_text(parent_height)}")

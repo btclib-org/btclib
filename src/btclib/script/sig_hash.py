@@ -56,6 +56,7 @@ from btclib.utils import (
     _assert_valid_8_byte_signed_field,
     _has_type,
     _message_text,
+    _type_name,
     bytes_from_octets,
     is_integer,
 )
@@ -124,7 +125,7 @@ def _assert_integer_hash_type(hash_type: int) -> None:
     ALL.
     """
     if not is_integer(hash_type):
-        err_msg = f"invalid hash_type type: {type(hash_type).__name__}"
+        err_msg = f"invalid hash_type type: {_type_name(hash_type)}"
         raise BTClibTypeError(err_msg)
 
 
@@ -335,7 +336,7 @@ def _assert_valid_camount(amount: int, name: str) -> None:
     A bool for the reason `_assert_valid_preimage_field` gives.
     """
     if not is_integer(amount):
-        raise BTClibTypeError(f"invalid {name} type: {type(amount).__name__}")
+        raise BTClibTypeError(f"invalid {name} type: {_type_name(amount)}")
     _assert_valid_8_byte_signed_field(name, amount)
 
 
@@ -357,7 +358,7 @@ def _assert_valid_preimage_field(name: str, value: int) -> None:
     mistake, not a number: `is_integer` does not take it.
     """
     if not is_integer(value):
-        raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+        raise BTClibTypeError(f"invalid {name} type: {_type_name(value)}")
     _assert_valid_4_byte_int(name, value)
 
 
@@ -395,7 +396,7 @@ def _serialized_spend_type(ext_flag: int, annex_present: int) -> bytes:
     where `to_bytes(1)` answered an OverflowError.
     """
     if not is_integer(ext_flag):
-        raise BTClibTypeError(f"invalid extension flag type: {type(ext_flag).__name__}")
+        raise BTClibTypeError(f"invalid extension flag type: {_type_name(ext_flag)}")
     if not 0 <= ext_flag <= 0x7F:
         raise BTClibValueError(f"invalid extension flag: {_message_text(ext_flag)}")
     return (2 * ext_flag + annex_present).to_bytes(1, "little")
@@ -441,7 +442,7 @@ def _assert_valid_vin_i(tx: Tx, vin_i: int) -> None:
     just a 32-byte hash of a transaction position that does not exist.
     """
     if not is_integer(vin_i):
-        raise BTClibTypeError(f"invalid input index type: {type(vin_i).__name__}")
+        raise BTClibTypeError(f"invalid input index type: {_type_name(vin_i)}")
     if not 0 <= vin_i < len(tx.vin):
         raise BTClibValueError(f"invalid input index: {_message_text(vin_i)}")
 
@@ -874,7 +875,7 @@ def _epoch_and_agg_mode(agg_mode: int | None, ext_flag: int) -> bytes:
     if agg_mode is None:
         return b"\x00"
     if not is_integer(agg_mode):
-        err_msg = f"invalid aggregation mode type: {type(agg_mode).__name__}"
+        err_msg = f"invalid aggregation mode type: {_type_name(agg_mode)}"
         raise BTClibTypeError(err_msg)
     if agg_mode not in _AGG_MODES:
         raise BTClibValueError(f"invalid aggregation mode: {_message_text(agg_mode)}")
@@ -1123,7 +1124,7 @@ def from_tx(
     # str or None meets `<` as a bare TypeError, and a taproot or p2wpkh
     # input would read an empty str as the index 0
     if not is_integer(codesep_index):
-        err_msg = f"invalid OP_CODESEPARATOR index type: {type(codesep_index).__name__}"
+        err_msg = f"invalid OP_CODESEPARATOR index type: {_type_name(codesep_index)}"
         raise BTClibTypeError(err_msg)
     _assert_valid_prevouts_for(prevouts, vin_i, precomputed)
     _assert_valid_vin_i(tx, vin_i)

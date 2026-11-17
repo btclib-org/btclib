@@ -32,6 +32,7 @@ from btclib.tx import OutPoint, TxOut
 from btclib.tx.limits import MAX_TX_OUT_COUNT
 from btclib.utils import (
     _message_text,
+    _type_name,
     bytes_from_octets,
     bytesio_from_binarydata,
     is_integer,
@@ -324,7 +325,7 @@ class BasicBlockFilter:
         octets do, and that nothing follows them.
         """
         if not is_integer(self.element_count):
-            err_msg = f"invalid element count type: {type(self.element_count).__name__}"
+            err_msg = f"invalid element count type: {_type_name(self.element_count)}"
             raise BTClibTypeError(err_msg)
 
         # bytes() is the type check the two octet fields get, not a
@@ -411,7 +412,7 @@ class BasicBlockFilter:
         # inputs, so the shape is refused by name
         if is_octets(prevout_scripts):
             err_msg = "invalid previous output scripts type: "
-            err_msg += type(prevout_scripts).__name__
+            err_msg += _type_name(prevout_scripts)
             raise BTClibTypeError(err_msg)
 
         spent = sum(len(tx.vin) for tx in block.transactions if not tx.is_coinbase)
@@ -467,7 +468,7 @@ class BasicBlockFilter:
         # each as its own element (issue #1405)
         if is_octets(elements):
             err_msg = "invalid elements type: "
-            err_msg += type(elements).__name__
+            err_msg += _type_name(elements)
             raise BTClibTypeError(err_msg)
 
         k0, k1 = _key_from_block_hash(bytes(self.block_hash))

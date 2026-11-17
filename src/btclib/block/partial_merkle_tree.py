@@ -71,6 +71,7 @@ from btclib.utils import (
     _assert_valid_4_byte_field,
     _message_text,
     _read_decoded,
+    _type_name,
     assert_no_trailing,
     assert_type,
     bytes_from_octets,
@@ -140,7 +141,7 @@ def _hash_sequence(hashes: Sequence[Octets], what: str) -> tuple[bytes, ...]:
     `assert_type` is asked whether what is left is a `Sequence` at all.
     """
     if is_octets(hashes):
-        raise BTClibTypeError(f"invalid {what} type: {type(hashes).__name__}")
+        raise BTClibTypeError(f"invalid {what} type: {_type_name(hashes)}")
     assert_type(hashes, Sequence, what)
     return tuple(bytes_from_octets(hash_) for hash_ in hashes)
 
@@ -333,7 +334,7 @@ class PartialMerkleTree:
         """
         if not is_integer(self.n_transactions):
             err_msg = "invalid n_transactions type: "
-            err_msg += type(self.n_transactions).__name__
+            err_msg += _type_name(self.n_transactions)
             raise BTClibTypeError(err_msg)
 
         self._walk()
@@ -504,10 +505,10 @@ class PartialMerkleTree:
         refusal rather than the construction's.
         """
         if is_octets(txids):
-            raise BTClibTypeError(f"invalid txids type: {type(txids).__name__}")
+            raise BTClibTypeError(f"invalid txids type: {_type_name(txids)}")
         assert_type(txids, Sequence, "txids")
         if is_octets(matches):
-            raise BTClibTypeError(f"invalid matches type: {type(matches).__name__}")
+            raise BTClibTypeError(f"invalid matches type: {_type_name(matches)}")
         assert_type(matches, Sequence, "matches")
 
         internal_hashes = [bytes_from_octets(txid, _HASH_SIZE)[::-1] for txid in txids]

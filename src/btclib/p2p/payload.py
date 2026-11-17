@@ -57,7 +57,7 @@ from typing import ClassVar
 from btclib.alias import Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.message import Message
-from btclib.utils import _has_type, _message_text
+from btclib.utils import _has_type, _message_text, _type_name
 
 __all__ = [
     "Payload",
@@ -132,7 +132,7 @@ def _assert_valid_int(
     True a bool is refused.
     """
     if not _has_type(value, int):
-        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+        raise BTClibTypeError(f"invalid {what} type: {_type_name(value)}")
     # a bool is an int and would read as one or zero, which the range
     # check below cannot tell from a field whose value that is
     if check_validity and _has_type(value, bool):

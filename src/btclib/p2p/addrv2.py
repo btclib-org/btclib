@@ -161,6 +161,7 @@ from btclib.utils import (
     _has_type,
     _message_text,
     _read_decoded,
+    _type_name,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -564,7 +565,7 @@ class AddrV2(Payload):
         if is_octets(addresses) or not _has_type(  # type: ignore[redundant-expr]
             addresses, Sequence
         ):
-            err_msg = f"invalid addresses type: {type(addresses).__name__}"
+            err_msg = f"invalid addresses type: {_type_name(addresses)}"
             raise BTClibTypeError(err_msg)
         object.__setattr__(self, "addresses", tuple(addresses))
 
@@ -580,7 +581,7 @@ class AddrV2(Payload):
 
         for address in self.addresses:
             if not _has_type(address, NetworkAddressV2):
-                err_msg = f"invalid address type: {type(address).__name__}"  # type: ignore[unreachable]
+                err_msg = f"invalid address type: {_type_name(address)}"  # type: ignore[unreachable]
                 raise BTClibTypeError(err_msg)
             address.assert_valid()
 

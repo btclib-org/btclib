@@ -34,7 +34,7 @@ from datetime import datetime
 
 from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import _message_text, assert_type, is_integer
+from btclib.utils import _message_text, _type_name, assert_type, is_integer
 
 __all__ = ["BlockContext"]
 
@@ -149,7 +149,7 @@ class BlockContext:
         """
         if self.median_time_past is not None:
             if not is_integer(self.median_time_past):
-                type_name = type(self.median_time_past).__name__
+                type_name = _type_name(self.median_time_past)
                 raise BTClibTypeError(f"invalid median_time_past type: {type_name}")
             if self.median_time_past < 0:
                 err_msg = (
@@ -180,7 +180,7 @@ class BlockContext:
         # integer for this purpose either, `true` out of json being how a
         # height becomes one
         if not is_integer(self.height):
-            raise BTClibTypeError(f"invalid height type: {type(self.height).__name__}")
+            raise BTClibTypeError(f"invalid height type: {_type_name(self.height)}")
         if self.height < 0:
             raise BTClibValueError(f"invalid height: {_message_text(self.height)}")
 

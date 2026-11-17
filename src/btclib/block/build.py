@@ -49,7 +49,7 @@ from btclib.exceptions import BTClibTypeError
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.witness import Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
-from btclib.utils import is_integer
+from btclib.utils import _type_name, is_integer
 
 __all__ = [
     "build_block",
@@ -101,7 +101,7 @@ def build_coinbase(
     # the type before the sum: a str or None meets `+` as a bare TypeError,
     # and True would add one satoshi
     if not is_integer(fees):
-        raise BTClibTypeError(f"invalid fees type: {type(fees).__name__}")
+        raise BTClibTypeError(f"invalid fees type: {_type_name(fees)}")
     script_sig = bip34_commitment(height) + var_bytes.serialize(extra_nonce)
     value = subsidy(height, halving_interval) + fees
     return Tx(

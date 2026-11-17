@@ -73,6 +73,7 @@ from btclib.utils import (
     _copy_bytes,
     _has_type,
     _message_text,
+    _type_name,
     assert_no_trailing,
     bytesio_from_binarydata,
     is_integer,
@@ -172,7 +173,7 @@ def _ipv6_from_ip_address(ip: IPAddress) -> IPv6Address:
             raise BTClibValueError(err_msg)
         return IPv6Address(octets)
     if not _has_type(ip, str):
-        err_msg = f"invalid ip type: {type(ip).__name__}"  # type: ignore[unreachable]
+        err_msg = f"invalid ip type: {_type_name(ip)}"  # type: ignore[unreachable]
         raise BTClibTypeError(err_msg)
 
     # `ip_address` and not `IPv6Address`: the latter refuses "10.0.0.1"
@@ -373,7 +374,7 @@ class TimestampedNetworkAddress:
         # is why it can, as it is everywhere this library asks a built
         # object what type its fields are
         if not _has_type(self.address, NetworkAddress):
-            err_msg = f"invalid address type: {type(self.address).__name__}"  # type: ignore[unreachable]
+            err_msg = f"invalid address type: {_type_name(self.address)}"  # type: ignore[unreachable]
             raise BTClibTypeError(err_msg)
         self.address.assert_valid()
 
@@ -457,7 +458,7 @@ class Addr(Payload):
         if is_octets(addresses) or not _has_type(  # type: ignore[redundant-expr]
             addresses, Sequence
         ):
-            err_msg = f"invalid addresses type: {type(addresses).__name__}"
+            err_msg = f"invalid addresses type: {_type_name(addresses)}"
             raise BTClibTypeError(err_msg)
         object.__setattr__(self, "addresses", tuple(addresses))
 
@@ -473,7 +474,7 @@ class Addr(Payload):
 
         for address in self.addresses:
             if not _has_type(address, TimestampedNetworkAddress):
-                err_msg = f"invalid address type: {type(address).__name__}"  # type: ignore[unreachable]
+                err_msg = f"invalid address type: {_type_name(address)}"  # type: ignore[unreachable]
                 raise BTClibTypeError(err_msg)
             address.assert_valid()
 

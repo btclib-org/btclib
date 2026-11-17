@@ -64,6 +64,7 @@ from btclib.utils import (
     _btclib_errors,
     _has_type,
     _name_text,
+    _type_name,
     assert_type,
     bytes_from_octets,
     fields_from_json_object,
@@ -634,7 +635,7 @@ def validated_network_name(network: str) -> str:
     """
     if not _has_type(network, str):
         # the value is not quoted: a misplaced argument may be a key
-        raise BTClibTypeError(f"not a network name: {type(network).__name__}")
+        raise BTClibTypeError(f"not a network name: {_type_name(network)}")
     name: str = normalized_network_name(network)
     if name not in NETWORKS:
         # a misplaced argument may be a key, so only a name short enough

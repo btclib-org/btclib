@@ -81,6 +81,7 @@ from btclib.utils import (
     _btclib_errors,
     _message_text,
     _name_text,
+    _type_name,
     assert_type,
     bytes_from_octets,
     is_integer,
@@ -131,7 +132,7 @@ def bytes_from_witness_program(wit_ver: int, wit_prg: Octets) -> bytes:
     program that is neither 20 nor 32 bytes is refused.
     """
     if not is_integer(wit_ver):
-        raise BTClibTypeError(f"invalid witness version type: {type(wit_ver).__name__}")
+        raise BTClibTypeError(f"invalid witness version type: {_type_name(wit_ver)}")
     if not 0 <= wit_ver < 17:
         err_msg = "invalid witness version: "
         err_msg += f"{_message_text(wit_ver)} not in 0..16"

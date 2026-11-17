@@ -35,6 +35,7 @@ from btclib.tx.limits import LOCKTIME_THRESHOLD
 from btclib.tx.tx_context import is_final
 from btclib.utils import (
     _message_text,
+    _type_name,
     assert_no_trailing,
     assert_type,
     bytes_from_octets,
@@ -104,7 +105,7 @@ def bip34_commitment(height: int) -> bytes:
     # `-1 <= "5"` is a bare TypeError about the operands rather than
     # about the height, and `True` is the height one
     if not is_integer(height):
-        raise BTClibTypeError(f"invalid height type: {type(height).__name__}")
+        raise BTClibTypeError(f"invalid height type: {_type_name(height)}")
 
     # Core's push_int64 has three branches -- OP_0 for zero, OP_1..OP_16
     # for 1 to 16, OP_1NEGATE for -1 -- and op_int names all three

@@ -37,6 +37,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
     _has_type,
     _message_text,
+    _type_name,
     assert_type,
     bytes_from_octets,
     is_integer,
@@ -234,7 +235,7 @@ def retarget_first_height(last_height: int) -> int:
     # a height, before the arithmetic: `"2015" + 1` is a bare TypeError
     # about concatenating a str, and `True + 1` is the height two
     if not is_integer(last_height):
-        raise BTClibTypeError(f"invalid height type: {type(last_height).__name__}")
+        raise BTClibTypeError(f"invalid height type: {_type_name(last_height)}")
 
     # Core only retargets when the *next* height is a multiple of 2016,
     # so the last block of a period is the one 2015 blocks after its
@@ -376,7 +377,7 @@ def permitted_difficulty_transition(
     (`src/pow.cpp:89-135` at bitcoin/bitcoin@f0de87f040).
     """
     if not is_integer(height):
-        raise BTClibTypeError(f"invalid height type: {type(height).__name__}")
+        raise BTClibTypeError(f"invalid height type: {_type_name(height)}")
 
     old_bits = bytes_from_octets(old_bits, 4)
     new_bits = bytes_from_octets(new_bits, 4)
@@ -443,7 +444,7 @@ def chain_work(bits_sequence: Sequence[Octets]) -> int:
     # were its own `bits` (issue #1405)
     if is_octets(bits_sequence) or not _has_type(bits_sequence, Sequence):
         raise BTClibTypeError(
-            f"invalid bits sequence type: {type(bits_sequence).__name__}"
+            f"invalid bits sequence type: {_type_name(bits_sequence)}"
         )
     return sum(block_work(bits) for bits in bits_sequence)
 
@@ -484,9 +485,9 @@ def hash_rate(difficulty: float, timespan: float, block_count: int = 1) -> float
     # being one block, one second and difficulty one
     for name, value in (("timespan", timespan), ("difficulty", difficulty)):
         if _has_type(value, bool) or not _has_type(value, (int, float)):
-            raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+            raise BTClibTypeError(f"invalid {name} type: {_type_name(value)}")
     if not is_integer(block_count):
-        raise BTClibTypeError(f"invalid block count type: {type(block_count).__name__}")
+        raise BTClibTypeError(f"invalid block count type: {_type_name(block_count)}")
 
     if timespan <= 0:
         raise BTClibValueError(f"invalid timespan: {_message_text(timespan)}")

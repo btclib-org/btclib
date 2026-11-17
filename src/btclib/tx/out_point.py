@@ -15,6 +15,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
     _assert_valid_4_byte_field,
     _message_text,
+    _type_name,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -108,7 +109,7 @@ class OutPoint:
         # a bool is an int and would read as vout 0 or 1, which the range
         # check below cannot tell from an index: `from_dict` reads json
         if not is_integer(self.vout):
-            err_msg = f"invalid vout type: {type(self.vout).__name__}"
+            err_msg = f"invalid vout type: {_type_name(self.vout)}"
             raise BTClibTypeError(err_msg)
         # must be a 4-bytes int
         if not 0 <= self.vout <= 0xFFFFFFFF:

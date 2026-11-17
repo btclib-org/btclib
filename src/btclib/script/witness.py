@@ -16,6 +16,7 @@ from btclib.alias import BinaryData, Octets
 from btclib.consensus import MAX_WITNESS_STACK_ITEMS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
+    _type_name,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -87,7 +88,7 @@ class Witness:
         # list of stack elements would zip through its bytes and treat
         # each as its own element (issue #1405)
         if is_octets(stack):
-            raise BTClibTypeError(f"invalid stack type: {type(stack).__name__}")
+            raise BTClibTypeError(f"invalid stack type: {_type_name(stack)}")
         # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
         if not stack:
             # the empty witness of a legacy input, without the general loop

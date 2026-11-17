@@ -96,9 +96,9 @@ on:
 permissions:
   contents: read
 
-# never cancel a sentinel: a scheduled run and a dispatched one are both
-# samples worth keeping, and neither supersedes the other. A concurrent
-# run queues instead
+# a later run never cancels a running sentinel: a scheduled run and a
+# dispatched one are both samples worth keeping. What becomes of a later
+# run on the same ref is in section 10 of the organization's standard
 concurrency:
   group: pypi-install-${{ github.ref }}
   cancel-in-progress: false

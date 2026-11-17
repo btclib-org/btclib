@@ -29,6 +29,7 @@ from btclib.tx.tx_out import TxOut
 from btclib.utils import (
     _assert_valid_4_byte_field,
     _has_type,
+    _type_name,
     assert_no_trailing,
     assert_type,
     bytesio_from_binarydata,
@@ -334,7 +335,7 @@ class Tx:  # noqa: PLW1641
         for key in ("version", "lock_time"):
             value = getattr(self, key)
             if not is_integer(value):
-                err_msg = f"invalid {key} type: {type(value).__name__}"
+                err_msg = f"invalid {key} type: {_type_name(value)}"
                 raise BTClibTypeError(err_msg)
 
         _assert_valid_4_byte_field("version", self.version)

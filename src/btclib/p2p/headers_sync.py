@@ -61,6 +61,7 @@ from btclib.hashes import hash256, siphash
 from btclib.utils import (
     _has_type,
     _message_text,
+    _type_name,
     assert_type,
     bytes_from_octets,
     is_integer,
@@ -113,7 +114,7 @@ _ONE_SECOND = timedelta(seconds=1)
 def _assert_non_negative_int(value: int, what: str) -> None:
     """Refuse `value` unless it is an int at or above zero."""
     if not is_integer(value):
-        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+        raise BTClibTypeError(f"invalid {what} type: {_type_name(value)}")
     if value < 0:
         raise BTClibValueError(f"invalid {what}: {_message_text(value)}")
 
@@ -125,7 +126,7 @@ def _sequence_of(values: Sequence[object], what: str) -> None:
     what neither a batch of headers nor a locator holds.
     """
     if is_octets(values) or not _has_type(values, Sequence):
-        raise BTClibTypeError(f"invalid {what} type: {type(values).__name__}")
+        raise BTClibTypeError(f"invalid {what} type: {_type_name(values)}")
 
 
 def anti_dos_work_threshold(
