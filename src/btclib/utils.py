@@ -677,6 +677,29 @@ def is_octets(value: Any) -> TypeIs[Octets]:
     return _has_type(value, Octets)
 
 
+# the slots a Fraction keeps its value in, read by `Fraction`'s own
+# descriptors and not by attribute, which a subclass can shadow
+_FRACTION_SLOTS = (vars(Fraction)["_numerator"], vars(Fraction)["_denominator"])
+
+
+def _fraction_term(value: Fraction, slot: Any) -> int:
+    """Return the plain int a Fraction's slot holds, or raise TypeError.
+
+    `Fraction` is written in Python, and its `__int__` and `__eq__` read
+    `_numerator` and `_denominator` by attribute, so a subclass's
+    properties of those names would decide the number and the check. A
+    slot left unset, as `object.__new__` leaves it, or holding no int, is
+    a TypeError.
+    """
+    try:
+        held = slot.__get__(value, Fraction)
+    except AttributeError:
+        held = None
+    if not is_integer(held):
+        raise TypeError("a Fraction slot holding no int")
+    return int.__add__(held, 0)
+
+
 def int_from_json_number(value: Any, what: str) -> int:
     """Return the int of a whole number out of json, a bool not being one.
 
@@ -699,8 +722,14 @@ def int_from_json_number(value: Any, what: str) -> int:
     the spelling of nothing this library has a field for, and `int`
     truncates it to 1 rather than refusing -- silently, and to a number
     the caller did write, which is what makes it worse than a type error.
-    `int(value) == value` asks that of a float, a Decimal and a Fraction
-    alike, and `int` refuses `nan` and `inf` outright.
+    `int(value) == value` asks that of a float and a Decimal through the
+    base type's own `__int__` and `__eq__`, and of a Fraction through the
+    ints its slots hold, so that no method of a subclass decides the
+    number or the check, as `_int_from_integer` reads an int; `__int__`
+    refuses `nan` and `inf` outright. PyPy's Decimal is written in Python
+    and reads its own state by attribute, which a subclass can shadow
+    there (issue #3145). Another `numbers.Number` has no base type to
+    read it by, and its own `int` and `!=` decide.
 
     A refusal names the field and not the value.
 
@@ -709,8 +738,7 @@ def int_from_json_number(value: Any, what: str) -> int:
     if _has_type(value, bool) or not _has_type(value, Number):
         raise BTClibTypeError(f"invalid {what} type: {_type_name(value)}")
     # `Number` declares no `__int__`, so the check above narrows past what
-    # `int` and comparisons accept; read the known numeric types through
-    # their base implementations, not a subclass's overridden methods.
+    # `int` and `!=` accept; the value is read back as the Any it came in as
     number: Any = value
     if _has_type(number, int):
         return int.__add__(number, 0)
@@ -730,15 +758,20 @@ def int_from_json_number(value: Any, what: str) -> int:
             result = Decimal.__int__(number)
             fractional = not Decimal.__eq__(number, result)
         elif _has_type(number, Fraction):
-            result = Fraction.__int__(number)
-            fractional = not Fraction.__eq__(number, result)
+            numerator, denominator = (
+                _fraction_term(number, slot) for slot in _FRACTION_SLOTS
+            )
+            result, remainder = divmod(numerator, denominator)
+            fractional = remainder != 0
         else:
-            # Keep the old inequality behavior for other Number subclasses.
+            # another Number has no base type to read it by: its own `int`
+            # and `!=` decide
             result = int(number)
             fractional = result != number
     except TypeError:
         refusal = BTClibTypeError(f"invalid {what} type: {_type_name(value)}")
-    except (ValueError, OverflowError):
+    # a zero denominator only a slot written by hand holds
+    except (ValueError, OverflowError, ZeroDivisionError):
         refusal = BTClibValueError(f"invalid {what}: not a whole number")
     else:
         if fractional:

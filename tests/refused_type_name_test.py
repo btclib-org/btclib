@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import ast
 from collections.abc import Callable
+from numbers import Number
 from pathlib import Path
 from typing import Any
 
@@ -230,12 +231,32 @@ class _NoIntFloat(float):
         raise TypeError(_HEX)
 
 
+class _Number(Number):
+    """A Number with no base type to read it by, whose `int` raises."""
+
+    # `Number` sets `__hash__` to None, which mypy reads as abstract
+    __hash__ = object.__hash__
+
+    def __init__(self, error: type[Exception]) -> None:
+        self.error = error
+
+    def __int__(self) -> int:
+        raise self.error(_HEX)
+
+
+@pytest.mark.parametrize("value", [_Float(1.0), _Int(1), _NoIntFloat(1.0)])
+def test_a_json_number_s_own_int_is_not_called(value: Any) -> None:
+    """A float or int subclass is read by its base type's own methods."""
+    with pytest.raises((ValueError, TypeError)):
+        int(value)
+    assert int_from_json_number(value, "version") == 1
+
+
 @pytest.mark.parametrize(
     "value, refusal",
     [
-        (_Float(1.0), "invalid version: not a whole number"),
-        (_Int(1), "invalid version: not a whole number"),
-        (_NoIntFloat(1.0), "invalid version type: _NoIntFloat"),
+        (_Number(ValueError), "invalid version: not a whole number"),
+        (_Number(TypeError), "invalid version type: _Number"),
         (float("inf"), "invalid version: not a whole number"),
     ],
 )

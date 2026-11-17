@@ -429,6 +429,54 @@ def test_json_number_subclasses_cannot_override_whole_number_checks() -> None:
             int_from_json_number(fractional, "version")
 
 
+class _ShadowedFraction(Fraction):
+    """A Fraction whose properties answer 14/1 whatever it holds."""
+
+    @property
+    def _numerator(self) -> int:
+        return 14
+
+    @_numerator.setter
+    def _numerator(self, held: int) -> None:
+        # store what `Fraction.__new__` writes in the slot it shadows
+        vars(Fraction)["_numerator"].__set__(self, held)
+
+    @property
+    def _denominator(self) -> int:
+        return 1
+
+    @_denominator.setter
+    def _denominator(self, held: int) -> None:
+        vars(Fraction)["_denominator"].__set__(self, held)
+
+
+def test_a_json_fraction_is_read_from_its_slots() -> None:
+    """A subclass's properties shadowing the slots decide nothing.
+
+    `Fraction`'s own `__int__` and `__eq__` read `_numerator` and
+    `_denominator` by attribute, so they read the properties.
+    """
+    shadowed = _ShadowedFraction(3, 2)
+    assert Fraction.__int__(shadowed) == 14
+    assert Fraction.__eq__(shadowed, 14)
+    with pytest.raises(BTClibValueError, match="invalid version: not a whole number"):
+        int_from_json_number(shadowed, "version")
+    assert int_from_json_number(_ShadowedFraction(-6, 2), "version") == -3
+
+    # a slot left unset, as `object.__new__` leaves it, or holding no int
+    unset = object.__new__(Fraction)
+    not_an_int = Fraction(1)
+    vars(Fraction)["_denominator"].__set__(not_an_int, 1.0)
+    for value in (unset, not_an_int):
+        with pytest.raises(BTClibTypeError, match="invalid version type: Fraction"):
+            int_from_json_number(value, "version")
+
+    zero = Fraction(1)
+    vars(Fraction)["_denominator"].__set__(zero, 0)
+    with pytest.raises(BTClibValueError, match="invalid version: not a whole number"):
+        int_from_json_number(zero, "version")
+
+
 def test_json_number_keeps_other_number_implementations() -> None:
     """The generic Number fallback still honors inequality, not equality."""
 
