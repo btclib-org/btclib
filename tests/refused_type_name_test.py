@@ -12,8 +12,9 @@ any number. `btclib.utils._type_name` and `_length` read both, and the
 cases below feed each shape and check the exact text and every exception
 of the chain (issue #3128). The census at the end reads `src/btclib` for
 an attribute read of `__name__` or `__qualname__`, and for either name
-written as a string, which `utils` writes once. A type formatted whole,
-as in `f"{type(x)}"`, is not what it reads.
+written as a string, which only `utils` writes, to read `type`'s own
+descriptor. A type formatted whole, as in `f"{type(x)}"`, is not what it
+reads.
 """
 
 from __future__ import annotations
@@ -300,7 +301,7 @@ def _reads(source: str) -> tuple[list[int], list[int], list[str]]:
 
 
 def test_btclib_reads_a_type_s_name_only_through_type_name() -> None:
-    """No attribute read of either name, and one string of it, in `utils`.
+    """No attribute read of either name, and a string of it only in `utils`.
 
     Each hand-written repr is the exception, by its class.
     """
@@ -345,7 +346,7 @@ def test_the_census_finds_a_read_by_a_string() -> None:
 
 
 def test_the_census_spares_a_repr_naming_its_own_class() -> None:
-    """The one shape it spares, inside a class's own `__repr__`."""
+    """What it spares: `type(self).__name__` in a class's own `__repr__`."""
     source = (
         "class C:\n    def __repr__(self):\n        return f'{type(self).__name__}()'\n"
     )
