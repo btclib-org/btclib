@@ -23,6 +23,7 @@ from btclib.hashes import hash256
 from btclib.utils import (
     _assert_valid_4_byte_field,
     _has_type,
+    _length_text,
     _message_text,
     _type_name,
     assert_no_trailing,
@@ -451,7 +452,7 @@ class BlockHeader:
             value = bytes(getattr(self, key))
             if len(value) != size:
                 err_msg = f"invalid {key} length: "
-                err_msg += f"{len(value)} bytes"
+                err_msg += f"{_length_text(value)} bytes"
                 err_msg += f" instead of {size}"
                 raise BTClibValueError(err_msg)
 
@@ -528,7 +529,7 @@ class BlockHeader:
         # below mean anything rather than an opinion about the header:
         # btclib/utils.py states the rule and holds the two helpers for it
         if len(header_bin) != _REQUIRED_LENGTH:
-            err_msg = f"invalid decoded length: {len(header_bin)}"
+            err_msg = f"invalid decoded length: {_length_text(header_bin)}"
             err_msg += f" instead of {_REQUIRED_LENGTH}"
             raise BTClibValueError(err_msg)
         assert_no_trailing(data, stream, "block header")

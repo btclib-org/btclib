@@ -116,6 +116,7 @@ from btclib.p2p.limits import MAX_HEADERS_RESULTS, MAX_INV_SZ, MAX_LOCATOR_SZ
 from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
     _has_type,
+    _length_text,
     _type_name,
     assert_no_trailing,
     bytes_from_octets,
@@ -238,7 +239,7 @@ def _assert_valid_hash(hash_: bytes, what: str) -> None:
     # not rewrite the object it is asked to inspect
     value = bytes(hash_)
     if len(value) != _HASH_SIZE:
-        err_msg = f"invalid {what}: {len(value)} bytes"
+        err_msg = f"invalid {what}: {_length_text(value)} bytes"
         err_msg += f" instead of {_HASH_SIZE}"
         raise BTClibValueError(err_msg)
 
@@ -382,7 +383,7 @@ class _InventoryPayload(Payload):
     def assert_valid(self) -> None:
         """Refuse more entries than a peer accepts, and ask each of them."""
         if len(self.items) > MAX_INV_SZ:
-            err_msg = f"invalid items count: {len(self.items)}"
+            err_msg = f"invalid items count: {_length_text(self.items)}"
             err_msg += f" instead of at most {MAX_INV_SZ}"
             raise BTClibValueError(err_msg)
 
@@ -519,7 +520,7 @@ class _LocatorPayload(Payload):
         )
 
         if len(self.locator) > MAX_LOCATOR_SZ:
-            err_msg = f"invalid locator count: {len(self.locator)}"
+            err_msg = f"invalid locator count: {_length_text(self.locator)}"
             err_msg += f" instead of at most {MAX_LOCATOR_SZ}"
             raise BTClibValueError(err_msg)
         for hash_ in self.locator:
@@ -635,7 +636,7 @@ class Headers(Payload):
     def assert_valid(self) -> None:
         """Refuse more headers than a peer sends, and ask each of them."""
         if len(self.headers) > MAX_HEADERS_RESULTS:
-            err_msg = f"invalid headers count: {len(self.headers)}"
+            err_msg = f"invalid headers count: {_length_text(self.headers)}"
             err_msg += f" instead of at most {MAX_HEADERS_RESULTS}"
             raise BTClibValueError(err_msg)
 

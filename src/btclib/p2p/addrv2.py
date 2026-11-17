@@ -159,6 +159,7 @@ from btclib.p2p.limits import MAX_ADDR_TO_SEND, MAX_ADDRV2_SIZE
 from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
     _has_type,
+    _length_text,
     _message_text,
     _read_decoded,
     _type_name,
@@ -338,13 +339,13 @@ class NetworkAddressV2:
         _assert_valid_int(self.port, "port", 0, _MAX_PORT, check_validity=True)
 
         if len(self.address) > MAX_ADDRV2_SIZE:
-            err_msg = f"invalid address length: {len(self.address)} bytes"
+            err_msg = f"invalid address length: {_length_text(self.address)} bytes"
             err_msg += f" instead of at most {MAX_ADDRV2_SIZE}"
             raise BTClibValueError(err_msg)
 
         size = _ADDRESS_SIZE.get(self.network_id)
         if size is not None and len(self.address) != size:
-            err_msg = f"invalid address length: {len(self.address)} bytes"
+            err_msg = f"invalid address length: {_length_text(self.address)} bytes"
             err_msg += f" instead of {size} for network id {int(self.network_id)}"
             raise BTClibValueError(err_msg)
 
@@ -575,7 +576,7 @@ class AddrV2(Payload):
     def assert_valid(self) -> None:
         """Refuse more addresses than a peer accepts, and ask each of them."""
         if len(self.addresses) > MAX_ADDR_TO_SEND:
-            err_msg = f"invalid addresses count: {len(self.addresses)}"
+            err_msg = f"invalid addresses count: {_length_text(self.addresses)}"
             err_msg += f" instead of at most {MAX_ADDR_TO_SEND}"
             raise BTClibValueError(err_msg)
 

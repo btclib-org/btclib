@@ -14,6 +14,7 @@ from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
     _assert_valid_4_byte_field,
+    _length_text,
     _message_text,
     _type_name,
     assert_no_trailing,
@@ -103,7 +104,7 @@ class OutPoint:
         is the rule consensus actually has.
         """
         if len(self.tx_id) != 32:
-            err_msg = f"invalid OutPoint tx_id: {len(self.tx_id)}"
+            err_msg = f"invalid OutPoint tx_id: {_length_text(self.tx_id)}"
             err_msg += " instead of 32 bytes"
             raise BTClibValueError(err_msg)
         # a bool is an int and would read as vout 0 or 1, which the range

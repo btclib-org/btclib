@@ -87,6 +87,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
     _has_type,
+    _length_text,
     _type_name,
     bytes_from_octets,
     is_integer,
@@ -207,7 +208,7 @@ class Reject(Payload):
         _assert_valid_int(self.code, "code", 0, _MAX_CODE, check_validity=True)
 
         if len(self.data) not in (0, _HASH_SIZE):
-            err_msg = f"invalid data length: {len(self.data)} bytes"
+            err_msg = f"invalid data length: {_length_text(self.data)} bytes"
             err_msg += f" instead of 0 or {_HASH_SIZE}"
             raise BTClibValueError(err_msg)
 
@@ -251,7 +252,7 @@ class Reject(Payload):
         # rather than off a flag, the way handshake.Version reads relay
         tail = stream.read()
         if len(tail) not in (0, _HASH_SIZE):
-            err_msg = f"invalid data length: {len(tail)} bytes"
+            err_msg = f"invalid data length: {_length_text(tail)} bytes"
             err_msg += f" instead of 0 or {_HASH_SIZE}"
             raise BTClibValueError(err_msg)
         hash_data = tail[::-1]

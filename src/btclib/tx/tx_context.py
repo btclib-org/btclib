@@ -86,6 +86,7 @@ from btclib.tx.limits import (
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
 from btclib.utils import (
+    _length_text,
     _message_field,
     _message_text,
     _type_name,
@@ -179,7 +180,7 @@ def assert_sequence_locks(
     `ConnectBlock` reports a failure of this rule with.
     """
     if len(prevouts) != len(tx.vin):
-        err_msg = f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
+        err_msg = f"{_length_text(prevouts)} prevouts for {_length_text(tx.vin)} transaction inputs"
         raise BTClibValueError(err_msg)
     for name, value in (
         ("height", height),
@@ -297,7 +298,7 @@ def assert_bip54_sig_ops(tx: Tx, prevouts: Sequence[TxOut]) -> None:
     for prevout in prevouts:
         assert_type(prevout, TxOut, "prevout")
     if not tx.is_coinbase and len(prevouts) != len(tx.vin):
-        err_msg = f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
+        err_msg = f"{_length_text(prevouts)} prevouts for {_length_text(tx.vin)} transaction inputs"
         raise BTClibValueError(err_msg)
 
     if not _legacy_sig_ops_within_limit(tx, prevouts):

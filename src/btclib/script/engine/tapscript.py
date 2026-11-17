@@ -40,7 +40,7 @@ from btclib.script.taproot import leaf_hash
 from btclib.script.taproot import serialize as serialize_script
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytesio_from_binarydata, encode_num
+from btclib.utils import _length, _length_text, bytesio_from_binarydata, encode_num
 
 __all__ = [
     "OPERATIONS",
@@ -87,7 +87,7 @@ def get_hashtype(signature: bytes) -> int:
     type is read off it.
     """
     if len(signature) not in (64, 65):
-        err_msg = f"taproot signature of {len(signature)} bytes"
+        err_msg = f"taproot signature of {_length_text(signature)} bytes"
         raise ScriptError(err_msg, ScriptErrorCode.SCHNORR_SIG_SIZE)
     sighash_type = 0  # all
     if len(signature) == 65:
@@ -229,7 +229,7 @@ def _eval_checksig(
     # which is the upgrade room, and the sigops budget was charged above
     # because Core charges it for a passing upgradable key too
     elif ScriptFlag.DISCOURAGE_UPGRADABLE_PUBKEYTYPE in flags:
-        err_msg = f"upgradable public key type: {len(pub_key)} bytes"
+        err_msg = f"upgradable public key type: {_length_text(pub_key)} bytes"
         raise ScriptError(err_msg, ScriptErrorCode.DISCOURAGE_UPGRADABLE_PUBKEYTYPE)
     return budget
 
@@ -620,14 +620,14 @@ def verify_script_path_vc0(
         # nothing is called after the callback raised
         step = None
     except ScriptError as e:
-        raise ScriptError(e.args[0], e.code, script_index_ref[0], len(stack)) from e
+        raise ScriptError(e.args[0], e.code, script_index_ref[0], _length(stack)) from e
     except (BTClibValueError, EccValueError) as e:
         code = ScriptErrorCode.UNKNOWN_ERROR
-        raise ScriptError(str(e), code, script_index_ref[0], len(stack)) from e
+        raise ScriptError(str(e), code, script_index_ref[0], _length(stack)) from e
     except IndexError as e:
         code = ScriptErrorCode.INVALID_STACK_OPERATION
         raise ScriptError(
-            "stack underflow", code, script_index_ref[0], len(stack)
+            "stack underflow", code, script_index_ref[0], _length(stack)
         ) from e
     finally:
         _end_step(step, script_index_ref[0], condition_stack, stack, altstack)
@@ -640,6 +640,6 @@ def verify_script_path_vc0(
     # BIP342's one true element, and the size first: Core's order, so an
     # empty stack is CLEANSTACK and not EVAL_FALSE
     if len(stack) != 1:
-        err_msg = f"{len(stack)} elements left on the stack"
+        err_msg = f"{_length_text(stack)} elements left on the stack"
         raise ScriptError(err_msg, ScriptErrorCode.CLEANSTACK)
     script_op_codes.op_verify(stack, [], flags, ScriptErrorCode.EVAL_FALSE)

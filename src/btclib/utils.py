@@ -57,6 +57,7 @@ from __future__ import annotations
 
 import string
 import sys
+from collections import deque
 from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from decimal import Decimal
@@ -248,7 +249,9 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     if size in sizes:
         return octets
 
-    err_msg = f"invalid size: {size} bytes instead of {_sizes_text(sizes)}"
+    err_msg = (
+        f"invalid size: {_length_text(octets)} bytes instead of {_sizes_text(sizes)}"
+    )
     raise BTClibValueError(err_msg)
 
 
@@ -391,9 +394,11 @@ def _read_exactly(stream: BinaryIO, size: int, what: str, *, decoded: bool) -> b
     if len(data) != size:
         err_msg = f"not enough data for the {what}: "
         if decoded:
-            err_msg += f"{len(data)} bytes, fewer than its size"
+            err_msg += f"{_length_text(data)} bytes, fewer than its size"
         else:
-            err_msg += f"{len(data)} bytes instead of {_message_field(size, 32, 'd')}"
+            err_msg += (
+                f"{_length_text(data)} bytes instead of {_message_field(size, 32, 'd')}"
+            )
         raise BTClibValueError(err_msg)
     return data
 
@@ -416,7 +421,7 @@ def assert_no_trailing(data: BinaryData, stream: BytesIO, what: str) -> None:
         return
 
     if trailing := stream.read():
-        raise BTClibValueError(f"{len(trailing)} bytes after the {what}")
+        raise BTClibValueError(f"{_length_text(trailing)} bytes after the {what}")
 
 
 def _message_text(value: object) -> str:
@@ -498,7 +503,7 @@ def _type_name(value: object) -> str:
         len(name) <= _MAX_QUOTED_NAME_LENGTH and name.isascii() and name.isidentifier()
     ) or name in _LONG_TYPE_NAMES:
         return name
-    return f"a type whose name has {len(name)} characters"
+    return f"a type whose name has {str.__len__(name)} characters"
 
 
 # the built-in types whose own `__len__` a refusal reads a length with
@@ -522,6 +527,31 @@ def _length(value: object) -> int | None:
             except Exception:  # noqa: BLE001
                 return None
     return None
+
+
+def _length_text(value: object) -> str:
+    """Return a value's length for a refusal's message, never raising.
+
+    A value of one of `_SIZED` is measured by `_length`, and a deque or a
+    `ConditionStack` by `deque`'s or `ConditionStack`'s own `__len__`, so
+    a `__len__` that a subclass of one of them defines decides nothing.
+    Any other value is written "?": its class may be a caller's, whose
+    `__len__` can answer any number or raise. So is a length that cannot
+    be measured, as that of a released memoryview.
+    """
+    # deferred: script_op_codes imports this module
+    from btclib.script.engine.script_op_codes import ConditionStack  # noqa: PLC0415
+
+    for kind in (deque, ConditionStack):
+        if _has_type(value, kind):
+            # every Exception, for the reason _length gives; int's own
+            # repr, as a subclass's state need not hold an exact int
+            try:
+                return int.__repr__(kind.__len__(value))  # type: ignore[arg-type]
+            except Exception:  # noqa: BLE001
+                return "?"
+    length = _length(value)
+    return "?" if length is None else str(length)
 
 
 def _name_text(value: object) -> str:

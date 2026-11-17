@@ -145,6 +145,7 @@ from btclib.utils import (
     _assert_byte_shaped,
     _copy_bytes,
     _has_type,
+    _length_text,
     _message_text,
     _type_name,
     assert_no_trailing,
@@ -262,7 +263,7 @@ class Sig:
         # a Sig, r and s coming from truncated slices -- every input
         # sharing a prefix mapping to the same signature
         if len(sig_bin) != _REQUIRED_LENGTH:
-            err_msg = f"invalid decoded length: {len(sig_bin)}"
+            err_msg = f"invalid decoded length: {_length_text(sig_bin)}"
             err_msg += f" instead of {_REQUIRED_LENGTH}"
             raise BTClibValueError(err_msg)
         assert_no_trailing(data, stream, "signature")

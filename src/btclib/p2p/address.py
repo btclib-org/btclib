@@ -72,6 +72,7 @@ from btclib.utils import (
     _assert_byte_shaped,
     _copy_bytes,
     _has_type,
+    _length_text,
     _message_text,
     _type_name,
     assert_no_trailing,
@@ -168,7 +169,7 @@ def _ipv6_from_ip_address(ip: IPAddress) -> IPv6Address:
         _assert_byte_shaped(ip)
         octets = _copy_bytes(ip)
         if len(octets) != _IP_SIZE:
-            err_msg = f"invalid ip: {len(octets)}"
+            err_msg = f"invalid ip: {_length_text(octets)}"
             err_msg += f" instead of {_IP_SIZE} bytes"
             raise BTClibValueError(err_msg)
         return IPv6Address(octets)
@@ -468,7 +469,7 @@ class Addr(Payload):
     def assert_valid(self) -> None:
         """Refuse more addresses than a peer accepts, and ask each of them."""
         if len(self.addresses) > MAX_ADDR_TO_SEND:
-            err_msg = f"invalid addresses count: {len(self.addresses)}"
+            err_msg = f"invalid addresses count: {_length_text(self.addresses)}"
             err_msg += f" instead of at most {MAX_ADDR_TO_SEND}"
             raise BTClibValueError(err_msg)
 

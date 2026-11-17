@@ -44,7 +44,13 @@ from btclib.tx.tx import _TX_MAX_STANDARD_VERSION, _TX_MIN_STANDARD_VERSION, Tx
 from btclib.tx.tx_context import _legacy_sig_ops_within_limit
 from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
-from btclib.utils import _message_text, _type_name, assert_type, is_integer
+from btclib.utils import (
+    _length_text,
+    _message_text,
+    _type_name,
+    assert_type,
+    is_integer,
+)
 
 __all__ = [
     "DEFAULT_ACCEPT_DATACARRIER",
@@ -137,7 +143,7 @@ def _assert_prevouts(prevouts: Sequence[TxOut], tx: Tx) -> None:
         assert_type(prevout, TxOut, "prevout")
     if not tx.is_coinbase and len(prevouts) != len(tx.vin):
         raise BTClibValueError(
-            f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
+            f"{_length_text(prevouts)} prevouts for {_length_text(tx.vin)} transaction inputs"
         )
 
 

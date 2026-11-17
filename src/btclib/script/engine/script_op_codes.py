@@ -50,6 +50,7 @@ from btclib.tx.limits import (
 )
 from btclib.tx.tx import Tx
 from btclib.utils import (
+    _length_text,
     _message_field,
     _message_text,
     _type_name,
@@ -141,14 +142,14 @@ def _to_num(element: bytes, flags: ScriptFlag, max_size: int) -> int:
     # both refusals are Core's scriptnum_error, which EvalScript catches
     # as SCRIPT_ERR_SCRIPTNUM
     if len(element) > max_size:
-        err_msg = f"number longer than {max_size} bytes: {len(element)}"
+        err_msg = f"number longer than {max_size} bytes: {_length_text(element)}"
         raise ScriptError(err_msg, ScriptErrorCode.SCRIPTNUM)
     x = decode_num(element)
     # one comparison covers every non-minimal spelling, negative zero
     # included: `encode_num` writes zero as the empty vector, so `80` and
     # `00` are both something it does not write
     if minimaldata and encode_num(x) != element:
-        err_msg = f"non-minimal number encoding of {len(element)} bytes"
+        err_msg = f"non-minimal number encoding of {_length_text(element)} bytes"
         raise ScriptError(err_msg, ScriptErrorCode.SCRIPTNUM)
     return x
 
@@ -246,7 +247,7 @@ def assert_stack_size(stack: list[bytes], altstack: list[bytes]) -> None:
     """Enforce Core's MAX_STACK_SIZE on the two stacks together."""
     if len(stack) + len(altstack) > MAX_STACK_SIZE:
         raise ScriptError(
-            f"more than {MAX_STACK_SIZE} stack elements: {len(stack)} + {len(altstack)}",
+            f"more than {MAX_STACK_SIZE} stack elements: {_length_text(stack)} + {_length_text(altstack)}",
             ScriptErrorCode.STACK_SIZE,
         )
 
@@ -272,7 +273,7 @@ def assert_minimal_push(
         )
     if serialize([data])[0] != op_code:
         raise ScriptError(
-            f"non-minimal push of {len(data)} bytes with op code {hex(op_code)}",
+            f"non-minimal push of {_length_text(data)} bytes with op code {hex(op_code)}",
             ScriptErrorCode.MINIMALDATA,
         )
 
@@ -332,12 +333,16 @@ def _read_push_data(
         size = 2 ** (op_code - 76)
         length_bytes = s.read(size)
         if len(length_bytes) != size:
-            err_msg = f"pushdata length short of {size} bytes: {len(length_bytes)}"
+            err_msg = (
+                f"pushdata length short of {size} bytes: {_length_text(length_bytes)}"
+            )
             raise ScriptError(err_msg, ScriptErrorCode.BAD_OPCODE)
         data_length = int.from_bytes(length_bytes, byteorder="little")
     data = s.read(data_length)
     if len(data) != data_length:
-        err_msg = f"pushdata longer than the {len(data)} bytes left in the script"
+        err_msg = (
+            f"pushdata longer than the {_length_text(data)} bytes left in the script"
+        )
         raise ScriptError(err_msg, ScriptErrorCode.BAD_OPCODE)
     if data_length > MAX_SCRIPT_ELEMENT_SIZE:
         err_msg = f"pushdata longer than {MAX_SCRIPT_ELEMENT_SIZE} bytes"
@@ -365,7 +370,7 @@ def _assert_minimal_if(
     else:
         return
     if stack[-1] not in {b"", b"\x01"}:
-        err_msg = f"non-minimal {op} condition of {len(stack[-1])} bytes"
+        err_msg = f"non-minimal {op} condition of {_length_text(stack[-1])} bytes"
         raise ScriptError(err_msg, code)
 
 
@@ -514,7 +519,7 @@ def assert_balanced_if(condition_stack: ConditionStack) -> None:
     """
     if condition_stack:
         raise ScriptError(
-            f"unbalanced conditional: {len(condition_stack)} left open",
+            f"unbalanced conditional: {_length_text(condition_stack)} left open",
             ScriptErrorCode.UNBALANCED_CONDITIONAL,
         )
 
@@ -908,7 +913,7 @@ def op_roll(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> Non
         err_msg = "negative OP_ROLL depth"
         raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     if len(stack) < n + 1:
-        err_msg = f"OP_ROLL depth past a stack of {len(stack)} elements"
+        err_msg = f"OP_ROLL depth past a stack of {_length_text(stack)} elements"
         raise ScriptError(err_msg, ScriptErrorCode.INVALID_STACK_OPERATION)
     if n == 0:
         return

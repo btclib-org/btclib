@@ -36,6 +36,7 @@ from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
     _has_type,
+    _length_text,
     _message_text,
     _type_name,
     assert_type,
@@ -195,7 +196,7 @@ def bits_from_target(target: Octets) -> bytes:
     """
     target = bytes_from_octets(target)
     if len(target) > TARGET_SIZE:
-        err_msg = f"invalid target: {len(target)} bytes"
+        err_msg = f"invalid target: {_length_text(target)} bytes"
         err_msg += f" instead of at most {TARGET_SIZE}"
         raise BTClibValueError(err_msg)
 

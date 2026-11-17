@@ -53,6 +53,7 @@ from btclib.script.op_codes_tapscript import (
 from btclib.script.script import _serialize_bytes_command, _serialize_int_command
 from btclib.utils import (
     _has_type,
+    _length_text,
     _message_text,
     _type_name,
     assert_type,
@@ -269,7 +270,7 @@ def _walk(script_tree: TaprootScriptTree, depth: int) -> tuple[TaprootLeafPaths,
     if len(script_tree) == 1:
         return _tree_helper(script_tree[0])
     if len(script_tree) != 2:
-        err_msg = f"invalid script tree node: {len(script_tree)} elements, "
+        err_msg = f"invalid script tree node: {_length_text(script_tree)} elements, "
         raise BTClibValueError(f"{err_msg}neither one leaf nor two subtrees")
     # a branch puts its leaves one level below itself, and a leaf's depth
     # is the length of the merkle path proving it: refused here, before
@@ -295,7 +296,7 @@ def _tree_helper(leaf: object) -> tuple[TaprootLeafPaths, bytes]:
     if not _has_type(leaf, tuple):
         raise BTClibTypeError(f"invalid script tree leaf type: {_type_name(leaf)}")
     if len(leaf) != 2:
-        raise BTClibTypeError(f"invalid script tree leaf: {len(leaf)}-tuple")
+        raise BTClibTypeError(f"invalid script tree leaf: {_length_text(leaf)}-tuple")
     leaf_version, script = leaf
     if not is_integer(leaf_version):
         err_msg = f"invalid leaf version type: {_type_name(leaf_version)}"
@@ -341,7 +342,7 @@ def tree_from_weights(
         if not _has_type(pair, tuple):
             raise BTClibTypeError(f"invalid weighted leaf type: {_type_name(pair)}")
         if len(pair) != 2:
-            raise BTClibTypeError(f"invalid weighted leaf: {len(pair)}-tuple")
+            raise BTClibTypeError(f"invalid weighted leaf: {_length_text(pair)}-tuple")
         weight, leaf = pair
         if not is_integer(weight):
             raise BTClibTypeError(f"invalid leaf weight type: {_type_name(weight)}")

@@ -60,6 +60,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256, siphash
 from btclib.utils import (
     _has_type,
+    _length_text,
     _message_text,
     _type_name,
     assert_type,
@@ -287,7 +288,9 @@ def _serialized(header: BlockHeader) -> bytes:
         value = getattr(header, key)
         assert_type(value, bytes, key)
         if len(value) != size:
-            err_msg = f"invalid {key} length: {len(value)} bytes instead of {size}"
+            err_msg = (
+                f"invalid {key} length: {_length_text(value)} bytes instead of {size}"
+            )
             raise BTClibValueError(err_msg)
     return header.serialize(check_validity=False)
 

@@ -164,6 +164,7 @@ from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.tx.tx import Tx
 from btclib.utils import (
     _has_type,
+    _length_text,
     _message_text,
     _type_name,
     assert_no_trailing,
@@ -1020,8 +1021,8 @@ class PartialBlock:
             _assert_tx_type(tx, "transaction")
         missing = self.missing_indexes
         if len(supplied) != len(missing):
-            err_msg = f"invalid transactions count: {len(supplied)}"
-            err_msg += f" instead of the {len(missing)} still missing"
+            err_msg = f"invalid transactions count: {_length_text(supplied)}"
+            err_msg += f" instead of the {_length_text(missing)} still missing"
             raise BTClibValueError(err_msg)
 
         # built rather than patched in place, so that every entry is a

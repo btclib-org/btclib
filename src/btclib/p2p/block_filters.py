@@ -138,6 +138,7 @@ from btclib.p2p.inventory import _HASH_SIZE, _assert_valid_hash, _sequence_of
 from btclib.p2p.limits import CFCHECKPT_INTERVAL, MAX_GETCFHEADERS_SIZE
 from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
+    _length_text,
     _message_text,
     assert_no_trailing,
     bytes_from_octets,
@@ -547,7 +548,7 @@ class CFHeaders(Payload):
         _assert_valid_hash(self.previous_filter_header, "previous_filter_header length")
 
         if len(self.filter_hashes) > MAX_GETCFHEADERS_SIZE:
-            err_msg = f"invalid filter_hashes count: {len(self.filter_hashes)}"
+            err_msg = f"invalid filter_hashes count: {_length_text(self.filter_hashes)}"
             err_msg += f" instead of at most {MAX_GETCFHEADERS_SIZE}"
             raise BTClibValueError(err_msg)
         for filter_hash in self.filter_hashes:

@@ -83,6 +83,7 @@ from btclib.p2p.limits import MAX_SUBVERSION_LENGTH, PROTOCOL_VERSION
 from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
     _has_type,
+    _length_text,
     _type_name,
     assert_no_trailing,
     bytes_from_octets,
@@ -256,7 +257,7 @@ class Version(Payload):
             address.assert_valid()
 
         if len(self.user_agent) > MAX_SUBVERSION_LENGTH:
-            err_msg = f"invalid user agent length: {len(self.user_agent)}"
+            err_msg = f"invalid user agent length: {_length_text(self.user_agent)}"
             err_msg += f" instead of at most {MAX_SUBVERSION_LENGTH} bytes"
             raise BTClibValueError(err_msg)
 

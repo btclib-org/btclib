@@ -55,6 +55,7 @@ from btclib.utils import (
 from btclib.utils import (
     _assert_valid_8_byte_signed_field,
     _has_type,
+    _length_text,
     _message_text,
     _type_name,
     bytes_from_octets,
@@ -679,7 +680,7 @@ class PrecomputedTxData:
         # script_engine.verify_transaction, which checks it before this
         if len(prevouts) != len(tx.vin):
             raise BTClibValueError(
-                f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
+                f"{_length_text(prevouts)} prevouts for {_length_text(tx.vin)} transaction inputs"
             )
         # once here and not once per sig_hash, which is Θ(N²) in the inputs
         _assert_valid_prevouts(prevouts)
@@ -1037,7 +1038,9 @@ def _assert_no_p2tr_or_unknown_witness(script: bytes) -> None:
     # SCRIPT_ERR_WITNESS_PROGRAM_WRONG_LENGTH in VerifyWitnessProgram),
     # so a signer gets no signature hash for it
     if is_segwit(script) and script[0] == 0:
-        length = len(script) - 2
+        # exact bytes: from_tx passes a Script's own copy, or what
+        # redeem_script decoded from hex
+        length = bytes.__len__(script) - 2
         raise BTClibValueError(f"invalid witness version 0 program length: {length}")
 
     # a witness program from_tx has no rule for, bare or wrapped in p2sh:
@@ -1086,7 +1089,9 @@ def redeem_script(script_sig: Octets, script_pub_key: Octets) -> bytes:
     script = b"" if command == "OP_0" else bytes.fromhex(command)
     _, payload = type_and_payload(script_pub_key)
     if hash160(script) != payload:
-        err_msg = f"invalid redeem script hash: redeem script of {len(script)} bytes"
+        err_msg = (
+            f"invalid redeem script hash: redeem script of {_length_text(script)} bytes"
+        )
         raise BTClibValueError(err_msg)
     return script
 
@@ -1134,7 +1139,7 @@ def from_tx(
     # before it
     if len(prevouts) != len(tx.vin):
         raise BTClibValueError(
-            f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
+            f"{_length_text(prevouts)} prevouts for {_length_text(tx.vin)} transaction inputs"
         )
 
     script = prevouts[vin_i].script_pub_key.script

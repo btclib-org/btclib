@@ -35,6 +35,7 @@ from btclib.script.taproot import MAX_TREE_DEPTH, check_output_pubkey
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
+from btclib.utils import _length_text
 
 # the flags live in flags.py, a module of their own because the three
 # modules that check them are imported here and cannot import back; they
@@ -84,7 +85,7 @@ def taproot_unwrap_script(
 
     m, remainder = divmod(len(control) - 33, 32)
     if not 0 <= m <= MAX_TREE_DEPTH or remainder:
-        err_msg = f"taproot control block of {len(control)} bytes"
+        err_msg = f"taproot control block of {_length_text(control)} bytes"
         raise ScriptError(err_msg, ScriptErrorCode.TAPROOT_WRONG_CONTROL_SIZE)
     mismatch = ScriptErrorCode.WITNESS_PROGRAM_MISMATCH
     try:
@@ -250,7 +251,9 @@ def _verify_witness_v0(
         # a signature and a public key, and nothing else: Core's
         # `stack.size() != 2`
         if len(stack) != 2:
-            raise ScriptError(f"{len(stack)} p2wpkh witness elements", mismatch)
+            raise ScriptError(
+                f"{_length_text(stack)} p2wpkh witness elements", mismatch
+            )
         # serialization of p2wpkh:
         # OP_DUP OP_HASH160 payload OP_EQUALVERIFY OP_CHECKSIG
         script = b"v\xa9\x14" + payload + b"\x88\xac"
@@ -293,7 +296,7 @@ def _verify_witness_v0(
     # the size first, as Core has it, so an empty stack is CLEANSTACK
     # and not EVAL_FALSE
     if len(stack) != 1:
-        err_msg = f"{len(stack)} elements left on the stack"
+        err_msg = f"{_length_text(stack)} elements left on the stack"
         raise ScriptError(err_msg, ScriptErrorCode.CLEANSTACK)
     op_verify(stack, [], script_flags, ScriptErrorCode.EVAL_FALSE)
 
@@ -467,7 +470,7 @@ def verify_input(  # sourcery skip: low-code-quality
     _assert_valid_vin_i(tx, i)
     if len(prevouts) != len(tx.vin):
         raise BTClibValueError(
-            f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
+            f"{_length_text(prevouts)} prevouts for {_length_text(tx.vin)} transaction inputs"
         )
     script_flags = to_script_flags(flags)
     script_sig = tx.vin[i].script_sig
@@ -578,7 +581,7 @@ def verify_input(  # sourcery skip: low-code-quality
         return
 
     if stack and ScriptFlag.CLEANSTACK in script_flags:
-        err_msg = f"{len(stack)} elements left on the stack"
+        err_msg = f"{_length_text(stack)} elements left on the stack"
         raise ScriptError(err_msg, ScriptErrorCode.CLEANSTACK)
     # after CLEANSTACK, where Core asks it
     if ScriptFlag.WITNESS in script_flags and tx.vin[i].script_witness:
@@ -636,7 +639,7 @@ def sig_op_cost(prevouts: list[TxOut], tx: Tx, flags: ScriptFlags | None = None)
         return cost
     if len(prevouts) != len(tx.vin):
         raise BTClibValueError(
-            f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
+            f"{_length_text(prevouts)} prevouts for {_length_text(tx.vin)} transaction inputs"
         )
     if ScriptFlag.P2SH in script_flags:
         cost += WITNESS_SCALE_FACTOR * sum(
@@ -675,7 +678,7 @@ def verify_transaction(
     script_flags = to_script_flags(flags)
     if len(prevouts) != len(tx.vin):
         raise BTClibValueError(
-            f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
+            f"{_length_text(prevouts)} prevouts for {_length_text(tx.vin)} transaction inputs"
         )
     if check_amounts:
         verify_amounts(prevouts, tx)

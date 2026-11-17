@@ -46,6 +46,7 @@ from btclib.utils import (
     _assert_byte_shaped,
     _copy_bytes,
     _has_type,
+    _length_text,
     _message_text,
     _type_name,
     assert_type,
@@ -153,7 +154,7 @@ def p2ms_m_and_keys_var(script_pub_key: Octets) -> tuple[int, list[bytes]]:
     # p2ms: m pub_keys n OP_CHECKMULTISIG
     length = len(script_pub_key)
     if length < 37:
-        raise BTClibValueError(f"invalid p2ms length {length}")
+        raise BTClibValueError(f"invalid p2ms length {_length_text(script_pub_key)}")
     if script_pub_key[-1] != 0xAE:
         raise BTClibValueError("missing final OP_CHECKMULTISIG")
     if script_pub_key[0] == 0x01:
@@ -364,7 +365,7 @@ def assert_nulldata(script_pub_key: Octets) -> None:
     """
     script_pub_key = bytes_from_octets(script_pub_key)
     # nulldata: OP_RETURN data
-    length = len(script_pub_key)
+    length = bytes.__len__(script_pub_key)
     if length == 0:
         raise BTClibValueError("null length")
     if script_pub_key[0] != 0x6A:
@@ -417,7 +418,7 @@ def assert_segwit(script_pub_key: Octets) -> None:
     if len(script_pub_key) == 1 or not 2 <= script_pub_key[1] <= 40:
         raise BTClibValueError("invalid witness program length")
     if len(script_pub_key) != script_pub_key[1] + 2:
-        err_msg = f"invalid segwit script length: {len(script_pub_key)} bytes"
+        err_msg = f"invalid segwit script length: {_length_text(script_pub_key)} bytes"
         err_msg += " against its program length marker"
         raise BTClibValueError(err_msg)
 
@@ -856,9 +857,11 @@ class ScriptPubKey(Script):
 
         n = len(keys)
         if not 0 < n <= MAX_PUBKEYS_PER_MULTISIG:
-            raise BTClibValueError(f"invalid n in m-of-n: {n}")
+            raise BTClibValueError(f"invalid n in m-of-n: {_length_text(keys)}")
         if not 0 < m <= n:
-            err_msg = f"invalid m in m-of-n: {_message_text(m)}, n being {n}"
+            err_msg = (
+                f"invalid m in m-of-n: {_message_text(m)}, n being {_length_text(keys)}"
+            )
             raise BTClibValueError(err_msg)
 
         # each key asked as `p2pk` above asks it
@@ -916,7 +919,7 @@ class ScriptPubKey(Script):
         data = data.encode() if _has_type(data, str) else bytes_from_octets(data)
 
         if len(data) > 80:
-            err_msg = f"invalid nulldata payload length: {len(data)} bytes "
+            err_msg = f"invalid nulldata payload length: {_length_text(data)} bytes "
             raise BTClibValueError(err_msg)
 
         script = serialize(["OP_RETURN", data])

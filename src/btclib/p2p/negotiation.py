@@ -148,6 +148,7 @@ from btclib.p2p.limits import (
 )
 from btclib.p2p.payload import Payload, _assert_valid_int
 from btclib.utils import (
+    _length_text,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -573,13 +574,13 @@ class Feature(Payload):
     def assert_valid(self) -> None:
         """Refuse an identifier or a payload BIP434's lengths exclude."""
         if not MIN_FEATUREID_LENGTH <= len(self.feature_id) <= MAX_FEATUREID_LENGTH:
-            err_msg = f"invalid feature id length: {len(self.feature_id)}"
+            err_msg = f"invalid feature id length: {_length_text(self.feature_id)}"
             err_msg += f" instead of {MIN_FEATUREID_LENGTH}"
             err_msg += f" to {MAX_FEATUREID_LENGTH} bytes"
             raise BTClibValueError(err_msg)
 
         if len(self.feature_data) > MAX_FEATUREDATA_LENGTH:
-            err_msg = f"invalid feature data length: {len(self.feature_data)}"
+            err_msg = f"invalid feature data length: {_length_text(self.feature_data)}"
             err_msg += f" instead of at most {MAX_FEATUREDATA_LENGTH} bytes"
             raise BTClibValueError(err_msg)
 
