@@ -247,7 +247,8 @@ to, and what counters each.
   `.github/workflows/vendored-vectors.yml` runs weekly: it hashes each
   vendored file against the blob recorded there, compares that blob with
   upstream's at the pinned commit, and reports a pin that is no longer
-  upstream's tip.
+  upstream's tip, except one carrying a `pattern`, which it reports only
+  where its file is not what that pattern derives at the tip.
   `.github/workflows/integration-bitcoind.yml`, a required check on
   `main`, runs a regtest Bitcoin Core node against what btclib computes
   and emits: the UTXO-set statistics of `btclib.coinstats`, and a

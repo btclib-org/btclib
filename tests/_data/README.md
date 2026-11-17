@@ -115,6 +115,25 @@ never held regardless of whether the pin is current (ISS 2160).
 Absent, as on every other entry here, the call is asked exactly as it
 always was.
 
+`pattern` marks a file derived from upstream rather than copied from it:
+the file is every match of that pattern in the regular files under
+`path` (`git grep` reads no symlink), one per line, sorted bytewise and
+deduplicated, as the entry's own `git grep` fence prints it. That fence
+passes `-a`, so that git reads every file as text and prints its
+matches: without it, git can take a file holding a NUL for binary and
+print a line saying the binary file matches instead.
+`.github/scripts/check_vendored_vectors.py` reads every file as text
+too, finds the matches as its `_line_matches` says, following git's loop
+and naming where it departs from it, and derives the file again at the
+tip of the path, weekly. It reports the entry only where that is not the
+file here, or where the file is not here at all, so a commit upstream
+that leaves the derived lines as they are reports nothing and `commit`
+decides nothing. `behind` there counts the lines the derivation and the
+file do not share, not revisions.
+
+The script reads the pattern with Python's `re`, where `git grep -P`
+reads it with PCRE, so a pattern is written in what both read alike.
+
 Every entry was last re-checked against its upstream on 2026-07-30, and
 whatever had drifted was refreshed, so `behind` is 0 wherever a refresh
 was possible at all. The files vendored since are the exception by date
@@ -655,28 +674,33 @@ re-check should compare.
 ### `tests/_data/secp256k1_symbols.txt`
 
 ```text
-repo    bitcoin-core/secp256k1
-path    src
-commit  a0e2e23a71bf2aaae910f81cb2bd8aa0ae49d544  2026-11-16
-ours    a8f306732166cf782473ecbd2b90030616953689
-pulled  2026-09-10, refreshed 2026-09-14, 2026-10-07 and 2026-10-26
-behind  0 revisions; that commit is the tip of the path
+repo     bitcoin-core/secp256k1
+path     src
+pattern  (?<![A-Za-z0-9_])secp256k1_[a-z0-9_]+
+commit   a0e2e23a71bf2aaae910f81cb2bd8aa0ae49d544  2026-11-16
+ours     a8f306732166cf782473ecbd2b90030616953689
+pulled   2026-09-10, refreshed 2026-09-14, 2026-10-07 and 2026-10-26
+behind   0 lines; the file is what the pattern derives at the tip of the path
 ```
 
 Verdict: **transcribed**, mechanically: every `secp256k1_*` name the
 pinned tree's own `src` spells, sorted and deduplicated. The pin stands
 for a directory rather than for one upstream file, which is why the
-block above carries no `blob` line and why what the weekly workflow
-reports on it is a commit touching `src` — what a name added there or
-taken away from it looks like from outside.
+block above carries no `blob` line. What the weekly workflow reports on
+it is a file that is not what the `pattern` line derives at the tip of
+`src`, as *Reading an entry* says: a name only the derivation or only
+the file holds, the same names in other bytes, or the file gone from
+here.
+
+The pattern is set in single quotes, which its parentheses need.
 
 ```shell
 commit=<the pin this entry gives>
+pattern=<the pattern this entry gives>
 ```
 
 ```shell
-git grep -ohP '(?<![A-Za-z0-9_])secp256k1_[a-z0-9_]+' "${commit:?}" -- src \
-    | LC_ALL=C sort -u
+git grep -aohP "${pattern:?}" "${commit:?}" -- src | LC_ALL=C sort -u
 ```
 
 The names and not the headers holding them, because what reads the file
@@ -724,12 +748,13 @@ to say so.
 
 ```shell
 submodule=<the sha the call above prints>
+pattern=<the pattern this entry gives>
 symbols=<the path to `tests/_data/secp256k1_symbols.txt`>
 ```
 
 ```shell
-git grep -ohP '(?<![A-Za-z0-9_])secp256k1_[a-z0-9_]+' "${submodule:?}" \
-    -- src | sort -u | comm -3 - <(sort "${symbols:?}")
+git grep -aohP "${pattern:?}" "${submodule:?}" -- src | sort -u |
+    comm -3 - <(sort "${symbols:?}")
 ```
 
 Upstream is what the set is of, because that is the read a credit asks
@@ -1347,7 +1372,9 @@ rather than a refreshed one.
   documented drift for a flaky one.
   `.github/workflows/vendored-vectors.yml` asks upstream, weekly. A byte
   mismatch fails the run. A stale pin opens an issue rather than being
-  refreshed -- which vector to take next is a decision. The staleness
+  refreshed -- which vector to take next is a decision. A pin carrying a
+  `pattern` counts as stale only where what that pattern derives at
+  upstream's tip is not its file (*Reading an entry*). The staleness
   check skips an entry whose `behind` reads other than 0, a gap somebody
   has decided not to close being one it would report every week.
 
