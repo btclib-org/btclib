@@ -15,7 +15,7 @@ and #3091).
 from __future__ import annotations
 
 import ast
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from decimal import Decimal
 from ipaddress import IPv4Address, IPv6Address
@@ -224,17 +224,85 @@ def test_a_value_that_claims_a_flag_set_is_read_as_its_own() -> None:
     assert to_script_flags(MagicMock(spec=ScriptFlag)) == NO_FLAGS
 
 
+def _issubclass_names(nodes: Iterable[ast.AST]) -> int:
+    """Return how often some trees name `issubclass`.
+
+    A name, an attribute and an imported name each count, the last
+    whatever it is imported as.
+    """
+    return sum(
+        (isinstance(node, ast.Name) and node.id == "issubclass")
+        or (isinstance(node, ast.Attribute) and node.attr == "issubclass")
+        or (isinstance(node, ast.alias) and node.name == "issubclass")
+        for tree in nodes
+        for node in ast.walk(tree)
+    )
+
+
+def _has_type_body(module: ast.Module) -> list[ast.stmt]:
+    """Return the body of the last top-level `_has_type` of a module.
+
+    The others are its overloads. Its decorators and its arguments, their
+    defaults included, are not in its body.
+    """
+    return [
+        node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_has_type"
+    ][-1].body
+
+
+def _issubclass_outside_has_type(module: ast.Module) -> int:
+    """Return how often a module names `issubclass` outside `_has_type`."""
+    return _issubclass_names([module]) - _issubclass_names(_has_type_body(module))
+
+
+_HAS_TYPE = "def _has_type(v, e):\n    return issubclass(type(v), e)\n"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        f"{_HAS_TYPE}issubclass(a, b)\n",
+        f"{_HAS_TYPE}f = issubclass\n",
+        f"{_HAS_TYPE}builtins.issubclass(a, b)\n",
+        f"from builtins import issubclass as _sub\n{_HAS_TYPE}_sub(a, b)\n",
+        _HAS_TYPE.replace("e):", "e, _s=issubclass):"),
+        f"@deco(issubclass)\n{_HAS_TYPE}",
+    ],
+    ids=["call", "name", "attribute", "alias import", "default", "decorator"],
+)
+def test_the_census_finds_each_spelling_of_issubclass(source: str) -> None:
+    """Each counts outside `_has_type`'s body, and its body's call does not."""
+    assert _issubclass_names(_has_type_body(ast.parse(_HAS_TYPE))) == 1
+    assert _issubclass_outside_has_type(ast.parse(_HAS_TYPE)) == 0
+    assert _issubclass_outside_has_type(ast.parse(source)) == 1
+
+
 def test_btclib_tests_a_type_only_through_has_type() -> None:
-    """No module of btclib calls `isinstance`, and `utils` calls `_has_type`."""
+    """No module of btclib calls `isinstance`, and `utils` calls `_has_type`.
+
+    `issubclass` is named, as a name, an attribute or an imported name,
+    only in the body of `_has_type`, the last definition of that name in
+    `utils`, the others being its overloads: not in its decorators, nor in
+    its arguments.
+    """
     src = Path(__file__).parents[1] / "src" / "btclib"
+    trees = {path: ast.parse(path.read_text()) for path in src.rglob("*.py")}
     calls = {
         path: [
             node.func.id
-            for node in ast.walk(ast.parse(path.read_text()))
+            for node in ast.walk(tree)
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
         ]
-        for path in src.rglob("*.py")
+        for path, tree in trees.items()
     }
     assert "_has_type" in calls[src / "utils.py"]
     offenders = [path for path, names in calls.items() if "isinstance" in names]
     assert not offenders
+
+    utils = trees.pop(src / "utils.py")
+    assert _issubclass_names(_has_type_body(utils))
+    assert not _issubclass_outside_has_type(utils)
+    named = {path: _issubclass_names([tree]) for path, tree in trees.items()}
+    assert not {path: count for path, count in named.items() if count}
