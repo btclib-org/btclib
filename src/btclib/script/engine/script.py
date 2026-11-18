@@ -54,6 +54,8 @@ from btclib.script.sig_hash import (
 )
 from btclib.tx.tx import Tx
 from btclib.utils import (
+    _length,
+    _length_text,
     _type_name,
     assert_type,
     bytesio_from_binarydata,
@@ -231,7 +233,7 @@ def fix_signature(signature: bytes, flags: ScriptFlag) -> bytes:
     cap, which is checked here first as Core checks it first.
     """
     if flags & STRICT_DER_FLAGS and len(signature) > MAX_DER_SIGNATURE_SIZE:
-        err_msg = f"signature of {len(signature)} bytes, hash type included"
+        err_msg = f"signature of {_length_text(signature)} bytes, hash type included"
         raise ScriptError(err_msg, ScriptErrorCode.SIG_DER)
     signature_suffix = signature[-1:]
     signature = signature[:-1]
@@ -277,11 +279,11 @@ def check_pub_key(pub_key: bytes, segwit: bool, flags: ScriptFlag) -> bool:
     compressed = len(pub_key) == 33 and pub_key[0] in {2, 3}
     uncompressed = len(pub_key) == 65 and pub_key[0] == 4
     if ScriptFlag.STRICTENC in flags and not compressed and not uncompressed:
-        err_msg = f"public key of {len(pub_key)} bytes "
+        err_msg = f"public key of {_length_text(pub_key)} bytes "
         err_msg += "neither compressed nor uncompressed"
         raise ScriptError(err_msg, ScriptErrorCode.PUBKEYTYPE)
     if segwit and ScriptFlag.WITNESS_PUBKEYTYPE in flags and not compressed:
-        err_msg = f"public key of {len(pub_key)} bytes "
+        err_msg = f"public key of {_length_text(pub_key)} bytes "
         err_msg += "not compressed in a segwit script"
         raise ScriptError(err_msg, ScriptErrorCode.WITNESS_PUBKEYTYPE)
     return compressed or (len(pub_key) == 65 and pub_key[0] in {4, 6, 7})
@@ -997,7 +999,8 @@ def eval_script(
     ``*VERIFY`` op codes stop on the false they test, and OP_PICK and
     OP_ROLL stop with their index popped. `ScriptError.index` is the
     position of the op code that refused, and `stack_depth` the depth of
-    the stack returned; an error outside the loop has neither.
+    the stack returned, as `utils._length` reads it; an error outside the
+    loop has neither.
     """
     assert_type(script_bytes, bytes, "script_bytes")
     assert_type(stack, Sequence, "stack")
@@ -1047,7 +1050,9 @@ def _eval_script(
     no signature verifies and no lock time is reached.
     """
     if len(script_bytes) > MAX_SCRIPT_SIZE:
-        err_msg = f"script longer than {MAX_SCRIPT_SIZE} bytes: {len(script_bytes)}"
+        err_msg = (
+            f"script longer than {MAX_SCRIPT_SIZE} bytes: {_length_text(script_bytes)}"
+        )
         raise ScriptError(err_msg, ScriptErrorCode.SCRIPT_SIZE)
 
     assert_type(segwit, bool, "segwit")
@@ -1080,20 +1085,20 @@ def _eval_script(
         # nothing is called after the callback raised
         step = None
     except ScriptError as e:
-        raise ScriptError(e.args[0], e.code, script_index_ref[0], len(stack)) from e
+        raise ScriptError(e.args[0], e.code, script_index_ref[0], _length(stack)) from e
     # any other refusal is Core's `catch (...)`, UNKNOWN_ERROR: btclib's
     # class and ecc's, the one a signature or a key handed to that
     # package is refused by
     except (BTClibValueError, EccValueError) as e:
         code = ScriptErrorCode.UNKNOWN_ERROR
-        raise ScriptError(str(e), code, script_index_ref[0], len(stack)) from e
+        raise ScriptError(str(e), code, script_index_ref[0], _length(stack)) from e
     except IndexError as e:
         # the altstack's one pop checks its depth first, so an IndexError
         # out of the loop is the stack's underflow; the chained exception
         # is there for the cases in which it is not
         code = ScriptErrorCode.INVALID_STACK_OPERATION
         raise ScriptError(
-            "stack underflow", code, script_index_ref[0], len(stack)
+            "stack underflow", code, script_index_ref[0], _length(stack)
         ) from e
     finally:
         _end_step(step, script_index_ref[0], condition_stack, stack, altstack)

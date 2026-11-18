@@ -34,6 +34,7 @@ from btclib.tx import Tx, TxOut
 from btclib.tx.limits import LOCKTIME_THRESHOLD
 from btclib.tx.tx_context import is_final
 from btclib.utils import (
+    _length_text,
     _message_text,
     _type_name,
     assert_no_trailing,
@@ -367,7 +368,7 @@ class Block:
 
         count = len(self.transactions)
         if count * WITNESS_SCALE_FACTOR > MAX_BLOCK_WEIGHT:
-            err_msg = f"invalid transaction count: {count}"
+            err_msg = f"invalid transaction count: {_length_text(self.transactions)}"
             err_msg += f" * {WITNESS_SCALE_FACTOR} > {MAX_BLOCK_WEIGHT}"
             raise BTClibValueError(err_msg)
 
@@ -500,8 +501,8 @@ class Block:
         # the preimage ambiguous.
         witness_stack = self.transactions[0].vin[0].script_witness.stack
         if len(witness_stack) != 1 or len(witness_stack[0]) != 32:
-            sizes = [len(element) for element in witness_stack]
-            err_msg = f"invalid witness nonce: {sizes} stack element size(s)"
+            sizes = ", ".join(_length_text(element) for element in witness_stack)
+            err_msg = f"invalid witness nonce: [{sizes}] stack element size(s)"
             err_msg += " instead of: [32]"
             raise BTClibValueError(err_msg)
 

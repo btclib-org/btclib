@@ -14,7 +14,8 @@ of the chain (issue #3128). The census at the end reads `src/btclib` for
 an attribute read of `__name__` or `__qualname__`, and for either name
 written as a string, which only `utils` writes, to read `type`'s own
 descriptor. A type formatted whole, as in `f"{type(x)}"`, is not what it
-reads.
+reads. `tests/refused_lengths_test.py` is the same check for a length a
+refusal prints.
 """
 
 from __future__ import annotations

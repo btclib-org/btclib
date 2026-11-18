@@ -44,6 +44,7 @@ from btclib.network import (
 from btclib.utils import (
     _btclib_errors,
     _has_type,
+    _length_text,
     _name_text,
     assert_type,
     bytes_from_octets,
@@ -104,7 +105,9 @@ def _wif_claimant(payload: bytes, network: str | Network | None) -> str | Networ
 
     net = network_from_key_value("wif", prefix)
     if net is None:
-        raise NotAPrvKeyError(f"not a WIF (invalid prefix, {len(payload)} bytes)")
+        raise NotAPrvKeyError(
+            f"not a WIF (invalid prefix, {_length_text(payload)} bytes)"
+        )
     return net
 
 
@@ -153,7 +156,7 @@ def _wif_prv_key_and_compression(payload: bytes, n_size: int) -> tuple[bytes, bo
         compr = False
         prv_key = payload[1:]
     else:
-        raise InvalidPrvKeyError(f"wrong WIF size: {len(payload)}")
+        raise InvalidPrvKeyError(f"wrong WIF size: {_length_text(payload)}")
 
     return prv_key, compr
 
@@ -337,7 +340,7 @@ def _script_hash_from_redeem_script(redeem_script: Octets) -> bytes:
     redeem_script = bytes_from_octets(redeem_script)
     if len(redeem_script) > MAX_SCRIPT_ELEMENT_SIZE:
         err_msg = "redeem script exceeds size limit: "
-        err_msg += f"{len(redeem_script)} > {MAX_SCRIPT_ELEMENT_SIZE}"
+        err_msg += f"{_length_text(redeem_script)} > {MAX_SCRIPT_ELEMENT_SIZE}"
         raise BTClibValueError(err_msg)
     return hash160(redeem_script)
 

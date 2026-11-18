@@ -82,7 +82,13 @@ from btclib.network import (
     _normalized_network,
     _shown_network,
 )
-from btclib.utils import _has_type, assert_type, bytes_from_octets, is_integer
+from btclib.utils import (
+    _has_type,
+    _length_text,
+    assert_type,
+    bytes_from_octets,
+    is_integer,
+)
 
 __all__ = [
     "PrvKeyData",
@@ -232,7 +238,7 @@ class PubKeyData:
             # never echo the octets: a caller that reached here with
             # private material spelled them as a public key by mistake,
             # and the size is the whole of what is wrong
-            raise BTClibValueError(f"invalid SEC key size: {len(self.sec)}")
+            raise BTClibValueError(f"invalid SEC key size: {_length_text(self.sec)}")
 
 
 @dataclass(frozen=True, init=False)

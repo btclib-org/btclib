@@ -25,6 +25,7 @@ from btclib import var_bytes
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
+    _length_text,
     _message_text,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -78,6 +79,6 @@ def parse_key(stream: BinaryData) -> bytes:
     key = var_bytes.parse(stream)
     if len(key) != KEY_SIZE:
         raise BTClibValueError(
-            f"invalid key size: {len(key)} bytes instead of {KEY_SIZE}"
+            f"invalid key size: {_length_text(key)} bytes instead of {KEY_SIZE}"
         )
     return key

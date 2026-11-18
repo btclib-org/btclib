@@ -28,6 +28,7 @@ from btclib.amount import valid_sats_amount
 from btclib.consensus import MAX_SCRIPT_SIZE
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
+    _length_text,
     _message_text,
     _read_decoded,
     bytes_from_octets,
@@ -244,7 +245,7 @@ def decompress_script(kind: int, compressed: Octets) -> bytes:
     if len(compressed) != _special_script_size(kind):
         raise BTClibValueError(
             f"compressed script type {kind} holds "
-            f"{_special_script_size(kind)} bytes, not {len(compressed)}"
+            f"{_special_script_size(kind)} bytes, not {_length_text(compressed)}"
         )
     if kind == 0:
         return (

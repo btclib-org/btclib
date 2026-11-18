@@ -79,6 +79,7 @@ from btclib.network import (
 )
 from btclib.utils import (
     _btclib_errors,
+    _length_text,
     _message_text,
     _name_text,
     _type_name,
@@ -223,7 +224,9 @@ def witness_from_address(
     # the 90-character bound is address semantics, deliberately not
     # enforced by the bech32 codec (Lightning strings exceed it)
     if len(addr) > 90:
-        raise BTClibValueError(f"invalid bech32 address length: {len(addr)} > 90")
+        raise BTClibValueError(
+            f"invalid bech32 address length: {_length_text(addr)} > 90"
+        )
 
     hrp, data = _decode_with_constant(addr)
 
@@ -280,7 +283,7 @@ def _v0_witness_program_from_script(witness_script: Octets) -> bytes:
     witness_script = bytes_from_octets(witness_script)
     if len(witness_script) > MAX_SCRIPT_SIZE:
         err_msg = "witness script exceeds size limit: "
-        err_msg += f"{len(witness_script)} > {MAX_SCRIPT_SIZE}"
+        err_msg += f"{_length_text(witness_script)} > {MAX_SCRIPT_SIZE}"
         raise BTClibValueError(err_msg)
     return sha256(witness_script)
 

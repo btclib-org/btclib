@@ -35,7 +35,13 @@ from ecc.hashes import tagged_hash
 
 from btclib.alias import Integer, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import _type_name, assert_type, bytes_from_octets, is_integer
+from btclib.utils import (
+    _length_text,
+    _type_name,
+    assert_type,
+    bytes_from_octets,
+    is_integer,
+)
 
 __all__ = [
     "ELL_SIZE",
@@ -56,7 +62,7 @@ def _ell_from_octets(ell: Octets, ec: Curve) -> bytes:
     assert_type(ec, Curve, "ec")
     ell = bytes_from_octets(ell)
     if len(ell) != 2 * ec.p_size:
-        err_msg = f"invalid ElligatorSwift size: {len(ell)}"
+        err_msg = f"invalid ElligatorSwift size: {_length_text(ell)}"
         err_msg += f" instead of {2 * ec.p_size} bytes"
         raise BTClibValueError(err_msg)
     return ell

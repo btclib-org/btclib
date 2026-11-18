@@ -20,7 +20,7 @@ import string
 
 from btclib.exceptions import BTClibValueError
 from btclib.script.script import _assert_ascii_command, _serialize_bytes_command
-from btclib.utils import _name_text
+from btclib.utils import _length_text, _name_text
 
 __all__ = [
     "OP_CODES",
@@ -284,7 +284,9 @@ def _serialize_str_command(command: str) -> bytes:
         # without `int` reading it, and by its length: its digits may be
         # a key's decimal
         if len(digits) > 3:
-            raise BTClibValueError(f"invalid OP_SUCCESS number: {len(digits)} digits")
+            raise BTClibValueError(
+                f"invalid OP_SUCCESS number: {_length_text(digits)} digits"
+            )
         if int(digits) not in OP_SUCCESS:
             raise BTClibValueError(f"invalid OP_SUCCESS number: {digits}")
         return int(digits).to_bytes(1, "little")

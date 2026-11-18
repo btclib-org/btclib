@@ -69,6 +69,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.utils import (
     _assert_valid_4_byte_field,
+    _length_text,
     _message_text,
     _read_decoded,
     _type_name,
@@ -128,7 +129,7 @@ def _assert_valid_hash(hash_: bytes, what: str) -> None:
     """
     value = bytes(hash_)
     if len(value) != _HASH_SIZE:
-        err_msg = f"invalid {what}: {len(value)} bytes instead of {_HASH_SIZE}"
+        err_msg = f"invalid {what}: {_length_text(value)} bytes instead of {_HASH_SIZE}"
         raise BTClibValueError(err_msg)
 
 
@@ -379,14 +380,14 @@ class PartialMerkleTree:
             _assert_valid_hash(hash_, "hash length")
             hashes.append(bytes(hash_)[::-1])
         if len(hashes) > n_transactions:
-            err_msg = f"partial merkle tree: {len(hashes)} hashes"
+            err_msg = f"partial merkle tree: {_length_text(hashes)} hashes"
             err_msg += " for fewer transactions"
             raise BTClibValueError(err_msg)
 
         bits = _bits_from_bytes(bytes(self.flags))
         if len(bits) < len(hashes):
-            err_msg = f"partial merkle tree: {len(bits)} flag bits"
-            err_msg += f" for {len(hashes)} hashes"
+            err_msg = f"partial merkle tree: {_length_text(bits)} flag bits"
+            err_msg += f" for {_length_text(hashes)} hashes"
             raise BTClibValueError(err_msg)
 
         height = _tree_height(n_transactions)
@@ -514,8 +515,8 @@ class PartialMerkleTree:
         internal_hashes = [bytes_from_octets(txid, _HASH_SIZE)[::-1] for txid in txids]
         match_flags = list(matches)
         if len(match_flags) != len(internal_hashes):
-            err_msg = f"invalid matches count: {len(match_flags)}"
-            err_msg += f" instead of {len(internal_hashes)}"
+            err_msg = f"invalid matches count: {_length_text(match_flags)}"
+            err_msg += f" instead of {_length_text(internal_hashes)}"
             raise BTClibValueError(err_msg)
         for flag in match_flags:
             assert_type(flag, bool, "matches element")

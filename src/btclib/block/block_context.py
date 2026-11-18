@@ -34,7 +34,13 @@ from datetime import datetime
 
 from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import _message_text, _type_name, assert_type, is_integer
+from btclib.utils import (
+    _length_text,
+    _message_text,
+    _type_name,
+    assert_type,
+    is_integer,
+)
 
 __all__ = ["BlockContext"]
 
@@ -163,7 +169,9 @@ class BlockContext:
             # here coerces a str or a bytearray into it
             assert_type(self.required_bits, bytes, "required_bits")
             if len(self.required_bits) != 4:
-                err_msg = f"invalid required_bits length: {len(self.required_bits)}"
+                err_msg = (
+                    f"invalid required_bits length: {_length_text(self.required_bits)}"
+                )
                 err_msg += " bytes instead of 4"
                 raise BTClibValueError(err_msg)
 

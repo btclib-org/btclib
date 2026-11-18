@@ -10,7 +10,8 @@ count, a length or a script number read from its octets is bytes of it.
 Each case below puts a fixed random key's bytes where such a number is
 read, and checks the exact text and every exception of the chain (issue
 #3005). `tests/refused_octets_test.py` is the same check for the bytes
-themselves.
+themselves, and `tests/refused_lengths_test.py` for a length that a
+caller's own `__len__` answers.
 """
 
 from __future__ import annotations

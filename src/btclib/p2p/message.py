@@ -25,6 +25,10 @@ from btclib.exceptions import BTClibValueError, IncompleteMessageError
 from btclib.hashes import hash256
 from btclib.p2p.limits import MAX_PROTOCOL_MESSAGE_LENGTH
 from btclib.utils import (
+    _copy_bytes,
+    _has_type,
+    _length,
+    _length_text,
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
@@ -54,6 +58,23 @@ _FIRST_PRINTABLE = 0x20
 _LAST_PRINTABLE = 0x7E
 
 
+def _padding_fault_at(octets: object) -> str:
+    """Return where the padding's first octet other than NUL is, for a refusal.
+
+    It is counted in a copy that `bytes` or `bytearray` itself makes of
+    the octets: a subclass's own `find`, slicing, `lstrip` and `__len__`
+    can answer any number. It is "?" for any other value, and where the
+    copy holds no such octet, which only a subclass's methods could have
+    reported.
+    """
+    if not _has_type(octets, bytes) and not _has_type(octets, bytearray):
+        return "?"
+    plain = _copy_bytes(octets)
+    padding_at = plain.find(b"\x00")
+    after = plain[padding_at:].lstrip(b"\x00")
+    return "?" if padding_at < 0 or not after else str(len(plain) - len(after))
+
+
 def _command_from_bytes(octets: bytes) -> str:
     """Return the command the twelve octets spell, refusing what none does.
 
@@ -77,8 +98,8 @@ def _command_from_bytes(octets: bytes) -> str:
         padding_at = len(octets)
     command, padding = octets[:padding_at], octets[padding_at:]
     if padding.strip(b"\x00"):
-        at = padding_at + len(padding) - len(padding.lstrip(b"\x00"))
-        raise BTClibValueError(f"invalid command padding at byte {at}")
+        err_msg = f"invalid command padding at byte {_padding_fault_at(octets)}"
+        raise BTClibValueError(err_msg)
     for at, octet in enumerate(command):
         if not _FIRST_PRINTABLE <= octet <= _LAST_PRINTABLE:
             err_msg = f"non-printable character in command at byte {at}"
@@ -186,7 +207,7 @@ class Message:
         off.
         """
         if len(self.magic) != _MAGIC_SIZE:
-            err_msg = f"invalid magic: {len(self.magic)}"
+            err_msg = f"invalid magic: {_length_text(self.magic)}"
             err_msg += f" instead of {_MAGIC_SIZE} bytes"
             raise BTClibValueError(err_msg)
 
@@ -208,7 +229,7 @@ class Message:
             raise BTClibValueError(err_msg)
 
         if len(self.payload) > MAX_PROTOCOL_MESSAGE_LENGTH:
-            err_msg = f"invalid payload length: {len(self.payload)}"
+            err_msg = f"invalid payload length: {_length_text(self.payload)}"
             err_msg += f" instead of at most {MAX_PROTOCOL_MESSAGE_LENGTH} bytes"
             raise BTClibValueError(err_msg)
 
@@ -283,7 +304,7 @@ class Message:
         if len(header) < _HEADER_SIZE:
             stream.seek(start)
             err_msg = "incomplete message header"
-            raise IncompleteMessageError(err_msg, _HEADER_SIZE - len(header))
+            raise IncompleteMessageError(err_msg, _HEADER_SIZE - (_length(header) or 0))
 
         magic = header[:_MAGIC_SIZE]
         command = _command_from_bytes(header[_MAGIC_SIZE : _MAGIC_SIZE + _COMMAND_SIZE])
@@ -302,7 +323,7 @@ class Message:
         if len(payload) < length:
             stream.seek(start)
             err_msg = "incomplete message payload"
-            raise IncompleteMessageError(err_msg, length - len(payload))
+            raise IncompleteMessageError(err_msg, length - (_length(payload) or 0))
 
         expected = hash256(payload)[:_CHECKSUM_SIZE]
         if checksum != expected:

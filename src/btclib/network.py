@@ -63,6 +63,8 @@ from btclib.utils import (
     _MAX_QUOTED_NAME_LENGTH,
     _btclib_errors,
     _has_type,
+    _length,
+    _length_text,
     _name_text,
     _type_name,
     assert_type,
@@ -382,7 +384,7 @@ class Network:
             value = bytes(getattr(self, key))
             if len(value) != size:
                 err_msg = f"invalid {key} length: "
-                err_msg += f"{len(value)} bytes"
+                err_msg += f"{_length_text(value)} bytes"
                 err_msg += f" instead of {size}"
                 raise BTClibValueError(err_msg)
 
@@ -704,8 +706,8 @@ def _version_refusal(what: str, version: bytes) -> str:
     organization's standard, *A refusal carries no secret*), so the refusal
     names its size, and only where that is not a version's four bytes.
     """
-    size = len(version)
-    return what if size == 4 else f"{what}: {size} bytes"
+    size = _length(version)
+    return what if size == 4 else f"{what}: {_length_text(version)} bytes"
 
 
 def xpubversion_from_xprvversion(xprvversion: bytes) -> bytes:

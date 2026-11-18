@@ -31,6 +31,8 @@ from btclib.hashes import hash256, siphash
 from btclib.tx import OutPoint, TxOut
 from btclib.tx.limits import MAX_TX_OUT_COUNT
 from btclib.utils import (
+    _length,
+    _length_text,
     _message_text,
     _type_name,
     bytes_from_octets,
@@ -198,6 +200,25 @@ def _hash_to_range(k0: int, k1: int, element: bytes, upper_bound: int) -> int:
     return (siphash(k0, k1, element) * upper_bound) >> 64
 
 
+def _spent_count(spending: Iterable[Sequence[object]]) -> int | None:
+    """Return how many inputs the inputs of the spending transactions hold.
+
+    It is the count a refusal prints. Each list of inputs is counted by
+    `_length`, so a list subclass's own `__len__` decides no count, and
+    a list no built-in measures leaves the total unknown, None. Which
+    transactions spend is `Tx.is_coinbase`'s, which reads `len()`, as
+    the check of `from_block` does, and is asked once, by that check
+    (ISS btclib-org/btclib#3144).
+    """
+    spent = 0
+    for vin in spending:
+        held = _length(vin)
+        if held is None:
+            return None
+        spent += held
+    return spent
+
+
 def filter_header(filter_hash: Octets, previous_header: Octets) -> bytes:
     """Return the filter header chaining a filter hash onto the previous one.
 
@@ -332,7 +353,7 @@ class BasicBlockFilter:
         # coercion: validating must not rewrite the object it inspects
         block_hash = bytes(self.block_hash)
         if len(block_hash) != _HF_LEN:
-            err_msg = f"invalid block hash length: {len(block_hash)} bytes"
+            err_msg = f"invalid block hash length: {_length_text(block_hash)} bytes"
             err_msg += f" instead of {_HF_LEN}"
             raise BTClibValueError(err_msg)
 
@@ -415,10 +436,16 @@ class BasicBlockFilter:
             err_msg += _type_name(prevout_scripts)
             raise BTClibTypeError(err_msg)
 
-        spent = sum(len(tx.vin) for tx in block.transactions if not tx.is_coinbase)
+        # the inputs of each spending transaction, chosen once: the text
+        # asks no `is_coinbase`, which reads a caller's `__len__`, again
+        spending = [tx.vin for tx in block.transactions if not tx.is_coinbase]
+        spent = sum(len(vin) for vin in spending)
         if len(prevout_scripts) != spent:
-            err_msg = f"invalid previous output script count: {len(prevout_scripts)}"
-            err_msg += f" instead of {spent}"
+            err_msg = (
+                f"invalid previous output script count: {_length_text(prevout_scripts)}"
+            )
+            counted = _spent_count(spending)
+            err_msg += f" instead of {'?' if counted is None else counted}"
             raise BTClibValueError(err_msg)
 
         elements: set[bytes] = set()

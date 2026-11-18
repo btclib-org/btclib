@@ -89,6 +89,7 @@ from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.utils import (
     _int_from_integer,
+    _length_text,
     _message_text,
     _type_name,
     assert_no_trailing,
@@ -429,14 +430,14 @@ def _climb(
     """
     if len(proof_targets) != len(pairs):
         raise BTClibValueError(
-            f"{len(proof_targets)} targets for {len(pairs)} leaf hashes"
+            f"{_length_text(proof_targets)} targets for {_length_text(pairs)} leaf hashes"
         )
     targets = _to_local(proof_targets, leaves)
     rows = _tree_rows(leaves)
     positions = _get_proof_positions(targets, leaves, rows)
     if len(positions) != len(proof_hashes):
         raise BTClibValueError(
-            f"{len(proof_hashes)} proof hashes instead of {len(positions)}"
+            f"{_length_text(proof_hashes)} proof hashes instead of {_length_text(positions)}"
         )
 
     provided = sorted(
@@ -610,7 +611,7 @@ class Proof:
         assert_type(update_data, UpdateData, "update_data")
         if len(cached) != len(self.targets):
             raise BTClibValueError(
-                f"{len(cached)} cached hashes for {len(self.targets)} targets"
+                f"{_length_text(cached)} cached hashes for {_length_text(self.targets)} targets"
             )
         if any(index >= len(adds) for index in kept):
             raise BTClibValueError("a remembered index is past the added leaves")
@@ -620,7 +621,7 @@ class Proof:
         positions = _get_proof_positions(local, leaves, _tree_rows(leaves))
         if len(positions) != len(self.hashes):
             raise BTClibValueError(
-                f"{len(self.hashes)} proof hashes instead of {len(positions)}"
+                f"{_length_text(self.hashes)} proof hashes instead of {_length_text(positions)}"
             )
 
         # update data that does not describe this proof's forest fails on
@@ -731,7 +732,9 @@ class Stump:
         object.__setattr__(self, "leaves", _leaf_count(leaves))
         object.__setattr__(self, "roots", _hashes(roots, "roots"))
         if len(self.roots) != self.leaves.bit_count():
-            raise BTClibValueError(f"{len(self.roots)} roots for {self.leaves} leaves")
+            raise BTClibValueError(
+                f"{_length_text(self.roots)} roots for {self.leaves} leaves"
+            )
 
     @property
     def serialize(self) -> bytes:

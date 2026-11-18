@@ -23,6 +23,7 @@ from btclib._ripemd160 import ripemd160 as pure_python_ripemd160
 from btclib.alias import HashDigestF, Octets
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.utils import (
+    _length_text,
     _message_text,
     _type_name,
     bytes_from_octets,
@@ -427,7 +428,7 @@ def merkle_root_from_branch(
     # still non-zero means the branch is too short for the leaf it claims
     # to place, and a branch too short proves nothing at all
     if index:
-        err_msg = f"leaf index too high for a {len(branch)}-step merkle branch"
+        err_msg = f"leaf index too high for a {_length_text(branch)}-step merkle branch"
         raise BTClibValueError(err_msg)
 
     return root

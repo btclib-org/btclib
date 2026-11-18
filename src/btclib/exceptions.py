@@ -360,8 +360,10 @@ class ScriptError(BTClibValueError):
     raise with the code and no position, and the loop re-raises adding
     it. A refusal outside the loops -- a witness program that does not
     match, a stack left unclean at the end -- has no command to point at,
-    and carries None for both. A BTClibValueError still, so that code
-    catching that keeps catching this.
+    and carries None for both. A loop reads the depth with
+    `btclib.utils._length`, so a stack it cannot measure carries None for
+    the depth alone, which `str()` writes as "?". A BTClibValueError
+    still, so that code catching that keeps catching this.
     """
 
     def __init__(
@@ -380,7 +382,8 @@ class ScriptError(BTClibValueError):
     def __str__(self) -> str:
         if self.index is None:
             return str(self.args[0])
-        where = f"command {self.index}, stack depth {self.stack_depth}"
+        depth = "?" if self.stack_depth is None else self.stack_depth
+        where = f"command {self.index}, stack depth {depth}"
         return f"{self.args[0]} ({where})"
 
 

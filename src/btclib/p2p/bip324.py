@@ -47,7 +47,7 @@ from btclib.alias import Integer, Octets
 from btclib.ellswift import xdh
 from btclib.exceptions import BTClibValueError
 from btclib.p2p.message import _command_from_bytes
-from btclib.utils import assert_type, bytes_from_octets
+from btclib.utils import _length_text, assert_type, bytes_from_octets
 
 __all__ = [
     "EXPANSION",
@@ -146,7 +146,7 @@ def _assert_key(key: bytes) -> bytes:
     """Return the key, refusing anything but 32 bytes."""
     _assert_bytes(key, "key")
     if len(key) != KEY_LEN:
-        err_msg = f"invalid key size: {len(key)} instead of {KEY_LEN} bytes"
+        err_msg = f"invalid key size: {_length_text(key)} instead of {KEY_LEN} bytes"
         raise BTClibValueError(err_msg)
     return key
 
@@ -272,7 +272,7 @@ class Cipher:
         assert_type(self_decrypt, bool, "self_decrypt")
         magic = bytes_from_octets(magic)
         if len(magic) != MAGIC_LEN:
-            err_msg = f"invalid magic size: {len(magic)} instead of {MAGIC_LEN} bytes"
+            err_msg = f"invalid magic size: {_length_text(magic)} instead of {MAGIC_LEN} bytes"
             raise BTClibValueError(err_msg)
         if initiator:
             secret = xdh(ell_ours, ell_theirs, prv_key, 0)
@@ -319,7 +319,7 @@ class Cipher:
         _assert_bytes(contents, "contents")
         _assert_bytes(aad, "aad")
         if len(contents) > MAX_CONTENTS_LEN:
-            err_msg = f"contents too long: {len(contents)} bytes"
+            err_msg = f"contents too long: {_length_text(contents)} bytes"
             err_msg += f" instead of at most {MAX_CONTENTS_LEN}"
             raise BTClibValueError(err_msg)
         header = bytes([IGNORE_BIT if ignore else 0])
@@ -334,7 +334,7 @@ class Cipher:
         """
         _assert_bytes(encrypted_length, "encrypted_length")
         if len(encrypted_length) != LENGTH_LEN:
-            err_msg = f"invalid length size: {len(encrypted_length)} instead of {LENGTH_LEN} bytes"
+            err_msg = f"invalid length size: {_length_text(encrypted_length)} instead of {LENGTH_LEN} bytes"
             raise BTClibValueError(err_msg)
         return int.from_bytes(self._recv_l.crypt(encrypted_length), "little")
 
@@ -347,7 +347,7 @@ class Cipher:
         _assert_bytes(ciphertext, "ciphertext")
         _assert_bytes(aad, "aad")
         if len(ciphertext) < HEADER_LEN + TAG_LEN:
-            err_msg = f"packet too short: {len(ciphertext)} bytes"
+            err_msg = f"packet too short: {_length_text(ciphertext)} bytes"
             raise BTClibValueError(err_msg)
         plaintext = self._recv_p.decrypt(aad, ciphertext)
         return plaintext[HEADER_LEN:], bool(plaintext[0] & IGNORE_BIT)
@@ -367,7 +367,7 @@ def contents_from_message(command: str, payload: bytes) -> bytes:
         return bytes([short_id]) + payload
     octets = command.encode("utf-8")
     if len(octets) > _MESSAGE_TYPE_LEN:
-        err_msg = f"invalid command: {len(octets)} bytes"
+        err_msg = f"invalid command: {_length_text(octets)} bytes"
         raise BTClibValueError(err_msg)
     padded = octets.ljust(_MESSAGE_TYPE_LEN, b"\x00")
     _command_from_bytes(padded)
@@ -395,7 +395,7 @@ def message_from_contents(contents: bytes) -> tuple[str, bytes]:
             raise BTClibValueError("unknown short message id")
         return MESSAGE_IDS[first], rest
     if len(rest) < _MESSAGE_TYPE_LEN:
-        err_msg = f"long message type too short: {len(rest)} bytes"
+        err_msg = f"long message type too short: {_length_text(rest)} bytes"
         raise BTClibValueError(err_msg)
     command = _command_from_bytes(rest[:_MESSAGE_TYPE_LEN])
     return command, rest[_MESSAGE_TYPE_LEN:]
