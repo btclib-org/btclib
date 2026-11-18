@@ -408,7 +408,7 @@ def test_json_number_subclasses_cannot_override_whole_number_checks() -> None:
     class LeakingFloat(float):
         @override
         def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
-            raise ValueError("sensitive data must not escape")
+            raise RuntimeError("sensitive data must not escape")
 
     for whole in (
         MisleadingFloat(2.0),

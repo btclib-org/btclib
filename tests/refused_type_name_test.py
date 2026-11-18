@@ -234,7 +234,8 @@ class _NoIntFloat(float):
 class _Number(Number):
     """A Number with no base type to read it by, whose `int` raises."""
 
-    # `Number` sets `__hash__` to None, which mypy reads as abstract
+    # typeshed declares `Number.__hash__` abstract, so mypy refuses to
+    # instantiate a subclass that defines none
     __hash__ = object.__hash__
 
     def __init__(self, error: type[Exception]) -> None:
