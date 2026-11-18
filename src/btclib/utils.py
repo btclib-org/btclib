@@ -59,6 +59,8 @@ import string
 import sys
 from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
+from decimal import Decimal
+from fractions import Fraction
 from io import BytesIO
 from numbers import Number
 from typing import Any, BinaryIO, TypeVar, overload
@@ -675,6 +677,29 @@ def is_octets(value: Any) -> TypeIs[Octets]:
     return _has_type(value, Octets)
 
 
+# the slots a Fraction keeps its value in, read by `Fraction`'s own
+# descriptors and not by attribute, which a subclass can shadow
+_FRACTION_SLOTS = (vars(Fraction)["_numerator"], vars(Fraction)["_denominator"])
+
+
+def _fraction_term(value: Fraction, slot: Any) -> int:
+    """Return the plain int a Fraction's slot holds, or raise TypeError.
+
+    `Fraction` is written in Python, and its `__int__` and `__eq__` read
+    `_numerator` and `_denominator` by attribute, so a subclass's
+    properties of those names would decide the number and the check. A
+    slot left unset, as `object.__new__` leaves it, or holding no int, is
+    a TypeError.
+    """
+    try:
+        held = slot.__get__(value, Fraction)
+    except AttributeError:
+        held = None
+    if not is_integer(held):
+        raise TypeError("a Fraction slot holding no int")
+    return int.__add__(held, 0)
+
+
 def int_from_json_number(value: Any, what: str) -> int:
     """Return the int of a whole number out of json, a bool not being one.
 
@@ -697,8 +722,14 @@ def int_from_json_number(value: Any, what: str) -> int:
     the spelling of nothing this library has a field for, and `int`
     truncates it to 1 rather than refusing -- silently, and to a number
     the caller did write, which is what makes it worse than a type error.
-    `int(value) == value` asks that of a float, a Decimal and a Fraction
-    alike, and `int` refuses `nan` and `inf` outright.
+    `int(value) == value` asks that of a float and a Decimal through the
+    base type's own `__int__` and `__eq__`, and of a Fraction through the
+    ints its slots hold, so that no method of a subclass decides the
+    number or the check, as `_int_from_integer` reads an int; `__int__`
+    refuses `nan` and `inf` outright. PyPy's Decimal is written in Python
+    and reads its own state by attribute, which a subclass can shadow
+    there (issue #3145). Another `numbers.Number` has no base type to
+    read it by, and its own `int` and `!=` decide.
 
     A refusal names the field and not the value.
 
@@ -709,6 +740,8 @@ def int_from_json_number(value: Any, what: str) -> int:
     # `Number` declares no `__int__`, so the check above narrows past what
     # `int` and `!=` accept; the value is read back as the Any it came in as
     number: Any = value
+    if _has_type(number, int):
+        return int.__add__(number, 0)
     # a complex is a Number `int` cannot convert, and neither error is
     # btclib's as it stands: `except ValueError` is what a caller of a
     # json reader writes, and OverflowError, out of `inf`, is not even one.
@@ -716,14 +749,32 @@ def int_from_json_number(value: Any, what: str) -> int:
     # subclass's own `__int__`'s, holding the value, and must not be left
     # as the refusal's cause or context
     refusal: BTClibTypeError | BTClibValueError
+    fractional: bool
     try:
-        result = int(number)
+        if _has_type(number, float):
+            result = float.__int__(number)
+            fractional = not float.__eq__(number, result)
+        elif _has_type(number, Decimal):
+            result = Decimal.__int__(number)
+            fractional = not Decimal.__eq__(number, result)
+        elif _has_type(number, Fraction):
+            numerator, denominator = (
+                _fraction_term(number, slot) for slot in _FRACTION_SLOTS
+            )
+            result, remainder = divmod(numerator, denominator)
+            fractional = remainder != 0
+        else:
+            # another Number has no base type to read it by: its own `int`
+            # and `!=` decide
+            result = int(number)
+            fractional = result != number
     except TypeError:
         refusal = BTClibTypeError(f"invalid {what} type: {_type_name(value)}")
-    except (ValueError, OverflowError):
+    # a zero denominator only a slot written by hand holds
+    except (ValueError, OverflowError, ZeroDivisionError):
         refusal = BTClibValueError(f"invalid {what}: not a whole number")
     else:
-        if result != number:
+        if fractional:
             raise BTClibValueError(f"invalid {what}: not a whole number")
         return result
     raise refusal

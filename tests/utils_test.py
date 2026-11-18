@@ -11,6 +11,7 @@ from collections.abc import Callable
 from decimal import Decimal
 from fractions import Fraction
 from io import BytesIO
+from numbers import Number
 from typing import Any
 from unittest.mock import MagicMock, Mock
 
@@ -366,6 +367,138 @@ def test_a_json_number_is_a_whole_one_or_it_is_an_error() -> None:
     for not_a_number in (None, object(), [1], "not a number", 1j):
         with pytest.raises(BTClibTypeError, match="invalid version type: "):
             int_from_json_number(not_a_number, "version")
+
+
+def test_json_number_subclasses_cannot_override_whole_number_checks() -> None:
+    """Read the underlying numeric value, never a subclass's overrides.
+
+    These methods must remain uncalled on the passing path; their bodies
+    are excluded from coverage because invoking them defeats the test.
+    """
+
+    class MisleadingFloat(float):
+        @override
+        def __int__(self) -> int:  # pragma: no cover -- must not be called
+            return 7
+
+        @override
+        def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
+            return False
+
+    class MisleadingDecimal(Decimal):
+        @override
+        def __int__(self) -> int:  # pragma: no cover -- must not be called
+            return 7
+
+        @override
+        def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
+            return False
+
+    class MisleadingFraction(Fraction):
+        @override
+        def __int__(
+            self, *_args: Any, **_kwargs: Any
+        ) -> int:  # pragma: no cover -- no dispatch
+            return 7
+
+        @override
+        def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
+            return False
+
+    class LeakingFloat(float):
+        @override
+        def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
+            raise RuntimeError("sensitive data must not escape")
+
+    for whole in (
+        MisleadingFloat(2.0),
+        MisleadingDecimal("2"),
+        MisleadingFraction(2),
+    ):
+        assert int_from_json_number(whole, "version") == 2
+
+    for fractional in (
+        MisleadingFloat(1.5),
+        MisleadingDecimal("1.5"),
+        MisleadingFraction(3, 2),
+        LeakingFloat(1.5),
+    ):
+        with pytest.raises(
+            BTClibValueError, match="invalid version: not a whole number"
+        ):
+            int_from_json_number(fractional, "version")
+
+
+class _ShadowedFraction(Fraction):
+    """A Fraction whose properties answer 14/1 whatever it holds."""
+
+    @property
+    def _numerator(self) -> int:
+        return 14
+
+    @_numerator.setter
+    def _numerator(self, held: int) -> None:
+        # store what `Fraction.__new__` writes in the slot it shadows
+        vars(Fraction)["_numerator"].__set__(self, held)
+
+    @property
+    def _denominator(self) -> int:
+        return 1
+
+    @_denominator.setter
+    def _denominator(self, held: int) -> None:
+        vars(Fraction)["_denominator"].__set__(self, held)
+
+
+def test_a_json_fraction_is_read_from_its_slots() -> None:
+    """A subclass's properties shadowing the slots decide nothing.
+
+    `Fraction`'s own `__int__` and `__eq__` read `_numerator` and
+    `_denominator` by attribute, so they read the properties.
+    """
+    shadowed = _ShadowedFraction(3, 2)
+    assert Fraction.__int__(shadowed) == 14
+    assert Fraction.__eq__(shadowed, 14)
+    with pytest.raises(BTClibValueError, match="invalid version: not a whole number"):
+        int_from_json_number(shadowed, "version")
+    assert int_from_json_number(_ShadowedFraction(-6, 2), "version") == -3
+
+    # a slot left unset, as `object.__new__` leaves it, or holding no int
+    unset = object.__new__(Fraction)
+    not_an_int = Fraction(1)
+    vars(Fraction)["_denominator"].__set__(not_an_int, 1.0)
+    for value in (unset, not_an_int):
+        with pytest.raises(BTClibTypeError, match="invalid version type: Fraction"):
+            int_from_json_number(value, "version")
+
+    zero = Fraction(1)
+    vars(Fraction)["_denominator"].__set__(zero, 0)
+    with pytest.raises(BTClibValueError, match="invalid version: not a whole number"):
+        int_from_json_number(zero, "version")
+
+
+def test_json_number_keeps_other_number_implementations() -> None:
+    """The generic Number fallback still honors inequality, not equality."""
+
+    class OtherNumber(Number):
+        def __init__(self, value: float) -> None:
+            self.value = value
+
+        def __int__(self) -> int:
+            return int(self.value)
+
+        @override
+        def __ne__(self, other: object) -> bool:
+            return self.value != other
+
+        @override
+        def __hash__(self) -> int:
+            return hash(self.value)
+
+    assert hash(OtherNumber(2.0)) == hash(2.0)
+    assert int_from_json_number(OtherNumber(2.0), "version") == 2
+    with pytest.raises(BTClibValueError, match="invalid version: not a whole number"):
+        int_from_json_number(OtherNumber(1.5), "version")
 
 
 def test_octets_are_bytes_or_the_hex_string_of_bytes_and_nothing_else() -> None:
