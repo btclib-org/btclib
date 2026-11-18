@@ -83,12 +83,18 @@ def _timestamp_of(time: datetime) -> int:
     time before 1970 on Windows (OSError). None is an exception the
     library promises, so all three are a `BTClibValueError`; a time of
     another type is a `BTClibTypeError`.
+
+    The refusal is raised after the `except` block, neither chained nor
+    left as context: a subclass's own `timestamp()` can raise an error
+    holding anything, a key included (section 7 of the organization's
+    standard, *A refusal carries no secret*).
     """
     assert_type(time, datetime, "timestamp")
     try:
         return int(time.timestamp())
-    except (OSError, OverflowError, ValueError) as e:
-        raise BTClibValueError(f"invalid timestamp: {time}") from e
+    except (OSError, OverflowError, ValueError):
+        pass
+    raise BTClibValueError(f"invalid timestamp: {time}")
 
 
 def _time_from_isoformat(time: Any) -> datetime:

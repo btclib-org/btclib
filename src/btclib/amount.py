@@ -152,17 +152,25 @@ def _decimal_from_value(value: object, err_msg: str) -> Decimal:
     ("1e" and thirty nines). `Decimal` signals InvalidOperation on that,
     which `_CONTEXT` traps, so the refusal is this library's whatever the
     caller's context does with the signal.
+
+    No refusal is raised inside an `except` block, so none is chained or
+    left as context: an error out of a `__str__` of the caller's own can
+    hold anything, a key included (section 7 of the organization's
+    standard, *A refusal carries no secret*).
     """
+    text: str | None
     try:
         text = str(value)
-    except Exception as e:
-        raise BTClibValueError(err_msg) from e
-    text = _number_text(text, err_msg)
-    with localcontext(_CONTEXT):
-        try:
-            return Decimal(text)
-        except InvalidOperation as e:
-            raise BTClibValueError(err_msg) from e
+    except Exception:  # noqa: BLE001
+        text = None
+    if text is not None:
+        text = _number_text(text, err_msg)
+        with localcontext(_CONTEXT):
+            try:
+                return Decimal(text)
+            except InvalidOperation:
+                pass
+    raise BTClibValueError(err_msg)
 
 
 def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
