@@ -28,6 +28,7 @@ from btclib.amount import (
     valid_sats_amount,
 )
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from tests.secret_free import assert_secret_free
 
 
 def test_conversions() -> None:
@@ -254,6 +255,53 @@ def test_a_sats_amount_string_refuses_digit_grouping_underscores() -> None:
         valid_sats_amount("1_0")
     with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
         valid_sats_amount("1_000_000")
+
+
+_KEY_HEX = "886f8f1ac369b0fed04c7c28508bba9418a2108bdc577429134b592a3227deae"
+
+
+class _SevenText(str):
+    """A str whose own strip returns itself and whose own int is seven."""
+
+    __slots__ = ()
+
+    @override
+    def strip(self, chars: str | None = None) -> str:
+        return self
+
+    def __int__(self) -> int:
+        return 7
+
+
+class _KeyStripping(str):
+    """A str whose own strip raises an error holding a key's hex."""
+
+    __slots__ = ()
+
+    @override
+    def strip(self, chars: str | None = None) -> str:
+        raise ValueError(_KEY_HEX)
+
+
+def test_a_sats_amount_str_subclass_is_read_as_a_plain_str() -> None:
+    """No method of a str subclass decides the satoshi amount (issue #3160).
+
+    The overrides do answer, so a read reaching them would too. `_KEY_HEX`
+    is a fixed random key, as `assert_secret_free` asks.
+    """
+    assert int(_SevenText("1.5").strip()) == 7
+    with pytest.raises(ValueError, match=_KEY_HEX):
+        _KeyStripping("1").strip()
+
+    with pytest.raises(BTClibValueError, match=r"^invalid satoshi amount: "):
+        valid_sats_amount(_SevenText("1.5"))
+    for amount in (_SevenText("1"), _KeyStripping(" 1\n")):
+        sats = valid_sats_amount(amount)
+        assert sats == 1
+        assert type(sats) is int
+    with pytest.raises(BTClibValueError, match=r"^invalid satoshi amount: ") as err:
+        valid_sats_amount(_KeyStripping("1.5"))
+    assert_secret_free(err.value, [_KEY_HEX])
 
 
 @pytest.mark.parametrize("amount", [1.5, -1.5, Decimal("2.5"), Decimal("-2.5")])

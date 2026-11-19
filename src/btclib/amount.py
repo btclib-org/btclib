@@ -255,6 +255,10 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
 
     `dust` is an amount too, so one that is negative or is above the cap
     is refused.
+
+    A str subclass is read as the plain str of its characters, as
+    `utils.str_from_string` reads one, so that no method of its own -- a
+    `strip` or an `__int__` -- decides the amount (issue #3160).
     """
     # a bool is an int in Python, so True reached the conversion below as
     # the number one and `int(True) == True` let it through the equality
@@ -276,7 +280,8 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
         raise BTClibValueError("invalid satoshi dust threshold")
     text = amount
     if _has_type(amount, str):
-        text = _number_text(amount, f"invalid satoshi amount: {_message_text(amount)}")
+        err_msg = f"invalid satoshi amount: {_message_text(amount)}"
+        text = _number_text(str.__str__(amount), err_msg)
     # any input that can be converted to int is fine -- and int() refuses
     # what it cannot convert with a bare ValueError ("abc", b"\x01"), a
     # bare TypeError (a list), or a bare OverflowError (an infinity, where
