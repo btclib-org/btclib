@@ -42,4 +42,4 @@ jobs:
   # trigger
   sourcery:
     if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
-    uses: btclib-org/.github/.github/workflows/reusable-sourcery.yml@cb5a79443399980ba717df2dea23dbedf6bdbc3a # v2026.11.12
+    uses: btclib-org/.github/.github/workflows/reusable-sourcery.yml@64fe8e701fb481dddd471dd256ade86f90e60b0f # v2026.11.14
