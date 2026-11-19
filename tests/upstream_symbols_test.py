@@ -27,9 +27,9 @@ this reaches no network. A test that fetched would pass under every
 contributor's own `uv sync` and fail wherever the access is missing,
 which is the asymmetry
 [ISS 1538](https://github.com/btclib-org/btclib/issues/1538) is a
-reminder about; `.github/workflows/vendored-vectors.yml` is what says
-the pin has moved, weekly and outside the suite, the way it does for
-every other pin that README carries.
+reminder about; `.github/workflows/vendored-vectors.yml` is what says,
+weekly and outside the suite, that the names derived at upstream's tip
+differ from the vendored file, as that README's entry says.
 
 **The revision pinned there is upstream's own, not the one the bindings
 vendor.** `btclib-secp256k1` builds the library a caller loads from a
@@ -139,7 +139,7 @@ fact about another project's present source, and nothing this tree runs
 decides it: what settles one is a read of upstream at the revision
 `tests/_data/README.md` pins, taken on the occasion
 `.github/workflows/vendored-vectors.yml` gives by reporting that the
-revision has moved.
+names derived at upstream's tip differ from the vendored file.
 
 **A paragraph is read as one string, not line by line.** The files
 wrap at eighty columns, so the library and a name credited to it are

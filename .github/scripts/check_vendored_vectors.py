@@ -13,9 +13,9 @@ to make, so what it opens is an issue, never a commit.
 The ledger and the issue title are both the caller's, because a ledger
 goes stale in its own way and is acted on in its own way:
 tests/_data/README.md pins the revision a file here was copied from, so
-a moved commit says the copy is behind. A caller passing two ledgers
-under one title would open one issue for the pair, each run rewriting
-what the other wrote.
+a moved commit says the copy is behind, unless the entry carries a
+`pattern`, as below. A caller passing two ledgers under one title would
+open one issue for the pair, each run rewriting what the other wrote.
 
 btclib-secp256k1 carries a copy under this same name, over its own
 tests/README.md, whose entries are each pinned to a commit under a
@@ -36,7 +36,10 @@ the one upstream's tree holds for the path at the pinned commit, which
 the trees API answers without downloading the file. A mismatch names the
 file and makes the run exit 1: a vendored file edited here, or a pin
 whose recorded blob is not the one at its commit, is not drift to be
-decided about and is not an issue.
+decided about and is not an issue. A file an entry derives with a
+`pattern`, where its `behind` reads 0, can also be drift: edited here,
+it is reported where it differs from what the pattern derives at
+upstream's tip, as below.
 
 The staleness check's scope is narrower than the ledger: only entries whose
 `behind` already reads 0 -- the ones a human last confirmed were exactly
@@ -44,7 +47,23 @@ at upstream's tip. An entry documented as behind is a decision already
 made, and re-reporting the same gap every week would just be noise; if a
 *new* commit moves it further, `behind`'s own count in the ledger goes
 stale in a way this script cannot see either, which is the reason it
-never tries to judge relevance, only tip-vs-pinned identity.
+never tries to judge relevance, only tip-vs-pinned identity, except
+where an entry says how to, as below.
+
+An entry whose file upstream does not publish, and which is derived from
+upstream's `path` instead, says how in a `pattern` line: the file is
+what the ledger's `git grep -aohP` of that pattern over `path` prints,
+piped to `LC_ALL=C sort -u`, and the ledger's paragraph on `pattern`
+says which files that reads. This script reads each of them as text, as
+the ledger says `-a` has git read it. The matches are found line by line
+as `_line_matches` says, following git's own loop, and the pattern is
+read by Python's `re` where git reads it with PCRE. Such an entry is
+judged by that derivation at the tip of its path, on every run, and its
+`commit` decides nothing: it is drift where the derived bytes are not
+the file's, the report naming the lines only the derivation holds and
+those only the file holds. A file that is not here is drift whatever the
+pattern derives, an empty derivation included. The files come from one
+tarball, held to the tree of the same commit as `_derived` says.
 
 A path upstream deleted or renamed away reaches this script as ordinary
 drift: the "commits touching a path" call answers with the commit that
@@ -95,13 +114,15 @@ checked at all.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import time
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -117,30 +138,33 @@ _TRANSIENT = re.compile(r"HTTP 5\d\d")
 _ATTEMPTS = 3
 
 
-def _gh_output(*args: str) -> str:
+def _gh_bytes(*args: str) -> bytes:
     """Return the stdout of a `gh` call, printing gh's stderr where it fails.
 
     A call failing with a server error is made `_ATTEMPTS` times at
     most, waiting longer before each retry; the last error, or any
-    other, is raised.
+    other, is raised, carrying gh's stderr as text.
     """
     attempt = 0
     while True:
         attempt += 1
         try:
             return subprocess.run(  # noqa: S603
-                [_GH, *args],
-                capture_output=True,
-                check=True,
-                encoding="utf-8",
+                [_GH, *args], capture_output=True, check=True
             ).stdout
         except subprocess.CalledProcessError as error:
-            print(
-                f"gh {' '.join(args)} failed: {error.stderr.strip()}", file=sys.stderr
-            )
-            if attempt == _ATTEMPTS or not _TRANSIENT.search(error.stderr):
-                raise
+            stderr = error.stderr.decode("utf-8", "replace")
+            print(f"gh {' '.join(args)} failed: {stderr.strip()}", file=sys.stderr)
+            if attempt == _ATTEMPTS or not _TRANSIENT.search(stderr):
+                raise subprocess.CalledProcessError(
+                    error.returncode, error.cmd, error.output, stderr
+                ) from error
             time.sleep(5 * attempt)
+
+
+def _gh_output(*args: str) -> str:
+    """Return the stdout of a `gh` call as text, as `_gh_bytes` makes it."""
+    return _gh_bytes(*args).decode("utf-8")
 
 
 # a ledger entry's own ### heading, so a drift report -- and the
@@ -159,7 +183,8 @@ _HEADING = re.compile(r"^### (.+)$", re.MULTILINE)
 # match at all, which is what the checks below already treat as that field
 # being absent.
 _FIELD = re.compile(
-    r"^(repo|path|ref|commit|blob|ours|pulled|behind)[ \t]+(.*)$", re.MULTILINE
+    r"^(repo|path|ref|pattern|commit|blob|ours|pulled|behind)[ \t]+(.*)$",
+    re.MULTILINE,
 )
 
 # a heading that is one file's own path, in backticks: the file the
@@ -179,6 +204,10 @@ class Entry:
     (ISS 2160): asking it with no `ref` answers an empty list for that
     path regardless of whether the pin is current, which is reported as
     a path the default branch never held.
+
+    `pattern` is the entry's own `pattern` line, absent where it has
+    none: the entry's file is then judged by what the pattern derives
+    at the tip of `path`, and not by `commit`.
     """
 
     heading: str
@@ -186,6 +215,7 @@ class Entry:
     path: str
     commit: str
     ref: str | None = None
+    pattern: str | None = None
 
 
 @dataclass(frozen=True)
@@ -209,11 +239,16 @@ class Pin:
 
 @dataclass(frozen=True)
 class Drift:
-    """A pin whose commit is no longer the tip of its own path."""
+    """A pin whose commit is no longer the tip of its own path.
+
+    Or, for an entry carrying a `pattern`, one whose file is not what
+    the pattern derives at that tip: `difference` then says how.
+    """
 
     entry: Entry
     latest_commit: str
     latest_date: str
+    difference: str | None = None
 
     @property
     def has_no_tip(self) -> bool:
@@ -246,7 +281,9 @@ def _entries_at_tip(ledger: str) -> tuple[list[Entry], list[str]]:
     already decided not to close -- no `behind` line at all, which is
     distinct from that gap and is named as its own reason rather than
     folded into it, or a `behind` line present but empty, closer to a
-    broken block than to either decision and named apart from both.
+    broken block than to either decision and named apart from both. An
+    entry carrying a `pattern` is skipped too where its heading is not
+    one file's path, there being no file to hold to what it derives.
 
     The first is the one the loop below cannot see, walking blocks as it
     does: a heading owning none never enters it. A group heading a finer
@@ -286,6 +323,10 @@ def _entries_at_tip(ledger: str) -> tuple[list[Entry], list[str]]:
         if not behind.startswith("0"):
             skipped.append(f"{heading} (already documented as behind)")
             continue
+        pattern = fields.get("pattern", "").strip() or None
+        if pattern is not None and not _LOCAL.match(heading):
+            skipped.append(f"{heading} (a pattern and no one file to hold to it)")
+            continue
         ref = fields.get("ref")
         entries.append(
             Entry(
@@ -294,6 +335,7 @@ def _entries_at_tip(ledger: str) -> tuple[list[Entry], list[str]]:
                 path.strip(),
                 commit.split()[0],
                 ref.strip() if ref else None,
+                pattern,
             )
         )
     skipped.extend(
@@ -346,18 +388,160 @@ def _latest_commit(
     return sha, date
 
 
-def find_drift(ledger_path: Path) -> tuple[list[Drift], list[str]]:
-    """Return every pin no longer at upstream's tip, and what was skipped."""
+def _blob_of(data: bytes) -> str:
+    """Return the git blob SHA-1 of `data`."""
+    header = b"blob %d\0" % len(data)
+    return hashlib.sha1(header + data, usedforsecurity=False).hexdigest()
+
+
+def _under(name: str, path: str) -> bool:
+    """Tell whether `name` is `path` itself or a path inside it."""
+    return name == path or name.startswith(f"{path}/")
+
+
+def _line_matches(pattern: re.Pattern[bytes], line: bytes) -> Iterator[bytes]:
+    r"""Yield the matches `git grep -o` prints for one line, in its order.
+
+    git stops a line at its first empty match, and after a match it
+    searches the rest of the line as a string of its own, so a
+    lookbehind, `\b` or `\A` there sees no byte before it. The rest is
+    searched the same way here. git also keeps `^` from matching at the
+    start of that rest, and Python's `re` has no such switch, so a `^`
+    there matches here where it does not in git.
+    """
+    rest = line
+    while (match := pattern.search(rest)) is not None and match[0]:
+        yield match[0]
+        rest = rest[match.end() :]
+
+
+def _matches(pattern: re.Pattern[bytes], files: Iterable[bytes]) -> bytes:
+    """Return every match `_line_matches` finds in `files`, one per line.
+
+    Each file is read line by line, and the lines returned are sorted
+    bytewise and deduplicated, as `LC_ALL=C sort -u` sorts them.
+    """
+    found = {
+        match
+        for data in files
+        for line in data.split(b"\n")
+        for match in _line_matches(pattern, line)
+    }
+    return b"".join(line + b"\n" for line in sorted(found))
+
+
+def _derived(repo: str, path: str, commit: str, pattern: str) -> bytes:
+    """Return what `pattern` derives from upstream's `path` at `commit`.
+
+    The files are read in memory from the tarball the API serves, and
+    extracted nowhere. A tarball is `git archive`'s, so an `export-ignore`
+    or `export-subst` attribute upstream can make it differ from the
+    tree: each file under `path` the derivation reads is held to the
+    blob the recursive trees API answers for it, and a file the tarball
+    lacks, adds or holds otherwise raises, a symlink it gives as a
+    regular file included.
+    """
+    compiled = re.compile(pattern.encode())
+    tree = json.loads(
+        _gh_output(
+            "api",
+            "--method",
+            "GET",
+            f"repos/{repo}/git/trees/{commit}",
+            "-f",
+            "recursive=1",
+        )
+    )
+    # mode 120000 is a symlink's, left out as the ledger says of `pattern`
+    blobs = {
+        item["path"]: item["sha"]
+        for item in tree["tree"]
+        if item["type"] == "blob"
+        and item["mode"] != "120000"
+        and _under(item["path"], path)
+    }
+    archive = _gh_bytes("api", "--method", "GET", f"repos/{repo}/tarball/{commit}")
+    files: dict[str, bytes] = {}
+    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+        for member in tar:
+            # the archive holds the tree under one directory of its own
+            name = member.name.partition("/")[2]
+            reader = (
+                tar.extractfile(member)
+                if member.isfile() and _under(name, path)
+                else None
+            )
+            if reader is not None:
+                files[name] = reader.read()
+    if (
+        tree["truncated"]
+        or {name: _blob_of(data) for name, data in files.items()} != blobs
+    ):
+        msg = f"the tarball of {repo} at {commit} is not its tree under {path}"
+        raise ValueError(msg)
+    return _matches(compiled, files.values())
+
+
+def _shown(lines: Iterable[bytes]) -> str:
+    """Return lines in backticks, sorted and comma-separated."""
+    return ", ".join(
+        f"`{line.decode('utf-8', 'backslashreplace')}`" for line in sorted(lines)
+    )
+
+
+def _difference(found: bytes, held: bytes) -> str | None:
+    """Say how the file's bytes, `held`, differ from the derived ones, `found`.
+
+    None where they are the same bytes. Otherwise the lines only the
+    derivation holds, and those only the file holds; where there are
+    neither, the same lines in another order, number or ending.
+    """
+    if found == held:
+        return None
+    new, old = set(found.splitlines()), set(held.splitlines())
+    parts = [
+        f"{label}: {_shown(lines)}"
+        for label, lines in (("derived only", new - old), ("here only", old - new))
+        if lines
+    ]
+    return "; ".join(parts) or "the same lines, in other bytes"
+
+
+def find_drift(
+    ledger_path: Path,
+) -> tuple[list[Drift], list[str], list[tuple[str, str]]]:
+    """Return every pin drifted from upstream's tip, the skips, and the derived.
+
+    The third list names each entry carrying a `pattern` whose file is
+    what that pattern derives at the tip, beside the tip.
+    """
     entries, skipped = _entries_at_tip(ledger_path.read_text(encoding="utf-8"))
     drifted = []
+    derived = []
     for entry in entries:
         latest = _latest_commit(entry.repo, entry.path, entry.ref)
         if latest is None:
             # a path the branch walked never held: drift with no tip to name
             drifted.append(Drift(entry, "", ""))
+        elif entry.pattern is not None:
+            # the heading is one file's path in backticks, as
+            # _entries_at_tip asked of an entry carrying a pattern
+            local = Path(entry.heading[1:-1])
+            difference = (
+                _difference(
+                    _derived(entry.repo, entry.path, latest[0], entry.pattern),
+                    local.read_bytes(),
+                )
+                if local.is_file()
+                else "the file is not here"
+            )
+            if difference is None:
+                derived.append((entry.heading, latest[0]))
+            else:
+                drifted.append(Drift(entry, *latest, difference))
         elif latest[0] != entry.commit:
             drifted.append(Drift(entry, *latest))
-    return drifted, skipped
+    return drifted, skipped, derived
 
 
 def _pins(ledger: str) -> tuple[list[Pin], list[str]]:
@@ -407,9 +591,7 @@ def _git_blob(path: Path) -> str:
     whatever `core.autocrlf` says. Hashing the bytes on disk, not through
     git's filters, is what catches a file checked out converted.
     """
-    data = path.read_bytes()
-    header = b"blob %d\0" % len(data)
-    return hashlib.sha1(header + data, usedforsecurity=False).hexdigest()
+    return _blob_of(path.read_bytes())
 
 
 def _upstream_blob(repo: str, path: str, commit: str) -> str | None:
@@ -475,11 +657,19 @@ def _branch(entry: Entry) -> str:
 
 def _issue_body(ledger_path: Path, drifted: list[Drift], skipped: list[str]) -> str:
     lines = [
-        f"`{ledger_path}` pins below are no longer at upstream's tip.",
+        f"`{ledger_path}` pins below have drifted from upstream's tip.",
         "Refreshing is a decision, not a chore -- this issue only reports it.",
         "",
     ]
     for drift in drifted:
+        if drift.difference is not None:
+            lines.append(
+                f"- **{drift.entry.heading}**: not what its `pattern` derives from"
+                f" `{drift.entry.path}` at `{drift.latest_commit}`"
+                f" ({drift.latest_date}), `{drift.entry.repo}` --"
+                f" {drift.difference}"
+            )
+            continue
         if drift.has_no_tip:
             lines.append(
                 f"- **{drift.entry.heading}**: pinned to"
@@ -548,7 +738,10 @@ def report(
                     "close",
                     number,
                     "--comment",
-                    "Re-checked: every pin with behind: 0 is still at upstream's tip.",
+                    (
+                        "Re-checked: no pin with behind: 0 has drifted from"
+                        " upstream's tip."
+                    ),
                 ],
                 check=True,
             )
@@ -563,6 +756,28 @@ def report(
         subprocess.run(  # noqa: S603
             [_GH, "issue", "edit", number, "--body", body], check=True
         )
+
+
+def _drift_line(drift: Drift) -> str:
+    """Return the line `main` prints for one drift."""
+    if drift.difference is not None:
+        return (
+            f"DIFFERS: {drift.entry.heading} is not what its pattern derives"
+            f" from {drift.entry.path} at {drift.latest_commit}"
+            f" ({drift.latest_date}): {drift.difference}"
+        )
+    if drift.has_no_tip:
+        return (
+            f"NO COMMIT: {drift.entry.heading} pinned to"
+            f" {drift.entry.commit}, and no commit on"
+            f" {_branch(drift.entry)} of {drift.entry.repo} touches"
+            f" {drift.entry.path}"
+        )
+    return (
+        f"BEHIND: {drift.entry.heading} pinned to {drift.entry.commit},"
+        f" latest commit touching it is {drift.latest_commit}"
+        f" ({drift.latest_date}), which may have deleted or renamed it"
+    )
 
 
 def main() -> int:
@@ -592,26 +807,16 @@ def main() -> int:
         )
         return 2
     ledger_path, title = Path(args[0]), args[1]
-    drifted, skipped = find_drift(ledger_path)
+    drifted, skipped, derived = find_drift(ledger_path)
     mismatches, byte_skipped, hashed, asked = find_mismatches(ledger_path)
     for drift in drifted:
-        if drift.has_no_tip:
-            print(
-                f"NO COMMIT: {drift.entry.heading} pinned to"
-                f" {drift.entry.commit}, and no commit on"
-                f" {_branch(drift.entry)} of {drift.entry.repo} touches"
-                f" {drift.entry.path}"
-            )
-            continue
-        print(
-            f"BEHIND: {drift.entry.heading} pinned to {drift.entry.commit},"
-            f" latest commit touching it is {drift.latest_commit}"
-            f" ({drift.latest_date}), which may have deleted or renamed it"
-        )
+        print(_drift_line(drift))
+    for heading, tip in derived:
+        print(f"DERIVED: {heading} is what its pattern derives at {tip}")
     for heading in skipped:
         print(f"SKIPPED: {heading}")
     if not drifted:
-        print("Every checked pin is still at upstream's tip.")
+        print("No checked pin has drifted from upstream's tip.")
     for heading in byte_skipped:
         print(f"SKIPPED: {heading}")
     for mismatch in mismatches:
