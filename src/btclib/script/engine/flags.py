@@ -29,10 +29,11 @@ bit.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from contextlib import suppress
 from enum import Flag
 
-from btclib.exceptions import BTClibValueError
-from btclib.utils import _has_type, _name_text, assert_type
+from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.utils import _has_type, _name_text, _type_name, assert_type
 
 __all__ = [
     "ALL_FLAGS",
@@ -123,7 +124,7 @@ ALL_FLAGS = (
 )
 
 # what the entry points accept: the bitmask itself, Core's comma-separated
-# spelling of it, or any iterable of names.
+# spelling of it, or an iterable of names, as `to_script_flags` reads one.
 # Union, not "|": this is an assignment, which Python evaluates whatever
 # the __future__ import above defers, and PEP 604 unions are a TypeError
 # until 3.10
@@ -134,12 +135,14 @@ def to_script_flags(flags: ScriptFlags | None) -> ScriptFlag:
     """Return the rules to enforce, from any of the spellings accepted.
 
     A `ScriptFlag` is returned as it is, a string is split on commas, and
-    anything else is taken as an iterable of names; an unknown name raises
-    rather than being skipped, which is the whole point of the enum.
+    an iterable, which is what `btclib.utils._has_type` takes for an
+    `Iterable`, is read as names; an unknown name raises rather than being
+    skipped, which is the whole point of the enum.
 
-    A value whose class has no `__iter__`, and a name that is not a str,
-    raise BTClibTypeError naming its type. A bytes is an iterable of
-    ints, so `b"P2SH"` is refused at its first name, an int.
+    Anything else, an iterable whose iteration raises a TypeError, and a
+    name that is not a str raise BTClibTypeError naming its type. A bytes
+    is an iterable of ints, so `b"P2SH"` is refused at its first name, an
+    int.
 
     `None` is `ALL_FLAGS`, the default set, while an empty string, an
     empty iterable and Core's `"NONE"` are `NO_FLAGS`, no rule at all.
@@ -152,11 +155,16 @@ def to_script_flags(flags: ScriptFlags | None) -> ScriptFlag:
     if _has_type(flags, ScriptFlag):
         return flags
 
+    names: list[str] | None = None
     if _has_type(flags, str):
         names = flags.split(",")
-    else:
-        assert_type(flags, Iterable, "script flags")
-        names = list(flags)
+    elif _has_type(flags, Iterable):
+        # a TypeError `list()` raises is refused as the type, for the
+        # reason `btclib.utils.bytes_from_octets` gives at its `tuple()`
+        with suppress(TypeError):
+            names = list(flags)
+    if names is None:
+        raise BTClibTypeError(f"invalid script flags type: {_type_name(flags)}")
     for name in names:
         assert_type(name, str, "script flag")
     # `""` is how Core's vectors spell an empty flag field and `"NONE"` is

@@ -57,10 +57,12 @@ from __future__ import annotations
 
 import string
 import sys
+from abc import ABCMeta
 from collections import deque
 from collections.abc import Iterable, Iterator, Mapping
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from decimal import Decimal
+from enum import EnumType
 from fractions import Fraction
 from io import BytesIO
 from numbers import Number
@@ -116,7 +118,7 @@ def _has_type(value: object, expected: object) -> bool: ...
 
 
 def _has_type(value: object, expected: Any) -> bool:
-    """Return whether a value's own class is `expected` or a subclass of it.
+    """Return whether a value's class counts as `expected`, by the rules below.
 
     `isinstance` reads the value's `__class__`, which an object can set
     to a class it is not: `unittest.mock.Mock(spec=bytes)` claims to be
@@ -125,13 +127,75 @@ def _has_type(value: object, expected: Any) -> bool:
     `issubclass` takes: one class, an abstract base class a class is
     registered with included, a union, or a tuple of them.
 
+    A class whose metaclass is none of `type`, `ABCMeta` and `EnumType`
+    is not handed to `issubclass`: against an abstract base class,
+    `issubclass` hashes the class and can read its `__mro__`, both
+    through its metaclass, which can answer anything there or raise an
+    error holding a key. Such a class is answered from the classes after
+    it in its MRO whose metaclass is one of the three, the MRO read
+    through `type`'s own descriptor, and each only where that MRO holds
+    every class of its own, which a metaclass's `mro()` can leave out;
+    so neither the class itself, nor
+    what it defines, nor an ancestor with another metaclass counts. Its
+    registration with `expected` counts only where its own metaclass,
+    which `issubclass` asks about each of those classes, answers True.
+    Against `Iterable`, it is then taken for one where
+    one of those classes defines a `__iter__` other than None, even where
+    the class, or a class between them, sets it to None: iterating it
+    raises a TypeError naming the class.
+
+    Such a class's test that raises an `Exception`, as one through a
+    class registered with an abstract base class whose metaclass raises,
+    answers False; any other `BaseException` is let out.
+
     Every type test btclib writes is asked through it. The `__eq__` that
     `@dataclass` generates, and the ordering `order=True` adds, are
     outside this rule: they compare `other.__class__ is self.__class__`,
     so they take an object claiming the class for an instance of it and
     read its fields (issue #3091).
     """
-    return issubclass(type(value), expected)
+    kind = type(value)
+    if _has_plain_metaclass(kind):
+        return issubclass(kind, expected)
+    # every Exception: against an abstract base class, `issubclass` asks
+    # each class registered with it, through that class's own metaclass,
+    # about the ancestor tested here in place of the class, `object`
+    # among them, and that metaclass can raise an error holding a key
+    mro = _TYPE_MRO.__get__(kind, type)
+    try:
+        return any(
+            issubclass(base, expected)
+            for base in mro[1:]
+            if _has_plain_metaclass(base) and _holds_mro_of(mro, base)
+        )
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _holds_mro_of(mro: tuple[type, ...], base: type) -> bool:
+    """Return whether an MRO holds every class of a base's own MRO.
+
+    A default MRO always does. A metaclass's own `mro()` can leave out a
+    class a base derives from, `bytes` say, and the methods of a class
+    left out refuse the value with an error naming its class. Compared
+    by identity: `in` would ask a class's metaclass for `==`.
+    """
+    held = {id(kind) for kind in mro}
+    return all(id(kind) in held for kind in _TYPE_MRO.__get__(base, type))
+
+
+# the descriptor `type` reads a class's MRO with, whatever its metaclass
+_TYPE_MRO = vars(type)["__mro__"]
+
+
+def _has_plain_metaclass(kind: type) -> bool:
+    """Return whether a class's metaclass is `type`, `ABCMeta` or `EnumType`.
+
+    Asked by identity: `in` would compare with `==`, which the
+    metaclass's own class can define.
+    """
+    meta = type(kind)
+    return meta is type or meta is ABCMeta or meta is EnumType
 
 
 def _assert_byte_shaped(octets: bytes | bytearray | memoryview) -> None:
@@ -193,9 +257,11 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     also what reads as octets everywhere the result goes: a `memoryview`
     has no `+` to concatenate with, and a `bytearray` keys no dict.
 
-    Optionally, it also ensures required output size: one size, or any
-    iterable of them, and a bool is neither -- `out_size=True` would
-    accept a single octet and say it had checked a size.
+    Optionally, it also ensures required output size: one size, or an
+    iterable of them, which is what `_has_type` takes for an `Iterable`
+    and `tuple()` iterates without a TypeError; a bool is neither --
+    `out_size=True` would accept a single octet and say it had checked a
+    size.
 
     A non-contiguous `memoryview` -- what a strided slice such as
     `mv[::2]` gives -- is refused rather than copied, and so is one whose
@@ -234,12 +300,18 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     # one size or an iterable of them, and nothing else: `tuple()` on
     # whatever is left would refuse a float with a bare TypeError about
     # iteration -- a complaint about the wrong thing, and from underneath
-    # the library rather than through its exception contract
+    # the library rather than through its exception contract. A TypeError
+    # `tuple()` raises is refused the same way: `_has_type` can take a
+    # class whose `__iter__` is None for an `Iterable`, and that error
+    # names the class. The refusal is raised after the `with`, so that
+    # error is neither its cause nor its context
+    sizes: tuple[int, ...] | None = None
     if _has_type(out_size, int):
-        sizes: tuple[int, ...] = (out_size,)
+        sizes = (out_size,)
     elif _has_type(out_size, Iterable):
-        sizes = tuple(out_size)
-    else:
+        with suppress(TypeError):
+            sizes = tuple(out_size)
+    if sizes is None:
         err_msg = f"invalid output size type: {_type_name(out_size)}"
         raise BTClibTypeError(err_msg)
 
@@ -908,12 +980,19 @@ def list_from_json_array(value: Any, what: str) -> list[Any]:
     the four `Octets` spellings named once rather than listed here, so a
     spelling `Octets` gains later is refused the same way (issue #1420);
     `Mapping` is refused beside it for a reason of its own and stays a
-    named check.
+    named check. A TypeError `list()` raises is refused as the type too:
+    a value that `_has_type` takes for an `Iterable` can still refuse to
+    be iterated, and its TypeError names its class.
     """
-    if is_octets(value) or _has_type(value, Mapping) or not _has_type(value, Iterable):
-        err_msg = f"invalid {what} type: {_type_name(value)}"
-        raise BTClibTypeError(err_msg)
-    return list(value)
+    if (
+        not is_octets(value)
+        and not _has_type(value, Mapping)
+        and _has_type(value, Iterable)
+    ):
+        with suppress(TypeError):
+            return list(value)
+    err_msg = f"invalid {what} type: {_type_name(value)}"
+    raise BTClibTypeError(err_msg)
 
 
 def int_from_bits(octets: Octets, nlen: int) -> int:
