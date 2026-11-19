@@ -17,6 +17,7 @@ from decimal import (
 )
 from fractions import Fraction
 from threading import Thread
+from typing import Any
 
 import pytest
 from typing_extensions import override
@@ -637,3 +638,81 @@ def test_an_int_is_bounded_through_int_s_own_comparison() -> None:
     for value in (_TOO_LONG_TO_WRITE, -_TOO_LONG_TO_WRITE, 21_000_001):
         with pytest.raises(BTClibValueError, match="invalid BTC amount: "):
             valid_btc_amount(_UncomparableInt(value))
+
+
+class _MisleadingFloat(float):
+    @override
+    def __int__(self) -> int:  # pragma: no cover -- must not be called
+        return 7
+
+    @override
+    def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
+        return False
+
+
+class _MisleadingDecimal(Decimal):
+    @override
+    def __int__(self) -> int:  # pragma: no cover -- must not be called
+        return 7
+
+    @override
+    def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
+        return False
+
+
+class _MisleadingFraction(Fraction):
+    @override
+    def __int__(
+        self, *_args: Any, **_kwargs: Any
+    ) -> int:  # pragma: no cover -- must not be called
+        return 7
+
+    @override
+    def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
+        return False
+
+
+class _MisleadingInt(int):
+    @override
+    def __int__(self) -> int:  # pragma: no cover -- must not be called
+        return 7
+
+    @override
+    def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
+        return False
+
+
+@pytest.mark.parametrize(
+    "value",
+    [_MisleadingFloat(1.5), _MisleadingDecimal("1.5"), _MisleadingFraction(3, 2)],
+    ids=["float", "decimal", "fraction"],
+)
+def test_a_numeric_subclass_s_own_methods_decide_no_fraction(value: Any) -> None:
+    """ISS 3148: 1.5 is refused, and not read as the 7 its `__int__` says."""
+    with pytest.raises(BTClibTypeError, match=r"^non-integer satoshi amount: "):
+        valid_sats_amount(value)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        _MisleadingFloat(5.0),
+        _MisleadingDecimal(5),
+        _MisleadingFraction(5),
+        _MisleadingInt(5),
+    ],
+    ids=["float", "decimal", "fraction", "int"],
+)
+def test_a_numeric_subclass_s_own_int_decides_no_amount(value: Any) -> None:
+    """ISS 3148: a whole subclass is read by its base type: 5, not 7."""
+    sats = valid_sats_amount(value)
+    assert sats == 5
+    assert type(sats) is int
+
+
+def test_a_fraction_with_a_zero_denominator_slot_is_refused_in_kind() -> None:
+    """A zero denominator, held only by a slot set by hand, is a value error."""
+    broken = Fraction(1)
+    vars(Fraction)["_denominator"].__set__(broken, 0)
+    with pytest.raises(BTClibValueError, match=r"^invalid satoshi amount: "):
+        valid_sats_amount(broken)
