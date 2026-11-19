@@ -232,21 +232,27 @@ def sats_from_btc(amount: Decimal) -> int:
 
 
 def _sats_from_text(amount: object, text: Any) -> tuple[int, bool]:
-    """Return `int(text)`, refusing what int() refuses as this library's error.
+    """Return the int `text` holds, and whether reading it dropped a fraction.
 
-    With it, whether that dropped a fraction. A float, Decimal, Fraction
-    or int subclass is read by its base type's own methods
-    (`_int_by_base_type`), so no method of the caller's class decides the
-    amount or the whole-number check (issue #3148).
+    A str is read by int() alone. Anything else is read by
+    `_int_by_base_type`, so a float, Decimal, Fraction or int subclass is
+    read by its base type's own methods, and no method of the caller's
+    class decides the amount or the whole-number check (issue #3148).
 
-    Raised after the except block, neither chained nor left as context:
-    int()'s ValueError quotes the text it could not read, and that may be
-    a key (section 7 of the organization's standard, *A refusal carries no
+    What either refuses is refused as this library's error, raised after
+    the except block, neither chained nor left as context: int()'s
+    ValueError quotes the text it could not read, and that may be a key
+    (section 7 of the organization's standard, *A refusal carries no
     secret*). The message describes `amount`, what the caller passed.
     """
     refusal: BTClibValueError | BTClibTypeError
     try:
-        return _int_by_base_type(text)
+        # a str is never compared. int() only parses a string that already
+        # spells a bare integer, so no fraction survives to be dropped. An
+        # int compares unequal to every str, so a comparison would refuse
+        # every numeric string. It would also call a str subclass's own
+        # `__ne__`
+        return (int(text), False) if _has_type(text, str) else _int_by_base_type(text)
     # a zero denominator only a Fraction slot written by hand holds
     except (ValueError, OverflowError, ZeroDivisionError):
         refusal = BTClibValueError(f"invalid satoshi amount: {_message_text(amount)}")
@@ -295,14 +301,9 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     sats, fractional = (0, False) if amount is None else _sats_from_text(amount, text)
     # `fractional`, the base type's sats != amount, is what catches the
     # truncation int() performs silently on a float or a Decimal fraction
-    # (int(2.5) == 2, so 2 != 2.5 fires); it cannot fire that way on a
-    # str, since int()
-    # only ever parses a string that already spells a bare integer, no
-    # fraction surviving to be truncated -- and an int compares unequal
-    # to every str regardless of value, which is what refused every
-    # numeric string despite the comment above admitting one. A str is
-    # exempted from the check rather than compared under it
-    if not _has_type(amount, str) and fractional:
+    # (int(2.5) == 2, so 2 != 2.5 fires). A str is exempted from the
+    # check rather than compared under it, as _sats_from_text says
+    if fractional:
         err_msg = f"non-integer satoshi amount: {_message_text(amount)}"
         raise BTClibTypeError(err_msg)
     if not dust <= sats <= _MAX_SATOSHI:

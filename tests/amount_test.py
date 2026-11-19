@@ -29,6 +29,7 @@ from btclib.amount import (
     valid_sats_amount,
 )
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from tests.secret_free import assert_secret_free
 
 
 def test_conversions() -> None:
@@ -642,44 +643,59 @@ def test_an_int_is_bounded_through_int_s_own_comparison() -> None:
 
 class _MisleadingFloat(float):
     @override
-    def __int__(self) -> int:  # pragma: no cover -- must not be called
+    def __int__(self) -> int:
         return 7
 
     @override
-    def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
+    def __ne__(self, other: object) -> bool:
         return False
 
 
 class _MisleadingDecimal(Decimal):
     @override
-    def __int__(self) -> int:  # pragma: no cover -- must not be called
+    def __int__(self) -> int:
         return 7
 
     @override
-    def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
+    def __ne__(self, other: object) -> bool:
         return False
 
 
 class _MisleadingFraction(Fraction):
     @override
-    def __int__(
-        self, *_args: Any, **_kwargs: Any
-    ) -> int:  # pragma: no cover -- must not be called
+    def __int__(self, *_args: Any, **_kwargs: Any) -> int:
         return 7
 
     @override
-    def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
+    def __ne__(self, other: object) -> bool:
         return False
 
 
 class _MisleadingInt(int):
     @override
-    def __int__(self) -> int:  # pragma: no cover -- must not be called
+    def __int__(self) -> int:
         return 7
 
     @override
-    def __ne__(self, other: object) -> bool:  # pragma: no cover -- no dispatch
+    def __ne__(self, other: object) -> bool:
         return False
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        _MisleadingFloat(1.5),
+        _MisleadingDecimal("1.5"),
+        _MisleadingFraction(3, 2),
+        _MisleadingInt(5),
+    ],
+    ids=["float", "decimal", "fraction", "int"],
+)
+def test_the_misleading_overrides_answer_what_they_claim(value: Any) -> None:
+    """The overrides are live: a read reaching them would take 7, whole."""
+    assert int(value) == 7
+    # `!=` answers as `==` does, which only the override makes it do
+    assert (value != 0) == (value == 0)
 
 
 @pytest.mark.parametrize(
@@ -716,3 +732,79 @@ def test_a_fraction_with_a_zero_denominator_slot_is_refused_in_kind() -> None:
     vars(Fraction)["_denominator"].__set__(broken, 0)
     with pytest.raises(BTClibValueError, match=r"^invalid satoshi amount: "):
         valid_sats_amount(broken)
+
+
+class _SelfStrippingText(str):
+    """A str whose own strip answers itself, and whose `!=` raises."""
+
+    __slots__ = ()
+
+    @override
+    def strip(self, chars: str | None = None) -> str:
+        return self
+
+    @override
+    def __ne__(self, other: object) -> bool:
+        raise TypeError
+
+
+def test_a_str_amount_is_never_compared_with_its_int() -> None:
+    """A str is read by int() alone, so its own `__ne__` decides nothing."""
+    text = _SelfStrippingText("5")
+    # the override is live, so a comparison reaching it would raise
+    with pytest.raises(TypeError):
+        _ = text != "5"
+    sats = valid_sats_amount(text)
+    assert sats == 5
+    assert type(sats) is int
+
+
+# a fixed random key, as `assert_secret_free` asks, and its spellings
+_KEY = bytes.fromhex("34176afd21468a89b42fd5f67a6e2f3f590b9f3eb2af51fce1c37d5447ebb678")
+_HEX = _KEY.hex()
+_NUMBER = int.from_bytes(_KEY, "big")
+_SECRETS: list[str | bytes] = [_KEY, _HEX, str(_NUMBER)]
+
+
+class _RaisingNe:
+    """No builtin number: int() reads its `__int__`, and its `!=` raises."""
+
+    def __init__(self, error: type[Exception]) -> None:
+        self.error = error
+
+    def __int__(self) -> int:
+        return 5
+
+    @override
+    def __ne__(self, other: object) -> bool:
+        raise self.error(_HEX)
+
+
+def _zero_denominator() -> Fraction:
+    """Return the key as a Fraction whose denominator slot is set to zero."""
+    broken = Fraction(_NUMBER)
+    vars(Fraction)["_denominator"].__set__(broken, 0)
+    return broken
+
+
+@pytest.mark.parametrize(
+    "value, refusal",
+    [
+        (_RaisingNe(TypeError), BTClibTypeError),
+        (_RaisingNe(ValueError), BTClibValueError),
+        (_zero_denominator(), BTClibValueError),
+    ],
+    ids=["ne TypeError", "ne ValueError", "zero denominator"],
+)
+def test_a_sats_amount_s_own_error_is_not_chained(
+    value: Any, refusal: type[Exception]
+) -> None:
+    """The error reading the amount raised is neither cause nor context."""
+    # reading the value raises, so the refusal below answers that error
+    with pytest.raises((TypeError, ValueError, ZeroDivisionError)):
+        _ = int(value) != value
+    with pytest.raises(refusal, match=r"satoshi amount: ") as e:
+        valid_sats_amount(value)
+    assert e.value.__cause__ is None
+    assert e.value.__context__ is None
+    assert_secret_free(e.value, _SECRETS)
