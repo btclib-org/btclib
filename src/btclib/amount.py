@@ -250,8 +250,7 @@ def _sats_from_text(amount: object, text: Any) -> tuple[int, bool]:
         # a str is never compared. int() only parses a string that already
         # spells a bare integer, so no fraction survives to be dropped. An
         # int compares unequal to every str, so a comparison would refuse
-        # every numeric string. It would also call a str subclass's own
-        # `__ne__`
+        # every numeric string
         return (int(text), False) if _has_type(text, str) else _int_by_base_type(text)
     # a zero denominator only a Fraction slot written by hand holds
     except (ValueError, OverflowError, ZeroDivisionError):
