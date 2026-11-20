@@ -802,6 +802,35 @@ def _fraction_term(value: Fraction, slot: Any) -> int:
     return int.__add__(held, 0)
 
 
+def _int_by_base_type(number: Any) -> tuple[int, bool]:
+    """Return a number's int, and whether that dropped a fraction.
+
+    An int is read through `int.__add__`, a float and a Decimal through
+    the base type's own `__int__` and `__eq__`, and a Fraction through the
+    ints its slots hold, so that no method of a subclass decides the
+    number or the check. Anything else has no base type to read it by:
+    its own `int` and `!=` decide. Raises what those raise, and a
+    ZeroDivisionError for a zero denominator only a slot written by hand
+    holds.
+    """
+    if _has_type(number, int):
+        return int.__add__(number, 0), False
+    if _has_type(number, float):
+        result = float.__int__(number)
+        return result, not float.__eq__(number, result)
+    if _has_type(number, Decimal):
+        result = Decimal.__int__(number)
+        return result, not Decimal.__eq__(number, result)
+    if _has_type(number, Fraction):
+        numerator, denominator = (
+            _fraction_term(number, slot) for slot in _FRACTION_SLOTS
+        )
+        result, remainder = divmod(numerator, denominator)
+        return result, remainder != 0
+    result = int(number)
+    return result, result != number
+
+
 def int_from_json_number(value: Any, what: str) -> int:
     """Return the int of a whole number out of json, a bool not being one.
 
@@ -842,8 +871,6 @@ def int_from_json_number(value: Any, what: str) -> int:
     # `Number` declares no `__int__`, so the check above narrows past what
     # `int` and `!=` accept; the value is read back as the Any it came in as
     number: Any = value
-    if _has_type(number, int):
-        return int.__add__(number, 0)
     # a complex is a Number `int` cannot convert, and neither error is
     # btclib's as it stands: `except ValueError` is what a caller of a
     # json reader writes, and OverflowError, out of `inf`, is not even one.
@@ -853,23 +880,7 @@ def int_from_json_number(value: Any, what: str) -> int:
     refusal: BTClibTypeError | BTClibValueError
     fractional: bool
     try:
-        if _has_type(number, float):
-            result = float.__int__(number)
-            fractional = not float.__eq__(number, result)
-        elif _has_type(number, Decimal):
-            result = Decimal.__int__(number)
-            fractional = not Decimal.__eq__(number, result)
-        elif _has_type(number, Fraction):
-            numerator, denominator = (
-                _fraction_term(number, slot) for slot in _FRACTION_SLOTS
-            )
-            result, remainder = divmod(numerator, denominator)
-            fractional = remainder != 0
-        else:
-            # another Number has no base type to read it by: its own `int`
-            # and `!=` decide
-            result = int(number)
-            fractional = result != number
+        result, fractional = _int_by_base_type(number)
     except TypeError:
         refusal = BTClibTypeError(f"invalid {what} type: {_type_name(value)}")
     # a zero denominator only a slot written by hand holds
