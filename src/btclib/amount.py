@@ -191,6 +191,10 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
     if not _has_type(dust, Decimal):
         err_msg = f"non-Decimal BTC dust threshold: {_message_text(dust)}"  # type: ignore[unreachable]
         raise BTClibTypeError(err_msg)
+    # a plain Decimal, so no method of the threshold's class decides the
+    # range check (issue #3162). Decimal(dust) copies the value; adding
+    # zero would round it and refuse a signalling NaN
+    dust = Decimal(dust)
     # a threshold is an amount, and bounding it is what bounds the range
     # below to amounts _CONTEXT holds exactly: a negative one would admit
     # a negative amount of any magnitude. is_finite goes first, a NaN
@@ -281,6 +285,9 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     if not is_integer(dust):
         err_msg = f"non-integer satoshi dust threshold: {_message_text(dust)}"
         raise BTClibTypeError(err_msg)
+    # a plain int, so no method of the threshold's class decides the
+    # range check (issue #3162)
+    dust = int.__add__(dust, 0)
     # bounded as valid_btc_amount bounds its own, so that the two keep one
     # contract; the message quotes no value, an int past 4300 digits
     # being one str() refuses

@@ -523,6 +523,76 @@ def test_a_dust_threshold_at_either_end_is_an_amount() -> None:
     assert valid_sats_amount(2_100_000_000_000_000, dust=2_100_000_000_000_000) > 0
 
 
+class _LyingInt(int):
+    @override
+    def __le__(self, other: object) -> bool:
+        return True
+
+    @override
+    def __ge__(self, other: object) -> bool:
+        return True
+
+
+class _LyingDecimal(Decimal):
+    @override
+    def __le__(self, other: object) -> bool:
+        return True
+
+    @override
+    def __ge__(self, other: object) -> bool:
+        return True
+
+    @override
+    def is_finite(self) -> bool:
+        return True
+
+
+def test_the_lying_dust_overrides_answer_what_they_claim() -> None:
+    """The overrides are live: a bound reaching them would admit -5."""
+    assert _LyingInt(0) <= -5
+    assert _LyingInt(-1) >= 0
+    assert _LyingDecimal(0) <= Decimal(-5)
+    assert _LyingDecimal(-1) >= 0
+    assert _LyingDecimal("NaN").is_finite()
+
+
+def test_a_dust_subclass_s_own_comparison_decides_no_range() -> None:
+    """ISS 3162: a lying threshold does not let a negative amount through."""
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
+        valid_sats_amount(-5, dust=_LyingInt(0))
+    with pytest.raises(BTClibValueError, match="invalid BTC amount"):
+        valid_btc_amount("-5", dust=_LyingDecimal(0))
+    sats = valid_sats_amount(5, dust=_LyingInt(0))
+    assert sats == 5
+    assert type(sats) is int
+    btc = valid_btc_amount("5", dust=_LyingDecimal(0))
+    assert btc == 5
+    assert type(btc) is Decimal
+
+
+@pytest.mark.parametrize("dust", [_LyingInt(-1), _LyingInt(2_100_000_000_000_001)])
+def test_a_lying_sats_dust_threshold_is_still_an_amount(dust: int) -> None:
+    """A threshold out of range is refused, even if its comparisons lie."""
+    with pytest.raises(BTClibValueError, match="invalid satoshi dust threshold$"):
+        valid_sats_amount(5, dust=dust)
+
+
+@pytest.mark.parametrize(
+    "dust",
+    [
+        _LyingDecimal("-1"),
+        _LyingDecimal("21000000.00000001"),
+        _LyingDecimal("NaN"),
+        _LyingDecimal("sNaN"),
+        _LyingDecimal("Infinity"),
+    ],
+)
+def test_a_lying_btc_dust_threshold_is_still_an_amount(dust: Decimal) -> None:
+    """A threshold out of range is refused, even if its comparisons lie."""
+    with pytest.raises(BTClibValueError, match="invalid BTC dust threshold"):
+        valid_btc_amount("1", dust=dust)
+
+
 # an int str() refuses to write, past 4300 digits (issue #2389)
 _TOO_LONG_TO_WRITE = 10**5000
 
