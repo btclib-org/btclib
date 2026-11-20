@@ -71,6 +71,7 @@ from tests import (
     vector_id,
 )
 from tests.script import serialize_non_canonical
+from tests.secret_free import assert_secret_free
 
 # the modular square root the lift of an x takes, where ecc's
 # group law calls it: what the tests counting roots patch
@@ -818,28 +819,59 @@ def test_the_two_output_keys_are_one_tweak() -> None:
     )
 
 
-def test_a_non_empty_merkle_root_that_is_not_32_bytes_is_refused() -> None:
-    """A non-empty merkle root that is not 32 bytes is not a BIP341 root.
+# the x of the generator, whose private key is 1 and whose y is even
+_G_X = bytes.fromhex("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
+# a fixed random private key, as `assert_secret_free` asks
+_SECRET_KEY = 0xAF7301A2111475E34CA36029BA5EBFDF9734CD1FDA86D65BAFA5EA393D600DFB
 
-    ISS 3156: a 31-byte or 33-byte root used to be hashed into the tweak
-    as given, so a caller holding a malformed root got a wrong key.
-    An empty root stays key path only.
+
+def test_an_empty_or_32_byte_merkle_root_is_a_bip341_tweak() -> None:
+    """An empty root is key path only, and a 32-byte root a tree's hash.
+
+    The tweaks and the output keys are BIP341's, computed outside btclib
+    from its pseudocode. The private key of `_G_X` is 1, so its output
+    private key is the tweak plus 1.
     """
-    # BIP341's generator x, the same key the issue measured with
-    k = bytes.fromhex(
-        "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+    for root, tweak, output_key, parity in (
+        (
+            b"",
+            "3cf5216d476a5e637bf0da674e50ddf55c403270dd36494dfcca438132fa30e7",
+            "da4710964f7852695de2da025290e24af6d8c281de5a0b902b7135fd9fd74d21",
+            1,
+        ),
+        (
+            b"\x01" * 32,
+            "0cc17605863b68a5f4ddf819e9561ae1a3d50fae16c11391d692288ddd94617b",
+            "d934aeb99deecc5659b3c05c9ad4053dc265fa16eb66b4b28598d15566ba4b27",
+            0,
+        ),
+    ):
+        assert tap_tweak(_G_X, root).hex() == tweak
+        assert output_pubkey_from_merkle_root_var(_G_X, root) == (
+            bytes.fromhex(output_key),
+            parity,
+        )
+        assert output_prvkey_from_merkle_root(1, root) == int(tweak, 16) + 1
+
+
+@pytest.mark.parametrize("size", [1, 31, 33, 64])
+def test_a_merkle_root_neither_empty_nor_32_bytes_is_refused(size: int) -> None:
+    """Every taproot tweak refuses a root of any other size.
+
+    BIP341 has no such root, so it is refused rather than hashed into a
+    key no tree gives. The refusal names the size and no key.
+    """
+    root = b"\x01" * size
+    err_msg = rf"^invalid size: {size} bytes instead of \(0, 32\)$"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        tap_tweak(_G_X, root)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        output_pubkey_from_merkle_root_var(_G_X, root)
+    with pytest.raises(BTClibValueError, match=err_msg) as refusal:
+        output_prvkey_from_merkle_root(_SECRET_KEY, root)
+    assert_secret_free(
+        refusal.value, [str(_SECRET_KEY), _SECRET_KEY.to_bytes(32, "big")]
     )
-    empty = output_pubkey_from_merkle_root_var(k, b"")
-    assert empty == output_pubkey_from_merkle_root_var(k)
-    key, parity = output_pubkey_from_merkle_root_var(k, b"\x01" * 32)
-    assert len(key) == 32
-    assert parity in (0, 1)
-    for n in (31, 33):
-        with pytest.raises(
-            BTClibValueError,
-            match=rf"^invalid size: {n} bytes instead of \(0, 32\)$",
-        ):
-            output_pubkey_from_merkle_root_var(k, b"\x01" * n)
 
 
 def test_the_two_output_prvkeys_are_one_tweak() -> None:
