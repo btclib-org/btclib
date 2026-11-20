@@ -818,6 +818,30 @@ def test_the_two_output_keys_are_one_tweak() -> None:
     )
 
 
+def test_a_non_empty_merkle_root_that_is_not_32_bytes_is_refused() -> None:
+    """A non-empty merkle root that is not 32 bytes is not a BIP341 root.
+
+    ISS 3156: a 31-byte or 33-byte root used to be hashed into the tweak
+    as given, so a caller holding a malformed root got a wrong key.
+    An empty root stays key path only.
+    """
+    # BIP341's generator x, the same key the issue measured with
+    k = bytes.fromhex(
+        "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+    )
+    empty = output_pubkey_from_merkle_root_var(k, b"")
+    assert empty == output_pubkey_from_merkle_root_var(k)
+    key, parity = output_pubkey_from_merkle_root_var(k, b"\x01" * 32)
+    assert len(key) == 32
+    assert parity in (0, 1)
+    for n in (31, 33):
+        with pytest.raises(
+            BTClibValueError,
+            match=rf"^invalid size: {n} bytes instead of \(0, 32\)$",
+        ):
+            output_pubkey_from_merkle_root_var(k, b"\x01" * n)
+
+
 def test_the_two_output_prvkeys_are_one_tweak() -> None:
     """A tree and its own merkle root tweak a private key the same way.
 

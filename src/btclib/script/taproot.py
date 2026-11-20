@@ -497,7 +497,8 @@ def output_pubkey_from_merkle_root_var(
 
     The internal key is x-only and 32 bytes, which is what BIP341 tweaks
     and what the psbt field holds; `output_pubkey` takes a `PubKeyData`,
-    which is the whole key and not only the x BIP341 tweaks.
+    which is the whole key and not only the x BIP341 tweaks. A non-empty
+    merkle root must be 32 bytes; anything else is refused (issue #3156).
     """
     internal_pubkey = bytes_from_octets(internal_pubkey, 32)
     # 02 and not 03: x-only octets are all this caller has, and BIP341's
@@ -508,7 +509,8 @@ def output_pubkey_from_merkle_root_var(
         # settles both itself: the size is checked on the way in and the
         # prefix is the one supplied on the line below
         PubKeyData(b"\x02" + internal_pubkey, check_validity=False),
-        bytes_from_octets(merkle_root),
+        # empty is key path only; any other root is BIP341's 32-byte hash
+        bytes_from_octets(merkle_root, (0, 32)),
     )
 
 
