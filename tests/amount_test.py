@@ -808,3 +808,11 @@ def test_a_sats_amount_s_own_error_is_not_chained(
     assert e.value.__cause__ is None
     assert e.value.__context__ is None
     assert_secret_free(e.value, _SECRETS)
+
+
+@pytest.mark.parametrize("text", [_HEX, str(_NUMBER)], ids=["hex", "decimal"])
+def test_a_refused_str_sats_amount_carries_no_secret(text: str) -> None:
+    """A key's hex or decimal passed as a str is refused without quoting it."""
+    with pytest.raises(BTClibValueError, match=r"invalid satoshi amount: ") as e:
+        valid_sats_amount(text)
+    assert_secret_free(e.value, _SECRETS)
