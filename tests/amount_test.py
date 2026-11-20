@@ -532,6 +532,10 @@ class _LyingInt(int):
     def __ge__(self, other: object) -> bool:
         return True
 
+    @override
+    def __int__(self) -> int:
+        return 0
+
 
 class _LyingDecimal(Decimal):
     @override
@@ -546,14 +550,20 @@ class _LyingDecimal(Decimal):
     def is_finite(self) -> bool:
         return True
 
+    @override
+    def __str__(self) -> str:
+        return "0"
+
 
 def test_the_lying_dust_overrides_answer_what_they_claim() -> None:
-    """The overrides are live: a bound reaching them would admit -5."""
+    """The overrides are live: a check reaching one admits less than dust."""
     assert _LyingInt(0) <= -5
     assert _LyingInt(-1) >= 0
+    assert int(_LyingInt(5)) == 0
     assert _LyingDecimal(0) <= Decimal(-5)
     assert _LyingDecimal(-1) >= 0
     assert _LyingDecimal("NaN").is_finite()
+    assert str(_LyingDecimal(5)) == "0"
 
 
 def test_a_dust_subclass_s_own_comparison_decides_no_range() -> None:
@@ -562,6 +572,10 @@ def test_a_dust_subclass_s_own_comparison_decides_no_range() -> None:
         valid_sats_amount(-5, dust=_LyingInt(0))
     with pytest.raises(BTClibValueError, match="invalid BTC amount"):
         valid_btc_amount("-5", dust=_LyingDecimal(0))
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
+        valid_sats_amount(5, dust=_LyingInt(10))
+    with pytest.raises(BTClibValueError, match="invalid BTC amount"):
+        valid_btc_amount("5", dust=_LyingDecimal(10))
     sats = valid_sats_amount(5, dust=_LyingInt(0))
     assert sats == 5
     assert type(sats) is int
