@@ -157,7 +157,7 @@ the tag exercises the first.
 1. On GitHub, Actions → release → Run workflow, and pick the branch to
    rehearse (usually `main`). A release with any public-API finding is
    rehearsed from the release pull request's branch, after its notes are
-   written: before, `public-api` reads the previous release's section and
+   assembled: before, `public-api` reads the previous release's section and
    fails.
 
 1. The workflow publishes under the name `test_dist` holds, and appends
@@ -238,10 +238,10 @@ gh api -X POST \
 
 **A release is a tag on `main`, and everything below that edits a file
 does so on a branch of its own.** Nothing is pushed to `main` directly,
-this release included: the steps that write the release's sections and
+this release included: the steps that assemble the release's sections and
 set the version are one pull request, the one that sets the next cycle's
-version is another, and the tag names the commit the first of them left
-behind.
+version is another, and the tag names the tip of `main` once the merge
+step below finds it in order.
 
 `deps-latest` is worth dispatching before the tag rather than waiting for
 its cron, because what it answers is cheaper to know before a version is
@@ -390,31 +390,72 @@ request, next to `deps-latest`'s own result.
    every job that matters is green, which is why the step after the approval
    below reads the run job by job rather than as a whole.
 
-1. Name in RELEASE_NOTES.md every change to the release's assets or to how they
-   are verified — a file name, a signer, a `--source-ref` — in the release that
+1. Name in an entry every change to the release's assets or to how they are
+   verified — a file name, a signer, a `--source-ref` — in the release that
    first ships it. A script that downloads or verifies a release by the old
    value fails, and the notes are what tell its user the new one
    (btclib-org/.github#1596).
 
-1. Write the release's sections in the release pull request, above the
-   previous release's, as section 12 of the organization's standard
-   says: `## v<version>` in `CHANGELOG.md`, from the squash subjects
-   since the previous tag, grouped and shortened,
+1. Assemble the release's sections in the release pull request, as
+   section 9 of the organization's standard says: btclib-org/.github's
+   `changelog_entries.py` writes `## v<version>` and the entries under
+   `changelog/next/` above the previous release's section of
+   `CHANGELOG.md` and of `RELEASE_NOTES.md`, and removes the entries. The
+   version is the one the next step sets, the date the release is cut:
 
    ```shell
-   git log "${tag:?}"..HEAD --format=%s
+   version=<the version being released>
    ```
 
-   and in `RELEASE_NOTES.md`, what a user has to act
-   on. The heading must be the version alone and the section must not be
-   empty: `release.yml` checks both before anything is built, because PyPI
-   never accepts a version's file names twice, even once the release is
-   deleted. No other pull request writes either file, and nothing opens
-   the next cycle's section.
+   ```shell
+   entries=$(mktemp -d) &&
+   ref=$(grep -oE 'reusable-changelog-entry\.yml@[0-9a-f]{40}' \
+       .github/workflows/changelog-entry.yml | cut -d@ -f2) &&
+   scripts=repos/btclib-org/.github/contents/.github/scripts &&
+   gh api -X GET -H 'Accept: application/vnd.github.raw' -f "ref=${ref:?}" \
+       "${scripts:?}/changelog_entries.py" \
+       > "${entries:?}/changelog_entries.py" &&
+   gh api -X GET -H 'Accept: application/vnd.github.raw' -f "ref=${ref:?}" \
+       "${scripts:?}/check_changelog.py" > "${entries:?}/check_changelog.py" &&
+   uv run --no-project --python 3.15 \
+       "${entries:?}/changelog_entries.py" assemble "${version:?}"
+   ```
 
-   A `(work in progress, not released yet)` section, where one remains,
-   is folded into the release's section by its pull request, which
-   deletes the heading.
+   The assembly runs on a commit: it refuses a tree where `git status`
+   shows a history file or anything under `changelog/next/` changed,
+   staged or untracked, or an entry ignored, and a tree that is no git
+   checkout.
+
+   The scripts are the ones at the commit `changelog-entry.yml` pins, the ones
+   that checked each entry on its pull request: the first runs the second's
+   checks on the section, from its own directory. Each is written to a file
+   before it runs for the reason the public API step gives. The assembly refuses
+   an empty `changelog/next/`: nothing changed for a user, and there is no
+   release. Where a step of it fails, it puts back what it changed. A run killed
+   before it finishes leaves a `.changelog-assembly-*` directory, and the next
+   run refuses and prints the `git restore` that takes the history files and the
+   entries back to the commit, which loses nothing since they were committed.
+   The same entries give the same bytes, so the release's reviewer runs the same
+   commands on the base and compares the history files with the pull request's.
+   No prose is written here, and the release's pull request edits or adds no
+   entry: an entry found wrong is fixed in its file, and a public API finding or
+   a change of the release's assets that no entry names gets its entry, in a
+   pull request of its own that lands before the release branch is cut. So the
+   base holds every entry, and the reviewer's run on it gives the pull request's
+   bytes.
+
+   `release.yml` checks that the heading is the version alone and that
+   the section is not empty before anything is built, because PyPI never
+   accepts a version's file names twice, even once the release is
+   deleted. No other pull request writes either file but the one moving
+   an entry left in `changelog/next/`, as the merge step says, and nothing
+   opens the next cycle's section.
+
+   The assembly folds no `(work in progress, not released yet)` section
+   into the release's: it refuses a history file that holds such a
+   heading. Remove the heading and move what its section holds into
+   `changelog/next/` as entries, in a pull request of its own that lands
+   before the release branch is cut.
 
 1. Set the version in `pyproject.toml`, which is the one place it is
    declared, to the date the release is cut, `YYYY.M.D`, and re-lock so
@@ -438,11 +479,10 @@ request, next to `deps-latest`'s own result.
 
    **If `main` moves while the gates run, throw the branch away and redo
    these edits on top of it — never rebase it, and never merge `main` into
-   it.** A rebase over a change that wrote to CHANGELOG.md or
-   RELEASE_NOTES.md near this release's edits stops on a conflict there, and
-   deleting the markers at git's default conflict style drops a line both
-   sides share. Reset onto the new tip, then redo the sections, the version
-   and `uv lock`, and gate again:
+   it.** A rebase brings in the entries that landed meanwhile and leaves
+   them unassembled, and the sections no longer are what the script makes
+   of the new base. Reset onto the new tip, then assemble again, set the
+   version and run `uv lock`, and gate again:
 
    ```shell
    tip=$(git rev-parse HEAD) &&
@@ -450,9 +490,9 @@ request, next to `deps-latest`'s own result.
    git reset --hard origin/main
    ```
 
-   The sections are written again from `git log` of the new tip, and the
-   version is a few lines. Where the branch is already pushed, the redone
-   one goes up with a lease on `tip`, the head reviewed before the fetch:
+   The sections are assembled again from the new tip, and the version is a
+   few lines. Where the branch is already pushed, the redone one goes up
+   with a lease on `tip`, the head reviewed before the fetch:
 
    ```shell
    git push origin HEAD \
@@ -474,7 +514,7 @@ request, next to `deps-latest`'s own result.
    cannot say has to be written, and what a reader should not have to
    discover at the button belongs there too.
 
-   The section of RELEASE_NOTES.md written above is what that body is
+   The section of RELEASE_NOTES.md assembled above is what that body is
    written from. The public API step's result belongs in the body too, a
    line rather than a screenshot — it is a step nothing else enforces, and a
    pull request that never mentions it reads exactly like one that skipped
@@ -489,17 +529,20 @@ request, next to `deps-latest`'s own result.
    ```
 
    ```shell
-   gh pr edit "${pr:?}" --add-label release-hold
+   gh pr edit "${pr:?}" --repo "btclib-org/${repo:?}" \
+     --add-label release-hold
    ```
 
    While an open or merged pull request carries the label, nobody merges
-   another pull request into `main` here. A red `main`'s repair is the
-   exception: it goes first, as `CONTRIBUTING.md`'s *Landing it* says. A
-   release pull request waits while a merged pull request carries the
-   label, and otherwise only while a lower-numbered open one does, so that
-   releases go out oldest first instead of each waiting on the others. On
-   a pull request closed without merging, the label holds nothing: that
-   release never reached `main`.
+   another pull request into `main` here. A red `main`'s repair is an
+   exception: it goes first, as `CONTRIBUTING.md`'s *Landing it* says. So
+   is a pull request that moves an entry left in `changelog/next/` into
+   the release's section, as the merge step below says. A release pull
+   request waits while a merged pull request carries the label, and
+   otherwise only while a lower-numbered open one does, so that releases
+   go out oldest first instead of each waiting on the others. On a pull
+   request closed without merging, the label holds nothing: that release
+   never reached `main`.
 
    A pull request can merge between the version step and the label. So
    once the label is on, fetch, and check that `origin/main` is still the
@@ -527,7 +570,8 @@ request, next to `deps-latest`'s own result.
    release, or once the release is abandoned and its pull request closed:
 
    ```shell
-   gh pr edit "${pr:?}" --remove-label release-hold
+   gh pr edit "${pr:?}" --repo "btclib-org/${repo:?}" \
+     --remove-label release-hold
    ```
 
    A label left behind on a merged release already published still holds
@@ -570,18 +614,25 @@ request, next to `deps-latest`'s own result.
    Split for the reason the tagging step gives.
 
    ```shell
-   gh pr view "${pr:?}" --json state,mergeCommit \
-     --jq '{state, merged_as: .mergeCommit.oid}'
+   gh pr view "${pr:?}" --repo "btclib-org/${repo:?}" \
+     --json state,mergeCommit --jq '{state, merged_as: .mergeCommit.oid}'
    ```
 
    `MERGED` is what it reads, its `Closes #N` closes the issue, and
    GitHub deletes the release branch itself.
 
-   Then read `lint` and `test` on the commit `main` ends up at before
-   tagging, rather than trust the pull request's own green run:
+   Then fetch, and read the tip of `main`, the commit the tag names:
 
    ```shell
-   gh run list --commit "$(git rev-parse origin/main)"
+   sha=$(git fetch origin && git rev-parse origin/main)
+   ```
+
+   Where the fetch fails, `sha` is empty, and each `${sha:?}` below stops,
+   whatever `sha` held before. Read `lint` and `test` on the tip, rather
+   than trust the pull request's own green run:
+
+   ```shell
+   gh run list --repo "btclib-org/${repo:?}" --commit "${sha:?}"
    ```
 
    a squash creates a commit that is not the one the pull request tested,
@@ -590,25 +641,45 @@ request, next to `deps-latest`'s own result.
    moment earlier. That trigger is the whole reason `main` keeps one, and
    the run to read is the `push` run on `main`.
 
+   Check that `changelog/next/` holds no entry there. This prints each
+   entry left, and nothing where none is:
+
+   ```shell
+   git ls-tree --full-tree --name-only "${sha:?}" -- changelog/next/ |
+     grep '\.md$'
+   ```
+
+   An entry is left where a pull request landed just before the release
+   merged. A small pull request then moves it into the section just
+   assembled, under the same version, and the tag waits for it. A red
+   `main`'s repair that lands after the release merged is under the tag
+   the same way. Each moves `main`, so the fetch and the reads above run
+   again on the new tip, and the tag names the tip they find green and
+   holding no entry.
+
 1. Rehearse on TestPyPI (see above) from `main`, if this cycle touched the
    publish path — that section says which changes make it worth the run,
    and asks that a skip be stated in the release pull request rather than
    left to be inferred.
 
-1. Tag the release commit on `main` and push the tag. **Name the
-   commit**, and read the tag back before pushing it. The values stand
-   in a fence of their own with nothing under them to reach, and the
-   fence below writes each as `${name:?}` and chains. Both are needed:
-   `:?` fails at run time, which the chain propagates, where a parse
-   error takes its own `&&` with it. Section 9 of the organization's
-   standard is the rule.
+1. Tag the tip of `main` and push the tag. **Name the commit**, and read
+   the tag back before pushing it. The values stand in a fence of their
+   own with nothing under them to reach, and the fence below writes each
+   as `${name:?}` and chains. Both are needed: `:?` fails at run time,
+   which the chain propagates, where a parse error takes its own `&&` with
+   it. Section 9 of the organization's standard is the rule.
 
    ```shell
    version=<the version being released>
-   sha=<the sha of the release commit>
+   sha=<the tip of main the merge step found in order>
    ```
 
    ```shell
+   git fetch origin &&
+   { [ "$(git rev-parse origin/main)" = "${sha:?}" ] || {
+     echo "origin/main is not ${sha:?}, the commit the merge step read" >&2
+     false
+   }; } &&
    git tag -s "v${version:?}" -m "release v${version:?}" "${sha:?}" &&
    git show "v${version:?}:pyproject.toml" |
      grep -Fx "version = \"${version:?}\"" &&
@@ -623,6 +694,10 @@ request, next to `deps-latest`'s own result.
    with nothing uploaded, which is the guard doing its job; the `git show`
    above is the same check one step earlier, where it costs nothing, and
    the chain is what makes the push wait on it.
+
+   The fetch and the comparison stop the chain before the tag where `main`
+   has moved since the merge step read it, and the comparison says so:
+   that step's reads then run again on the new tip.
 
    `version-check` reads the version with `uv version --short`, which
    reads a project directory and so needs the tag checked out. `grep -Fx`

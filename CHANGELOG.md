@@ -11,15 +11,17 @@
   }
 -->
 
-Every change of a release, in full: what changed, why, and what it cost.
-The release notes, which say what a user has to *act* on, are in
-[RELEASE_NOTES.md](./RELEASE_NOTES.md); this file is the record behind
-them.
+What changed in each release.
 
-A release's own pull request writes the release's section, from the squash
-subjects since the previous tag, and no other pull request adds an entry
-(sections 9 and 12 of the
-[organization's standard](https://github.com/btclib-org/.github)).
+A release's own pull request assembles its section here, and the same
+section in [RELEASE_NOTES.md](./RELEASE_NOTES.md), whose section the
+GitHub release shows, from the entries under `changelog/next/`, which
+each pull request that changes what a user gets adds as a file of its
+own (sections 9 and 12 of the
+[organization's standard](https://github.com/btclib-org/.github)). The
+sections up to v2026.11.14 are written by hand: each lists every change
+of its release, and RELEASE_NOTES.md's says only what a user has to
+*act* on.
 
 Only v2026.8.7 and what follows it are recorded in the changelog at all.
 The releases before it were documented at release-notes length in the

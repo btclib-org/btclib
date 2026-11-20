@@ -11,10 +11,13 @@
   }
 -->
 
-What a user has to *act* on, and nothing else: a breaking change, a
-migration, a default that moved under them. Everything a reader would
-merely notice is in [CHANGELOG.md](./CHANGELOG.md), which is the record
-behind this file.
+What changed for a user in each release, in the section its pull request
+assembles from the entries under `changelog/next/`, the same section
+[CHANGELOG.md](./CHANGELOG.md) takes; a GitHub release shows it. The
+sections up to v2026.11.14 are written by hand and say only what a user has
+to *act* on: a breaking change, a migration, a default that moved under
+them. Everything else of those from v2026.8.7 on is in CHANGELOG.md and the
+files under `changelog/` it lists.
 
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)

@@ -1,0 +1,4 @@
+{
+  "extends": "../../.markdownlint.jsonc",
+  "MD041": { "level": 3 },
+}

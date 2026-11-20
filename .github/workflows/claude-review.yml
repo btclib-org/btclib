@@ -4,11 +4,11 @@ name: claude-review
 # The job below calls btclib-org/.github's reusable-claude-review.yml
 # (issue btclib-org/.github#35), which now holds the checkout, the
 # credential guard, the prompt, the action pin and the verdict check for
-# both of its own jobs, `review` and `mention`. A `uses:` job invokes the
-# whole called workflow, so this one calling job already reaches both of
-# them, and each declines the events that are not its own -- `review` on
-# anything but a pull request, `mention` on anything but a comment
-# carrying @claude. This file keeps only what a calling job may carry:
+# its own jobs. A `uses:` job invokes the whole called workflow, so this
+# one calling job already reaches every one of them, and each declines
+# the events that are not its own -- the review and its reactions answer
+# a pull request, `mention` a comment carrying @claude. This file keeps
+# only what a calling job may carry:
 # the trigger, the workflow-level permissions and concurrency, and, on
 # the job, `secrets`, `permissions` and `cache-mode` -- `runs-on`,
 # `steps`, `env` and `timeout-minutes` are the callee's now, and so is
@@ -25,13 +25,15 @@ name: claude-review
 # inside the callee's own jobs; section 11's *Review* is where what it
 # does is stated rather than here a second time.
 #
-# It is one more job on every pull request, which is not free: the
+# It is a review job on each pull request it reviews, plus short jobs
+# that set its reactions, of which the one clearing a new head's
+# reactions runs on a draft too. That is not free: the
 # concurrency ceiling belongs to the organization, shared across every
 # repository in it, and REPOSITORY.md measures what a commit at that
-# ceiling costs in wall clock. It earns the slot by being short -- it
-# reads a diff, it does not build a matrix -- and by skipping a draft,
-# the callee's own condition now, as test.yml's own jobs do on their
-# own account.
+# ceiling costs in wall clock. The review earns its slot by being short
+# -- it reads a diff, it does not build a matrix -- and by skipping a
+# draft, the callee's own condition, as test.yml's own jobs do on their
+# own account; the reaction jobs only call the API.
 
 on:
   pull_request:
@@ -95,15 +97,15 @@ jobs:
     # restated here because a called workflow's own `permissions:` can
     # only downgrade what the caller granted, never restore an omitted
     # scope -- btclib-org/.github#912 is where that is measured, and
-    # the callee's own header states the triple its two jobs need:
-    # `pull-requests: write` for posting the review or the reply,
+    # the callee's own header states the triple its jobs need:
+    # `pull-requests: write` for the review, its reactions or the reply,
     # `id-token: write` for the OIDC token the action mints during its
     # own startup
     permissions:
       contents: read
-      pull-requests: write # posting the review, and the reply to a mention
+      pull-requests: write # the review, its reactions, the reply to a mention
       id-token: write # the OIDC token the action mints at its own startup
-    uses: btclib-org/.github/.github/workflows/reusable-claude-review.yml@cb5a79443399980ba717df2dea23dbedf6bdbc3a # v2026.11.12
+    uses: btclib-org/.github/.github/workflows/reusable-claude-review.yml@a96ab77e0b59880c6412f62da26d3f62dfc31e0c # v2026.11.20
     # the callee has no cache step, and this job runs from an
     # issue_comment trigger, so it is given no cache access: the linter's
     # cache-call-unrestricted check asks a call to name its limit
