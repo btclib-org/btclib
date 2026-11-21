@@ -19,17 +19,15 @@ being one, and `typos` offers to correct it again.
 Issue #1302 is where that happened: a `CHANGELOG.md` draft quoted a
 literal triple-backtick fence marker inside a single-backtick span,
 five backticks on one line, and two of the file's own already-quoted
-misspellings, both untouched and lines away, started failing.
-`.pre-commit-config.yaml` had the same defect independently:
-`local-link-prefix`'s lookbehind matched one raw backtick byte in a
-character class, the only backtick in the file outside a matched pair,
-and writing it `\x60` instead is what turned the file's count back to
-even. Regex cannot assert "an even count" on its own -- `regex::Regex`,
+misspellings, both untouched and lines away, started failing. Regex
+cannot assert "an even count" on its own -- `regex::Regex`,
 the crate `typos` compiles `extend-ignore-re` with, has no counting or
 backreferences -- so the correction is in the files this reads, once,
 rather than in that pattern.
 """
 
+import fnmatch
+import os
 import tomllib
 from pathlib import Path
 
@@ -40,15 +38,43 @@ _ROOT = Path(__file__).parents[1]
 _PYPROJECT = tomllib.loads((_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
 
-def _verbatim_files() -> tuple[Path, ...]:
-    """Return the paths `[tool.typos.type.verbatim]`'s `extend-glob` names."""
+def _named(pattern: str) -> list[Path]:
+    """Return the files under the root whose name `pattern` matches.
+
+    typos matches a type's glob against a file's name alone. A directory
+    whose name starts with a dot is not walked: none holds what the glob
+    is for, and `.venv` holds files of every name.
+    """
+    found: list[Path] = []
+    for top, dirs, files in os.walk(_ROOT):
+        dirs[:] = [d for d in dirs if not d.startswith(".")]
+        found.extend(
+            Path(top) / name for name in files if fnmatch.fnmatchcase(name, pattern)
+        )
+    return sorted(found)
+
+
+def _verbatim_names() -> list[str]:
+    """Return `[tool.typos.type.verbatim]`'s `extend-glob`, as written."""
     table = _PYPROJECT.get("tool", {}).get("typos", {}).get("type", {})
     names = table.get("verbatim", {}).get("extend-glob")
     assert isinstance(names, list), (
         "pyproject.toml's [tool.typos.type.verbatim] table or its"
         " extend-glob key was not found"
     )
-    return tuple(_ROOT / name for name in names)
+    return names
+
+
+def _verbatim_files() -> tuple[Path, ...]:
+    """Return the paths `[tool.typos.type.verbatim]`'s `extend-glob` names.
+
+    A name with a glob character is every file of that name; any other
+    name is a path from the root.
+    """
+    paths: list[Path] = []
+    for name in _verbatim_names():
+        paths.extend(_named(name) if any(c in name for c in "*?[") else [_ROOT / name])
+    return tuple(paths)
 
 
 def test_the_section_was_found() -> None:
@@ -60,12 +86,27 @@ def test_the_section_was_found() -> None:
     assert _verbatim_files(), "[tool.typos.type.verbatim]'s extend-glob names no file"
 
 
+def test_the_section_reaches_every_changelog_entry() -> None:
+    """Each entry under `changelog/next/` is among the files it names.
+
+    An entry quotes what it is about as a release's section does, and
+    typos with `--write-changes` would otherwise rewrite the quotation.
+    The first assertion still checks something when `changelog/next/`
+    holds no entry, where the second would check nothing.
+    """
+    assert any(fnmatch.fnmatchcase("pr1-iss2.md", n) for n in _verbatim_names()), (
+        "[tool.typos.type.verbatim] matches no entry name such as pr1-iss2.md"
+    )
+    entries = set((_ROOT / "changelog" / "next").glob("*.md"))
+    assert entries <= set(_verbatim_files()), (
+        f"[tool.typos.type.verbatim] does not reach {sorted(entries)}"
+    )
+
+
 def test_every_verbatim_file_has_an_even_backtick_count() -> None:
     r"""A raw backtick left unpaired desyncs every pairing after it.
 
-    Not a claim that every backtick in these files delimits a code span
-    -- `.pre-commit-config.yaml` quotes one as a regex character, escaped
-    as `\\x60` rather than written literally for exactly this reason --
+    Not a claim that every backtick in these files delimits a code span,
     only that the total stays a multiple of two, which is what keeps
     `find_iter`'s left-to-right pairing from drifting past where a human
     reader would still see two matched code spans.

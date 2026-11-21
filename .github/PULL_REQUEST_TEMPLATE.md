@@ -1,3 +1,8 @@
+<!-- Sign off every commit: `git commit -s` adds the `Signed-off-by:`
+     trailer, and only you can add it to your commits. CONTRIBUTING.md's
+     *Pull requests* says what it certifies and how to add it to commits
+     already made. -->
+
 <!-- markdownlint-disable-next-line first-line-heading -->
 ## What this changes
 

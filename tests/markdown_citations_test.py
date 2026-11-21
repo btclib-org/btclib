@@ -87,7 +87,7 @@ destination from a url and from a fragment standing alone. A backticked span
 is taken out of the text before a target is read, run of backticks against
 run of backticks, so that prose can quote the shape of a link rather than
 write one: `CHANGELOG.md` illustrates a badge as `[![alt](./src)](./href)`,
-and the same distinction is the lookbehind that hook carries; a run
+and that hook reads no link inside a code span either; a run
 of backticks left unpaired takes what follows it into the span, which is
 the shape `_anchors` has where an opening fence marker is not told from a
 closing one. `git ls-files` answers for files, so a target naming a

@@ -163,6 +163,16 @@ repos:
         language: pygrep
         entry: '^(?: *# hold:| *rev: "?([^\s"]+)"? +# hold:(?! \1 .*\bissue [^\s#]*#[0-9]))'
         files: ^\.pre-commit-config\.yaml$
+  # section 4's leading-dash-path is the rule, and says why each key of
+  # the stanza is what it is
+  - repo: local
+    hooks:
+      - id: leading-dash-path
+        name: a path does not begin with a dash
+        language: fail
+        entry: "a hook reads a path beginning with - as its own option: rename it"
+        files: ^-
+        types: []
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
@@ -409,7 +419,7 @@ repos:
   # ahead of markdownlint-cli2 below on purpose: that hook's `--fix`
   # repairs the very seam this hook exists to name (btclib-org/.github#1293)
   - repo: https://github.com/btclib-org/.github
-    rev: f88870c9246bf313eb7f200c358b49b0938d89a3  # frozen: v2026.11.14
+    rev: be094615529fe484b2f6b635cb38dd5f0068fd93  # frozen: v2026.11.20
     hooks:
       - id: check-changelog
         args: [--grandfathered, "23"]
@@ -468,72 +478,28 @@ repos:
   # left in this tree's own CI checks the built artifact for a broken
   # one, `-W` above being the whole of what still does.
   #
-  # The first branch steps over a nested image, and it has to: a badge is
-  # "[![alt](src)](href)", and link text written "[^]]*" stops at the "]"
-  # that closes the alt text -- so a scan anchored on it checks the image
-  # src and never reaches the badge's own destination. That was this
-  # hook's first shape, and it left every badge href unchecked; the link
-  # text is now "(?:[^]]|\]\([^)]*\))*", a character that is not "]" or a
-  # whole "](...)" group, which steps over the image and, by
-  # backtracking, still checks the src on the way. Measured: a badge href
-  # renders exactly what a plain href renders, so every row of the table
-  # above can be written as a badge destination and only the "./" one is
-  # caught downstream.
-  #
-  # pygrep, and the same hook in every repository of this organization
-  # (btclib-org/.github#20): there is no shared hook repository to put
-  # it in, and `pinned-rev` above is that arrangement already. The
-  # pattern asks for a whole `[text](destination)`, so grep output of the
-  # form `FILE.md:21:](x.md)` carries no "[" and is not matched. The
-  # lookbehind refuses a "[" preceded by a backtick, which is what lets
-  # prose quote the refused shape in a code span -- and one preceded by
-  # "!" or "[" as well, so that a *quoted* badge is escaped whole rather
-  # than re-entered at the image inside it. The leading "!?" is what
-  # keeps a standalone image's own src checked despite that.
-  #
-  # A reference definition is a link too, and the second branch is for
-  # it: "[label]: page.md" renders the same fallback as the inline form
-  # -- measured on the built html -- and carries no "(", so the first
-  # branch cannot see it. That branch is anchored at the start of the
-  # line, which is what keeps it off a *use* site: "[label][ref]: the"
-  # is prose in a sibling repository's changelog, and an unanchored
-  # pattern reported it. At most three leading spaces, four making the
-  # line an indented code block rather than a definition.
-  #
-  # What pygrep cannot see is a fenced block, being line based -- an
-  # example of the refused shape inside one fails this hook, and the
-  # code span is the way round it
+  # Section 4 of the organization's standard says what the script reads
+  # and what it cannot see, and why each tree runs its own copy, which
+  # section 14 lists. The pin is the standard's, the version its test
+  # group pins, and moves with the ports of the standard: `autoupdate`
+  # does not reach a local hook
   - repo: local
     hooks:
       - id: local-link-prefix
         name: a local markdown link destination begins with ./ or ../
-        language: pygrep
-        # one line, and no literal space in it -- "\x20" is the space the
-        # reference branch allows -- so yamllint reads the value as a
-        # single unbreakable word, which its line-length rule exempts. A
-        # block scalar rather than a quoted one for the same reason a
-        # folded scalar was rejected: folding joins lines with a space,
-        # which would land inside the regex.
-        # The lookbehind's backtick is "\x60" for the same reason its
-        # space is "\x20": a lone backtick here makes this file's own
-        # total an odd number, and [tool.typos.type.verbatim] in
-        # pyproject.toml pairs this file's backticks two at a time across
-        # the whole thing to protect the misspellings it quotes -- an odd
-        # total leaves one of those quotations unpaired with whatever
-        # backtick follows it (issue #1302)
-        entry: |-
-          (?<![\x60!\[])(?:!?\[(?:[^]]|\]\([^)]*\))*\]\(|^\x20{0,3}\[[^]]+\]:\s*)(?!\.\.?/|#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]
+        entry: python .github/scripts/check_link_destinations.py --prefixed --
+        language: python
+        additional_dependencies: [markdown-it-py==4.3.0]
         types: [markdown]
         exclude: ^README\.md$
       # the root README.md is the package's page on the index, where a
       # relative link reaches nothing: section 2 of the organization's
-      # standard is the rule. The pattern above with "./" and "../" no
-      # longer admitted, its backtick "\x60" for the reason given there
+      # standard is the rule
       - id: readme-absolute-link
         name: the root README.md links a file of the tree absolutely
-        language: pygrep
-        entry: |-
-          (?<![\x60!\[])(?:!?\[(?:[^]]|\]\([^)]*\))*\]\(|^\x20{0,3}\[[^]]+\]:\s*)(?!#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]
+        entry: python .github/scripts/check_link_destinations.py --absolute --
+        language: python
+        additional_dependencies: [markdown-it-py==4.3.0]
         files: ^README\.md$
         types: [markdown]
       # a line that ends inside a word, at that word's own hyphen.
@@ -561,8 +527,11 @@ repos:
       # around its `=`, so a line carrying one is another language's
       # value; and a quote inside a quote of the other kind is a nested
       # program's -- both read off one line, which is also where the
-      # three blind spots come from. Same `\x20` as above, and the same
-      # reason.
+      # three blind spots come from. The value is one line with no
+      # literal space in it, `\x20` being the space, so that yamllint
+      # reads it as a single unbreakable word, which its line-length rule
+      # exempts; and a block scalar, since a folded one joins its lines
+      # with a space, which would land inside the regex.
       # `CHANGELOG.md` and `RELEASE_NOTES.md` are out of reach because
       # nothing already written in either is rewritten: a refused shape
       # in an entry that has landed has no repair, and there would be no
@@ -571,11 +540,12 @@ repos:
       # written; and check-useless-excludes asks the pattern to match
       # some file the hook selects rather than each name in it, which is
       # what lets a tree with no release notes carry the same line.
-      # `changelog/` is that same reach over the releases CHANGELOG.md's
-      # window has moved past, where the file is the entry rather than
-      # holding it: each is sealed by its own tag and compared against it
-      # by tests/changelog_immutability_test.py, so rewriting a refused
-      # shape there is itself the drift that comparison reports --
+      # `changelog/v` is that same reach over the archived releases
+      # CHANGELOG.md's window has moved past, where the file is the
+      # section rather than holding it: each is sealed by its own tag and
+      # compared against it by tests/changelog_immutability_test.py, so
+      # rewriting a refused shape there is itself the drift that
+      # comparison reports --
       # `changelog/v2026.8.27.md` carries one, a `"<summary>"` in a
       # `gh pr review` command
       - id: unquoted-placeholder
@@ -584,7 +554,7 @@ repos:
         entry: |-
           ^(?![\x20\t]*[A-Za-z_][A-Za-z0-9_.-]*[\x20\t]+=[\x20\t])(?:(?:[^"'\n]|'[^'\n]*')*"<[^<>"'`\n]*>"|(?:[^"'\n]|"[^"\n]*")*'<[^<>"'`\n]*>')
         types: [markdown]
-        exclude: ^(CHANGELOG|RELEASE_NOTES)\.md$|^changelog/
+        exclude: ^(CHANGELOG|RELEASE_NOTES)\.md$|^changelog/v
   # what ruff-format is for Python, on the structured files ruff does not
   # read: yaml, and the jsonc that carries a comment. Before yamllint below,
   # so the linter judges the formatted file and not the one that was typed.
@@ -602,7 +572,7 @@ repos:
   # under tests is golden-file output and vendored vectors, which
   # pretty-format-json above and tests/_data/README.md have the say over;
   # .secrets.baseline is detect-secrets' own output. What is in scope is the
-  # yaml but the gate itself, `.vscode` and .markdownlint.jsonc, and
+  # yaml but the gate itself, `.vscode` and each .markdownlint.jsonc, and
   # prettier is also what parses the last two -- check-json cannot read a
   # comment
   - repo: https://github.com/rbubley/mirrors-prettier
@@ -610,7 +580,7 @@ repos:
     hooks:
       - id: prettier
         name: prettier (yaml and jsonc, in place fixes)
-        files: ^(.*\.ya?ml|\.vscode/.*\.json|\.markdownlint\.jsonc)$
+        files: ^(.*\.ya?ml|\.vscode/.*\.json|(changelog/next/)?\.markdownlint\.jsonc)$
         # not the gate itself: section 4 of the organization's standard says why
         exclude: ^\.pre-commit-config\.yaml$
   # the same for toml, which here is pyproject.toml and the mutation
@@ -828,7 +798,7 @@ repos:
       # section 4 of the standard, its bare-sourcery-skip bullet, is the
       # rule. pygrep reads bytes, so \s and \w are ASCII there and \W
       # takes in a non-breaking space; a block scalar with no literal
-      # space, as local-link-prefix's, for the same reason
+      # space, as unquoted-placeholder's, for the same reason
       - id: bare-sourcery-skip
         name: a sourcery skip names rules, and no tag
         language: pygrep

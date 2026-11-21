@@ -357,10 +357,16 @@ another document holds the rule, the question names it.
   `git log`'s and the changelog's. The finding asks for the history to
   go, not to be shortened.
 - Does the branch add an entry to `CHANGELOG.md` or `RELEASE_NOTES.md`?
-  Outside a release's own pull request that is a blocking finding (section 9).
-  `check-changelog` refuses a new entry in `CHANGELOG.md` and reads nothing
-  of a bullet added under an entry the base holds. It reads no other file, so
-  a new entry in `RELEASE_NOTES.md` is the reviewer's to catch.
+  Outside a release's own pull request, and the one that moves an entry left
+  in `changelog/next/` into its section, that is a blocking finding
+  (section 9). `check-changelog` refuses any other new entry in
+  `CHANGELOG.md` and reads nothing of a bullet added under an entry the base
+  holds. It reads no other file, so a new entry in `RELEASE_NOTES.md` is the
+  reviewer's to catch.
+- In a tree that publishes, does a branch that changes what a user gets add
+  its entry under `changelog/next/`, and does the entry say what changed, in
+  the shape section 9 gives it? It lands as written: the release assembles it
+  and writes nothing.
 - Does a new refusal, repr, log line or `assert` message **print a value
   that may be secret**? Section 7's *A refusal carries no secret* has the
   rule and the test it asks for.
@@ -384,6 +390,24 @@ another document holds the rule, the question names it.
 - Can the author **answer the review without the model**?
   `CONTRIBUTING.md`'s *Working with an LLM* says what becomes of a
   contribution its author cannot explain.
+- Does the pull request **gain the project something**, go in a
+  reasonable direction, read against the organization's
+  [`ROADMAP.md`](https://github.com/btclib-org/.github/blob/main/ROADMAP.md)
+  and this repository's own documents, its `README.md` and, where it has
+  one, its `ARCHITECTURE.md` among them, and fit btclib-org? These three
+  are asked of a pull request that closes no issue holding their answers.
+  An issue holds them where the assessment that
+  `reusable-claude-implement.yml` of btclib-org/.github posts on it
+  answers the three, or where the maintainer's decision on them is
+  recorded on it. A port of the standard, a release and a dependency
+  update are not asked, since what each carries was decided elsewhere. A
+  no or a doubt is a question for the maintainer, not for the author, put
+  in the summary as a bullet of its own. It does not hold the ack, is
+  never ground for a `NACK`, closes nothing, and leaves the rest of the
+  review as for any other pull request. The three answers are the
+  maintainer's to give: a doubt that held the ack or grounded a `NACK`
+  would let the reviewer decide the project's direction, and turn away a
+  contribution the maintainer may welcome.
 
 **What this tree checks beyond these is the last section of this file**,
 which is that repository's own. A repository whose last section names
@@ -447,9 +471,10 @@ refuse writes the line.
 
 **After the verdict line the summary is short**: the blocking and the
 non-blocking findings, one bullet each, saying where, what is wrong and
-how it is known. No nit, no finding outside this pull request, no other
-account of what the diff does or of what was checked, beyond whose gate
-run a reviewer other than the bot relies on.
+how it is known, and any question for the maintainer that *What every
+review here also checks* asks. No nit, no finding outside this pull
+request, no other account of what the diff does or of what was checked,
+beyond whose gate run a reviewer other than the bot relies on.
 **In a verdict**, `CHANGES REQUESTED` with no blocking finding is a
 contradiction: either the finding is blocking or the ack is due. In a
 reading neither is owed, the reading having declined to say. A `NACK`

@@ -36,6 +36,8 @@ An issue labelled `good first issue` is one set aside for a first
 contribution: small and self-contained.
 [One search][good-first] lists the open ones across the organization, so
 a newcomer need not know in advance which repository to look in.
+*Pull requests* says who holds one, and what becomes of it when a pull
+request citing it is closed.
 
 ## Documentation and comments
 
@@ -84,7 +86,9 @@ words, one fact per sentence. On the forge, the title and the first
 sentence carry the point; a body is at most two short paragraphs before
 any code block or template section; a comment is about 250 words, and
 never more than 300, with no list and no heading; a review's summary
-takes the shape `REVIEWING.md`'s *The verdict* gives it.
+takes the shape `REVIEWING.md`'s *The verdict* gives it, and a pull
+request's findings record takes the shape `ai-agents-process`'s
+[*The findings record*][p-findings] gives it.
 
 ## Pull requests
 
@@ -102,6 +106,36 @@ refuses: *Landing it* says why `--admin` waits for no required check.
 The check's failure prints the command that adds the trailer. [The
 standard's *Signatures*][s-sigs] says why a signature does not replace
 it, and which commits the `Sign-off` job skips.
+
+**A pull request with a commit the `Sign-off` check refuses seven days
+after it was asked for the trailer is closed.** The week runs from the
+first request to sign off on the pull request, a comment that asks for
+the trailer and warns of the closing, not from the opening. The closing
+comment says how the pull request comes back: comment on it asking for a
+reopen, and once a maintainer has reopened it, add the trailers as the
+check's failure says for each author, and force-push. The comment comes
+first because GitHub does not reopen a pull request whose branch was
+force-pushed while it was closed. A reopened pull request is not closed
+for its sign-off before seven days after its last reopen. A new pull
+request that passes the check is as good. An issue is held by its
+assignees. The closed pull request's author is unassigned from each
+issue it cites. Where that leaves an issue with no assignee, of the open
+pull requests that cite it, pass the `Sign-off` check and have an author
+GitHub can assign, the author of the first to pass the check is assigned
+to it. Where there is none, the issue stays unassigned and open to every
+contributor. [GitHub assigns][gh-assign] a contributor who has no write
+access and is not a member of the organization only to an issue they
+have commented on, so comment on the issue your pull request is for. A
+pull request whose author cannot be assigned does not hold the issue,
+even where it passed the check first, and its author commenting later
+does not displace the assignee.
+
+Counting from the opening was set aside: a contributor who never saw the
+check fail would have had no chance to fix it. Left open, a pull request
+nobody can land would keep its issue from every other contributor with
+no end, so it is closed, and it can come back. Once back, it still meets
+the closing condition, so without the week from its last reopen it could
+be closed again before its author pushes the trailers.
 
 What a pull request's title and description have to say about the issues
 it closes, and why a manual link in the Development panel is a trap
@@ -127,12 +161,25 @@ is being written, and a tree's own landed subjects are not what to copy
 it from: nothing already landed is rewritten, so what a repository wrote
 before the rule stays where it is.
 
+**A batch of ports of the standard is the exception**: its subject cites
+no issue, and its description cites the issues it advances, as
+`ai-agents-process`'s [*Ports of the standard*][p-ports] says, and
+[the standard's *What a pull request says it is*][s-title] says why.
+
 `REVIEWING.md` is the standard a review is written against, and is this
 file's other half. Read before opening a pull request, it is what the
 pull request will be answered against.
 
 A pull request adds no entry to `CHANGELOG.md` or `RELEASE_NOTES.md`, a
-release's own pull request excepted ([section 9][s9], [section 12][s12]).
+release's own pull request excepted, and the one that moves an entry left
+in `changelog/next/` into that release's section. In a tree that
+publishes, one that changes what a user gets adds its entry as a file
+under `changelog/next/` instead, which the release assembles
+([section 9][s9], [section 12][s12]).
+The file is named for the pull request's number and the issues its text
+cites, `pr<N>-iss<Y>.md`. Write the number you expect the pull request to
+get; where it gets another, rename the file in a second commit, to the
+name the `changelog-entry` check prints.
 
 ### One subject, opened as soon as it is written
 
@@ -259,8 +306,8 @@ merge waits until both answer.
 
 The check and the merge are two calls, and none of the [rules a GitHub
 ruleset offers][rulesets] reads a label, so a label put on between them
-does not stop the merge. Until the release merges, its own check that
-`main` has not moved catches such a merge, as *Release to PyPI* says.
+does not stop the merge. The release catches such a merge before its
+tag, as *Release to PyPI* says.
 
 **Where the repository has a bypass, the maintainer may land without
 that approval, through it**: [`GOVERNANCE.md`][governance]'s *How a
@@ -319,9 +366,12 @@ settings and why they are what they are.
 [s-branch]: https://github.com/btclib-org/.github#branch-protection-and-rulesets
 [dco]: https://developercertificate.org/
 [rulesets]: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets
+[gh-assign]: https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/assigning-issues-and-pull-requests-to-other-github-users
 [governance]: https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md
 [roadmap]: https://github.com/btclib-org/.github/blob/main/ROADMAP.md
 [good-first]: https://github.com/search?q=org%3Abtclib-org+label%3A%22good+first+issue%22+is%3Aopen&type=issues
+[p-ports]: https://github.com/btclib-org/ai-agents-process/blob/main/skills/btclib-iss/SKILL.md#ports-of-the-standard
+[p-findings]: https://github.com/btclib-org/ai-agents-process/blob/main/process/btclib-common.md
 
 ## This repository in particular
 
@@ -705,6 +755,8 @@ commit, which is then made again.
 | `release-diff` | pull request on `src/` | the last release |
 | `api-break` | pull request | the pull request's base |
 | `sourcery` | pull request | — |
+| `changelog-entry` | pull request | — |
+| `sign-off-comment` | a `lint` run completing | — |
 | `release` | a tag | the workflows `release.yml` names in a `uses:` |
 
 That last cell is a pointer rather than a list on purpose: which
@@ -772,12 +824,13 @@ move the platform; `deps-latest` moves both. Red in one of the three with
 in the table also takes `workflow_dispatch`, the gates included: a branch whose
 pull request is not open yet has no other way to ask, and for the three platform
 workflows it is the only way to ask about a branch at all. `claude-review`,
-`sourcery` and `scorecard` are the exceptions, and take none: `claude-review`'s
-job calls a workflow whose two jobs each read the pull request or the comment
-that triggered them, so a manual dispatch would start a run with nothing to
-read; `sourcery`'s reason is its own header's; `scorecard`'s triggers are
-`ossf/scorecard-action`'s own, whose README names push and schedule as supported
-and calls `workflow_dispatch` experimental.
+`sourcery`, `changelog-entry`, `sign-off-comment` and `scorecard` are the
+exceptions, and take none: `claude-review`'s job calls a workflow whose jobs each
+read the pull request or the comment that triggered them, so a manual dispatch
+would start a run with nothing to read; the reason of `sourcery`,
+`changelog-entry` and `sign-off-comment` is each one's own header's;
+`scorecard`'s triggers are `ossf/scorecard-action`'s own, whose README names
+push and schedule as supported and calls `workflow_dispatch` experimental.
 
 ### Reproducing what CI runs
 
@@ -1298,10 +1351,10 @@ The grep is a second defense rather than the only one: `conf.py`'s
 and a myst-parser upgrade could stop warning unconditionally the way the
 pinned one does.
 
-Unlike three other repositories of the organization,
-`.pre-commit-config.yaml`'s `local-link-prefix` hook here accepts a
-`../`-prefixed destination as well as a `./`-prefixed one, so a link may
-still begin either way. The grep above matches `#../` as well as `#./`,
+`.pre-commit-config.yaml`'s `local-link-prefix` hook accepts a
+`../`-prefixed destination as well as a `./`-prefixed one, as section 4 of
+the organization's standard has it in every tree, so a link may still
+begin either way. The grep above matches `#../` as well as `#./`,
 the way this tree's own step did before it moved to `reusable-docs.yml`:
 a broken `../` link already fails `-W` on its own, through
 `docs/source/conf.py`'s `RootFileLinks` (issue #1562), and the grep is
@@ -1364,10 +1417,11 @@ release is where a break is reported rather than a reason not to make it.
 
 So a census that finds thirty names of one shape and six of another has
 found six to change, not a trade-off to price. What the measurement is
-for is knowing the blast radius and writing RELEASE_NOTES.md's
-breaking-changes entry, which is how a user is told: read
-[RELEASE_NOTES.md](./RELEASE_NOTES.md) for what that entry looks like,
-and note that `v2026.8.7`'s list is long on purpose.
+for is knowing the blast radius and writing the change's entry under
+`changelog/next/`, which the release assembles into
+[RELEASE_NOTES.md](./RELEASE_NOTES.md) and which is how a user is told:
+read that file's breaking changes for what such an entry says, and note
+that `v2026.8.7`'s list is long on purpose.
 
 The one thing this does not license is a break nobody can act on. An
 entry says the old spelling, the new one, and what a caller does about

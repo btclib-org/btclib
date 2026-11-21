@@ -54,12 +54,12 @@ jobs:
     permissions:
       # a called workflow's own permissions: block can only downgrade
       # what this job grants, never restore an omitted scope -- measured
-      # twice in btclib-org/.github#912 -- so both scopes the callee's
-      # own job asks for are named here
+      # twice in btclib-org/.github#912 -- so both scopes any of the
+      # callee's jobs asks for are named here
       contents: read
       attestations: read # the attestations API, which gh attestation verify reads
     # sdist-builder, submodules and setup-python all take their
     # defaults -- "uv", "" and false -- which is exactly what this file
     # built before this conversion: `uv build --sdist`, no submodules and
     # no setup-python step
-    uses: btclib-org/.github/.github/workflows/reusable-sdist-rebuild.yml@cb5a79443399980ba717df2dea23dbedf6bdbc3a # v2026.11.12
+    uses: btclib-org/.github/.github/workflows/reusable-sdist-rebuild.yml@a96ab77e0b59880c6412f62da26d3f62dfc31e0c # v2026.11.20
