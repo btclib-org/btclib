@@ -258,6 +258,61 @@ def test_a_sats_amount_string_refuses_digit_grouping_underscores() -> None:
         valid_sats_amount("1_000_000")
 
 
+# a fixed random key, as `assert_secret_free` asks, and its spellings
+_KEY = bytes.fromhex("34176afd21468a89b42fd5f67a6e2f3f590b9f3eb2af51fce1c37d5447ebb678")
+_HEX = _KEY.hex()
+_NUMBER = int.from_bytes(_KEY, "big")
+_SECRETS: list[str | bytes] = [_KEY, _HEX, str(_NUMBER)]
+
+
+class _SevenText(str):
+    """A str whose own strip returns itself and whose str and int are seven."""
+
+    __slots__ = ()
+
+    @override
+    def strip(self, chars: str | None = None) -> str:
+        return self
+
+    @override
+    def __str__(self) -> str:
+        return "7"
+
+    def __int__(self) -> int:
+        return 7
+
+
+class _KeyStripping(str):
+    """A str whose own strip raises an error holding a key's hex."""
+
+    __slots__ = ()
+
+    @override
+    def strip(self, chars: str | None = None) -> str:
+        raise ValueError(_HEX)
+
+
+def test_a_sats_amount_str_subclass_is_read_as_a_plain_str() -> None:
+    """No method of a str subclass decides the satoshi amount (issue #3160).
+
+    The overrides do answer, so a read reaching them would too.
+    """
+    assert int(_SevenText("1.5").strip()) == 7
+    assert str(_SevenText("1")) == "7"
+    with pytest.raises(ValueError, match=_HEX):
+        _KeyStripping("1").strip()
+
+    with pytest.raises(BTClibValueError, match=r"^invalid satoshi amount: "):
+        valid_sats_amount(_SevenText("1.5"))
+    for amount in (_SevenText("1"), _KeyStripping(" 1\n")):
+        sats = valid_sats_amount(amount)
+        assert sats == 1
+        assert type(sats) is int
+    with pytest.raises(BTClibValueError, match=r"^invalid satoshi amount: ") as err:
+        valid_sats_amount(_KeyStripping("1.5"))
+    assert_secret_free(err.value, [_HEX])
+
+
 @pytest.mark.parametrize("amount", [1.5, -1.5, Decimal("2.5"), Decimal("-2.5")])
 def test_a_fraction_of_a_satoshi_is_refused_at_either_sign(amount: object) -> None:
     """A negative fraction is refused as a non-integer, not as a range.
@@ -734,14 +789,10 @@ def test_a_fraction_with_a_zero_denominator_slot_is_refused_in_kind() -> None:
         valid_sats_amount(broken)
 
 
-class _SelfStrippingText(str):
-    """A str whose own strip answers itself, and whose `!=` raises."""
+class _UncomparableText(str):
+    """A str whose `!=` raises."""
 
     __slots__ = ()
-
-    @override
-    def strip(self, chars: str | None = None) -> str:
-        return self
 
     @override
     def __ne__(self, other: object) -> bool:
@@ -750,20 +801,13 @@ class _SelfStrippingText(str):
 
 def test_a_str_amount_is_never_compared_with_its_int() -> None:
     """A str is read by int() alone, so its own `__ne__` decides nothing."""
-    text = _SelfStrippingText("5")
+    text = _UncomparableText("5")
     # the override is live, so a comparison reaching it would raise
     with pytest.raises(TypeError):
         _ = text != "5"
     sats = valid_sats_amount(text)
     assert sats == 5
     assert type(sats) is int
-
-
-# a fixed random key, as `assert_secret_free` asks, and its spellings
-_KEY = bytes.fromhex("34176afd21468a89b42fd5f67a6e2f3f590b9f3eb2af51fce1c37d5447ebb678")
-_HEX = _KEY.hex()
-_NUMBER = int.from_bytes(_KEY, "big")
-_SECRETS: list[str | bytes] = [_KEY, _HEX, str(_NUMBER)]
 
 
 class _RaisingNe:
