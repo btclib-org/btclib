@@ -369,9 +369,11 @@ def _tap_tweak(pub_key: bytes, h: bytes) -> int:
 
     One function for every tweak, those that build an output, the one
     that checks a control block against it and the one tap_tweak
-    publishes, so that the rule below cannot hold in one of them and not
-    in another.
+    publishes, so that the rules below cannot hold in one of them and
+    not in another.
     """
+    # BIP341: h is a 32-byte merkle root, or empty for key path only
+    h = bytes_from_octets(h, (0, 32))
     t = int.from_bytes(tagged_hash(b"TapTweak", pub_key + h), "big")
     # BIP341: fail if t is not smaller than the group order
     if t >= secp256k1.n:
@@ -493,7 +495,10 @@ def output_pubkey_from_merkle_root_var(
     not the tree that produced it, an input naming the branch it spends
     by its leaf script and control block instead -- so a signer that
     takes the key path is told the root and nothing else about the tree.
-    An empty root is key path only, as an empty tree is.
+
+    An empty root is key path only, as a None tree is to `output_pubkey`.
+    A root of 32 bytes is the hash of a tree, BIP341's merkle root, and a
+    root of any other size is refused.
 
     The internal key is x-only and 32 bytes, which is what BIP341 tweaks
     and what the psbt field holds; `output_pubkey` takes a `PubKeyData`,
@@ -553,6 +558,8 @@ def output_prvkey_from_merkle_root(prv_key: Integer, merkle_root: Octets = b"") 
     taproot key path spend holds the internal private key and this
     field, never the script tree that produced the root, a psbt naming
     a script path by its leaf and control block instead.
+
+    The root is the one output_pubkey_from_merkle_root_var takes.
     """
     return _tweaked_prvkey(scalar_from_prv_key(prv_key), bytes_from_octets(merkle_root))
 
