@@ -424,7 +424,7 @@ repos:
       - id: check-changelog
         args: [--grandfathered, "23"]
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.24.1
+    rev: v0.24.2
     hooks:
       # --fix: corrects in place, like every other fixing hook here
       - id: markdownlint-cli2
@@ -714,7 +714,7 @@ repos:
     # self-repository flags a reusable-workflow or composite-action
     # reference that reads `uses: ./...` and recommends `uses: $/...`,
     # which release.yml spells; the actionlint above parses it
-    rev: v1.32.0
+    rev: v1.33.1
     hooks:
       - id: zizmor
         # offline is what it does by default, said out loud: it warns about
@@ -736,7 +736,7 @@ repos:
   # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
   # pyupgrade, and yesqa
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.5
+    rev: v0.17.6
     hooks:
       - id: ruff-check
         name: ruff check (in place fixes)
@@ -836,7 +836,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.13.8
+    rev: 0.13.9
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock
