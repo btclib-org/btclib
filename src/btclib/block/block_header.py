@@ -95,7 +95,10 @@ def _timestamp_of(time: datetime) -> int:
         return int(time.timestamp())
     except (OSError, OverflowError, ValueError):
         pass
-    raise BTClibValueError(f"invalid timestamp: {time}")
+    # written as str() writes a plain datetime, through datetime's own
+    # isoformat: str(), format() and datetime.__str__ all call a
+    # subclass's own isoformat, whose text can be a key (issue #3143)
+    raise BTClibValueError(f"invalid timestamp: {datetime.isoformat(time, ' ')}")
 
 
 def _time_from_isoformat(time: Any) -> datetime:

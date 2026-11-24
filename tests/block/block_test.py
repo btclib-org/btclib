@@ -20,6 +20,7 @@ from pathlib import Path
 
 import pytest
 from hypothesis import given
+from typing_extensions import override
 
 from btclib import var_int
 from btclib.block import (
@@ -45,6 +46,7 @@ from btclib.testing.strategies import BLOCK_HEADERS, BLOCKS
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import vendored_block
 from tests.conftest import JsonGolden
+from tests.secret_free import assert_secret_free
 
 
 def test_block_1() -> None:
@@ -214,6 +216,53 @@ def test_exceptions() -> None:
     header.nonce += 1
     with pytest.raises(BTClibValueError, match="invalid proof-of-work: "):
         header.assert_valid_pow()
+
+
+# a fixed random key's hex, as `assert_secret_free` asks
+_HEX = "34176afd21468a89b42fd5f67a6e2f3f590b9f3eb2af51fce1c37d5447ebb678"
+
+
+class _KeyTime(datetime):
+    """A time `timestamp()` cannot place, whose own text is a key's hex."""
+
+    @override
+    def timestamp(self) -> float:
+        raise OverflowError
+
+    @override
+    def isoformat(self, sep: str = "T", timespec: str = "auto") -> str:
+        return _HEX
+
+    @override
+    def __str__(self) -> str:
+        return _HEX
+
+    @override
+    def __format__(self, fmt: str) -> str:
+        return _HEX
+
+
+def test_an_unplaceable_time_is_written_as_a_plain_datetime() -> None:
+    """No method of a datetime subclass writes the refusal (issue #3143).
+
+    The overrides do answer, so a refusal reaching them would print the key.
+    """
+    time = _KeyTime(2020, 1, 1, tzinfo=UTC)
+    assert _HEX == str(time) == f"{time}" == time.isoformat(" ")
+
+    match = r"^invalid timestamp: 2020-01-01 00:00:00\+00:00$"
+    with pytest.raises(BTClibValueError, match=match) as err:
+        BlockHeader(1, bytes(32), bytes(32), time, "1d00ffff", 0)
+    assert_secret_free(err.value, [_HEX])
+
+    header = BlockHeader(1, bytes(32), bytes(32), datetime.now(UTC), "1d00ffff", 0)
+    header.time = time
+    with pytest.raises(BTClibValueError, match=match) as err:
+        header.serialize(check_validity=False)
+    assert_secret_free(err.value, [_HEX])
+    with pytest.raises(BTClibValueError, match=match) as err:
+        header.assert_valid_time(datetime.now(UTC))
+    assert_secret_free(err.value, [_HEX])
 
 
 def test_block_header_keywords() -> None:
