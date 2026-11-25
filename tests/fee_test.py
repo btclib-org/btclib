@@ -1096,15 +1096,26 @@ class _KeyStripping(str):
         raise ValueError(_HEX)
 
 
-class _KeyText:
-    """No str: its `__str__` returns a `_KeyStripping` of the text it holds."""
+class _KeyLength(str):
+    """A str whose own `__len__` raises an error holding a key's hex."""
 
-    def __init__(self, text: str) -> None:
+    __slots__ = ()
+
+    @override
+    def __len__(self) -> int:
+        raise ValueError(_HEX)
+
+
+class _KeyText:
+    """No str: its `__str__` returns a subclass of the text it holds."""
+
+    def __init__(self, text: str, kind: type[str] = _KeyStripping) -> None:
         self.text = text
+        self.kind = kind
 
     @override
     def __str__(self) -> str:
-        return _KeyStripping(self.text)
+        return self.kind(self.text)
 
 
 @pytest.mark.parametrize("round_up", [False, True])
@@ -1112,19 +1123,22 @@ def test_the_str_a_quote_writes_is_read_as_a_plain_str(round_up: bool) -> None:
     """No method of the str a `__str__` writes decides a rate (issue #3146)."""
     with pytest.raises(ValueError, match=_HEX):
         str(_KeyText("1")).strip()
+    with pytest.raises(ValueError, match=_HEX):
+        len(str(_KeyText("1", _KeyLength)))
 
-    rate = FeeRate.from_sats_per_vbyte(_KeyText(" 3\n"), round_up=round_up)
-    assert rate == FeeRate(sats_per_kvbyte=3000)
-    rate = FeeRate.from_btc_per_kvbyte(_KeyText("0.00003"), round_up=round_up)
-    assert rate == FeeRate(sats_per_kvbyte=3000)
-    match = r"^invalid sat/vB fee rate: a _KeyText$"
-    with pytest.raises(BTClibValueError, match=match) as err:
-        FeeRate.from_sats_per_vbyte(_KeyText("3x"), round_up=round_up)
-    assert_secret_free(err.value, [_HEX])
-    match = r"^invalid BTC(/kvB fee rate| amount): a _KeyText$"
-    with pytest.raises(BTClibValueError, match=match) as err:
-        FeeRate.from_btc_per_kvbyte(_KeyText("3x"), round_up=round_up)
-    assert_secret_free(err.value, [_HEX])
+    for kind in (_KeyStripping, _KeyLength):
+        rate = FeeRate.from_sats_per_vbyte(_KeyText(" 3\n", kind), round_up=round_up)
+        assert rate == FeeRate(sats_per_kvbyte=3000)
+        rate = FeeRate.from_btc_per_kvbyte(_KeyText("0.00003", kind), round_up=round_up)
+        assert rate == FeeRate(sats_per_kvbyte=3000)
+        match = r"^invalid sat/vB fee rate: a _KeyText$"
+        with pytest.raises(BTClibValueError, match=match) as err:
+            FeeRate.from_sats_per_vbyte(_KeyText("3x", kind), round_up=round_up)
+        assert_secret_free(err.value, [_HEX])
+        match = r"^invalid BTC(/kvB fee rate| amount): a _KeyText$"
+        with pytest.raises(BTClibValueError, match=match) as err:
+            FeeRate.from_btc_per_kvbyte(_KeyText("3x", kind), round_up=round_up)
+        assert_secret_free(err.value, [_HEX])
 
 
 class _UnsignedInt(int):

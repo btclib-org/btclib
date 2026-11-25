@@ -165,8 +165,9 @@ def _decimal_from_value(value: object, err_msg: str) -> Decimal:
         text = None
     if text is not None:
         # read as a plain str, so no method of the str a `__str__` returns
-        # runs (issue #3146)
-        text = _number_text(str.__str__(text), err_msg)
+        # runs, on CPython or PyPy (where `str.__str__` calls `__len__`,
+        # issue #3146)
+        text = _number_text(str.strip(text, ""), err_msg)
         with localcontext(_CONTEXT):
             try:
                 return Decimal(text)
