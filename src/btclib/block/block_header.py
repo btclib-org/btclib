@@ -97,8 +97,15 @@ def _timestamp_of(time: datetime) -> int:
         pass
     # written as str() writes a plain datetime, through datetime's own
     # isoformat: str(), format() and datetime.__str__ all call a
-    # subclass's own isoformat, whose text can be a key (issue #3143)
-    raise BTClibValueError(f"invalid timestamp: {datetime.isoformat(time, ' ')}")
+    # subclass's own isoformat, whose text can be a key (issue #3143).
+    # Guard isoformat too: it calls tzinfo.utcoffset(), whose error must
+    # neither escape nor be chained as context.
+    detail: str
+    try:
+        detail = datetime.isoformat(time, " ")
+    except Exception:  # noqa: BLE001
+        detail = _message_text(time)
+    raise BTClibValueError(f"invalid timestamp: {detail}")
 
 
 def _time_from_isoformat(time: Any) -> datetime:

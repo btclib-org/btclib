@@ -15,7 +15,7 @@ files verify themselves. tests/_data/README.md lists the heights, hashes
 and sizes.
 """
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone, tzinfo
 from pathlib import Path
 
 import pytest
@@ -255,6 +255,47 @@ def test_an_unplaceable_time_is_written_as_a_plain_datetime() -> None:
         BlockHeader(1, bytes(32), bytes(32), time, "1d00ffff", 0)
     assert_secret_free(err.value, [_HEX])
 
+    header = BlockHeader(1, bytes(32), bytes(32), datetime.now(UTC), "1d00ffff", 0)
+    header.time = time
+    with pytest.raises(BTClibValueError, match=match) as err:
+        header.serialize(check_validity=False)
+    assert_secret_free(err.value, [_HEX])
+    with pytest.raises(BTClibValueError, match=match) as err:
+        header.assert_valid_time(datetime.now(UTC))
+    assert_secret_free(err.value, [_HEX])
+
+
+class _BadTz(tzinfo):
+    """A timezone whose `utcoffset()` raises an error holding a key's hex."""
+
+    @override
+    def utcoffset(self, dt: datetime | None) -> timedelta | None:
+        raise ValueError(_HEX)
+
+    @override
+    def dst(self, dt: datetime | None) -> timedelta | None:
+        return None
+
+    @override
+    def tzname(self, dt: datetime | None) -> str | None:
+        return None
+
+
+class _BadTzTime(datetime):
+    """An unplaceable datetime whose `tzinfo.utcoffset()` raises a secret."""
+
+    @override
+    def timestamp(self) -> float:
+        raise OverflowError
+
+
+def test_an_unplaceable_time_with_failing_tz_is_refused_without_secret() -> None:
+    """A failing `tzinfo.utcoffset()` neither escapes nor chains."""
+    tz = _BadTz()
+    assert tz.dst(None) is None
+    assert tz.tzname(None) is None
+    time = _BadTzTime(2020, 1, 1, tzinfo=tz)
+    match = r"^invalid timestamp: a _BadTzTime$"
     header = BlockHeader(1, bytes(32), bytes(32), datetime.now(UTC), "1d00ffff", 0)
     header.time = time
     with pytest.raises(BTClibValueError, match=match) as err:
