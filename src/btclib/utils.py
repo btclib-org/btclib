@@ -367,7 +367,10 @@ def str_from_string(s: String, what: str) -> str:
     quotes it.
     """
     if _has_type(s, str):
-        return str.__str__(s)
+        # str's own strip reads the text as a plain str, so no method of
+        # a str subclass runs; not `str.__str__`, which can call that
+        # str's own `__len__` on PyPy 7.3 (issue #3180)
+        return str.strip(s, "")
 
     if not _has_type(s, (bytes, bytearray, memoryview)):
         # what is neither went through untouched, to fail on `len` or on

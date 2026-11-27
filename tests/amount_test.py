@@ -806,6 +806,22 @@ def test_the_str_a_btc_amount_writes_is_read_as_a_plain_str() -> None:
         assert_secret_free(err.value, _SECRETS)
 
 
+def test_a_sats_amount_str_length_does_not_escape() -> None:
+    """On PyPy 7.3, `str.__str__` can call a subclass `__len__` (#3180).
+
+    The override does answer, so a read reaching it would raise the key.
+    """
+    with pytest.raises(ValueError, match=_HEX):
+        len(_KeyLength("1"))
+
+    sats = valid_sats_amount(_KeyLength("1"))
+    assert sats == 1
+    assert type(sats) is int
+    with pytest.raises(BTClibValueError, match=r"^invalid satoshi amount: ") as err:
+        valid_sats_amount(_KeyLength("1x"))
+    assert_secret_free(err.value, _SECRETS)
+
+
 def test_a_bool_satoshi_amount_is_named_by_its_type() -> None:
     """A bool is described as `utils._message_text` describes it."""
     with pytest.raises(BTClibTypeError, match="^non-integer satoshi amount: a bool$"):

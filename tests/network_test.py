@@ -10,6 +10,7 @@ from typing import Any, get_args
 
 import pytest
 from ecc.curves.curve import CURVES
+from typing_extensions import override
 
 from btclib.alias import NetworkField, NetworkName
 from btclib.consensus import CONSENSUS_PARAMS
@@ -27,6 +28,7 @@ from btclib.network import (
     networks_from_key_value,
     networks_from_xkeyversion,
     normalized_network_name,
+    validated_network_name,
     xprvversions_from_network,
     xpubversion_from_xprvversion,
     xpubversions_from_network,
@@ -581,3 +583,31 @@ def test_a_network_name_is_stripped_of_ascii_whitespace_alone() -> None:
             assert normalized_network_name(name) == name
             with pytest.raises(BTClibValueError, match="^unknown network: "):
                 network_from_name(name)
+
+
+# a fixed random key's hex, as `assert_secret_free` asks
+_HEX_3180 = "34176afd21468a89b42fd5f67a6e2f3f590b9f3eb2af51fce1c37d5447ebb678"
+
+
+class _KeyLength(str):
+    """A str whose own `__len__` raises an error holding a key's hex."""
+
+    __slots__ = ()
+
+    @override
+    def __len__(self) -> int:
+        raise ValueError(_HEX_3180)
+
+
+def test_an_unknown_network_name_is_quoted_without_its_len() -> None:
+    """On PyPy 7.3, `str.__str__` can call a subclass `__len__` (#3180).
+
+    The override does answer, so a refusal reaching it would raise the key.
+    """
+    with pytest.raises(ValueError, match=_HEX_3180):
+        len(_KeyLength("nonesuch"))
+
+    assert validated_network_name(_KeyLength("mainnet")) == "mainnet"
+    with pytest.raises(BTClibValueError, match=r"^unknown network: 'nonesuch';") as err:
+        validated_network_name(_KeyLength("nonesuch"))
+    assert_secret_free(err.value, [_HEX_3180])
