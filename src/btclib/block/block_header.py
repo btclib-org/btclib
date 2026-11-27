@@ -74,6 +74,33 @@ def _assert_valid_version(value: int) -> None:
         raise BTClibValueError(f"invalid version: {_message_text(value)}")
 
 
+def _is_naive(time: datetime) -> bool:
+    """Return whether a time has no time zone, or refuse a failing tzinfo.
+
+    `tzinfo.utcoffset()` can raise, a TypeError holding a key among the
+    errors: that must neither escape nor be chained as context
+    (issue #3182). Raised after the `except` block.
+    """
+    tz = time.tzinfo
+    if tz is None:
+        return True
+    try:
+        offset = tz.utcoffset(time)
+    except Exception:  # noqa: BLE001
+        failed = True
+        offset = None
+    else:
+        failed = False
+    if not failed:
+        return offset is None
+    detail: str
+    try:
+        detail = datetime.isoformat(time, " ")
+    except Exception:  # noqa: BLE001
+        detail = _message_text(time)
+    raise BTClibValueError(f"invalid timestamp: {detail}")
+
+
 def _timestamp_of(time: datetime) -> int:
     """Return the whole seconds of a header's time, or refuse it.
 
@@ -81,9 +108,10 @@ def _timestamp_of(time: datetime) -> int:
     ValueError, OverflowError or OSError for a time it cannot place: a
     naive `datetime.min`, whose local-time conversion reaches before year
     1 in every time zone, a naive `datetime.max` east of UTC, and a naive
-    time before 1970 on Windows (OSError). None is an exception the
-    library promises, so all three are a `BTClibValueError`; a time of
-    another type is a `BTClibTypeError`.
+    time before 1970 on Windows (OSError). A TypeError from a subclass's
+    own `timestamp()` is refused the same way (issue #3182). None of these
+    is an exception the library promises, so each is a `BTClibValueError`;
+    a time of another type is a `BTClibTypeError`.
 
     The refusal is raised after the `except` block, neither chained nor
     left as context: a subclass's own `timestamp()` can raise an error
@@ -93,7 +121,7 @@ def _timestamp_of(time: datetime) -> int:
     assert_type(time, datetime, "timestamp")
     try:
         return int(time.timestamp())
-    except (OSError, OverflowError, ValueError):
+    except (OSError, OverflowError, TypeError, ValueError):
         pass
     # a plain datetime's text, through datetime's own isoformat: str()
     # and format() call a subclass's own __str__ and __format__, and
@@ -368,7 +396,7 @@ class BlockHeader:
         # AttributeError, which is neither a ValueError nor a TypeError
         # and so is caught by nothing this library tells a caller to catch
         assert_type(now, datetime, "current time")
-        if now.tzinfo is None or now.tzinfo.utcoffset(now) is None:
+        if _is_naive(now):
             raise BTClibValueError(f"naive current time (no time zone): {now}")
 
         # int(), as assert_valid does and for the same reason: it is the
@@ -427,7 +455,7 @@ class BlockHeader:
         # a naive datetime has no instant attached to it: timestamp()
         # would assume the local time zone, so both this check and the
         # serialization would depend on the machine
-        if self.time.tzinfo is None or self.time.tzinfo.utcoffset(self.time) is None:
+        if _is_naive(self.time):
             err_msg = f"naive timestamp (no time zone): {self.time}"
             raise BTClibValueError(err_msg)
 
