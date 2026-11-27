@@ -942,7 +942,7 @@ def test_a_sats_amount_s_own_error_is_not_chained(
 def test_a_refused_str_sats_amount_carries_no_secret(amount: str) -> None:
     """A str refused as a satoshi amount is described, not quoted (issue #3168).
 
-    The hex is no number, and the decimal is one above the cap.
+    The hex is no number, and the decimal is a number above the cap.
     """
     with pytest.raises(BTClibValueError, match=r"^invalid satoshi amount: ") as err:
         valid_sats_amount(amount)
