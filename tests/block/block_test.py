@@ -306,6 +306,85 @@ def test_an_unplaceable_time_with_failing_tz_is_refused_without_secret() -> None
     assert_secret_free(err.value, [_HEX])
 
 
+class _TypeErrorTz(tzinfo):
+    """A timezone whose `utcoffset()` raises TypeError holding a key's hex."""
+
+    @override
+    def utcoffset(self, dt: datetime | None) -> timedelta | None:
+        raise TypeError(_HEX)
+
+    @override
+    def dst(self, dt: datetime | None) -> timedelta | None:
+        return None
+
+    @override
+    def tzname(self, dt: datetime | None) -> str | None:
+        return None
+
+
+class _TypeErrorTime(datetime):
+    """A datetime whose `timestamp()` raises TypeError holding a key's hex."""
+
+    @override
+    def timestamp(self) -> float:
+        raise TypeError(_HEX)
+
+
+def test_a_failing_utcoffset_or_timestamp_typeerror_is_a_refusal() -> None:
+    """Neither leaves the constructor, serialize or assert_valid_time.
+
+    Issue #3182.
+    """
+    tz = _TypeErrorTz()
+    assert tz.dst(None) is None
+    assert tz.tzname(None) is None
+
+    header = BlockHeader(1, bytes(32), bytes(32), datetime.now(UTC), "1d00ffff", 0)
+    header.time = datetime(2020, 1, 1, tzinfo=_BadTz())
+    with pytest.raises(BTClibValueError) as err:
+        header.assert_valid()
+    assert_secret_free(err.value, [_HEX])
+
+    header.time = datetime(2020, 1, 1, tzinfo=tz)
+    with pytest.raises(BTClibValueError) as err:
+        header.assert_valid()
+    assert_secret_free(err.value, [_HEX])
+    with pytest.raises(BTClibValueError) as err:
+        header.serialize()
+    assert_secret_free(err.value, [_HEX])
+
+    now = datetime(2020, 1, 1, tzinfo=tz)
+    header.time = datetime(2020, 1, 1, tzinfo=UTC)
+    with pytest.raises(BTClibValueError) as err:
+        header.assert_valid_time(now)
+    assert_secret_free(err.value, [_HEX])
+
+    time = _TypeErrorTime(2020, 1, 1, tzinfo=UTC)
+    with pytest.raises(
+        BTClibValueError, match=r"^invalid timestamp: 2020-01-01 00:00:00\+00:00$"
+    ) as err:
+        BlockHeader(1, bytes(32), bytes(32), time, "1d00ffff", 0)
+    assert_secret_free(err.value, [_HEX])
+
+    header = BlockHeader(1, bytes(32), bytes(32), datetime.now(UTC), "1d00ffff", 0)
+    header.time = time
+    with pytest.raises(
+        BTClibValueError, match=r"^invalid timestamp: 2020-01-01 00:00:00\+00:00$"
+    ) as err:
+        header.serialize(check_validity=False)
+    assert_secret_free(err.value, [_HEX])
+    with pytest.raises(
+        BTClibValueError, match=r"^invalid timestamp: 2020-01-01 00:00:00\+00:00$"
+    ) as err:
+        header.assert_valid_time(datetime.now(UTC))
+    assert_secret_free(err.value, [_HEX])
+    with pytest.raises(
+        BTClibValueError, match=r"^invalid timestamp: 2020-01-01 00:00:00\+00:00$"
+    ) as err:
+        header.assert_valid()
+    assert_secret_free(err.value, [_HEX])
+
+
 def test_block_header_keywords() -> None:
     """Test that every BlockHeader field is a valid keyword argument."""
     fname = "block_1.bin"
