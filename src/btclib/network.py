@@ -644,7 +644,9 @@ def validated_network_name(network: str) -> str:
         # to be a typo of a real one is quoted; its length and its text
         # are read with str's own methods, which a subclass cannot rewrite
         if str.__len__(network) <= _MAX_QUOTED_NAME_LENGTH:
-            err_msg = f"unknown network: '{str.__str__(network)}'"
+            # str's own strip, not `str.__str__`, for the reason
+            # `utils.str_from_string` gives (issue #3180)
+            err_msg = f"unknown network: '{str.strip(network, '')}'"
         else:
             err_msg = "unknown network (too long to quote)"
         err_msg += f"; it must be one of {sorted(NETWORKS)}"

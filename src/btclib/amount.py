@@ -304,7 +304,10 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     text = amount
     if _has_type(amount, str):
         err_msg = f"invalid satoshi amount: {_message_text(amount)}"
-        text = _number_text(str.__str__(amount), err_msg)
+        # str's own strip reads the amount as a plain str, so no method
+        # of a str subclass runs; not `str.__str__`, which can call that
+        # str's own `__len__` on PyPy 7.3 (issue #3180)
+        text = _number_text(str.strip(amount, ""), err_msg)
     # any input that can be converted to int is fine -- and int() refuses
     # what it cannot convert with a bare ValueError ("abc", b"\x01"), a
     # bare TypeError (a list), or a bare OverflowError (an infinity, where

@@ -971,3 +971,32 @@ def test_an_int_subclass_out_size_is_read_as_its_plain_int() -> None:
     with pytest.raises(BTClibValueError, match="invalid size: 1 bytes instead of 5"):
         bytes_from_octets(b"\x01", [AlwaysEqual(5)])
     assert bytes_from_octets(b"\x01", AlwaysEqual(1)) == b"\x01"
+
+
+# a fixed random key's hex, as `assert_secret_free` asks
+_HEX_3180 = "34176afd21468a89b42fd5f67a6e2f3f590b9f3eb2af51fce1c37d5447ebb678"
+
+
+class _KeyLength(str):
+    """A str whose own `__len__` raises an error holding a key's hex."""
+
+    __slots__ = ()
+
+    @override
+    def __len__(self) -> int:
+        raise ValueError(_HEX_3180)
+
+
+def test_str_from_string_reads_a_str_without_its_len() -> None:
+    """On PyPy 7.3, `str.__str__` can call a subclass `__len__` (#3180).
+
+    The override does answer, so a read reaching it would raise the key.
+    `str_from_string` has no refusal for a well-formed str, so the test
+    holds the returned text and that no error carrying the key is raised.
+    """
+    with pytest.raises(ValueError, match=_HEX_3180):
+        len(_KeyLength("abc"))
+
+    text = str_from_string(_KeyLength("abc"), "address")
+    assert text == "abc"
+    assert type(text) is str
