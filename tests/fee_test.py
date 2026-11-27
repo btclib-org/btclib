@@ -1106,6 +1106,16 @@ class _KeyLength(str):
         raise ValueError(_HEX)
 
 
+class _KeyWriting(str):
+    """A str whose own `__str__` raises an error holding a key's hex."""
+
+    __slots__ = ()
+
+    @override
+    def __str__(self) -> str:
+        raise ValueError(_HEX)
+
+
 class _KeyText:
     """No str: its `__str__` returns a subclass of the text it holds."""
 
@@ -1125,8 +1135,10 @@ def test_the_str_a_quote_writes_is_read_as_a_plain_str(round_up: bool) -> None:
         str(_KeyText("1")).strip()
     with pytest.raises(ValueError, match=_HEX):
         len(str(_KeyText("1", _KeyLength)))
+    with pytest.raises(ValueError, match=_HEX):
+        str(_KeyWriting("1"))
 
-    for kind in (_KeyStripping, _KeyLength):
+    for kind in (_KeyStripping, _KeyLength, _KeyWriting):
         rate = FeeRate.from_sats_per_vbyte(_KeyText(" 3\n", kind), round_up=round_up)
         assert rate == FeeRate(sats_per_kvbyte=3000)
         rate = FeeRate.from_btc_per_kvbyte(_KeyText("0.00003", kind), round_up=round_up)

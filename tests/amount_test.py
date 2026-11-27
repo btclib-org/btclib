@@ -758,6 +758,16 @@ class _KeyLength(str):
         raise ValueError(_HEX)
 
 
+class _KeyWriting(str):
+    """A str whose own `__str__` raises an error holding a key's hex."""
+
+    __slots__ = ()
+
+    @override
+    def __str__(self) -> str:
+        raise ValueError(_HEX)
+
+
 class _KeyText:
     """No str: its `__str__` returns a subclass of the text it holds."""
 
@@ -779,8 +789,10 @@ def test_the_str_a_btc_amount_writes_is_read_as_a_plain_str() -> None:
         str(_KeyText("1")).strip()
     with pytest.raises(ValueError, match=_HEX):
         len(str(_KeyText("1", _KeyLength)))
+    with pytest.raises(ValueError, match=_HEX):
+        str(_KeyWriting("1"))
 
-    for kind in (_KeyStripping, _KeyLength):
+    for kind in (_KeyStripping, _KeyLength, _KeyWriting):
         btc = valid_btc_amount(_KeyText(" 1\n", kind))
         assert btc == 1
         assert type(btc) is Decimal
