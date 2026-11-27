@@ -33,6 +33,7 @@ from io import BytesIO
 from typing import NoReturn
 
 from btclib.alias import ScriptList
+from btclib.consensus import MAX_BLOCK_WEIGHT
 from btclib.exceptions import (
     BTClibTypeError,
     BTClibValueError,
@@ -372,6 +373,14 @@ def _assert_minimal_if(
     if stack[-1] not in {b"", b"\x01"}:
         err_msg = f"non-minimal {op} condition of {_length_text(stack[-1])} bytes"
         raise ScriptError(err_msg, code)
+
+
+# A branch is opened by an OP_IF or OP_NOTIF, one byte of a script, and
+# a script's bytes weigh at least one unit each of a transaction no
+# heavier than a block: no script a block holds opens more branches
+# than this. A deeper `ConditionStack` is a caller's: its `_size` set, or
+# a script no block holds handed to the engine (issue #3149)
+_MAX_CONDITION_DEPTH = MAX_BLOCK_WEIGHT
 
 
 class ConditionStack:

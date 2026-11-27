@@ -33,6 +33,7 @@ from typing_extensions import TypeIs, override
 
 from btclib.block import Block
 from btclib.block.block_filter import BasicBlockFilter
+from btclib.consensus import MAX_BLOCK_WEIGHT
 from btclib.exceptions import (
     BTClibTypeError,
     BTClibValueError,
@@ -44,7 +45,7 @@ from btclib.network import xpubversion_from_xprvversion
 from btclib.p2p.message import Message, _command_from_bytes
 from btclib.script.engine.flags import NO_FLAGS
 from btclib.script.engine.script import verify_script
-from btclib.script.engine.script_op_codes import ConditionStack
+from btclib.script.engine.script_op_codes import ConditionStack, assert_balanced_if
 from btclib.script.engine.tapscript import verify_script_path_vc0
 from btclib.script.taproot import tree_from_weights, tree_helper
 from btclib.testing.blocks import read_bytes
@@ -135,6 +136,43 @@ def _holding_no_int() -> ConditionStack:
     return stack
 
 
+def _deeper_than_a_script() -> ConditionStack:
+    """Return a `ConditionStack` whose depth a caller set to `_LONG`."""
+    stack = ConditionStack()
+    object.__setattr__(stack, "_size", _LONG)
+    return stack
+
+
+def _as_deep_as_a_script() -> ConditionStack:
+    """Return a `ConditionStack` at the bound `_MAX_CONDITION_DEPTH` gives."""
+    stack = ConditionStack()
+    object.__setattr__(stack, "_size", MAX_BLOCK_WEIGHT)
+    return stack
+
+
+def _one_past_a_script() -> ConditionStack:
+    """Return a `ConditionStack` one deeper than that bound."""
+    stack = ConditionStack()
+    object.__setattr__(stack, "_size", MAX_BLOCK_WEIGHT + 1)
+    return stack
+
+
+class _AlwaysOpen(ConditionStack):
+    """A `ConditionStack` that reads as open whatever its depth."""
+
+    __slots__ = ()
+
+    def __bool__(self) -> bool:
+        return True
+
+
+def _below_zero(kind: type[ConditionStack] = ConditionStack) -> ConditionStack:
+    """Return a `ConditionStack` whose depth a caller set to `-_LONG`."""
+    stack = kind()
+    object.__setattr__(stack, "_size", -_LONG)
+    return stack
+
+
 @pytest.mark.parametrize(
     "value, text",
     [
@@ -145,6 +183,10 @@ def _holding_no_int() -> ConditionStack:
         (deque([1, 2]), "2"),
         (_two_open(), "2"),
         (_holding_no_int(), "?"),
+        (_as_deep_as_a_script(), str(MAX_BLOCK_WEIGHT)),
+        (_deeper_than_a_script(), "?"),
+        (_one_past_a_script(), "?"),
+        (_below_zero(), "?"),
         (_LongDeque([1]), "1"),
         (_LongSequence(), "?"),
         (_RaisingSized(), "?"),
@@ -159,6 +201,10 @@ def _holding_no_int() -> ConditionStack:
         "deque",
         "ConditionStack",
         "ConditionStack holding no int",
+        "ConditionStack as deep as a script",
+        "ConditionStack deeper than a script",
+        "ConditionStack one past the bound",
+        "ConditionStack below zero",
         "deque subclass",
         "sequence of no built-in type",
         "raising sized",
@@ -304,6 +350,18 @@ _REFUSALS: list[tuple[str, Callable[[], object], type[Exception], str]] = [
         ),
         ScriptError,
         "OP_RETURN (command 0, stack depth 1)",
+    ),
+    (
+        "unbalanced conditional, a depth no script reaches",
+        lambda: assert_balanced_if(_deeper_than_a_script()),
+        ScriptError,
+        "unbalanced conditional: ? left open",
+    ),
+    (
+        "unbalanced conditional, a depth below zero",
+        lambda: assert_balanced_if(_below_zero(_AlwaysOpen)),
+        ScriptError,
+        "unbalanced conditional: ? left open",
     ),
     (
         "inputs a block spends, long __len__",
