@@ -74,6 +74,20 @@ def _assert_valid_version(value: int) -> None:
         raise BTClibValueError(f"invalid version: {_message_text(value)}")
 
 
+def _time_text(time: datetime) -> str:
+    """Return a datetime's text for a refusal's message, never raising.
+
+    datetime's own isoformat, not str() or format() or a subclass's
+    isoformat, for the reason `_timestamp_of` gives (issue #3181). Guarded,
+    because isoformat asks `tzinfo.utcoffset()`, whose error must neither
+    escape nor be chained as context.
+    """
+    try:
+        return datetime.isoformat(time, " ")
+    except Exception:  # noqa: BLE001
+        return _message_text(time)
+
+
 def _timestamp_of(time: datetime) -> int:
     """Return the whole seconds of a header's time, or refuse it.
 
@@ -95,19 +109,8 @@ def _timestamp_of(time: datetime) -> int:
         return int(time.timestamp())
     except (OSError, OverflowError, ValueError):
         pass
-    # a plain datetime's text, through datetime's own isoformat: str()
-    # and format() call a subclass's own __str__ and __format__, and
-    # datetime.__str__ its own isoformat, any of which can answer a key
-    # (issue #3143). On PyPy, isoformat calls the subclass's own
-    # utcoffset (issue #3183).
-    # Guard isoformat too: it calls tzinfo.utcoffset(), whose error must
-    # neither escape nor be chained as context.
-    detail: str
-    try:
-        detail = datetime.isoformat(time, " ")
-    except Exception:  # noqa: BLE001
-        detail = _message_text(time)
-    raise BTClibValueError(f"invalid timestamp: {detail}")
+    # a plain datetime's text, through `_time_text` (issue #3143)
+    raise BTClibValueError(f"invalid timestamp: {_time_text(time)}")
 
 
 def _time_from_isoformat(time: Any) -> datetime:
@@ -369,7 +372,9 @@ class BlockHeader:
         # and so is caught by nothing this library tells a caller to catch
         assert_type(now, datetime, "current time")
         if now.tzinfo is None or now.tzinfo.utcoffset(now) is None:
-            raise BTClibValueError(f"naive current time (no time zone): {now}")
+            raise BTClibValueError(
+                f"naive current time (no time zone): {_time_text(now)}"
+            )
 
         # int(), as assert_valid does and for the same reason: it is the
         # value the four bytes hold, so a header carrying a fraction of a
@@ -377,8 +382,10 @@ class BlockHeader:
         # fraction of `now`, which is where Core keeps it too -- its clock
         # is finer than a second and the comparison is in the finer unit
         if _timestamp_of(self.time) > now.timestamp() + MAX_FUTURE_BLOCK_TIME:
-            err_msg = f"invalid timestamp (too far in the future): {self.time}"
-            err_msg += f" > {now} + {MAX_FUTURE_BLOCK_TIME} seconds"
+            err_msg = (
+                f"invalid timestamp (too far in the future): {_time_text(self.time)}"
+            )
+            err_msg += f" > {_time_text(now)} + {MAX_FUTURE_BLOCK_TIME} seconds"
             raise BTClibValueError(err_msg)
 
     def _assert_valid_types(self) -> None:
@@ -428,7 +435,7 @@ class BlockHeader:
         # would assume the local time zone, so both this check and the
         # serialization would depend on the machine
         if self.time.tzinfo is None or self.time.tzinfo.utcoffset(self.time) is None:
-            err_msg = f"naive timestamp (no time zone): {self.time}"
+            err_msg = f"naive timestamp (no time zone): {_time_text(self.time)}"
             raise BTClibValueError(err_msg)
 
         # int(), because that is the value serialize writes: timestamp()
@@ -443,7 +450,7 @@ class BlockHeader:
             # self.time, not `fromtimestamp(timestamp, UTC)`: that raises
             # ValueError for an aware `datetime.min` east of UTC, whose
             # instant is before year 1
-            err_msg += f": {self.time}"
+            err_msg += f": {_time_text(self.time)}"
             raise BTClibValueError(err_msg)
 
         # the header field is four unsigned bytes, so 2106-02-07 06:28:15Z
@@ -460,7 +467,7 @@ class BlockHeader:
         # exception this check exists to replace
         if timestamp > 0xFFFFFFFF:
             err_msg = "invalid timestamp (after the last 4-bytes instant)"
-            err_msg += f": {self.time}"
+            err_msg += f": {_time_text(self.time)}"
             raise BTClibValueError(err_msg)
 
         for key, size in _KEY_SIZE:

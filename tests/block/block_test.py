@@ -32,6 +32,7 @@ from btclib.block import (
 from btclib.block.limits import (
     MAX_BLOCK_SIGOPS_COST,
     MAX_BLOCK_WEIGHT,
+    MAX_FUTURE_BLOCK_TIME,
     MIN_SERIALIZABLE_TRANSACTION_WEIGHT,
     WITNESS_SCALE_FACTOR,
 )
@@ -303,6 +304,83 @@ def test_an_unplaceable_time_with_failing_tz_is_refused_without_secret() -> None
     assert_secret_free(err.value, [_HEX])
     with pytest.raises(BTClibValueError, match=match) as err:
         header.assert_valid_time(datetime.now(UTC))
+    assert_secret_free(err.value, [_HEX])
+
+
+class _KeyTextTime(datetime):
+    """A placeable time whose own text is a key's hex."""
+
+    @override
+    def isoformat(self, sep: str = "T", timespec: str = "auto") -> str:
+        return _HEX
+
+    @override
+    def __str__(self) -> str:
+        return _HEX
+
+    @override
+    def __format__(self, fmt: str) -> str:
+        return _HEX
+
+
+def _header_at(time: datetime) -> BlockHeader:
+    header = BlockHeader(1, bytes(32), bytes(32), datetime.now(UTC), "1d00ffff", 0)
+    header.time = time
+    return header
+
+
+def test_other_header_time_refusals_write_a_plain_datetime() -> None:
+    """No method of a datetime subclass writes these refusals (issue #3181).
+
+    The overrides do answer, so a refusal reaching them would print the key.
+    """
+    naive = _KeyTextTime(2020, 1, 1)
+    aware = _KeyTextTime(2020, 1, 1, tzinfo=UTC)
+    assert _HEX == str(aware) == f"{aware}" == aware.isoformat(" ")
+
+    header = _header_at(datetime.now(UTC))
+    with pytest.raises(
+        BTClibValueError,
+        match=r"^naive current time \(no time zone\): 2020-01-01 00:00:00$",
+    ) as err:
+        header.assert_valid_time(naive)
+    assert_secret_free(err.value, [_HEX])
+
+    later = _KeyTextTime(2020, 1, 1, 2, 0, 1, tzinfo=UTC)
+    now = _KeyTextTime(2020, 1, 1, tzinfo=UTC)
+    header = _header_at(later)
+    future = (
+        r"^invalid timestamp \(too far in the future\): "
+        r"2020-01-01 02:00:01\+00:00 > 2020-01-01 00:00:00\+00:00"
+        rf" \+ {MAX_FUTURE_BLOCK_TIME} seconds$"
+    )
+    with pytest.raises(BTClibValueError, match=future) as err:
+        header.assert_valid_time(now)
+    assert_secret_free(err.value, [_HEX])
+
+    header = _header_at(naive)
+    with pytest.raises(
+        BTClibValueError,
+        match=r"^naive timestamp \(no time zone\): 2020-01-01 00:00:00$",
+    ) as err:
+        header.assert_valid()
+    assert_secret_free(err.value, [_HEX])
+
+    header = _header_at(_KeyTextTime(2008, 1, 1, tzinfo=UTC))
+    with pytest.raises(
+        BTClibValueError,
+        match=r"^invalid timestamp \(before genesis\): 2008-01-01 00:00:00\+00:00$",
+    ) as err:
+        header.assert_valid()
+    assert_secret_free(err.value, [_HEX])
+
+    header = _header_at(_KeyTextTime(2106, 2, 7, 6, 28, 16, tzinfo=UTC))
+    with pytest.raises(
+        BTClibValueError,
+        match=r"^invalid timestamp \(after the last 4-bytes instant\): "
+        r"2106-02-07 06:28:16\+00:00$",
+    ) as err:
+        header.assert_valid()
     assert_secret_free(err.value, [_HEX])
 
 
