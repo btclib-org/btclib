@@ -95,9 +95,11 @@ def _timestamp_of(time: datetime) -> int:
         return int(time.timestamp())
     except (OSError, OverflowError, ValueError):
         pass
-    # written as str() writes a plain datetime, through datetime's own
-    # isoformat: str(), format() and datetime.__str__ all call a
-    # subclass's own isoformat, whose text can be a key (issue #3143).
+    # a plain datetime's text, through datetime's own isoformat: str()
+    # and format() call a subclass's own __str__ and __format__, and
+    # datetime.__str__ its own isoformat, any of which can answer a key
+    # (issue #3143). On PyPy, isoformat calls the subclass's own
+    # utcoffset (issue #3183).
     # Guard isoformat too: it calls tzinfo.utcoffset(), whose error must
     # neither escape nor be chained as context.
     detail: str

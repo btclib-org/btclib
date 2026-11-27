@@ -270,7 +270,7 @@ class _BadTz(tzinfo):
 
     @override
     def utcoffset(self, dt: datetime | None) -> timedelta | None:
-        raise ValueError(_HEX)
+        raise RuntimeError(_HEX)
 
     @override
     def dst(self, dt: datetime | None) -> timedelta | None:
