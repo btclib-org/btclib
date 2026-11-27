@@ -377,8 +377,9 @@ def _assert_minimal_if(
 
 # A branch is opened by an OP_IF or OP_NOTIF, one byte of a script, and
 # a script's bytes weigh at least one unit each of a transaction no
-# heavier than a block: no script opens more branches than this, so a
-# deeper `ConditionStack` is one whose `_size` a caller set (issue #3149)
+# heavier than a block: no script a block holds opens more branches
+# than this. A deeper `ConditionStack` is a caller's: its `_size` set, or
+# a script no block holds handed to the engine (issue #3149)
 _MAX_CONDITION_DEPTH = MAX_BLOCK_WEIGHT
 
 

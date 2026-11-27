@@ -607,8 +607,9 @@ def _length_text(value: object) -> str:
     A value of one of `_SIZED` is measured by `_length`, and a deque or a
     `ConditionStack` by `deque`'s or `ConditionStack`'s own `__len__`, so
     a `__len__` that a subclass of one of them defines decides nothing.
-    A `ConditionStack` deeper than any script opens is written "?": its
-    own `__len__` returns `_size`, which a caller can set to any int.
+    A `ConditionStack` below zero, or deeper than `_MAX_CONDITION_DEPTH`,
+    is written "?": its own `__len__` returns `_size`, which a caller can
+    set to any int.
     Any other value is written "?": its class may be a caller's, whose
     `__len__` can answer any number or raise. So is a length that cannot
     be measured, as that of a released memoryview.
@@ -628,8 +629,10 @@ def _length_text(value: object) -> str:
                 text = int.__repr__(depth)
             except Exception:  # noqa: BLE001
                 return "?"
-            # int's own comparison, for the reason _int_description gives
-            if kind is ConditionStack and int.__gt__(depth, _MAX_CONDITION_DEPTH):
+            # int's own comparisons, for the reason _int_description gives
+            if kind is ConditionStack and (
+                int.__lt__(depth, 0) or int.__gt__(depth, _MAX_CONDITION_DEPTH)
+            ):
                 return "?"
             return text
     length = _length(value)

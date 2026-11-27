@@ -144,9 +144,32 @@ def _deeper_than_a_script() -> ConditionStack:
 
 
 def _as_deep_as_a_script() -> ConditionStack:
-    """Return a `ConditionStack` as deep as a script can open."""
+    """Return a `ConditionStack` at the bound `_MAX_CONDITION_DEPTH` gives."""
     stack = ConditionStack()
     object.__setattr__(stack, "_size", MAX_BLOCK_WEIGHT)
+    return stack
+
+
+def _one_past_a_script() -> ConditionStack:
+    """Return a `ConditionStack` one deeper than that bound."""
+    stack = ConditionStack()
+    object.__setattr__(stack, "_size", MAX_BLOCK_WEIGHT + 1)
+    return stack
+
+
+class _AlwaysOpen(ConditionStack):
+    """A `ConditionStack` that reads as open whatever its depth."""
+
+    __slots__ = ()
+
+    def __bool__(self) -> bool:
+        return True
+
+
+def _below_zero(kind: type[ConditionStack] = ConditionStack) -> ConditionStack:
+    """Return a `ConditionStack` whose depth a caller set to `-_LONG`."""
+    stack = kind()
+    object.__setattr__(stack, "_size", -_LONG)
     return stack
 
 
@@ -162,6 +185,8 @@ def _as_deep_as_a_script() -> ConditionStack:
         (_holding_no_int(), "?"),
         (_as_deep_as_a_script(), str(MAX_BLOCK_WEIGHT)),
         (_deeper_than_a_script(), "?"),
+        (_one_past_a_script(), "?"),
+        (_below_zero(), "?"),
         (_LongDeque([1]), "1"),
         (_LongSequence(), "?"),
         (_RaisingSized(), "?"),
@@ -178,6 +203,8 @@ def _as_deep_as_a_script() -> ConditionStack:
         "ConditionStack holding no int",
         "ConditionStack as deep as a script",
         "ConditionStack deeper than a script",
+        "ConditionStack one past the bound",
+        "ConditionStack below zero",
         "deque subclass",
         "sequence of no built-in type",
         "raising sized",
@@ -327,6 +354,12 @@ _REFUSALS: list[tuple[str, Callable[[], object], type[Exception], str]] = [
     (
         "unbalanced conditional, a depth no script reaches",
         lambda: assert_balanced_if(_deeper_than_a_script()),
+        ScriptError,
+        "unbalanced conditional: ? left open",
+    ),
+    (
+        "unbalanced conditional, a depth below zero",
+        lambda: assert_balanced_if(_below_zero(_AlwaysOpen)),
         ScriptError,
         "unbalanced conditional: ? left open",
     ),
