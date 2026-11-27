@@ -748,6 +748,64 @@ def test_a_value_whose_str_raises_is_refused_in_kind() -> None:
         valid_sats_amount(_Unwritable())
 
 
+class _KeyLength(str):
+    """A str whose own `__len__` raises an error holding a key's hex."""
+
+    __slots__ = ()
+
+    @override
+    def __len__(self) -> int:
+        raise ValueError(_HEX)
+
+
+class _KeyWriting(str):
+    """A str whose own `__str__` raises an error holding a key's hex."""
+
+    __slots__ = ()
+
+    @override
+    def __str__(self) -> str:
+        raise ValueError(_HEX)
+
+
+class _KeyText:
+    """No str: its `__str__` returns a subclass of the text it holds."""
+
+    def __init__(self, text: str, kind: type[str] = _KeyStripping) -> None:
+        self.text = text
+        self.kind = kind
+
+    @override
+    def __str__(self) -> str:
+        return self.kind(self.text)
+
+
+def test_the_str_a_btc_amount_writes_is_read_as_a_plain_str() -> None:
+    """No method of the str a `__str__` writes decides the amount (issue #3146).
+
+    The overrides do answer, so a read reaching them would raise the key.
+    """
+    with pytest.raises(ValueError, match=_HEX):
+        str(_KeyText("1")).strip()
+    with pytest.raises(ValueError, match=_HEX):
+        len(str(_KeyText("1", _KeyLength)))
+    with pytest.raises(ValueError, match=_HEX):
+        str(_KeyWriting("1"))
+
+    for kind in (_KeyStripping, _KeyLength, _KeyWriting):
+        btc = valid_btc_amount(_KeyText(" 1\n", kind))
+        assert btc == 1
+        assert type(btc) is Decimal
+        assert sats_from_btc(_KeyText("1", kind)) == 100_000_000  # type: ignore[arg-type]
+        match = r"^invalid BTC amount: a _KeyText$"
+        with pytest.raises(BTClibValueError, match=match) as err:
+            valid_btc_amount(_KeyText("1x", kind))
+        assert_secret_free(err.value, _SECRETS)
+        with pytest.raises(BTClibValueError, match=match) as err:
+            sats_from_btc(_KeyText("1x", kind))  # type: ignore[arg-type]
+        assert_secret_free(err.value, _SECRETS)
+
+
 def test_a_bool_satoshi_amount_is_named_by_its_type() -> None:
     """A bool is described as `utils._message_text` describes it."""
     with pytest.raises(BTClibTypeError, match="^non-integer satoshi amount: a bool$"):

@@ -164,7 +164,10 @@ def _decimal_from_value(value: object, err_msg: str) -> Decimal:
     except Exception:  # noqa: BLE001
         text = None
     if text is not None:
-        text = _number_text(text, err_msg)
+        # str's own strip reads the text as a plain str, so no method of
+        # the str a `__str__` returns runs (issue #3146). Not
+        # `str.__str__`, which can call that str's own `__len__` on PyPy
+        text = _number_text(str.strip(text, ""), err_msg)
         with localcontext(_CONTEXT):
             try:
                 return Decimal(text)
